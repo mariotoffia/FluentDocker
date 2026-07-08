@@ -415,13 +415,31 @@ namespace FluentDocker.Tests.CoreTests.Common
     {
       // Arrange
       var context = new ErrorContext("Test");
-      var response = CommandResponse<int>.Fail("error", "ERR_001", context);
+      var response = CommandResponse<int>.Fail("error", "ERR_001", context, output: "driver output");
 
       // Act
-      response.EnrichContext(ctx => ctx.WithDriverId("docker"));
+      var enriched = response.EnrichContext(ctx => ctx.WithDriverId("docker"));
 
       // Assert
+      Assert.Same(response, enriched);
       Assert.Equal("docker", response.ErrorContext.DriverId);
+      Assert.Equal("driver output", enriched.Output);
+    }
+
+    [Fact]
+    public void EnrichContext_OnFailureWithoutContext_CreatesContextAndPreservesOutput()
+    {
+      // Arrange
+      var response = CommandResponse<int>.Fail("error", "ERR_001", exitCode: 7, output: "driver output");
+
+      // Act
+      var enriched = response.EnrichContext(ctx => ctx.WithDriverId("docker"));
+
+      // Assert
+      Assert.NotSame(response, enriched);
+      Assert.Equal("docker", enriched.ErrorContext!.DriverId);
+      Assert.Equal("driver output", enriched.Output);
+      Assert.Equal(7, enriched.ExitCode);
     }
 
     [Fact]

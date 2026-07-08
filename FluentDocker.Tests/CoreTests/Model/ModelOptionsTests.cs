@@ -1,3 +1,4 @@
+using System;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Options;
 using Xunit;
@@ -43,23 +44,44 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void ModelConfigureOptions_Settable()
+    public void ModelRunOptions_InvalidContextSize_Throws()
+    {
+      Assert.Throws<ArgumentOutOfRangeException>(() => new ModelRunOptions { ContextSize = 0 });
+    }
+
+    [Fact]
+    public void ModelConfigureOptions_ContextSize_Settable()
     {
       var o = new ModelConfigureOptions
       {
         ContextSize = 8192,
-        ResetContextSize = true,
         Backend = "vllm",
         RuntimeFlags = new[] { "--temp", "0.7" },
         HfOverridesJson = "{\"max_model_len\":8192}"
       };
 
       Assert.Equal(8192, o.ContextSize);
-      Assert.True(o.ResetContextSize);
+      Assert.False(o.ResetContextSize);
       Assert.Equal("vllm", o.Backend);
       Assert.False(o.IsAutoBackend);
       Assert.Equal(2, o.RuntimeFlags.Count);
       Assert.Equal("{\"max_model_len\":8192}", o.HfOverridesJson);
+    }
+
+    [Fact]
+    public void ModelConfigureOptions_ResetContextSize_Settable()
+    {
+      var o = new ModelConfigureOptions { ResetContextSize = true };
+
+      Assert.True(o.ResetContextSize);
+      Assert.Null(o.ContextSize);
+    }
+
+    [Fact]
+    public void ModelConfigureOptions_ContextSizeAndResetContextSize_AreMutuallyExclusive()
+    {
+      Assert.Throws<ArgumentException>(() => new ModelConfigureOptions { ContextSize = 8192, ResetContextSize = true });
+      Assert.Throws<ArgumentException>(() => new ModelConfigureOptions { ResetContextSize = true, ContextSize = 8192 });
     }
 
     [Fact]

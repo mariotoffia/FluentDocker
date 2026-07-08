@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Models.Options
@@ -46,7 +47,18 @@ namespace FluentDocker.Model.Models.Options
     /// --context-size N</c> BEFORE the run (there is no <c>run</c> flag for it). <c>null</c>
     /// leaves it unchanged.
     /// </summary>
-    public int? ContextSize { get; init; }
+    private int? _contextSize;
+
+    public int? ContextSize
+    {
+      get => _contextSize;
+      init
+      {
+        if (value is <= 0)
+          throw new ArgumentOutOfRangeException(nameof(ContextSize), value, "Context size must be positive.");
+        _contextSize = value;
+      }
+    }
 
     /// <summary>
     /// Configure-only: raw inference-engine flags applied via the <c>docker model configure

@@ -72,7 +72,7 @@ namespace FluentDocker.Model.Models.Inference
     [JsonPropertyName("frequency_penalty")] public double? FrequencyPenalty { get; set; }
 
     /// <summary>Sampling seed (reproducibility).</summary>
-    [JsonPropertyName("seed")] public int? Seed { get; set; }
+    [JsonPropertyName("seed")] public long? Seed { get; set; }
 
     /// <summary>
     /// Pass-through for any OpenAI-compatible request field not modeled above (e.g.

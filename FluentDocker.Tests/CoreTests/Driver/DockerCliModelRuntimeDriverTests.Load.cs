@@ -128,12 +128,12 @@ namespace FluentDocker.Tests.CoreTests.Driver
       var driver = new FakeRuntimeDriver
       {
         Responder = args => args.Contains("model configure")
-            ? new SimpleCommandResult { Success = false, ExitCode = 1, Error = "bad context size" }
+            ? new SimpleCommandResult { Success = false, ExitCode = 1, Error = "configure failed" }
             : Ok()
       };
 
       var result = await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"),
-          new ModelRunOptions { ContextSize = -5 }, TestContext.Current.CancellationToken);
+          new ModelRunOptions { ContextSize = 4096 }, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Model.ConfigureFailed, result.ErrorCode);

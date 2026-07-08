@@ -44,6 +44,18 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("v1", model.Tag);
     }
 
+    [Theory]
+    [InlineData("[::1]:5000/ns/name", "[::1]:5000")]
+    [InlineData("[fe80::1]:443/ns/name", "[fe80::1]:443")]
+    public void Parse_BracketedIpv6RegistryWithPort_IsTreatedAsRegistry(string reference, string registry)
+    {
+      var model = ModelReference.Parse(reference);
+
+      Assert.Equal(registry, model.Registry);
+      Assert.Equal("ns", model.Namespace);
+      Assert.Equal("name", model.Name);
+    }
+
     [Fact]
     public void Parse_BareName_HasNullNamespace()
     {

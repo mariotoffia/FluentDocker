@@ -3,7 +3,7 @@ namespace FluentDocker.Model.Networks
 {
   public sealed class NetworkedContainer
   {
-    public string Name { get; set; } = null!;
+    public string? Name { get; set; }
 
     // ReSharper disable once InconsistentNaming
     public string? EndpointID { get; set; }

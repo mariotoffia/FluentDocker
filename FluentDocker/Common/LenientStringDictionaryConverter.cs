@@ -32,8 +32,15 @@ namespace FluentDocker.Common
       foreach (var pair in value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
       {
         var index = pair.IndexOf('=');
-        if (index > 0)
-          result[pair[..index]] = pair[(index + 1)..];
+        if (index < 0)
+        {
+          result[pair.Trim()] = string.Empty;
+          continue;
+        }
+
+        var key = pair[..index].Trim();
+        if (key.Length > 0)
+          result[key] = pair[(index + 1)..].Trim();
       }
 
       return result;

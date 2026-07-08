@@ -1,3 +1,4 @@
+using System;
 using FluentDocker.Common;
 using Xunit;
 
@@ -200,15 +201,9 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
-    public void Parse_UnmatchedQuote_TreatsRestAsArg()
+    public void Parse_UnmatchedQuote_ThrowsFormatException()
     {
-      // Arrange & Act
-      var result = ShellArgParser.Parse("cmd \"unclosed");
-
-      // Assert
-      Assert.Equal(2, result.Length);
-      Assert.Equal("cmd", result[0]);
-      Assert.Equal("unclosed", result[1]);
+      Assert.Throws<FormatException>(() => ShellArgParser.Parse("cmd \"unclosed"));
     }
 
     [Fact]

@@ -6,7 +6,7 @@ namespace FluentDocker.Model.Drivers
   /// <summary>
   /// Represents the result of a driver command execution.
   /// All driver interfaces return <see cref="CommandResponse{T}"/> from their operations.
-  /// Properties are publicly read-only; use the <see cref="Ok(T)"/> and <see cref="Fail(string, string, int)"/> factory methods.
+  /// Properties are publicly read-only; use the <see cref="Ok(T)"/> and <c>Fail</c> factory methods.
   /// </summary>
   /// <typeparam name="T">The type of data returned by the command</typeparam>
 #pragma warning disable CA1000 // Static members on generic type — factory pattern is intentional API design
@@ -100,21 +100,22 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Creates a failed command response.
     /// </summary>
-    public static CommandResponse<T> Fail(string error, string? errorCode = null, int exitCode = -1)
+    public static CommandResponse<T> Fail(string error, string? errorCode = null, int exitCode = -1, string? output = null)
     {
       return new CommandResponse<T>
       {
         Success = false,
         Error = error,
         ErrorCode = errorCode ?? ErrorCodes.General.Unknown,
-        ExitCode = exitCode
+        ExitCode = exitCode,
+        Output = output
       };
     }
 
     /// <summary>
     /// Creates a failed command response with error context.
     /// </summary>
-    public static CommandResponse<T> Fail(string error, string errorCode, ErrorContext context, int exitCode = -1)
+    public static CommandResponse<T> Fail(string error, string errorCode, ErrorContext context, int exitCode = -1, string? output = null)
     {
       return new CommandResponse<T>
       {
@@ -122,7 +123,8 @@ namespace FluentDocker.Model.Drivers
         Error = error,
         ErrorCode = errorCode ?? ErrorCodes.General.Unknown,
         ErrorContext = context,
-        ExitCode = exitCode
+        ExitCode = exitCode,
+        Output = output
       };
     }
   }
