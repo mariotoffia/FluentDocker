@@ -137,6 +137,7 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Generates the Dockerfile as a string.
     /// </summary>
+    /// <remarks>URL COPY sources are downloaded to the build context before rendering.</remarks>
     /// <returns>Dockerfile content</returns>
     public async Task<string> ToDockerfileStringAsync(CancellationToken cancellationToken = default)
     {
@@ -295,13 +296,17 @@ namespace FluentDocker.Builders
     public DockerfileBuilder Copy(string source, string dest,
         string chownUserAndGroup = null, string fromAlias = null)
     {
-      if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-          source.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-          source.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
+      if (source.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
           source.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase))
+        throw new FluentDockerException("COPY URL sources only support HTTP/HTTPS; FTP/FTPS cannot be downloaded.");
+      if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+          source.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
       {
         var uri = new Uri(source);
-        var tmp = Path.Combine("___fluentdockerdl", Path.GetFileName(uri.LocalPath));
+        var fileName = Path.GetFileName(uri.LocalPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+          throw new FluentDockerException("COPY URL source must include a filename path segment.");
+        var tmp = Path.Combine("___fluentdockerdl", fileName);
         _config.Commands.Add(new CopyURLCommand(uri, tmp, dest, chownUserAndGroup, fromAlias));
         return this;
       }

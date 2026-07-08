@@ -312,6 +312,7 @@ namespace FluentDocker.Builders
     /// Already-running containers verify wait conditions but skip start hooks
     /// (<see cref="CopyToOnStart"/>/<see cref="ExecuteOnRunning"/>) and ignore configuration
     /// differences; <see cref="ForcePullImage"/> is also not applied on the reuse path.
+    /// A stopped borrowed container is started, but disposal does not stop or remove it.
     /// </remarks>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ReuseIfExists();

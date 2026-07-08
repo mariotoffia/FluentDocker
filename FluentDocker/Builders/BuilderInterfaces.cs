@@ -125,6 +125,7 @@ namespace FluentDocker.Builders
     IComposeBuilder WithEnvironment(IDictionary<string, string> environment);
 
     /// <summary>Loads environment variables from an env file for compose interpolation.</summary>
+    /// <remarks>Precedence matches docker compose: host process/explicit environment wins over env-file entries.</remarks>
     /// <param name="path">Path to the env file.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithEnvFile(string path);
@@ -150,6 +151,10 @@ namespace FluentDocker.Builders
     IComposeBuilder ForServices(params string[] services);
 
     /// <summary>Enables or disables volume removal when the stack is torn down.</summary>
+    /// <remarks>
+    /// Borrow-protection is based on existing compose containers. Volume-only orphans from a
+    /// previous <c>compose down</c> without <c>--volumes</c> are outside that guarantee.
+    /// </remarks>
     /// <param name="removeVolumes">True to remove volumes on down; false to preserve them.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithRemoveVolumes(bool removeVolumes = true);

@@ -2,16 +2,18 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using FluentDocker.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class ExposeCommand : ICommand
   {
     public ExposeCommand(params int[] ports)
-    => Ports = (ports ?? []).Select(p => p.ToString(CultureInfo.InvariantCulture));
+      => Ports = (ports ?? []).Select(ValidatePort).ToArray();
 
+    /// <summary>Creates EXPOSE entries from numeric ports, ranges, or port/protocol strings.</summary>
     public ExposeCommand(params string[] ports)
-      => Ports = ports ?? Enumerable.Empty<string>();
+      => Ports = (ports ?? []).Select(ValidatePort).ToArray();
 
     public IEnumerable<string> Ports { get; }
 
@@ -19,5 +21,34 @@ namespace FluentDocker.Model.Builders.FileBuilder
     {
       return $"EXPOSE {string.Join(" ", Ports)}";
     }
+
+    private static string ValidatePort(int port)
+    {
+      if (port < 1 || port > 65535)
+        throw new FluentDockerException($"Invalid EXPOSE port '{port}'. Port must be 1-65535.");
+      return port.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string ValidatePort(string port)
+    {
+      var slash = port?.IndexOf('/') ?? -1;
+      var portPart = slash >= 0 ? port![..slash] : port;
+      if (!IsValidPortRange(portPart))
+        throw new FluentDockerException($"Invalid EXPOSE port '{port}'. Port must be 1-65535.");
+      return port!;
+    }
+
+    private static bool IsValidPortRange(string? value)
+    {
+      if (string.IsNullOrWhiteSpace(value))
+        return false;
+      var parts = value.Split('-', 2);
+      return IsValidPort(parts[0], out var start) &&
+          (parts.Length == 1 || (IsValidPort(parts[1], out var end) && start <= end));
+    }
+
+    private static bool IsValidPort(string value, out int port) =>
+        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out port) &&
+        port is >= 1 and <= 65535;
   }
 }

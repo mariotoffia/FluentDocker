@@ -53,8 +53,14 @@ namespace FluentDocker.Builders
 
     public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
+      var priorAttemptCreated = CreatedResource;
+      CreatedResource = false;
       if (string.IsNullOrWhiteSpace(_name))
         throw new FluentDockerException("Network name is required. Call WithName() before building.");
+      if (_gateway != null && !System.Net.IPAddress.TryParse(_gateway, out _))
+        throw new FluentDockerException($"Invalid gateway '{_gateway}'. Expected an IP address.");
+      if (_ipRange != null && !System.Net.IPNetwork.TryParse(_ipRange, out _))
+        throw new FluentDockerException($"Invalid IP range '{_ipRange}'. Expected CIDR notation.");
 
       var driver = _kernel.SysCtl<Drivers.INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
@@ -70,7 +76,7 @@ namespace FluentDocker.Builders
           // Building must never delete a pre-existing resource the builder did not create.
           // Reuse the existing network as a borrowed (non-removing) wrapper; _removeOnDispose
           // only governs networks this builder actually creates below.
-          if (CreatedResource || _removeOnDispose || _subnet != null || _gateway != null || _ipRange != null || _enableIPv6 || _internal
+          if (priorAttemptCreated || _removeOnDispose || _subnet != null || _gateway != null || _ipRange != null || _enableIPv6 || _internal
               || _labels.Count > 0 || _options.Count > 0
               || !string.Equals(_driver, "bridge", StringComparison.OrdinalIgnoreCase))
           {
@@ -140,6 +146,8 @@ namespace FluentDocker.Builders
 
     public async Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken)
     {
+      var priorAttemptCreated = CreatedResource;
+      CreatedResource = false;
       var driver = _kernel.SysCtl<Drivers.IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -152,7 +160,7 @@ namespace FluentDocker.Builders
         var existing = await driver.InspectAsync(context, _name, cancellationToken).ConfigureAwait(false);
         if (existing is { Success: true, Data: not null })
         {
-          if (CreatedResource || _removeOnDispose || _driverOpts.Count > 0 || _labels.Count > 0
+          if (priorAttemptCreated || _removeOnDispose || _driverOpts.Count > 0 || _labels.Count > 0
               || !string.Equals(_driver, "local", StringComparison.OrdinalIgnoreCase))
           {
             _kernel.LoggerFactory.CreateLogger<VolumeBuilder>().LogWarning(
@@ -189,7 +197,7 @@ namespace FluentDocker.Builders
   /// <summary>
   /// Compose builder implementation.
   /// </summary>
-  internal sealed class ComposeBuilder(FluentDockerKernel kernel, string driverId) : IComposeBuilder, IDriverScopedBuilder
+  internal sealed partial class ComposeBuilder(FluentDockerKernel kernel, string driverId) : IComposeBuilder, IDriverScopedBuilder
   {
     private readonly FluentDockerKernel _kernel = kernel;
     private readonly string _driverId = driverId;
@@ -277,10 +285,9 @@ namespace FluentDocker.Builders
       _wait = true;
       return this;
     }
-
     public IComposeBuilder WithProfiles(params string[] profiles) { _profiles.AddRange(profiles); return this; }
     public IComposeBuilder ConnectToExisting(bool connect = true) { _attachToExisting = connect; return this; }
-    internal bool AttachToExisting => _attachToExisting;
+    internal bool BorrowedProject { get; private set; }
 
     public Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken) =>
         ExecuteAsync(TimeSpan.FromSeconds(30), cancellationToken);
@@ -290,6 +297,7 @@ namespace FluentDocker.Builders
     {
       var driver = _kernel.SysCtl<Drivers.IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
+      Validate();
       await LoadEnvFilesAsync(cancellationToken).ConfigureAwait(false);
 
       if (_attachToExisting && string.IsNullOrEmpty(_projectName) && _composeFiles.Count == 0)
@@ -305,6 +313,7 @@ namespace FluentDocker.Builders
       // service bound to the existing project (issue #305).
       if (_attachToExisting)
       {
+        BorrowedProject = true;
         return new Services.Impl.ComposeService(
             _kernel, _driverId, [.. _composeFiles], _projectName, _removeVolumes, _removeImages, ownedTempFiles,
             downOnDispose: false,
@@ -331,6 +340,9 @@ namespace FluentDocker.Builders
         Profiles = _profiles
       };
 
+      var borrowedProject = await ComposeProjectExistsAsync(driver, context, config, cancellationToken)
+          .ConfigureAwait(false);
+      BorrowedProject = borrowedProject;
       CommandResponse<Drivers.ComposeUpResult> response;
       try
       {
@@ -338,7 +350,7 @@ namespace FluentDocker.Builders
       }
       catch
       {
-        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cleanupTimeout)
+        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, borrowedProject, cleanupTimeout)
             .ConfigureAwait(false);
         RemoveComposeFiles(ownedTempFiles);
         DeleteTempFiles(ownedTempFiles);
@@ -347,7 +359,8 @@ namespace FluentDocker.Builders
 
       if (!response.Success)
       {
-        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, cleanupTimeout).ConfigureAwait(false);
+        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, borrowedProject, cleanupTimeout)
+            .ConfigureAwait(false);
         // Up failed: no ComposeService is created to own the overlay, so clean it up here.
         RemoveComposeFiles(ownedTempFiles);
         DeleteTempFiles(ownedTempFiles);
@@ -359,6 +372,7 @@ namespace FluentDocker.Builders
           _kernel, _driverId, [.. _composeFiles],
           response.Data.ProjectName ?? _projectName,
           _removeVolumes, _removeImages, ownedTempFiles,
+          downOnDispose: !borrowedProject,
           initialState: _noStart ? ServiceRunningState.Stopped : ServiceRunningState.Running);
     }
 
@@ -383,44 +397,13 @@ namespace FluentDocker.Builders
           var key = trimmed[..eqIndex].Trim();
           if (string.IsNullOrEmpty(key))
             continue;
-          if (_explicitEnvironmentKeys.Contains(key))
+          if (_explicitEnvironmentKeys.Contains(key) || Environment.GetEnvironmentVariable(key) != null)
             continue;
           // ponytail: trim outer whitespace off the unquoted value (compose-go/godotenv parity);
           // StripEnvValueQuotes then removes surrounding quotes, preserving quoted inner spaces.
-          _environment[key] = StripEnvValueQuotes(trimmed[(eqIndex + 1)..].Trim());
+          _environment[key] = StripEnvValueQuotes(
+              StripUnquotedInlineComment(trimmed[(eqIndex + 1)..]).Trim());
         }
-      }
-    }
-
-    private static string StripEnvValueQuotes(string value)
-    {
-      if (value.Length >= 2 &&
-          ((value[0] == '"' && value[^1] == '"') || (value[0] == '\'' && value[^1] == '\'')))
-        return value[1..^1];
-      return value;
-    }
-
-    private static async Task CleanupFailedComposeAsync(
-        Drivers.IComposeDriver driver,
-        DriverContext context,
-        Drivers.ComposeUpConfig upConfig,
-        bool removeVolumes,
-        TimeSpan cleanupTimeout)
-    {
-      try
-      {
-        using var cleanupCts = new CancellationTokenSource(cleanupTimeout);
-        await driver.DownAsync(context, new Drivers.ComposeDownConfig
-        {
-          ComposeFiles = upConfig.ComposeFiles,
-          ProjectName = upConfig.ProjectName,
-          Environment = upConfig.Environment,
-          RemoveVolumes = removeVolumes
-        }, cleanupCts.Token).WaitAsync(cleanupCts.Token).ConfigureAwait(false);
-      }
-      catch
-      {
-        // Best effort only; preserve the original compose-up failure.
       }
     }
 

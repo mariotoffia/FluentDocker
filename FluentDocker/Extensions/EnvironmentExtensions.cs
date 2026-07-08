@@ -38,6 +38,8 @@ namespace FluentDocker.Extensions
         var unwrapped = rawValue.Length >= 2 && rawValue.StartsWith('"') && IsBalancedWrap(rawValue)
             ? rawValue[1..^1]
             : rawValue;
+        if (unwrapped.Contains('\n') || unwrapped.Contains('\r'))
+          throw new FluentDockerException("Dockerfile ENV/LABEL values cannot contain newline or carriage return characters.");
         var value = $"\"{unwrapped.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
 
         list.Add($"{name}={value}");

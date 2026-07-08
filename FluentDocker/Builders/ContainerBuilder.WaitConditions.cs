@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Containers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
 namespace FluentDocker.Builders
@@ -255,6 +256,7 @@ namespace FluentDocker.Builders
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
+      cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
 
@@ -347,6 +349,7 @@ namespace FluentDocker.Builders
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
+      cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
 
@@ -354,7 +357,7 @@ namespace FluentDocker.Builders
 
     internal static async Task WaitForContainerStartedAsync(
         Drivers.IContainerDriver driver, Model.Drivers.DriverContext context,
-        string containerId, bool allowCleanExit, long timeoutMs, int pollIntervalMs,
+        string containerId, string containerName, bool allowCleanExit, long timeoutMs, int pollIntervalMs,
         CancellationToken cancellationToken)
     {
       var sw = Stopwatch.StartNew();
@@ -377,9 +380,23 @@ namespace FluentDocker.Builders
                 logs));
           }
         }
+        else if (inspectResult?.ErrorCode == ErrorCodes.Container.NotFound)
+        {
+          var label = string.IsNullOrWhiteSpace(containerName) ? containerId : $"{containerName} ({containerId})";
+          throw new FluentDockerException(
+              $"Container {label} no longer exists (AutoRemove?) and may have exited before it was ready.");
+        }
+        else if (inspectResult?.Success == false)
+        {
+          throw new DriverException(
+              $"Failed to inspect container {containerId} while waiting for start: {inspectResult.Error}",
+              inspectResult.ErrorCode,
+              inspectResult.ErrorContext);
+        }
         var delay = (int)Math.Min(pollIntervalMs, Math.Max(1, timeoutMs - sw.ElapsedMilliseconds));
         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
       }
+      cancellationToken.ThrowIfCancellationRequested();
       throw new FluentDockerException($"Timeout waiting for container {containerId} to start");
     }
 
