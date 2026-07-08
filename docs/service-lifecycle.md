@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Service Lifecycle
-nav_order: 12
+nav_order: 20
 description: "Service running state, StateChange events, and lifecycle hooks in FluentDocker"
 ---
 

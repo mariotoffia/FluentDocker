@@ -8,7 +8,9 @@ nav_order: 4
 
 Complete guide to creating, configuring, and managing containers with FluentDocker v3.
 
-> **Docs track the 3.2.0-preview API** (install with `--prerelease`). `WithPort` is host-first here; stable 3.0/3.1 is container-first, so ports bind in reverse. (`ExposePort` was always host-first.)
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
 
@@ -49,15 +51,17 @@ In v3, `Build()` both creates and starts containers automatically. The result is
 `BuildResults` object containing all built services.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine"))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 // Container is already running at this point
 ```
+
+> A synchronous `.Build()` / `Dispose()` path is available (`Build()` offloads the async work, so it won't deadlock), but `BuildAsync()` with `await using` is the async-first default — prefer it.
 
 Dispose hooks run for the service lifecycle even when a container is kept or reused.
 If build fails after create/start, FluentDocker captures a bounded log tail, runs
@@ -69,11 +73,11 @@ Since containers auto-start during `Build()`, use the container service to stop 
 restart as needed.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine"))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 
@@ -109,17 +113,15 @@ await container.UnpauseAsync();  // resume a paused container (StartAsync does n
 
 ```csharp
 // Map host port 8080 to container port 80
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .ExposePort(8080, 80))
-    .Build();
+    .BuildAsync();
 
 // Access at http://localhost:8080
 ```
-
-A container port binds once by the builder; use a second container port when you need another host binding.
 
 ### Host-First Mapping with WithPort
 
@@ -128,13 +130,13 @@ same order as `docker -p host:container` and `ExposePort`. The host port may car
 interface (`"127.0.0.1:8080"`); the container port takes an optional protocol (`"80/tcp"`).
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithPort("8080", "80/tcp")               // host 8080 -> container 80
         .WithPort("127.0.0.1:9090", "9090/tcp"))  // bind loopback only
-    .Build();
+    .BuildAsync();
 ```
 
 > **Breaking change (3.2.0-preview):** `WithPort` is now host-first. Stable 3.0/3.1 took
@@ -144,12 +146,12 @@ using var results = new Builder()
 
 ```csharp
 // Let Docker assign a random host port
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .ExposePort("80"))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 
@@ -169,7 +171,7 @@ Each call to `WithEnvironment()` sets one variable. Two overloads are available:
 `WithEnvironment("KEY=VALUE")` and `WithEnvironment("KEY", "VALUE")`.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
@@ -177,7 +179,7 @@ using var results = new Builder()
         .WithEnvironment("POSTGRES_USER", "myuser")
         .WithEnvironment("POSTGRES_DB", "mydb")
         .WithEnvironment("PGDATA=/var/lib/postgresql/data/pgdata"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Wait Strategies
@@ -193,14 +195,14 @@ timeout and returns `false` (late port bindings are legal).
 ### Wait for Port
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Wait for Process
@@ -210,25 +212,25 @@ images usually do not ship `pgrep`; prefer a log, health, HTTP, or custom wait
 for those images.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WaitForProcess("postgres", 30000))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Wait for Log Message
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WaitForLogMessage("database system is ready", 30000))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Wait for Healthy
@@ -236,24 +238,24 @@ using var results = new Builder()
 Waits for the container's Docker HEALTHCHECK to report healthy.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .WaitForHealthy(60000))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Wait for HTTP
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .ExposePort("8080")
         .WaitForHttp("8080/tcp", "/health", 30000))
-    .Build();
+    .BuildAsync();
 ```
 
 Use `WaitForHttpUrl(...)` only when you already have a full URL and need advanced
@@ -267,7 +269,7 @@ The `.Wait()` lambda receives the container service and an iteration counter. Re
 - **Positive** (e.g. `500`): not ready, wait that many milliseconds before retry
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
@@ -285,27 +287,25 @@ using var results = new Builder()
             }
             catch { return 500; }
         }))
-    .Build();
+    .BuildAsync();
 ```
 
 ## File Operations
 
-> The copy-from and export lifecycle snippets below are verified by the
-> `ContainersDocSnippetsTests` integration tests, so their documented behavior cannot
-> silently drift from the implementation.
+> The copy-from and export lifecycle snippets below are verified by `ContainersDocSnippetsTests` integration tests, so their documented behavior can't drift from the implementation.
 
 ### Copy to Container on Start
 
 Files are copied after the container starts (lifecycle hook).
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .CopyToOnStart("/local/nginx.conf", "/etc/nginx/nginx.conf")
         .CopyToOnStart("/local/html/", "/usr/share/nginx/html/"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Copy from Container on Dispose
@@ -316,13 +316,13 @@ destination ending in a separator) copies recursively into the destination direc
 file path — it is not wrapped in a directory named after the target.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .CopyFromOnDispose("/app/logs/", "/local/artifacts/logs/")   // directory → directory
         .CopyFromOnDispose("/app/report.xml", "/local/artifacts/report.xml")) // file → file
-    .Build();
+    .BuildAsync();
 
 // Run tests...
 // When disposed, the logs directory and the single report file are copied out.
@@ -334,31 +334,29 @@ Export the entire container filesystem as a tar archive on dispose. By default t
 written to the exact path you supply (the parent directory is created if needed):
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .ExportOnDispose("/local/artifacts/container.tar"))
-    .Build();
+    .BuildAsync();
 ```
 
 With a condition and `explode: true`, the archive is **extracted into** the supplied
 directory path instead of being written as a single `.tar` file:
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .ExportOnDispose("/local/artifacts/", svc => svc.State == ServiceRunningState.Running, explode: true))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Execute Commands
 
-> The `ExecuteOnRunning` argv snippet below is verified by the
-> `ContainersDocSnippetsTests` integration tests, so its documented quoting behavior
-> cannot silently drift from the implementation.
+> The `ExecuteOnRunning` argv snippet below is verified by `ContainersDocSnippetsTests` integration tests, so its documented quoting behavior can't drift from the implementation.
 
 ### On Running (Lifecycle Hook)
 
@@ -369,14 +367,14 @@ any token containing spaces, so the final `"CREATE DATABASE mydb;"` stays a sing
 argument rather than being split on whitespace.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WaitForPort("5432/tcp", 30000)
         .ExecuteOnRunning("psql", "-U", "postgres", "-c", "CREATE DATABASE mydb;"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### On Disposing (Lifecycle Hook)
@@ -386,12 +384,12 @@ Run a command on the **Removing** lifecycle before FluentDocker stops the contai
 is one argv token passed to `sh -c`, not three separate arguments.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .ExecuteOnDisposing("sh", "-c", "echo 'shutting down' >> /app/log.txt"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Ad-hoc Commands on a Running Container
@@ -413,21 +411,17 @@ await container.ExecuteAsync("redis-cli SET mykey myvalue");
 var value = await container.ExecuteAsync("redis-cli GET mykey");
 ```
 
-The `ExecuteOnRunning` / `ExecuteOnDisposing` hooks above take a **`params string[]`**
-argv instead: each element is one argument and is never re-split, which is why
-`"CREATE DATABASE mydb;"` stays a single token.
-
 ## Names, Labels, and Configuration
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("my-app-container")
         .UseImage("nginx:alpine")
         .WithLabel("app", "myapp")
         .WithLabel("version", "1.0.0"))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 var config = container.GetConfiguration(fresh: true);
@@ -468,13 +462,13 @@ Console.WriteLine($"Reachable at {endpoint.Address}:{endpoint.Port}");
 ## Resource Limits
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .WithMemoryLimit(512 * 1024 * 1024)  // 512MB
         .WithCpuShares(1024))                 // CPU shares
-    .Build();
+    .BuildAsync();
 ```
 
 ## Advanced Container Options
@@ -483,7 +477,7 @@ The following methods configure additional container properties inside the
 `UseContainer(c => ...)` lambda:
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
@@ -506,7 +500,7 @@ using var results = new Builder()
         .WithNetwork("my-network")            // Attach to named network
         .WithNetworkAlias("my-network", "app") // DNS alias on network
         .WithIPv4("10.18.0.22"))               // Static IP (requires custom subnet)
-    .Build();
+    .BuildAsync();
 ```
 
 > `WithHealthCheck` runs the command through `CMD-SHELL`, so the image must contain `/bin/sh`. Distroless and `scratch` images have no shell — the check never reports healthy. Use an image with a shell, or drop the health check and wait on a port or log line instead.
@@ -574,12 +568,17 @@ source — `.WithVolume("/local/html", "/usr/share/nginx/html")` for a bind moun
 Build multiple containers in a single builder call.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
+    // Create the network first so both containers can attach to it
+    .UseNetwork(n => n
+        .WithName("my-network")
+        .RemoveOnDispose())
     .UseContainer(c => c
         .WithName("db")
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .WithNetwork("my-network")
         .WaitForPort("5432/tcp", 30000))
     .UseContainer(c => c
         .WithName("app")
@@ -587,7 +586,7 @@ using var results = new Builder()
         .WithEnvironment("DATABASE_HOST", "db")
         .WithNetwork("my-network")
         .ExposePort(8080, 80))
-    .Build();
+    .BuildAsync();
 
 var db = results.GetContainer("db");
 var app = results.GetContainer("app");

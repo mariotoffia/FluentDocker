@@ -10,9 +10,9 @@ This guide helps you install FluentDocker and run your first container.
 For the complete beginner-to-advanced map and reading plans by role, see the
 [documentation index](index.md#documentation-by-level).
 
-> **Preview API (3.2.0-preview).** These docs track the 3.2.0-preview surface. Install
-> with `--prerelease` (below). `WithPort` is host-first here — the stable 3.0/3.1 line
-> takes container-first arguments, so pinning to a stable release binds ports in reverse.
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Read This Guide in Order
 
@@ -28,7 +28,7 @@ If you are new to FluentDocker, complete Step 1-3 before jumping to later sectio
 ### NuGet Packages
 
 ```bash
-# Core package (includes Testing.Core) — 3.2 is preview, so use --prerelease
+# Once 3.2.0-preview.2 is published to NuGet (see the note above), install with --prerelease:
 dotnet add package FluentDocker --prerelease
 
 # Optional: Test framework adapters
@@ -40,10 +40,11 @@ dotnet add package FluentDocker.Testing.NUnit --prerelease   # NUnit adapter
 ### Package References
 
 ```xml
-<PackageReference Include="FluentDocker" Version="3.2.0-preview.1" />
-<PackageReference Include="FluentDocker.Testing.Xunit" Version="3.2.0-preview.1" />
-<PackageReference Include="FluentDocker.Testing.MsTest" Version="3.2.0-preview.1" />
-<PackageReference Include="FluentDocker.Testing.NUnit" Version="3.2.0-preview.1" />
+<!-- 3.2.0-preview.2 is not on NuGet yet — build from master until it ships. -->
+<PackageReference Include="FluentDocker" Version="3.2.0-preview.2" />
+<PackageReference Include="FluentDocker.Testing.Xunit" Version="3.2.0-preview.2" />
+<PackageReference Include="FluentDocker.Testing.MsTest" Version="3.2.0-preview.2" />
+<PackageReference Include="FluentDocker.Testing.NUnit" Version="3.2.0-preview.2" />
 ```
 
 ## Prerequisites

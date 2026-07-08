@@ -12,7 +12,10 @@ For migrating the legacy test **adapter packages** (`Ductus.FluentDocker.XUnit` 
 `.MsTest`) to `FluentDocker.Testing.*`, see
 [Legacy Test Adapter Migration](../testing/migration-from-legacy.md).
 
-> **Samples track the 3.2.0-preview API** — install with `--prerelease`. `WithPort` is host-first here; stable 3.0/3.1 is container-first, so ports bind in reverse.
+> **Preview docs — not on NuGet yet.** These track the upcoming **3.2.0-preview.2** API; build from
+> [`master`](https://github.com/mariotoffia/FluentDocker) to use it. The latest published package is
+> **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these
+> samples against 3.1.0.
 
 > **Note:** The legacy `Ductus.FluentDocker.MsTest` / `.XUnit` packages have been removed; use
 > the new `FluentDocker.Testing.*` packages. The examples below show the builder-level API changes.
@@ -572,16 +575,14 @@ pattern from section 2 but use `.UseCompose()` instead of `.UseContainer()`.
 
 ## Common Migration Mistakes
 
-1. **Forgetting async disposal order.** Always dispose `BuildResults` before the
-   kernel. The results hold references to containers that need the kernel's
-   driver to clean up.
+1. **Forgetting async disposal order.** Always dispose `BuildResults` before the kernel —
+   the results hold references to containers that need the kernel's driver to clean up.
 
 2. **Using `IBuildResults` as a type.** There is no such interface. Use the
    concrete `BuildResults` class.
 
-3. **Calling `.Start()` after `.Build()`.** In v3, `Build()` / `BuildAsync()`
-   already starts the services. Calling `.Start()` again is harmless but
-   unnecessary.
+3. **Calling `.Start()` after `.Build()`.** In v3, `Build()` / `BuildAsync()` already
+   starts the services, so calling `.Start()` again is harmless but unnecessary.
 
 4. **Missing `using FluentDocker.Services.Extensions;`.** Extension methods like
    `ToHostExposedEndpoint` and `GetConfiguration` moved to this namespace.

@@ -9,9 +9,10 @@ has_children: true
 
 This guide helps you migrate from v2.x.x to the FluentDocker v3 line.
 
-> **Samples track the 3.2.0-preview API.** Install with `dotnet add package FluentDocker
-> --prerelease`. `WithPort` is host-first in the preview; stable 3.0/3.1 takes
-> container-first arguments, so ports bind in reverse.
+> **Preview docs — not on NuGet yet.** These track the upcoming **3.2.0-preview.2** API; build from
+> [`master`](https://github.com/mariotoffia/FluentDocker) to use it. The latest published package is
+> **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these
+> samples against 3.1.0.
 
 ## Step by Step
 
@@ -41,7 +42,7 @@ This guide helps you migrate from v2.x.x to the FluentDocker v3 line.
 <PackageReference Include="Ductus.FluentDocker" Version="2.*" />
 
 <!-- NEW -->
-<PackageReference Include="FluentDocker" Version="3.2.0-preview.1" />
+<PackageReference Include="FluentDocker" Version="3.2.0-preview.2" />
 ```
 
 ## Step 2: Update Namespaces

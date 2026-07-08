@@ -1,6 +1,6 @@
 # AGENTS.md — FluentDocker (.NET)
 
-Strong-named, async-first C# library (`net8.0;net10.0`, v3.2.0-preview.1) that drives Docker / Podman / Docker-Model-Runner through a fluent API. Clean + Hexagonal: a Ports-and-Adapters driver subsystem resolved at runtime through a kernel. Value objects exist (`ModelReference`, `ModelRunnerEndpoint` — immutable, `IEquatable`, validated); aggregates are minimal — Services orchestrate commands over driver ports. The Makefile is the command surface — analyse, build, and verify through it. **Follow YAGNI; prefer one-liners.**
+Strong-named, async-first C# library (`net8.0;net10.0`, v3.2.0-preview.2) that drives Docker / Podman / Docker-Model-Runner through a fluent API. Clean + Hexagonal: a Ports-and-Adapters driver subsystem resolved at runtime through a kernel. Value objects exist (`ModelReference`, `ModelRunnerEndpoint` — immutable, `IEquatable`, validated); aggregates are minimal — Services orchestrate commands over driver ports. The Makefile is the command surface — analyse, build, and verify through it. **Follow YAGNI; prefer one-liners.**
 
 ## Principles
 Follow YAGNI principles, and one-liner solutions.

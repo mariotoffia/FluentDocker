@@ -9,7 +9,10 @@ nav_order: 2
 
 Side-by-side before/after examples for common v2.x.x to v3.0.0 patterns.
 
-> **Examples track the 3.2.0-preview API** — install with `--prerelease`. `WithPort` is host-first here; stable 3.0/3.1 is container-first, so ports bind in reverse.
+> **Preview docs — not on NuGet yet.** These track the upcoming **3.2.0-preview.2** API; build from
+> [`master`](https://github.com/mariotoffia/FluentDocker) to use it. The latest published package is
+> **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these
+> samples against 3.1.0.
 
 **Key differences to keep in mind:**
 

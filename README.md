@@ -158,12 +158,13 @@ public class MyRedisFixture : XunitContainerFixtureBase
 See the [testing docs](docs/testing.md) for NUnit, MSTest, Compose, Swarm stack,
 Podman Kubernetes, topology, and model resource types.
 
-## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.1)*
+## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.2)*
 
-> **Preview.** Model Runner support ships in the **3.2.0-preview.1** package
-> (install with `--prerelease`); the inference DTO shapes may still change.
-> Everything above is the stable surface — reach for this section only once you
-> need local models.
+> **Preview — not on NuGet yet.** Model Runner support lands in **3.2.0-preview.2**, which
+> isn't published yet; build from [`master`](https://github.com/mariotoffia/FluentDocker) to
+> use it (the latest published package, 3.1.0, has no Model Runner). The inference DTO shapes
+> may still change. Everything above is the stable surface — reach for this section only once
+> you need local models.
 
 FluentDocker manages and consumes **local LLMs** through Docker Model Runner — and any
 OpenAI-compatible runner (vLLM, LM Studio, `llama-server`, hosted) — behind the same
@@ -204,10 +205,11 @@ changes.
 3.2.0 tightens the core surface. If you consume the model/DTO types directly, check
 these:
 
-- **Nullable reference types.** The core `Model`, `Common`, `Extensions`, and
-  `Resources` namespaces are now null-annotated (`#nullable enable`). Genuinely
-  optional members are `T?`; the rest are non-null. Code compiled with nullable
-  enabled may surface new warnings where it previously passed or ignored `null`.
+- **Nullable reference types.** The core `Model`, `Extensions`, and `Resources`
+  namespaces (and almost all of `Common`) are now null-annotated (`#nullable
+  enable`). Genuinely optional members are `T?`; the rest are non-null. Code
+  compiled with nullable enabled may surface new warnings where it previously
+  passed or ignored `null`.
 - **Timestamps are `DateTimeOffset`.** `Container.Created`, `ContainerState.StartedAt`,
   `ContainerState.FinishedAt`, and `Volume.Created` changed from `DateTime` to
   `DateTimeOffset` — the engine's UTC offset is now preserved instead of discarded.
@@ -223,6 +225,9 @@ these:
   from `FluentDocker.Common` to `FluentDocker.Kernel`. Update `using FluentDocker.Common;`
   to `using FluentDocker.Kernel;` — the extension-method move is otherwise a silent build break.
 - **Obsolete:** `ContainerBuildParams` is now `[Obsolete]` (test-only; slated for removal).
+
+For the complete list — including the builder/API and testing changes — see the
+[CHANGELOG](CHANGELOG.md).
 
 ## Resources
 

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.0-preview.1] - 2026-07-03
+## [3.2.0-preview.2] - 2026-07-08
 
 ### Breaking
 
@@ -28,6 +28,13 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - **Removed `XunitContainerFixtureBase.SkipWhenUnavailable`** — xUnit cannot skip from fixture initialization; use `IsDockerAvailableAsync()` with `Assert.SkipWhen` in the test body.
 - **Model Runner endpoint validation tightened** — `UnixSocket(path)` requires an explicit path, `WithEndpoint(...)` and `WithInferenceDriver(...)` are mutually exclusive, and model digest validation is stricter.
 - **Podman validation is no longer silent** — `UsePod(...)` now throws on non-Podman drivers, and leading-dash positional names are rejected.
+- **Nullable reference types** — the core `Model`, `Extensions`, and `Resources` namespaces (and almost all of `Common`) are now null-annotated (`#nullable enable`). Genuinely optional members are `T?`; the rest are non-null. Code compiled with nullable enabled may surface new warnings where it previously ignored `null`.
+- **Timestamps are `DateTimeOffset`** — `Container.Created`, `ContainerState.StartedAt`, `ContainerState.FinishedAt`, and `Volume.Created` changed from `DateTime` to `DateTimeOffset`; the engine's UTC offset is now preserved instead of discarded.
+- **Enum values renumbered** — `RuntimeType` and `DriverType` now start at `Unknown = 0`. Numeric enum values are **not** a stable contract — serialize by name, never persist or transmit the number.
+- **`ComposeServiceDefinition.Isolation` is now `ContainerIsolationTechnology`** — the old `ContainerIsolationType` enum was removed.
+- **Removed types** — `ContainerIsolationType`, `ContainerSpecificConfig`, `ProcessRow`, `Processes`, and `PreferredDriverType` (all unused or superseded).
+- **Moved to `FluentDocker.Kernel`** — `CapabilityChecks`, the `KernelCapabilityExtensions` extension methods (including `kernel.EnsureCapabilityAsync(...)`), and the `DriverCapability` enum moved from `FluentDocker.Common`. Update `using FluentDocker.Common;` to `using FluentDocker.Kernel;` — the extension-method move is otherwise a silent build break.
+- **`ContainerBuildParams` is now `[Obsolete]`** — test-only; slated for removal.
 
 ### Added
 
@@ -100,7 +107,7 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 
 ### Known issues
 
-- Nullable annotations remain partially deferred.
+- Nullable reference types are fully annotated (`#nullable enable`) across the `Model`, `Extensions`, and `Resources` namespaces and almost all of `Common`; the `Kernel`, `Drivers`, `Services`, and `Builders` layers still run under the project's `<Nullable>annotations</Nullable>` context (compiler warnings deferred).
 - Podman sudo-password redaction in `PodmanBinary` logging remains future work.
 
 ## [3.1.0] - 2026-06-04
@@ -155,7 +162,7 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - **Async-first API** — all driver and service operations are async with `CancellationToken` support
 - **`IDriverPack` extends `IDriverInterfaceResolver`** — eliminates cast patterns; packs directly support `TryResolve` and `GetSupportedInterfaces`
 - **Central package management** — `Directory.Packages.props` for dependency version control
-- **Nullable annotations** — enabled across all projects
+- **Nullable annotation context** — `<Nullable>annotations</Nullable>` enabled across all projects (full `#nullable enable` warnings are rolled out per-namespace over the 3.x line)
 - **.NET 8 + .NET 10** multi-targeting
 
 ### Deprecated

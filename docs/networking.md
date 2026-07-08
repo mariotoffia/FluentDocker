@@ -22,9 +22,9 @@ All v3 operations require a kernel instance; multiple kernels per application ar
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
 
-var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 ```
 
 ## Basic Network Creation
@@ -32,12 +32,12 @@ var kernel = FluentDockerKernel.Create()
 ### Create a Network
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("my-network")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 var network = results.Networks.First();
 Console.WriteLine($"Network: {network.Name}");
@@ -47,20 +47,20 @@ Console.WriteLine($"Network: {network.Name}");
 
 ```csharp
 // Create the network
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("app-network")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 // Create a container on that network (reference by name)
-using var containerResults = new Builder()
+await using var containerResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("app-network"))
-    .Build();
+    .BuildAsync();
 
 // Container is attached to app-network
 ```
@@ -69,15 +69,15 @@ using var containerResults = new Builder()
 
 ```csharp
 // Create the shared network
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("backend")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 // Database
-using var dbResults = new Builder()
+await using var dbResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("db")
@@ -85,10 +85,10 @@ using var dbResults = new Builder()
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WithNetwork("backend")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 // Application (can connect to db by container name)
-using var appResults = new Builder()
+await using var appResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("app")
@@ -96,16 +96,16 @@ using var appResults = new Builder()
         .WithEnvironment("DATABASE_HOST=db")
         .WithNetwork("backend")
         .ExposePort("8080"))
-    .Build();
+    .BuildAsync();
 
 // Redis cache
-using var cacheResults = new Builder()
+await using var cacheResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("cache")
         .UseImage("redis:alpine")
         .WithNetwork("backend"))
-    .Build();
+    .BuildAsync();
 
 // All three containers can communicate by name on "backend"
 ```
@@ -115,21 +115,21 @@ using var cacheResults = new Builder()
 ### IPv4 Subnet
 
 ```csharp
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("custom-network")
         .WithSubnet("10.10.0.0/16")
         .WithGateway("10.10.0.1")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
-using var containerResults = new Builder()
+await using var containerResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("custom-network"))
-    .Build();
+    .BuildAsync();
 
 // Container gets IP from 10.10.0.0/16 range
 ```
@@ -141,7 +141,7 @@ Use `WithIPRange(string ipRange)` on `INetworkBuilder` to set Docker IPAM
 to containers, keeping the rest of the subnet available for static assignment:
 
 ```csharp
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("my-net")
@@ -149,7 +149,7 @@ using var netResults = new Builder()
         .WithIPRange("10.18.1.0/24")
         .WithGateway("10.18.0.1")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 // Docker will only auto-assign IPs from 10.18.1.0/24
 // IPs outside that range (e.g. 10.18.2.x) can be used for static assignment
@@ -158,7 +158,7 @@ using var netResults = new Builder()
 ### IPv6 Subnet
 
 ```csharp
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("ipv6-network")
@@ -166,7 +166,7 @@ using var netResults = new Builder()
         .WithGateway("2001:db8::1")
         .WithIPv6()
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 ```
 
 ## Static IP Assignment
@@ -174,32 +174,32 @@ using var netResults = new Builder()
 ### Static IPv4
 
 ```csharp
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("static-ip-net")
         .WithSubnet("10.20.0.0/16")
         .WithGateway("10.20.0.1")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
-using var c1Results = new Builder()
+await using var c1Results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("server1")
         .UseImage("nginx:alpine")
         .WithNetwork("static-ip-net")
         .WithIPv4("10.20.0.10"))
-    .Build();
+    .BuildAsync();
 
-using var c2Results = new Builder()
+await using var c2Results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("server2")
         .UseImage("nginx:alpine")
         .WithNetwork("static-ip-net")
         .WithIPv4("10.20.0.11"))
-    .Build();
+    .BuildAsync();
 
 // Containers have predictable IPs
 Console.WriteLine("Server1: 10.20.0.10");
@@ -209,7 +209,7 @@ Console.WriteLine("Server2: 10.20.0.11");
 ### Static IPv6
 
 ```csharp
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("ipv6-static-net")
@@ -217,21 +217,21 @@ using var netResults = new Builder()
         .WithGateway("2001:db8:1::1")
         .WithIPv6()
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
-using var containerResults = new Builder()
+await using var containerResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("ipv6-static-net")
         .WithIPv6("2001:db8:1::100"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Dual Stack (IPv4 + IPv6)
 
 ```csharp
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("dual-stack-net")
@@ -239,16 +239,16 @@ using var netResults = new Builder()
         .WithGateway("10.30.0.1")
         .WithIPv6()
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
-using var containerResults = new Builder()
+await using var containerResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("dual-stack-net")
         .WithIPv4("10.30.0.50")
         .WithIPv6("2001:db8:2::50"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Network Drivers
@@ -256,25 +256,25 @@ using var containerResults = new Builder()
 ### Bridge Network (Default)
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("my-bridge")
         .UseDriver("bridge")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 ```
 
 ### Host Network
 
 ```csharp
 // Container shares host's network namespace
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetworkMode("host"))
-    .Build();
+    .BuildAsync();
 
 // No port mapping needed - uses host ports directly
 ```
@@ -282,20 +282,20 @@ using var results = new Builder()
 ### Overlay Network (Swarm)
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("swarm-overlay")
         .UseDriver("overlay")
         .WithOption("encrypted", "true")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 ```
 
 ### Macvlan Network
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("macvlan-net")
@@ -304,7 +304,7 @@ using var results = new Builder()
         .WithSubnet("192.168.1.0/24")
         .WithGateway("192.168.1.1")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 ```
 
 ## Network Options
@@ -313,52 +313,52 @@ using var results = new Builder()
 
 ```csharp
 // No external connectivity
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("internal-net")
         .AsInternal()
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 ```
 
 ### Network Labels
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("labeled-net")
         .WithLabel("environment", "test")
         .WithLabel("project", "myapp")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 ```
 
 ## Multi-Network Containers
 
 ```csharp
 // Frontend network (external access)
-using var frontendResults = new Builder()
+await using var frontendResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("frontend")
         .WithSubnet("10.40.0.0/24")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 // Backend network (internal only)
-using var backendResults = new Builder()
+await using var backendResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("backend")
         .WithSubnet("10.41.0.0/24")
         .AsInternal()
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 // API server on frontend network (static IP applies to the first configured network)
-using var apiResults = new Builder()
+await using var apiResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("api")
@@ -366,7 +366,7 @@ using var apiResults = new Builder()
         .WithNetwork("frontend")
         .WithIPv4("10.40.0.10")
         .ExposePort("8080"))
-    .Build();
+    .BuildAsync();
 
 // Connect API to backend network as well
 var apiContainer = apiResults.Containers.First();
@@ -374,7 +374,7 @@ var backendNetwork = backendResults.Networks.First();
 await backendNetwork.ConnectAsync(apiContainer.Id);
 
 // Database only on backend network
-using var dbResults = new Builder()
+await using var dbResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("db")
@@ -382,7 +382,7 @@ using var dbResults = new Builder()
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WithNetwork("backend")
         .WithIPv4("10.41.0.20"))
-    .Build();
+    .BuildAsync();
 
 // API can reach both frontend and backend
 // DB is only accessible from backend network
@@ -391,13 +391,13 @@ using var dbResults = new Builder()
 ## Network Inspection
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("inspect-me")
         .WithSubnet("10.50.0.0/16")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 var network = results.Networks.First();
 var info = await network.InspectAsync();
@@ -412,14 +412,14 @@ Console.WriteLine($"Connected containers: {string.Join(", ", connected)}");
 ### Container Aliases
 
 ```csharp
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("aliased-net")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
-using var containerResults = new Builder()
+await using var containerResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("myservice")
@@ -427,7 +427,7 @@ using var containerResults = new Builder()
         .WithNetworkAlias("aliased-net", "web")
         .WithNetworkAlias("aliased-net", "frontend")
         .WithNetworkAlias("aliased-net", "nginx"))
-    .Build();
+    .BuildAsync();
 
 // Container reachable as: myservice, web, frontend, nginx. CLI aliases are global; API aliases are per-network.
 ```
@@ -436,16 +436,16 @@ using var containerResults = new Builder()
 
 ```csharp
 // Create isolated network for microservices
-using var netResults = new Builder()
+await using var netResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("microservices")
         .WithSubnet("10.100.0.0/16")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 // API Gateway
-using var gatewayResults = new Builder()
+await using var gatewayResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("gateway")
@@ -454,37 +454,37 @@ using var gatewayResults = new Builder()
         .WithIPv4("10.100.0.10")
         .ExposePort(8000, 8000)
         .ExposePort(8443, 8443))
-    .Build();
+    .BuildAsync();
 
 // User Service
-using var userResults = new Builder()
+await using var userResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("user-service")
         .UseImage("user-service:latest")
         .WithNetwork("microservices")
         .WithIPv4("10.100.1.10"))
-    .Build();
+    .BuildAsync();
 
 // Order Service
-using var orderResults = new Builder()
+await using var orderResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("order-service")
         .UseImage("order-service:latest")
         .WithNetwork("microservices")
         .WithIPv4("10.100.2.10"))
-    .Build();
+    .BuildAsync();
 
 // Product Service
-using var productResults = new Builder()
+await using var productResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .WithName("product-service")
         .UseImage("product-service:latest")
         .WithNetwork("microservices")
         .WithIPv4("10.100.3.10"))
-    .Build();
+    .BuildAsync();
 
 // Services communicate via DNS names or static IPs
 // Gateway at 10.100.0.10 can route to all services
@@ -495,12 +495,12 @@ using var productResults = new Builder()
 ### Auto-cleanup with RemoveOnDispose
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("temp-network")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 // Network removed when results is disposed
 ```
@@ -508,10 +508,10 @@ using var results = new Builder()
 ### Disposing BuildResults
 
 ```csharp
-var results = new Builder()
+var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n.WithName("manual-network").RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 results.Dispose();                // dispose all services synchronously
 await results.DisposeAllAsync();  // or dispose asynchronously

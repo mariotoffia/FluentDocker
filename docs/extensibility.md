@@ -189,11 +189,11 @@ public class CustomDriverPack : DriverPackBase, IDriverPack
         DriverContext context, CancellationToken cancellationToken = default)
     {
         // Standard interfaces
-        RegisterDriver<IContainerDriver>(new PodmanContainerDriver(...));
-        RegisterDriver<IImageDriver>(new PodmanImageDriver(...));
+        RegisterDriver<IContainerDriver>(new PodmanCliContainerDriver(...));
+        RegisterDriver<IImageDriver>(new PodmanCliImageDriver(...));
 
         // Podman-specific interface
-        RegisterDriver<IPodmanPodDriver>(new PodmanPodDriver(...));
+        RegisterDriver<IPodmanPodDriver>(new PodmanCliPodDriver(...));
 
         await Task.CompletedTask;
     }
