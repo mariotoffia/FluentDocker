@@ -284,6 +284,7 @@ namespace FluentDocker.Drivers.Podman.Cli
           }
         };
 
+        // Intentionally raw: only streaming/unbounded/attach need StartProcessOrThrow; this buffered path catches start failures below and returns Fail.
         process.Start();
 
         // Always redirect stdin and close it when the command needs none, so a child that reads
@@ -440,7 +441,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       return sudo switch
       {
-        SudoMechanism.NoPassword => ("sudo", $"-- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
+        SudoMechanism.NoPassword => ("sudo", $"-n -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
         SudoMechanism.Password => ("sudo", $"-S -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", sudoPassword),
         _ => (binaryPath, arguments, null)
       };

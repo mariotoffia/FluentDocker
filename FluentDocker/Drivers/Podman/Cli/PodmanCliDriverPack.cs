@@ -290,7 +290,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// same Podman machine (start/init are not safe to run twice in parallel). Keyed by the
     /// configured machine name (or a sentinel for the default machine).
     /// </summary>
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> MachineLocks = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> MachineLocks = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Whether Podman machine management applies on the current platform. Podman machine only

@@ -75,7 +75,7 @@ namespace FluentDocker.Drivers.Podman.Cli
           }
         };
 
-        process.Start();
+        StartProcessOrThrow(process, binaryPath);
 
         // Always redirect stdin; write the sudo password when present, otherwise this closes stdin
         // so a child that reads stdin gets EOF instead of inheriting (and blocking on) ours.
@@ -103,6 +103,10 @@ namespace FluentDocker.Drivers.Podman.Cli
         KillProcessSafely(process, Logger);
         await TryObserveTaskAsync(outTask).ConfigureAwait(false);
         await TryObserveTaskAsync(errTask).ConfigureAwait(false);
+        throw;
+      }
+      catch (DriverException)
+      {
         throw;
       }
       catch (Exception ex)

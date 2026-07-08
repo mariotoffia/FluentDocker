@@ -26,7 +26,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     #region Pull/Push
 
     /// <summary>Pulls an image using the Podman CLI.</summary>
-    /// <remarks>The <paramref name="progress"/> parameter is currently not reported by the Podman CLI driver.</remarks>
     public async Task<CommandResponse<Unit>> PullAsync(
         DriverContext context, string image, string tag = "latest",
         IProgress<ImagePullProgress> progress = null,
@@ -35,9 +34,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var imageRef = ShouldAppendTag(image, tag) ? $"{image}:{tag}" : image;
-        var result = await ExecuteUnboundedCommandAsync(
+        var result = await ExecuteProgressCommandAsync(
             context,
-            $"pull {QuotePositionalArgument(imageRef, nameof(image))}", cancellationToken).ConfigureAwait(false);
+            $"pull {QuotePositionalArgument(imageRef, nameof(image))}",
+            progress,
+            CreatePullProgress,
+            cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Image pull failed"), FailureCode(result.Error, ErrorCodes.Image.PullFailed),
@@ -56,7 +58,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     }
 
     /// <summary>Pushes an image using the Podman CLI.</summary>
-    /// <remarks>The <paramref name="progress"/> parameter is currently not reported by the Podman CLI driver.</remarks>
     public async Task<CommandResponse<Unit>> PushAsync(
         DriverContext context, string image,
         IProgress<ImagePushProgress> progress = null,
@@ -64,9 +65,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteUnboundedCommandAsync(
+        var result = await ExecuteProgressCommandAsync(
             context,
-            $"push {QuotePositionalArgument(image, nameof(image))}", cancellationToken).ConfigureAwait(false);
+            $"push {QuotePositionalArgument(image, nameof(image))}",
+            progress,
+            CreatePushProgress,
+            cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Image push failed"), FailureCode(result.Error, ErrorCodes.Image.PushFailed),
@@ -157,7 +161,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         try
         {
-          var result = await ExecuteUnboundedCommandAsync(context, BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
+          var result = await ExecuteProgressCommandAsync(
+              context,
+              BuildBuildArgs(config, iidFile),
+              progress,
+              CreateBuildProgress,
+              cancellationToken).ConfigureAwait(false);
           if (!result.Success)
             return CommandResponse<ImageBuildResult>.Fail(
                 ErrorOrDefault(result, "Image build failed"), FailureCode(result.Error, ErrorCodes.Image.BuildFailed),
@@ -184,7 +193,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         }
         finally
         {
-          await DeleteFileIfExistsAsync(iidFile, cancellationToken).ConfigureAwait(false);
+          await DeleteFileIfExistsAsync(iidFile, CancellationToken.None).ConfigureAwait(false);
         }
       }
       catch (OperationCanceledException)

@@ -22,6 +22,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   {
     // ponytail: 4 MiB is enough for one pretty stats JSON batch; expose a knob if real streams exceed it.
     private const int MaxStatsJsonBufferChars = 4 * 1024 * 1024;
+    private int _detailsWarningLogged;
 
     public PodmanCliStreamDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
@@ -33,6 +34,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <param name="containerId">Container ID or name.</param>
     /// <param name="config">Stream logs configuration (null uses defaults).</param>
     /// <returns>The CLI arguments string.</returns>
+    /// <remarks>Podman CLI has no Docker-equivalent <c>--details</c>; <see cref="StreamLogsConfig.Details"/> is ignored.</remarks>
     public static string BuildStreamLogsArgs(string containerId, StreamLogsConfig config)
     {
       config ??= new StreamLogsConfig();
@@ -64,12 +66,15 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     }
 
     /// <inheritdoc />
+    /// <remarks>Podman CLI has no Docker-equivalent <c>--details</c>; <see cref="StreamLogsConfig.Details"/> is ignored and warned once per driver instance.</remarks>
     public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
         DriverContext context, string containerId,
         StreamLogsConfig config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       config ??= new StreamLogsConfig();
+      if (config.Details && Interlocked.Exchange(ref _detailsWarningLogged, 1) == 0)
+        Logger.LogWarning("Podman CLI ignores StreamLogsConfig.Details because podman logs has no --details flag.");
       var args = BuildStreamLogsArgs(containerId, config);
 
       await foreach (var entry in ExecuteStreamingCommandWithSourcesAsync(
