@@ -108,13 +108,14 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void Raw_AuthorityOnlyUri_UsesEmptyVerbatimBasePath()
+    public void Raw_AuthorityOnlyUri_KeepsEnginePrefix()
     {
       var ep = ModelRunnerEndpoint.Raw(new Uri("http://host:12434"));
 
-      Assert.Equal(string.Empty, ep.EnginePath);
-      Assert.Equal("/chat/completions", ep.EngineV1Path("/chat/completions"));
-      Assert.Equal("/chat/completions", ep.ResolveUri("/chat/completions").AbsolutePath);
+      // Authority-only Raw URLs have no raw base path, so they keep the engine prefix.
+      Assert.Equal("/engines/llama.cpp", ep.EnginePath);
+      Assert.Equal("/engines/llama.cpp/v1/chat/completions", ep.EngineV1Path("/chat/completions"));
+      Assert.Equal("/engines/llama.cpp/v1/chat/completions", ep.ResolveUri("/chat/completions").AbsolutePath);
     }
 
     [Fact]

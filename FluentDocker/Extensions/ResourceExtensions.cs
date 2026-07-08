@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using FluentDocker.Common;
 using FluentDocker.Model.Common;
 using FluentDocker.Resources;
 
@@ -93,7 +94,9 @@ namespace FluentDocker.Extensions
 
     private static Assembly GetAssembly(string assemblyName)
     {
-      return AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == assemblyName);
+      return AppDomain.CurrentDomain.GetAssemblies()
+          .FirstOrDefault(x => x.GetName().Name!.Equals(assemblyName, StringComparison.OrdinalIgnoreCase))
+          ?? throw new FluentDockerException($"Assembly '{assemblyName}' was not found in the current AppDomain.");
     }
   }
 }

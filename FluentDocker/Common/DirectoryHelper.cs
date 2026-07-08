@@ -74,7 +74,6 @@ namespace FluentDocker.Common
       if (!Directory.Exists(directoryPath))
         return;
 
-      NormalizeAttributes(directoryPath);
       DeleteDirectory(directoryPath, 5, 16, 2, throwOnFailure);
     }
 
@@ -96,7 +95,12 @@ namespace FluentDocker.Common
       for (var attempt = 1; attempt <= maxAttempts; attempt++)
         try
         {
+          NormalizeAttributes(directoryPath);
           Directory.Delete(directoryPath, true);
+          return;
+        }
+        catch (DirectoryNotFoundException)
+        {
           return;
         }
         catch (Exception ex)

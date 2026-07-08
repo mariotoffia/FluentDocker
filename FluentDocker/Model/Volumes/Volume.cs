@@ -16,10 +16,10 @@ namespace FluentDocker.Model.Volumes
     public DateTimeOffset Created { get; set; }
 
     /// <summary>Volume driver name (e.g., "local").</summary>
-    public string Driver { get; set; } = null!;
+    public string? Driver { get; set; }
 
     /// <summary>Unique name of the volume.</summary>
-    public string Name { get; set; } = null!;
+    public string? Name { get; set; }
 
     /// <summary>Scope of the volume ("local" or "global"). Absent from some engine responses.</summary>
     public string? Scope { get; set; }

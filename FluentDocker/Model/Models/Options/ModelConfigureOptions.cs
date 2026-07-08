@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 
 namespace FluentDocker.Model.Models.Options
@@ -8,15 +9,38 @@ namespace FluentDocker.Model.Models.Options
   /// </summary>
   public sealed class ModelConfigureOptions
   {
+    private int? _contextSize;
+    private bool _resetContextSize;
+
     /// <summary>
     /// <c>--context-size N</c>. Use <c>null</c> to leave unchanged, or
     /// <see cref="ResetContextSize"/> to send <c>--context-size -1</c> (reset to
     /// the engine default).
     /// </summary>
-    public int? ContextSize { get; init; }
+    public int? ContextSize
+    {
+      get => _contextSize;
+      init
+      {
+        if (value is <= 0)
+          throw new ArgumentOutOfRangeException(nameof(ContextSize), value, "Context size must be positive.");
+        if (value.HasValue && _resetContextSize)
+          throw new ArgumentException("ContextSize cannot be set when ResetContextSize is true.", nameof(ContextSize));
+        _contextSize = value;
+      }
+    }
 
     /// <summary>Emit <c>--context-size -1</c> to reset the context size to the engine default.</summary>
-    public bool ResetContextSize { get; init; }
+    public bool ResetContextSize
+    {
+      get => _resetContextSize;
+      init
+      {
+        if (value && _contextSize.HasValue)
+          throw new ArgumentException("ResetContextSize cannot be true when ContextSize is set.", nameof(ResetContextSize));
+        _resetContextSize = value;
+      }
+    }
 
     /// <summary>
     /// Inference backend (engine) override. The default — <c>null</c> or <c>"auto"</c> —

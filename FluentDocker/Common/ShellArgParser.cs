@@ -24,6 +24,7 @@ namespace FluentDocker.Common
     /// An array of argument strings. Returns an empty array when
     /// <paramref name="command"/> is null, empty, or whitespace-only.
     /// </returns>
+    /// <exception cref="FormatException">Thrown when a quote is unterminated.</exception>
     public static string[] Parse(string command)
     {
       if (string.IsNullOrWhiteSpace(command))
@@ -103,6 +104,9 @@ namespace FluentDocker.Common
           current.Add(c);
         }
       }
+
+      if (inSingleQuote || inDoubleQuote)
+        throw new FormatException("Unterminated quoted string.");
 
       if (current.Count > 0 || sawQuote)
       {

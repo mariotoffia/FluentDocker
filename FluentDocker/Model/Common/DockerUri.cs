@@ -14,11 +14,14 @@ namespace FluentDocker.Model.Common
   {
     private const string DockerHost = "DOCKER_HOST";
     private const string DockerHostUrlWindowsNative = "npipe://./pipe/docker_engine";
+    private const string DockerHostUrlWindowsNativeCanonical = "npipe:////./pipe/docker_engine";
     private const string DockerHostUrlMacOrLinux = "unix:///var/run/docker.sock";
 
     public DockerUri(string uriString) : base(uriString)
     {
-      if (uriString == DockerHostUrlMacOrLinux || uriString == DockerHostUrlWindowsNative)
+      if (uriString == DockerHostUrlMacOrLinux ||
+          uriString == DockerHostUrlWindowsNative ||
+          uriString == DockerHostUrlWindowsNativeCanonical)
         IsStandardDaemon = true;
     }
 
@@ -58,6 +61,9 @@ namespace FluentDocker.Model.Common
 
       if (Scheme == "ssh")
         return baseString.TrimEnd('/');
+
+      if (Scheme == "npipe" && OriginalString == DockerHostUrlWindowsNativeCanonical)
+        return OriginalString;
 
       if (Scheme == "npipe")
         return string.Concat(baseString.AsSpan(0, 6), "//", baseString.AsSpan(6));

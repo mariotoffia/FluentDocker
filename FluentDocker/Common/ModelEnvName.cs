@@ -13,7 +13,7 @@ namespace FluentDocker.Common
   /// </summary>
   internal static class ModelEnvName
   {
-    private static readonly Regex Pattern = new(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
+    private static readonly Regex Pattern = new(@"^[A-Za-z_][A-Za-z0-9_]*\z", RegexOptions.Compiled);
 
     /// <summary>
     /// Validates <paramref name="value"/> as an environment-variable name and returns

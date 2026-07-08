@@ -26,6 +26,7 @@ namespace FluentDocker.Model.Models
 
     private ModelRunnerEndpoint(Uri baseAddress, string engine, string? unixSocketPath, bool includeEngineInPath, string? basePath = null, string? query = null)
     {
+      ArgumentException.ThrowIfNullOrWhiteSpace(engine);
       BaseAddress = baseAddress;
       Engine = engine;
       UnixSocketPath = unixSocketPath;
@@ -96,7 +97,7 @@ namespace FluentDocker.Model.Models
 
       var authority = new Uri(url.GetLeftPart(UriPartial.Authority));
       var path = url.AbsolutePath.TrimEnd('/');
-      var basePath = path;
+      var basePath = string.IsNullOrEmpty(path) ? null : path;
       var query = string.IsNullOrEmpty(url.Query) ? null : url.Query;
       return new ModelRunnerEndpoint(authority, engine, null, true, basePath, query);
     }

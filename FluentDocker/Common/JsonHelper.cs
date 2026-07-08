@@ -155,7 +155,7 @@ namespace FluentDocker.Common
       {
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.TryGetProperty(propertyName, out var prop)
-            ? prop.GetString()
+            ? prop.ValueKind == JsonValueKind.String ? prop.GetString() : null
             : null;
       }
       catch (JsonException)

@@ -58,6 +58,9 @@ namespace FluentDocker.Resources
 
     private IEnumerable<ResourceInfo> QueryCore(Assembly assembly)
     {
+      if (_namespace == null)
+        throw new FluentDockerException("Namespace not set. Call Namespace(...) before querying resources.");
+
       foreach (var res in assembly.GetManifestResourceNames()
                    .Where(x => x.StartsWith(_namespace, StringComparison.Ordinal)))
       {

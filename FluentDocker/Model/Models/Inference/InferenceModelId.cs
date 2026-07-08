@@ -41,7 +41,7 @@ namespace FluentDocker.Model.Models.Inference
     }
 
     /// <summary>The raw model id, exactly as supplied.</summary>
-    public string Value => _value;
+    public string Value => _value ?? string.Empty;
 
     /// <summary>
     /// Derives the inference id from a Docker artifact <see cref="ModelReference"/>,
@@ -98,7 +98,7 @@ namespace FluentDocker.Model.Models.Inference
     }
 
     /// <summary>Explicitly extracts the raw model id string.</summary>
-    public static explicit operator string(InferenceModelId id) => id._value;
+    public static explicit operator string(InferenceModelId id) => id.Value;
 
     /// <summary>Value equality operator.</summary>
     public static bool operator ==(InferenceModelId left, InferenceModelId right) => left.Equals(right);

@@ -58,8 +58,11 @@ namespace FluentDocker.Model.Containers
     /// <summary>MAC address.</summary>
     public string? MacAddress { get; set; }
 
-    /// <summary>Published ports keyed by container port/protocol.</summary>
-    public Dictionary<string, HostIpEndpoint[]>? Ports { get; set; }
+    /// <summary>
+    /// Published ports keyed by container port/protocol; Docker emits a null value for
+    /// exposed-but-unpublished ports (for example <c>"80/tcp": null</c>).
+    /// </summary>
+    public Dictionary<string, HostIpEndpoint[]?>? Ports { get; set; }
 
     /// <summary>Per-network endpoint settings keyed by network name.</summary>
     public Dictionary<string, BridgeNetwork>? Networks { get; set; }

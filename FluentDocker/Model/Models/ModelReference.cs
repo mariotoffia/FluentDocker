@@ -2,7 +2,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Models
@@ -33,6 +32,8 @@ namespace FluentDocker.Model.Models
   public sealed class ModelReference : IEquatable<ModelReference>
   {
     private const string DockerHubRegistryPrefix = "docker.io/";
+    private const string IndexDockerHubRegistryPrefix = "index.docker.io/";
+    private const string RegistryOneDockerHubRegistryPrefix = "registry-1.docker.io/";
     private string? _string;
 
     private ModelReference(string? registry, string? ns, string name, string? tag, string? digest)
@@ -113,6 +114,12 @@ namespace FluentDocker.Model.Models
       return reference != null &&
           reference.StartsWith(DockerHubRegistryPrefix, StringComparison.OrdinalIgnoreCase)
           ? reference[DockerHubRegistryPrefix.Length..]
+          : reference != null &&
+          reference.StartsWith(IndexDockerHubRegistryPrefix, StringComparison.OrdinalIgnoreCase)
+          ? reference[IndexDockerHubRegistryPrefix.Length..]
+          : reference != null &&
+          reference.StartsWith(RegistryOneDockerHubRegistryPrefix, StringComparison.OrdinalIgnoreCase)
+          ? reference[RegistryOneDockerHubRegistryPrefix.Length..]
           : reference;
     }
 
@@ -167,6 +174,12 @@ namespace FluentDocker.Model.Models
       var start = 0;
       if (segments.Length >= 2 && LooksLikeRegistry(segments[0]))
       {
+        if (!IsValidRegistry(segments[0], out var registryReason))
+        {
+          error = $"invalid registry '{segments[0]}' ({registryReason})";
+          return false;
+        }
+
         registry = segments[0];
         start = 1;
       }
@@ -202,6 +215,12 @@ namespace FluentDocker.Model.Models
         if (!IsValidTag(tag))
         {
           error = "invalid tag (use letters, digits, '.', '_' or '-', starting with a letter, digit or '_')";
+          return false;
+        }
+
+        if (segments.Length == 1 && string.Equals(name, "sha256", StringComparison.Ordinal))
+        {
+          error = "digest-only references must use name@sha256:<digest>";
           return false;
         }
       }
@@ -262,6 +281,56 @@ namespace FluentDocker.Model.Models
       }
 
       return true;
+    }
+
+    private static bool IsValidRegistry(string segment, out string? reason)
+    {
+      reason = null;
+      var host = segment;
+      var colon = segment.LastIndexOf(':');
+      if (colon >= 0)
+      {
+        if (!TryParsePort(segment, colon + 1, out _))
+        {
+          reason = "port must be in the range 1-65535";
+          return false;
+        }
+
+        host = segment[..colon];
+      }
+
+      if (host.Length > 2 && host[0] == '[' && host[^1] == ']')
+        host = host[1..^1];
+
+      if (Uri.CheckHostName(host) == UriHostNameType.Unknown)
+      {
+        reason = "invalid host";
+        return false;
+      }
+
+      return true;
+    }
+
+    private static bool TryParsePort(string segment, int start, out int port)
+    {
+      port = 0;
+      if (start >= segment.Length)
+        return false;
+
+      for (var i = start; i < segment.Length; i++)
+      {
+        var c = segment[i];
+        if (c < '0' || c > '9')
+          return false;
+        var digit = c - '0';
+        if (port > 6553 || port == 6553 && digit > 5)
+          return false;
+        port = port * 10 + digit;
+        if (port > 65535)
+          return false;
+      }
+
+      return port > 0;
     }
 
     private static bool IsValidNameComponent(string component, out string? reason)
@@ -427,35 +496,5 @@ namespace FluentDocker.Model.Models
 
     /// <summary>Value inequality operator.</summary>
     public static bool operator !=(ModelReference? left, ModelReference? right) => !(left == right);
-  }
-
-  /// <summary>
-  /// Serializes a <see cref="ModelReference"/> as its canonical string form and
-  /// parses it back, so references appear as scalars in DMR request/response JSON.
-  /// </summary>
-  internal sealed class ModelReferenceJsonConverter : JsonConverter<ModelReference>
-  {
-    public override ModelReference? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-      if (reader.TokenType == JsonTokenType.Null)
-        return null;
-
-      var value = reader.GetString();
-      if (string.IsNullOrWhiteSpace(value))
-        return null;
-
-      if (!ModelReference.TryParse(value, out var model))
-        throw new JsonException($"Invalid model reference '{value}'.");
-
-      return model;
-    }
-
-    public override void Write(Utf8JsonWriter writer, ModelReference value, JsonSerializerOptions options)
-    {
-      if (value is null)
-        writer.WriteNullValue();
-      else
-        writer.WriteStringValue(value.ToString());
-    }
   }
 }
