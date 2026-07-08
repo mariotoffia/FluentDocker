@@ -11,8 +11,8 @@ namespace FluentDocker.Services.Extensions
 {
   internal static class ServiceEndpointResolver
   {
-    // ponytail: per-process address cache, add TTL if daemon IPs churn mid-run.
-    private static readonly ConcurrentDictionary<string, IPAddress> DockerHostAddressCache = new();
+    private static readonly TimeSpan DockerHostAddressCacheTtl = TimeSpan.FromSeconds(30);
+    private static readonly ConcurrentDictionary<string, (IPAddress Address, DateTimeOffset ExpiresAt)> DockerHostAddressCache = new();
 
     internal static async Task<IPEndPoint> ResolveAsync(
         IContainerService service,
@@ -87,11 +87,14 @@ namespace FluentDocker.Services.Extensions
       if (IPAddress.TryParse(dockerHost.Host, out var address))
         return address;
 
-      if (DockerHostAddressCache.TryGetValue(dockerHost.Host, out var cached))
-        return cached;
+      if (DockerHostAddressCache.TryGetValue(dockerHost.Host, out var cached) &&
+          cached.ExpiresAt > DateTimeOffset.UtcNow)
+      {
+        return cached.Address;
+      }
 
       var resolved = await ResolveHostAsync(dockerHost.Host, cancellationToken).ConfigureAwait(false);
-      DockerHostAddressCache.TryAdd(dockerHost.Host, resolved);
+      DockerHostAddressCache[dockerHost.Host] = (resolved, DateTimeOffset.UtcNow.Add(DockerHostAddressCacheTtl));
       return resolved;
     }
 

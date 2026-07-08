@@ -67,6 +67,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<Image> InspectAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -85,6 +87,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<IList<ImageLayer>> GetHistoryAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -103,6 +107,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task TagAsync(string repository, string tag, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -119,6 +125,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task PushAsync(IProgress<ImagePushProgress> progress = null, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -135,6 +143,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task SaveAsync(string outputPath, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -152,21 +162,29 @@ namespace FluentDocker.Services.Impl
     /// <summary>Images are static artifacts; start is a no-op.</summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       return Task.CompletedTask;
     }
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("Images cannot be paused");
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("Images cannot be stopped, use RemoveAsync instead");
     }
 
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       if (State == ServiceRunningState.Removed)
         return;
 
@@ -207,6 +225,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
+      ThrowIfDisposed();
       var name = uniqueName ?? Guid.NewGuid().ToString();
       _hooks[name] = (state, hook);
       return this;
@@ -214,6 +233,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
+      ThrowIfDisposed();
       _hooks.TryRemove(uniqueName, out _);
       return this;
     }
@@ -256,6 +276,9 @@ namespace FluentDocker.Services.Impl
     {
       await Task.CompletedTask.ConfigureAwait(false);
     }
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeCompleted) != 0, this);
 
     private void UpdateState(ServiceRunningState newState)
     {

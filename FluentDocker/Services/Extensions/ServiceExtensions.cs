@@ -20,6 +20,7 @@ namespace FluentDocker.Services.Extensions
   {
     // Minimum per-attempt TCP connect deadline (ms); poll interval governs cadence only.
     private const int MinConnectBudgetMs = 2000;
+    private const int LogTailLines = 100;
 
     #region Container Extensions
 
@@ -135,6 +136,7 @@ namespace FluentDocker.Services.Extensions
         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
       }
 
+      cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
 
@@ -199,6 +201,7 @@ namespace FluentDocker.Services.Extensions
         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
       }
 
+      cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
 
@@ -252,7 +255,7 @@ namespace FluentDocker.Services.Extensions
         catch (DriverException ex) when (ex.IsTransient)
         {
         }
-        catch (Exception ex) when (ex is not DriverException)
+        catch (Exception ex) when (IsRetriableWaitException(ex))
         {
           LogDebug(service, ex, "WaitForProcessAsync", processName);
         }
@@ -260,6 +263,7 @@ namespace FluentDocker.Services.Extensions
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
 
+      cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
 
@@ -349,6 +353,7 @@ namespace FluentDocker.Services.Extensions
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
 
+      cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
 
@@ -383,12 +388,16 @@ namespace FluentDocker.Services.Extensions
     {
       cancellationToken.ThrowIfCancellationRequested();
       var sw = Stopwatch.StartNew();
+      var firstLogPoll = true;
 
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
         try
         {
-          var logs = await service.GetLogsAsync(false, cancellationToken).ConfigureAwait(false);
+          var logs = service is ContainerService containerService && !firstLogPoll
+              ? await containerService.GetLogsTailAsync(LogTailLines, cancellationToken).ConfigureAwait(false)
+              : await service.GetLogsAsync(false, cancellationToken).ConfigureAwait(false);
+          firstLogPoll = false;
           if (logs?.Contains(text) == true)
             return true;
         }
@@ -399,7 +408,7 @@ namespace FluentDocker.Services.Extensions
         catch (DriverException ex) when (ex.IsTransient)
         {
         }
-        catch (Exception ex) when (ex is not DriverException)
+        catch (Exception ex) when (IsRetriableWaitException(ex))
         {
           LogDebug(service, ex, "WaitForLogMessageAsync", text);
         }
@@ -407,8 +416,13 @@ namespace FluentDocker.Services.Extensions
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
 
-      return false;
+      cancellationToken.ThrowIfCancellationRequested();
+      return service is ContainerService &&
+          await ContainsLogMessageAsync(service, text, cancellationToken).ConfigureAwait(false);
     }
+
+    private static bool IsRetriableWaitException(Exception ex) =>
+        ex is not DriverException and not OperationCanceledException and not ObjectDisposedException and not NullReferenceException;
 
     private static void InvalidateInspectCache(IContainerService service)
     {

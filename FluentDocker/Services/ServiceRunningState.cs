@@ -11,7 +11,7 @@ namespace FluentDocker.Services
     /// <summary>Service is in the process of starting.</summary>
     Starting = 1,
 
-    /// <summary>Service is running and healthy.</summary>
+    /// <summary>Service is running; inspect data exposes health details when available.</summary>
     Running = 2,
 
     /// <summary>Service is paused and can be resumed.</summary>

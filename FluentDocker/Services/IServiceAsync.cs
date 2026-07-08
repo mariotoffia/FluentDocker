@@ -22,7 +22,11 @@ namespace FluentDocker.Services
     /// <summary>Name or identifier of the service.</summary>
     string Name { get; }
 
-    /// <summary>Current running state of the service.</summary>
+    /// <summary>Current client-side running state of the service.</summary>
+    /// <remarks>
+    /// This value is updated by this service instance and may drift when the daemon changes the
+    /// resource externally. Use inspect/configuration APIs for authoritative container state.
+    /// </remarks>
     ServiceRunningState State { get; }
 
     /// <summary>

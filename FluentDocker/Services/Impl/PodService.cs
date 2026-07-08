@@ -67,6 +67,7 @@ namespace FluentDocker.Services.Impl
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -97,6 +98,7 @@ namespace FluentDocker.Services.Impl
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       // A fresh pod starts in Stopped, so only Removed is a terminal state to guard here — mirrors
       // RemoveAsync's guard so a stop can't resurrect a removed pod (Removed -> Stopping -> Stopped).
       if (State is ServiceRunningState.Removed)
@@ -130,12 +132,16 @@ namespace FluentDocker.Services.Impl
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("Pods cannot be paused via builder");
     }
 
     public async Task RemoveAsync(
         bool force = false, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       if (State == ServiceRunningState.Removed)
         return;
 
@@ -170,6 +176,7 @@ namespace FluentDocker.Services.Impl
     public IServiceAsync AddHook(
         ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
+      ThrowIfDisposed();
       var name = uniqueName ?? Guid.NewGuid().ToString();
       _hooks[name] = (state, hook);
       return this;
@@ -177,6 +184,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
+      ThrowIfDisposed();
       _hooks.TryRemove(uniqueName, out _);
       return this;
     }
@@ -239,6 +247,9 @@ namespace FluentDocker.Services.Impl
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
             TaskScheduler.Default);
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeCompleted) != 0, this);
 
     private void UpdateState(ServiceRunningState newState)
     {

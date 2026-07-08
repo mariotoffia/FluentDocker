@@ -20,6 +20,7 @@ namespace FluentDocker.Services.Impl
     private readonly TimeSpan _disposeCleanupTimeout =
         TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     private EngineScopeType _currentScope;
+    private string _lastSwitchError;
     private int _disposed;
 
     private EngineScope(
@@ -73,8 +74,11 @@ namespace FluentDocker.Services.Impl
 
         if (!switched)
         {
+          var details = string.IsNullOrWhiteSpace(scope._lastSwitchError)
+              ? string.Empty
+              : $": {scope._lastSwitchError}";
           throw new DriverException(
-              $"Failed to switch driver '{driverId}' engine scope from {originalScope} to {targetScope}",
+              $"Failed to switch driver '{driverId}' engine scope from {originalScope} to {targetScope}{details}",
               ErrorCodes.General.Unknown);
         }
       }
@@ -86,6 +90,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<bool> IsWindowsEngineAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -95,6 +101,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<bool> IsLinuxEngineAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -102,8 +110,14 @@ namespace FluentDocker.Services.Impl
       return response.Success && response.Data;
     }
 
-    public async Task<bool> UseLinuxAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> UseLinuxAsync(CancellationToken cancellationToken = default) =>
+        await UseLinuxCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
+
+    private async Task<bool> UseLinuxCoreAsync(bool throwIfDisposed, CancellationToken cancellationToken)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       if (_currentScope == EngineScopeType.Linux)
         return true;
 
@@ -114,15 +128,23 @@ namespace FluentDocker.Services.Impl
 
       if (response.Success)
       {
+        _lastSwitchError = null;
         _currentScope = EngineScopeType.Linux;
         return true;
       }
 
+      _lastSwitchError = response.Error;
       return false;
     }
 
-    public async Task<bool> UseWindowsAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> UseWindowsAsync(CancellationToken cancellationToken = default) =>
+        await UseWindowsCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
+
+    private async Task<bool> UseWindowsCoreAsync(bool throwIfDisposed, CancellationToken cancellationToken)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       if (_currentScope == EngineScopeType.Windows)
         return true;
 
@@ -133,10 +155,12 @@ namespace FluentDocker.Services.Impl
 
       if (response.Success)
       {
+        _lastSwitchError = null;
         _currentScope = EngineScopeType.Windows;
         return true;
       }
 
+      _lastSwitchError = response.Error;
       return false;
     }
 
@@ -214,9 +238,12 @@ namespace FluentDocker.Services.Impl
     {
       using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
       var restoreTask = _originalScope == EngineScopeType.Linux
-          ? UseLinuxAsync(cleanupCts.Token)
-          : UseWindowsAsync(cleanupCts.Token);
+          ? UseLinuxCoreAsync(throwIfDisposed: false, cleanupCts.Token)
+          : UseWindowsCoreAsync(throwIfDisposed: false, cleanupCts.Token);
       await restoreTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
     }
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
   }
 }

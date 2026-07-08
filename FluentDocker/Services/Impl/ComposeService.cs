@@ -80,6 +80,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<IList<ComposeServiceInfo>> ListServicesAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -104,6 +106,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<string> GetLogsAsync(bool follow = false, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -129,6 +133,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<string> ExecuteAsync(string service, string[] command, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -155,6 +161,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task ScaleAsync(string service, int replicas, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -178,6 +186,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task RefreshStateAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       // ponytail: preserve RemoveAsync's idempotency guard; ps-empty must not resurrect Removed.
       if (_state == ServiceRunningState.Removed)
         return;
@@ -207,6 +217,7 @@ namespace FluentDocker.Services.Impl
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -243,6 +254,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task PauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -270,6 +283,7 @@ namespace FluentDocker.Services.Impl
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -310,6 +324,7 @@ namespace FluentDocker.Services.Impl
     public async Task RestartAsync(IEnumerable<string> services, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -341,6 +356,7 @@ namespace FluentDocker.Services.Impl
       }
       catch (OperationCanceledException)
       {
+        UpdateState(ServiceRunningState.Unknown);
         throw;
       }
       catch
@@ -352,6 +368,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
+      ThrowIfDisposed();
       var name = uniqueName ?? Guid.NewGuid().ToString();
       _hooks[name] = (state, hook);
       return this;
@@ -359,94 +376,10 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
+      ThrowIfDisposed();
       _hooks.TryRemove(uniqueName, out _);
       return this;
     }
-
-    private int _disposed;
-    private int _disposeCompleted;
-
-    public void Dispose()
-    {
-      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
-        return;
-      try
-      {
-        // Dispatched to the thread pool to avoid sync-over-async deadlocks.
-        Task.Run(() => DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
-      }
-      finally
-      {
-        Volatile.Write(ref _disposeCompleted, 1);
-        GC.SuppressFinalize(this);
-      }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
-        return;
-      try
-      {
-        await DisposeCoreAsync().ConfigureAwait(false);
-      }
-      finally
-      {
-        Volatile.Write(ref _disposeCompleted, 1);
-        GC.SuppressFinalize(this);
-      }
-    }
-
-    private async ValueTask DisposeCoreAsync()
-    {
-      try
-      {
-        if (_downOnDispose)
-        {
-          using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
-          var removeTask = RemoveAsync(force: false, cleanupCts.Token);
-          try
-          {
-            await removeTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
-          }
-          catch (Exception ex)
-          {
-            _logger.LogWarning(ex, "ComposeService DisposeAsync failed");
-            ObserveAbandonedCleanup(removeTask);
-          }
-        }
-      }
-      finally
-      {
-        DeleteOwnedTempFiles();
-      }
-    }
-
-    private void DeleteOwnedTempFiles()
-    {
-      if (_ownedTempFiles is null)
-        return;
-
-      foreach (var path in _ownedTempFiles)
-      {
-        try
-        {
-          if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
-            System.IO.File.Delete(path);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogWarning(ex, "ComposeService failed to delete temp overlay file {Path}", path);
-        }
-      }
-    }
-
-    private static void ObserveAbandonedCleanup(Task task) =>
-        _ = task.ContinueWith(
-            static t => _ = t.Exception,
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted,
-            TaskScheduler.Default);
 
     private void UpdateState(ServiceRunningState newState)
     {

@@ -13,8 +13,10 @@ namespace FluentDocker.Services.Extensions
   public static class EnvironmentExtensions
   {
     private static volatile IPAddress _cachedDockerIpAddress;
+    private static DateTimeOffset _cachedDockerIpAddressExpiresAt;
     private static readonly object CacheLock = new();
     private static readonly TimeSpan DnsTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan DockerHostAddressCacheTtl = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Checks if running on native Linux Docker.
@@ -130,13 +132,27 @@ namespace FluentDocker.Services.Extensions
     /// <param name="useCache">Whether to cache the result.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The Docker host IP address.</returns>
+    /// <remarks>
+    /// On Linux, when <c>host.docker.internal</c> cannot be resolved, this falls back to
+    /// <c>172.17.0.1</c>, Docker's default bridge gateway convention. Custom bridge or rootless
+    /// setups may need an explicit host override instead.
+    /// </remarks>
     public static async Task<IPAddress> GetDockerHostAddressAsync(
         bool useCache,
         CancellationToken cancellationToken)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      if (useCache && _cachedDockerIpAddress != null)
-        return _cachedDockerIpAddress;
+      if (useCache)
+      {
+        lock (CacheLock)
+        {
+          if (_cachedDockerIpAddress != null &&
+              _cachedDockerIpAddressExpiresAt > DateTimeOffset.UtcNow)
+          {
+            return _cachedDockerIpAddress;
+          }
+        }
+      }
 
       // On Linux, use host network or Docker's gateway
       if (FdOs.IsLinux())
@@ -184,6 +200,7 @@ namespace FluentDocker.Services.Extensions
         lock (CacheLock)
         {
           _cachedDockerIpAddress = address;
+          _cachedDockerIpAddressExpiresAt = DateTimeOffset.UtcNow.Add(DockerHostAddressCacheTtl);
         }
       }
 
