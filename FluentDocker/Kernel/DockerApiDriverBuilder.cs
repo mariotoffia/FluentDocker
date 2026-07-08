@@ -1,4 +1,5 @@
 using System;
+using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api;
 using FluentDocker.Model.Drivers;
 
@@ -81,7 +82,7 @@ namespace FluentDocker.Kernel
       if (_allowTlsHostnameMismatch)
       {
         context.Metadata ??= [];
-        context.Metadata["DockerApi.AllowTlsHostnameMismatch"] = "true";
+        context.Metadata[DockerApiDriverMetadataKeys.AllowTlsHostnameMismatch] = "true";
       }
 
       return new KernelBuilder.DriverConfiguration

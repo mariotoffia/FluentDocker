@@ -47,6 +47,9 @@ namespace FluentDocker.Kernel
         throw new DriverException($"{kind} '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
     }
 
+    private DriverNotFoundException CreateDriverNotFoundException(string driverId) =>
+        new(driverId, GetAllDriverIds());
+
     private async Task RollbackReservationAsync(string driverId)
     {
       await _registrationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);

@@ -71,9 +71,9 @@ namespace FluentDocker.Kernel
       {
         ThrowIfDisposed();
 
+        preparedContext = PrepareContext(driverId, context);
         ThrowIfDriverIdUnavailable(driverId, "Driver");
         _reservedDriverIds.Add(driverId);
-        preparedContext = PrepareContext(driverId, context);
       }
       finally
       {
@@ -140,7 +140,7 @@ namespace FluentDocker.Kernel
         var removedDriver = _drivers.TryRemove(driverId, out driver);
         var removedPack = _driverPacks.TryRemove(driverId, out pack);
         if (!removedDriver && !removedPack)
-          throw new DriverNotFoundException(driverId);
+          throw CreateDriverNotFoundException(driverId);
 
         _registrationOrder.Remove(driverId);
 
@@ -169,7 +169,7 @@ namespace FluentDocker.Kernel
       ThrowIfDisposed();
       if (!_drivers.TryGetValue(driverId, out var registration))
       {
-        throw new DriverNotFoundException(driverId);
+        throw CreateDriverNotFoundException(driverId);
       }
 
       return registration.Driver;
@@ -215,9 +215,9 @@ namespace FluentDocker.Kernel
       {
         ThrowIfDisposed();
 
+        preparedContext = PrepareContext(driverId, context);
         ThrowIfDriverIdUnavailable(driverId, "Driver pack");
         _reservedDriverIds.Add(driverId);
-        preparedContext = PrepareContext(driverId, context);
       }
       finally
       {
@@ -269,7 +269,7 @@ namespace FluentDocker.Kernel
       ThrowIfDisposed();
       if (!_driverPacks.TryGetValue(driverId, out var registration))
       {
-        throw new DriverNotFoundException(driverId);
+        throw CreateDriverNotFoundException(driverId);
       }
 
       return registration.DriverPack;
@@ -320,7 +320,7 @@ namespace FluentDocker.Kernel
         return packReg.Context;
       }
 
-      throw new DriverNotFoundException(driverId);
+      throw CreateDriverNotFoundException(driverId);
     }
 
     /// <summary>
@@ -407,7 +407,7 @@ namespace FluentDocker.Kernel
         // Check inside lock to prevent TOCTOU race where another thread
         // could unregister the driver between check and set.
         if (!IsRegistered(driverId))
-          throw new DriverNotFoundException(driverId);
+          throw CreateDriverNotFoundException(driverId);
 
         _defaultDriverId = driverId;
       }

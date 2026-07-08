@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
@@ -88,29 +89,48 @@ namespace FluentDocker.Kernel
         throw new InvalidOperationException("KernelBuilder is single-use; create a new builder for another kernel.");
 
       var kernel = new FluentDockerKernel(new DriverRegistry(_loggerFactory), _loggerFactory);
+      var configIndex = 0;
 
       try
       {
-        foreach (var config in _driverConfigurations)
+        for (; configIndex < _driverConfigurations.Count; configIndex++)
         {
+          var config = _driverConfigurations[configIndex];
           var driverPack = config.DriverPackFactory?.Invoke() ?? config.DriverPack;
-          if (driverPack != null)
+          var attemptedInstance = (object)driverPack ?? config.Driver;
+          try
           {
-            await kernel.RegisterDriverPackAsync(
-                config.DriverId, driverPack, config.Context, cancellationToken).ConfigureAwait(false);
-          }
-          else if (config.Driver != null)
-          {
-            await kernel.RegisterDriverAsync(
-                config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
-          }
+            if (driverPack != null)
+            {
+              await kernel.RegisterDriverPackAsync(
+                  config.DriverId, driverPack, config.Context, cancellationToken).ConfigureAwait(false);
+            }
+            else if (config.Driver != null)
+            {
+              await kernel.RegisterDriverAsync(
+                  config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
+            }
 
-          if (config.IsDefault)
-            kernel.SetDefaultDriver(config.DriverId);
+            if (config.IsDefault)
+              kernel.SetDefaultDriver(config.DriverId);
+          }
+          catch (Exception ex) when (IsPreOwnershipRegistrationFailure(ex))
+          {
+            if (attemptedInstance != null)
+            {
+              await DisposeOwnedInstanceAsync(
+                  attemptedInstance,
+                  _loggerFactory.CreateLogger<KernelBuilder>(),
+                  config.DriverId).ConfigureAwait(false);
+            }
+
+            throw;
+          }
         }
       }
       catch
       {
+        await DisposeUnregisteredConfigurationsAsync(configIndex + 1).ConfigureAwait(false);
         await kernel.DisposeAsync().ConfigureAwait(false);
         throw;
       }
@@ -130,6 +150,46 @@ namespace FluentDocker.Kernel
     {
       if (Volatile.Read(ref _built) != 0)
         throw new InvalidOperationException("KernelBuilder is single-use; create a new builder for another kernel.");
+    }
+
+    private async Task DisposeUnregisteredConfigurationsAsync(int startIndex)
+    {
+      var logger = _loggerFactory.CreateLogger<KernelBuilder>();
+      for (var i = startIndex; i < _driverConfigurations.Count; i++)
+      {
+        var config = _driverConfigurations[i];
+        if (config.DriverPack != null)
+          await DisposeOwnedInstanceAsync(config.DriverPack, logger, config.DriverId).ConfigureAwait(false);
+        if (config.Driver != null)
+          await DisposeOwnedInstanceAsync(config.Driver, logger, config.DriverId).ConfigureAwait(false);
+      }
+    }
+
+    private static async Task DisposeOwnedInstanceAsync(object instance, ILogger logger, string driverId)
+    {
+      try
+      {
+        if (instance is IAsyncDisposable asyncDisposable)
+          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+        else if (instance is IDisposable disposable)
+          await Task.Run(disposable.Dispose).ConfigureAwait(false);
+      }
+      catch (Exception ex)
+      {
+        logger.LogWarning(ex, "Failed to dispose unregistered driver configuration {DriverId}", driverId);
+      }
+    }
+
+    private static bool IsPreOwnershipRegistrationFailure(Exception ex)
+    {
+      // Safe because BuildAsync uses a fresh non-shared registry with sequential awaits,
+      // so AlreadyRegistered here can only originate from the pre-ownership
+      // ThrowIfDriverIdUnavailable check, never the post-ownership TryAdd race at
+      // DriverRegistry.cs:102.
+      return (ex is ArgumentException argumentException
+              && string.Equals(argumentException.ParamName, "context", StringComparison.Ordinal)
+              && argumentException.Message.Contains("does not match registration ID", StringComparison.Ordinal))
+          || ex is DriverException { ErrorCode: ErrorCodes.Driver.AlreadyRegistered };
     }
 
     internal sealed class DriverConfiguration

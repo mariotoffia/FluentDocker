@@ -36,8 +36,9 @@ namespace FluentDocker.Drivers
     /// <param name="context">Driver context</param>
     /// <param name="containerId">Container ID or name</param>
     /// <param name="follow">
-    /// Follow log output. Docker CLI and Docker API buffered logs reject this; use
-    /// <see cref="IStreamDriver.StreamLogsAsync"/> for indefinite streams.
+    /// Follow log output. This buffered port does not support following on Docker CLI,
+    /// Docker API, or Podman CLI; drivers throw <see cref="FluentDocker.Services.FluentDockerNotSupportedException"/>
+    /// when <c>true</c>. Use <see cref="IStreamDriver.StreamLogsAsync"/> for indefinite streams.
     /// </param>
     /// <param name="tail">Number of lines to show from end (null = all)</param>
     /// <param name="timestamps">Show timestamps</param>

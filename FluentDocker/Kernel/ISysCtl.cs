@@ -34,7 +34,7 @@ namespace FluentDocker.Kernel
 
     /// <summary>
     /// Tries to get a driver component interface. Returns false instead of throwing
-    /// if the interface is not supported by the driver.
+    /// if the interface is unsupported or a driver pack faults during SysCtl fallback resolution.
     /// </summary>
     /// <typeparam name="T">Driver component interface</typeparam>
     /// <param name="driverId">Driver identifier; null or whitespace resolves the default driver.</param>

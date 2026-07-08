@@ -213,7 +213,10 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class AttachConfig
   {
-    /// <summary>Attach to stdout.</summary>
+    /// <summary>
+    /// Attach to stdout. Kept alongside <see cref="NoStdout"/> for Docker CLI parity;
+    /// if both conflict, adapters fail fast rather than guessing.
+    /// </summary>
     public bool Stdout { get; set; } = true;
 
     /// <summary>Attach to stderr.</summary>
@@ -231,13 +234,14 @@ namespace FluentDocker.Drivers
 
     /// <summary>
     /// Key sequence for detaching. The Docker API driver does not support custom detach
-    /// keys and fails fast when set.
+    /// keys and fails fast when set. This is an adapter-specific Docker/Podman CLI option.
     /// </summary>
     public string DetachKeys { get; set; }
 
     /// <summary>
-    /// Do not attach stdout. Docker CLI attach cannot suppress this and fails fast when true;
-    /// the Docker API driver also fails fast when true.
+    /// Do not attach stdout. This is the Docker CLI inverse of <see cref="Stdout"/> and is
+    /// kept for binary compatibility; Docker CLI attach cannot suppress this and fails fast
+    /// when true; the Docker API driver also fails fast when true.
     /// </summary>
     public bool NoStdout { get; set; }
 
@@ -247,7 +251,10 @@ namespace FluentDocker.Drivers
     /// </summary>
     public bool NoStderr { get; set; }
 
-    /// <summary>Proxy all received signals.</summary>
+    /// <summary>
+    /// Proxy all received signals. This is a Docker/Podman CLI option; non-CLI adapters
+    /// may ignore it or fail fast when signal proxying cannot be represented.
+    /// </summary>
     public bool SigProxy { get; set; } = true;
   }
 
@@ -371,42 +378,60 @@ namespace FluentDocker.Drivers
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return ValueTask.CompletedTask;
 
-      try
+      var disposeErrors = new List<Exception>();
+      DisposeStream(InputStream, disposeErrors, Logger);
+      DisposeStream(OutputStream, disposeErrors, Logger);
+      DisposeStream(ErrorStream, disposeErrors, Logger);
+      IsConnected = false;
+
+      // Always reclaim the process even if a stream Dispose() threw — reclaiming the
+      // handle is the whole point of this disposal path.
+      if (AttachedProcess != null)
       {
-        InputStream?.Dispose();
-        OutputStream?.Dispose();
-        ErrorStream?.Dispose();
-        IsConnected = false;
-      }
-      finally
-      {
-        // Always reclaim the process even if a stream Dispose() threw — reclaiming the
-        // handle is the whole point of this disposal path.
-        if (AttachedProcess != null)
+        // Tree-kill the attach process (it may have spawned the engine's attach helper),
+        // then always dispose the Process handle — even when it has already exited — so the
+        // underlying OS handle is never leaked.
+        try
         {
-          // Tree-kill the attach process (it may have spawned the engine's attach helper),
-          // then always dispose the Process handle — even when it has already exited — so the
-          // underlying OS handle is never leaked.
+          if (!AttachedProcess.HasExited)
+            AttachedProcess.Kill(entireProcessTree: true);
+        }
+        catch (Exception ex)
+        {
+          // ponytail: kill failure surfaced via KillError + optional log; wire a logger into the factories later if richer diagnostics are needed.
+          Logger?.LogWarning(ex, "Process kill failed");
+          KillError = ex;
+        }
+        finally
+        {
           try
           {
-            if (!AttachedProcess.HasExited)
-              AttachedProcess.Kill(entireProcessTree: true);
+            AttachedProcess.Dispose();
           }
           catch (Exception ex)
           {
-            // ponytail: kill failure surfaced via KillError + optional log; wire a logger into the factories later if richer diagnostics are needed.
-            Logger?.LogWarning(ex, "Process kill failed");
-            KillError = ex;
-          }
-          finally
-          {
-            AttachedProcess.Dispose();
+            Logger?.LogWarning(ex, "Process dispose failed");
           }
         }
       }
 
       GC.SuppressFinalize(this);
-      return ValueTask.CompletedTask;
+      return disposeErrors.Count == 0
+          ? ValueTask.CompletedTask
+          : ValueTask.FromException(new AggregateException("One or more attach streams failed to dispose.", disposeErrors));
+    }
+
+    private static void DisposeStream(Stream stream, List<Exception> disposeErrors, ILogger logger)
+    {
+      try
+      {
+        stream?.Dispose();
+      }
+      catch (Exception ex)
+      {
+        logger?.LogWarning(ex, "Attach stream disposal failed");
+        disposeErrors.Add(ex);
+      }
     }
   }
 
