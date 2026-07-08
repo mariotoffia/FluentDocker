@@ -89,6 +89,21 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task InitializeAsync_WhenDriverIsUnhealthy_UsesUnavailableSentinel()
+    {
+      MockPack.SetHealthy(false);
+      var resource = new VolumeResource(
+          Kernel,
+          config => config.Name = "unhealthy-volume");
+
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      Assert.IsType<FluentDockerUnavailableException>(ex.InnerException);
+      Assert.Contains("Is Docker running?", ex.InnerException.Message);
+    }
+
+    [Fact]
     public void Constructor_NullConfigure_Throws()
     {
       Assert.Throws<ArgumentNullException>(() =>

@@ -101,6 +101,39 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
     }
   }
 
+  [TestClass]
+  [TestCategory("Unit")]
+  public class MissingBinaryClassContainerFixtureRunnerTests
+      : MsTestClassContainerFixtureBase<MissingBinaryClassContainerFixtureRunnerTests>
+  {
+    protected override bool SkipWhenUnavailable => true;
+
+    protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
+        () => Task.FromException<FluentDockerKernel>(
+            new DriverNotAvailableException("docker", "docker binary not found"));
+
+    protected override DockerResourceOptions? GetOptions() =>
+        new() { Driver = DriverSelection.Specific("docker"), ForceRemoveOnDispose = true };
+
+    protected override void ConfigureContainer(IContainerBuilder builder)
+    {
+      builder.UseImage("alpine:latest");
+    }
+
+    [TestMethod]
+    public void FixtureIsInconclusiveWhenDockerBinaryIsMissing()
+    {
+      Assert.Fail(
+          "MSTest class fixture should be marked inconclusive before the test body runs.");
+    }
+
+    [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
+    public static async Task Cleanup()
+    {
+      await CleanupClassAsync().ConfigureAwait(false);
+    }
+  }
+
   internal sealed class MockContainerDriverPack : IDriverPack
   {
     private readonly Dictionary<Type, object> _drivers = [];

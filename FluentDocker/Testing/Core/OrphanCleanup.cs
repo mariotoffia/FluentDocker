@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -61,6 +62,7 @@ namespace FluentDocker.Testing.Core
   public static class OrphanCleanup
   {
     private static readonly TimeSpan DefaultMinimumAge = TimeSpan.FromHours(1);
+    private static readonly ConcurrentDictionary<string, byte> AbandonedLateProvisionNames = new();
 
     /// <summary>
     /// Result of an orphan cleanup operation that scans containers, networks,
@@ -187,9 +189,10 @@ namespace FluentDocker.Testing.Core
           if (inspect?.Success == true)
             containerLabels = inspect.Data?.Config?.Labels as IDictionary<string, string>;
         }
-        if (IsCurrentSession(containerLabels, currentSessionId))
+        var isAbandonedLateProvision = IsAbandonedLateProvision(container.Id, container.Name);
+        if (IsCurrentSession(containerLabels, currentSessionId) && !isAbandonedLateProvision)
           continue;
-        if (ShouldPreserveDueToAge(containerLabels, minimumAge))
+        if (!isAbandonedLateProvision && ShouldPreserveDueToAge(containerLabels, minimumAge))
           continue;
 
         try
@@ -225,9 +228,10 @@ namespace FluentDocker.Testing.Core
       foreach (var network in listResult.Data ?? Enumerable.Empty<Network>())
       {
         var networkLabels = network.Labels as IDictionary<string, string>;
-        if (IsCurrentSession(networkLabels, currentSessionId))
+        var isAbandonedLateProvision = IsAbandonedLateProvision(network.Id, network.Name);
+        if (IsCurrentSession(networkLabels, currentSessionId) && !isAbandonedLateProvision)
           continue;
-        if (ShouldPreserveDueToAge(networkLabels, minimumAge))
+        if (!isAbandonedLateProvision && ShouldPreserveDueToAge(networkLabels, minimumAge))
           continue;
 
         try
@@ -262,9 +266,10 @@ namespace FluentDocker.Testing.Core
       foreach (var volume in listResult.Data ?? Enumerable.Empty<Model.Volumes.Volume>())
       {
         var volumeLabels = volume.Labels as IDictionary<string, string>;
-        if (IsCurrentSession(volumeLabels, currentSessionId))
+        var isAbandonedLateProvision = IsAbandonedLateProvision(volume.Name);
+        if (IsCurrentSession(volumeLabels, currentSessionId) && !isAbandonedLateProvision)
           continue;
-        if (ShouldPreserveDueToAge(volumeLabels, minimumAge))
+        if (!isAbandonedLateProvision && ShouldPreserveDueToAge(volumeLabels, minimumAge))
           continue;
 
         try
@@ -291,6 +296,27 @@ namespace FluentDocker.Testing.Core
       return labels.TryGetValue(SessionLabel.Key, out var sessionId)
              && sessionId == currentSessionId;
     }
+
+    internal static void MarkAbandonedLateProvision(string resourceName)
+    {
+      if (!string.IsNullOrWhiteSpace(resourceName))
+        AbandonedLateProvisionNames.TryAdd(NormalizeResourceName(resourceName), 0);
+    }
+
+    private static bool IsAbandonedLateProvision(params string[] names)
+    {
+      foreach (var name in names)
+      {
+        if (!string.IsNullOrWhiteSpace(name) &&
+            AbandonedLateProvisionNames.TryRemove(NormalizeResourceName(name), out _))
+          return true;
+      }
+
+      return false;
+    }
+
+    private static string NormalizeResourceName(string name) =>
+        name.Trim().TrimStart('/');
 
     private static bool ShouldPreserveDueToAge(
         IDictionary<string, string> labels,

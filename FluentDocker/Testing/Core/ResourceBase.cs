@@ -22,6 +22,7 @@ namespace FluentDocker.Testing.Core
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private bool _provisioned;
     private int _provisionGeneration;
+    private int _disposeProvisionGeneration;
     private int _disposeStarted;
     private Task _abandonedProvision;
     private static readonly Action<ILogger, Exception> GracefulAndForceRemoveFailed =
@@ -162,6 +163,7 @@ namespace FluentDocker.Testing.Core
               "(teardown may have failed). Call DisposeAsync to clean up " +
               "before re-initializing.");
 
+        _disposeProvisionGeneration = 0;
         Interlocked.Exchange(ref _disposeStarted, 0);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(Options.InitializationTimeout);
@@ -171,6 +173,7 @@ namespace FluentDocker.Testing.Core
           DriverId = ResolveDriverId();
           ValidateExpectedDriverType();
           await RunHooksAsync(_beforeInitHooks, cts.Token).ConfigureAwait(false);
+          await EnsureRuntimeHealthyAsync(cts.Token).ConfigureAwait(false);
           await PreflightAsync(cts.Token).ConfigureAwait(false);
 
           if (Options.CleanupOrphansOnInit)

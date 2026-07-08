@@ -95,19 +95,26 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void AddHook_AddsHook()
+    public async Task AddHook_FiresWhenStateTransitionMatches()
     {
       // Arrange
-      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var (kernel, pack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync();
+      pack.SetupContainerStart();
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
+      var hookCalled = false;
 
       // Act
-      service.AddHook(ServiceRunningState.Running, _ => Task.CompletedTask, "test-hook");
+      service.AddHook(ServiceRunningState.Running, _ =>
+      {
+        hookCalled = true;
+        return Task.CompletedTask;
+      }, "test-hook");
+      await service.StartAsync(TestContext.Current.CancellationToken);
 
-      // Assert - hook is added (we can't easily verify without triggering state change)
-      Assert.NotNull(service);
+      // Assert
+      Assert.True(hookCalled);
 
-      kernel.Dispose();
+      await kernel.DisposeAsync();
     }
 
     [Fact]

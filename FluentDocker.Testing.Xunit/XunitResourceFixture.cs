@@ -32,7 +32,6 @@ namespace FluentDocker.Testing.Xunit
   public class XunitResourceFixture<TResource> : IAsyncLifetime
       where TResource : class, ITestResource
   {
-    private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private TResource? _resource;
     private FluentDockerKernel? _kernel;
     private Func<FluentDockerKernel, TResource>? _deferredFactory;
@@ -100,25 +99,17 @@ namespace FluentDocker.Testing.Xunit
         Func<Task<FluentDockerKernel>>? kernelFactory = null,
         CancellationToken cancellationToken = default)
     {
-      await _lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-      try
-      {
-        if (_resource != null)
-          throw new InvalidOperationException(
-              "Fixture has already been initialized. Dispose before re-initializing.");
+      if (_resource != null)
+        throw new InvalidOperationException(
+            "Fixture has already been initialized. Dispose before re-initializing.");
 
-        // ponytail: xUnit calls InitializeAsync once; the lock guards manual misuse.
-        var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-            resourceFactory, kernelFactory!,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+      // ponytail: xUnit v3 invokes fixture InitializeAsync once; keep only sequential misuse guard.
+      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
+          resourceFactory, kernelFactory!,
+          cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        _kernel = kernel;
-        _resource = resource;
-      }
-      finally
-      {
-        _lifecycleLock.Release();
-      }
+      _kernel = kernel;
+      _resource = resource;
     }
 
     /// <inheritdoc />

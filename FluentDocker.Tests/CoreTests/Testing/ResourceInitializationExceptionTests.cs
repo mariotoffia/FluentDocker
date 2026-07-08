@@ -16,6 +16,11 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public async Task CreateAndInitializeAsync_InitFailure_ThrowsDiagnosticsException()
     {
       var kernel = new TrackingKernel();
+      var pack = new MockDriverPack();
+      var context = new FluentDocker.Model.Drivers.DriverContext("docker");
+      await pack.InitializeAsync(context, TestContext.Current.CancellationToken);
+      await kernel.RegisterDriverPackAsync("docker", pack, context, TestContext.Current.CancellationToken);
+      kernel.SetDefaultDriver("docker");
       var resource = new DiagnosticsFailureResource(kernel);
 
       var ex = await Assert.ThrowsAsync<ResourceInitializationException>(

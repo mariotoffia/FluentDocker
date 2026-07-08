@@ -97,6 +97,11 @@ namespace FluentDocker.Testing.NUnit
         Assert.Ignore(ex.InnerException.Message);
         return;
       }
+      catch (DriverNotAvailableException ex) when (SkipWhenUnavailable)
+      {
+        Assert.Ignore(ex.Message);
+        return;
+      }
 
       _kernel = result.kernel;
       _resource = result.resource;

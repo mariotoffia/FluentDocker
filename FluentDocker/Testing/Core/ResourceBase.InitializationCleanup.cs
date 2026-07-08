@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
+using FluentDocker.Kernel;
 using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
@@ -43,13 +45,22 @@ namespace FluentDocker.Testing.Core
       var abandoned = _abandonedProvision;
       _abandonedProvision = null;
       _provisionGeneration++;
+      _disposeProvisionGeneration = _provisionGeneration;
       if (abandoned is null || abandoned.IsCompleted)
         return;
 
-      // Bounded grace — a task outliving TeardownTimeout leaks its container
-      // until orphan cleanup; the generation fence means it can no longer corrupt state.
+      // Bounded grace; late completion is still cleaned unless a re-init owns the resource.
       await Task.WhenAny(abandoned, Task.Delay(Timeout.Infinite, cancellationToken))
           .ConfigureAwait(false);
+    }
+
+    private async Task EnsureRuntimeHealthyAsync(CancellationToken cancellationToken)
+    {
+      if (!await CapabilityChecks.IsHealthyAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false))
+      {
+        throw new FluentDockerUnavailableException(
+            $"Docker driver '{DriverId}' is not reachable. Is Docker running?");
+      }
     }
 
     private async Task CleanupLateProvisionAsync(Task task, int generation)
@@ -70,15 +81,26 @@ namespace FluentDocker.Testing.Core
         await _lifecycleLock.WaitAsync(cts.Token).ConfigureAwait(false);
         try
         {
-          // Generation fence: the resource was disposed or re-initialized since this
-          // provision was abandoned. Container may now be a healthy new instance, so
-          // removing it here would corrupt live state; DisposeAsync's grace wait owns
-          // the normal cleanup path.
-          if (generation != _provisionGeneration)
+          if (generation != _provisionGeneration &&
+              _disposeProvisionGeneration != _provisionGeneration)
             return;
 
-          await ForceRemoveAsync(cts.Token).ConfigureAwait(false);
+          try
+          {
+            await ForceRemoveAsync(cts.Token).ConfigureAwait(false);
+          }
+          catch
+          {
+            // ponytail: mark for orphan reaping ONLY when we could not remove it ourselves
+            // (e.g. the kernel is already disposed). On the success path the resource is gone,
+            // so marking would leak this name in process-static state and risk wrong-reaping a
+            // later same-named (caller-fixed) resource. The rethrow is logged by the outer catch.
+            OrphanCleanup.MarkAbandonedLateProvision(ResourceName);
+            throw;
+          }
+
           _abandonedProvision = null;
+          _disposeProvisionGeneration = 0;
           _provisioned = false;
           IsInitialized = false;
         }

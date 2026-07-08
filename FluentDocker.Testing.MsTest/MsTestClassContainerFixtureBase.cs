@@ -107,6 +107,11 @@ namespace FluentDocker.Testing.MsTest
           Assert.Inconclusive(ex.InnerException.Message);
           return;
         }
+        catch (DriverNotAvailableException ex) when (SkipWhenUnavailable)
+        {
+          Assert.Inconclusive(ex.Message);
+          return;
+        }
 
         _kernel = result.kernel;
         _resource = result.resource;

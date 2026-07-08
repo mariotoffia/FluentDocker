@@ -56,6 +56,28 @@ namespace FluentDocker.Testing.NUnit.RunnerTests
     }
   }
 
+  [TestFixture]
+  [Category("Unit")]
+  public class NUnitMissingBinaryContainerFixtureRunnerTests : NUnitContainerFixtureBase
+  {
+    protected override bool SkipWhenUnavailable => true;
+
+    protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
+        () => Task.FromException<FluentDockerKernel>(
+            new DriverNotAvailableException("docker", "docker binary not found"));
+
+    protected override void ConfigureContainer(IContainerBuilder builder)
+    {
+      builder.UseImage("alpine:latest");
+    }
+
+    [Test]
+    public void FixtureIsIgnoredWhenDockerBinaryIsMissing()
+    {
+      Assert.Fail("NUnit OneTimeSetUp should ignore the fixture before test body execution.");
+    }
+  }
+
   internal sealed class UnavailablePack : IDriverPack
   {
     public DriverType Type => DriverType.DockerCli;

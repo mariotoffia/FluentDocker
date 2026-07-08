@@ -1,0 +1,23 @@
+# ADR 0001: Keep testing core in the FluentDocker package during preview
+
+## Status
+
+Accepted for `3.2.0-preview.1`; revisit before `3.2.0` GA.
+
+## Context
+
+Finding 9.6 noted that `FluentDocker/Testing/Core/*` ships inside the production `FluentDocker` package. FluentDocker is strong-named and does not use `InternalsVisibleTo`, so test-support types consumed by `FluentDocker.Testing.Xunit`, `FluentDocker.Testing.MsTest`, `FluentDocker.Testing.NUnit`, and user tests must be public.
+
+Moving these types to a dedicated `FluentDocker.Testing` core package would reduce IntelliSense noise in the production package, but it is a package-graph and public-API split. After GA, that move would be breaking for strong-named consumers and adapter packages.
+
+## Decision
+
+Keep `FluentDocker.Testing.Core` public types in the `FluentDocker` package for the preview hardening pass. Do not split packages in Chunk 9.
+
+Before `3.2.0` leaves preview, decide whether to introduce a dedicated `FluentDocker.Testing` core package and move the public testing-core API there.
+
+## Consequences
+
+- Production consumers see testing support types in IntelliSense.
+- Strong-named public testing-core APIs become a compatibility commitment if they remain for GA.
+- The preview window remains available for a package split without breaking a stable `3.2.0` release.

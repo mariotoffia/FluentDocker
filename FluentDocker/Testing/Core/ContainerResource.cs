@@ -81,12 +81,6 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task PreflightAsync(CancellationToken cancellationToken)
     {
-      if (!await CapabilityChecks.IsHealthyAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false))
-      {
-        throw new FluentDockerUnavailableException(
-            $"Docker driver '{DriverId}' is not reachable. Is Docker running?");
-      }
-
       await CapabilityChecks.EnsureContainerSupportAsync(Kernel, DriverId, cancellationToken).ConfigureAwait(false);
     }
 
