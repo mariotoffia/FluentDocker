@@ -21,10 +21,29 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      if (follow)
+        throw new FluentDockerNotSupportedException(
+            "ContainerService.GetLogsAsync buffers logs and does not support follow=true.");
+
+      return await GetLogsCoreAsync(follow, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task<string> GetLogsTailAsync(int tail, CancellationToken cancellationToken = default)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      return await GetLogsCoreAsync(follow: false, tail, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<string> GetLogsCoreAsync(
+        bool follow,
+        int? tail,
+        CancellationToken cancellationToken)
+    {
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.GetLogsAsync(context, _containerId, follow, null, false, cancellationToken).ConfigureAwait(false);
+      var response = await driver.GetLogsAsync(context, _containerId, follow, tail, false, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {

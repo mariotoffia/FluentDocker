@@ -70,6 +70,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task ConnectAsync(string containerId, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -86,6 +88,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task DisconnectAsync(string containerId, bool force = false, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -110,6 +114,8 @@ namespace FluentDocker.Services.Impl
     /// </remarks>
     public async Task<IList<string>> GetConnectedContainersAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var network = await InspectAsync(cancellationToken).ConfigureAwait(false);
       var containers = new List<string>();
 
@@ -124,6 +130,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<Network> InspectAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -143,16 +151,22 @@ namespace FluentDocker.Services.Impl
     /// <summary>Networks are already active when represented; start is a no-op.</summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       return Task.CompletedTask;
     }
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("Networks cannot be paused");
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("Networks cannot be stopped, use RemoveAsync instead");
     }
 
@@ -160,6 +174,8 @@ namespace FluentDocker.Services.Impl
     /// <remarks>The <paramref name="force"/> parameter is ignored because network drivers do not support it.</remarks>
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       if (State == ServiceRunningState.Removed)
         return;
 
@@ -203,6 +219,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
+      ThrowIfDisposed();
       var name = uniqueName ?? Guid.NewGuid().ToString();
       _hooks[name] = (state, hook);
       return this;
@@ -210,6 +227,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
+      ThrowIfDisposed();
       _hooks.TryRemove(uniqueName, out _);
       return this;
     }
@@ -272,6 +290,9 @@ namespace FluentDocker.Services.Impl
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
             TaskScheduler.Default);
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeCompleted) != 0, this);
 
     private void UpdateState(ServiceRunningState newState)
     {

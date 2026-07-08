@@ -15,6 +15,8 @@ namespace FluentDocker.Services.Impl
     /// </summary>
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       // Idempotent client-side: a second remove (typically dispose after an explicit
       // RemoveAsync) must not re-run `compose down` or re-fire Removed hooks.
       if (_state == ServiceRunningState.Removed)

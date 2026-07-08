@@ -283,7 +283,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
-    private static bool IsContainerAlreadyGone(CommandResponse<Unit> response)
+    private static bool IsContainerAlreadyGone<T>(CommandResponse<T> response)
     {
       if (response.ErrorCode == ErrorCodes.Container.NotFound)
         return true;
@@ -323,9 +323,6 @@ namespace FluentDocker.Services.Impl
             TaskScheduler.Default);
 
     private void UpdateState(ServiceRunningState newState) => UpdateStateCore(newState, invalidateInspectCache: true);
-
-    private void UpdateStateFromInspect(ServiceRunningState newState) =>
-        UpdateStateCore(newState, invalidateInspectCache: false);
 
     private void UpdateStateCore(ServiceRunningState newState, bool invalidateInspectCache)
     {
@@ -464,8 +461,10 @@ namespace FluentDocker.Services.Impl
         "running" => ServiceRunningState.Running,
         "paused" => ServiceRunningState.Paused,
         "exited" => ServiceRunningState.Stopped,
+        "stopped" => ServiceRunningState.Stopped,
         "created" => ServiceRunningState.Starting,
         "restarting" => ServiceRunningState.Starting,
+        "stopping" => ServiceRunningState.Stopping,
         "removing" => ServiceRunningState.Removing,
         "dead" => ServiceRunningState.Stopped,
         _ => ServiceRunningState.Unknown

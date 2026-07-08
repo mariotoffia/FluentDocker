@@ -39,8 +39,7 @@ namespace FluentDocker.Services.Impl
       var services = new List<IImageService>();
       foreach (var image in response.Data)
       {
-        var tag = image.RepoTags?.FirstOrDefault()?.Split(':').LastOrDefault() ?? "latest";
-        var repo = image.RepoTags?.FirstOrDefault()?.Split(':').FirstOrDefault();
+        var (repo, tag) = ParseImagePullReference(image.RepoTags?.FirstOrDefault());
 
         services.Add(new ImageService(
             _kernel,
@@ -113,15 +112,14 @@ namespace FluentDocker.Services.Impl
             response.ErrorContext);
       }
 
-      var tag = config.Tags?.FirstOrDefault();
-      var tagParts = tag?.Split(':');
+      var (repo, tag) = ParseImagePullReference(config.Tags?.FirstOrDefault());
 
       return new ImageService(
           _kernel,
           _driverId,
           response.Data.ImageId,
-          tagParts?.FirstOrDefault(),
-          tagParts?.LastOrDefault() ?? "latest");
+          repo,
+          tag);
     }
 
     #endregion

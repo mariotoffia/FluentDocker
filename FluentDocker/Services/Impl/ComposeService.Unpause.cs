@@ -10,6 +10,8 @@ namespace FluentDocker.Services.Impl
   {
     public async Task UnpauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
       var config = new ComposeFileConfig

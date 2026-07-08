@@ -48,6 +48,8 @@ namespace FluentDocker.Services.Impl
     // while an InspectAsync is in-flight, the result is discarded rather than cached.
     private volatile InspectCacheEntry _inspectCacheEntry;
     private volatile int _cacheVersion;
+    private int _inspectSequence;
+    private int _lastAppliedInspectSequence;
 
     /// <summary>
     /// Immutable cache entry pairing inspect data with its timestamp.
@@ -108,6 +110,11 @@ namespace FluentDocker.Services.Impl
       _state = initialState;
       _disposeCleanupTimeout =
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(DefaultDisposeCleanupTimeoutMs);
+      if (_disposeCleanupTimeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(
+            nameof(disposeCleanupTimeout),
+            disposeCleanupTimeout,
+            "Dispose cleanup timeout must be a positive, finite duration.");
     }
 
     public string Name => _name;
@@ -133,7 +140,7 @@ namespace FluentDocker.Services.Impl
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
-        throw new ObjectDisposedException(Name, "Cannot start a removed container.");
+        throw new InvalidOperationException("Cannot start a removed container.");
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
@@ -189,7 +196,8 @@ namespace FluentDocker.Services.Impl
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
-        return;
+        throw new InvalidOperationException("Cannot pause a removed container.");
+      // State is this client's view; call InspectAsync first when daemon-authoritative state matters.
       if (_state == ServiceRunningState.Paused)
         return;
 
@@ -266,6 +274,7 @@ namespace FluentDocker.Services.Impl
       cancellationToken.ThrowIfCancellationRequested();
       if (throwIfDisposed)
         ThrowIfDisposed();
+      // State is this client's view; call InspectAsync first when daemon-authoritative state matters.
       if (_state is ServiceRunningState.Stopped or ServiceRunningState.Removed)
         return;
 
@@ -367,6 +376,7 @@ namespace FluentDocker.Services.Impl
       // occurs during the fetch, the version will have incremented and we
       // must not store the now-stale result in the cache.
       var versionBefore = _cacheVersion;
+      var inspectSequence = Interlocked.Increment(ref _inspectSequence);
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
@@ -375,25 +385,49 @@ namespace FluentDocker.Services.Impl
 
       if (!response.Success)
       {
+        if (IsContainerAlreadyGone(response))
+          UpdateState(ServiceRunningState.Removed);
         throw new DriverException(
             $"Failed to inspect container '{_name}': {response.Error}",
             response.ErrorCode,
             response.ErrorContext);
       }
 
-      // Update state from inspection
-      if (response.Data?.State != null)
-      {
-        UpdateStateFromInspect(ParseState(response.Data.State.Status));
-      }
-
-      // Only cache the result if no state change occurred during the fetch.
-      if (versionBefore == _cacheVersion)
-      {
-        _inspectCacheEntry = new InspectCacheEntry(response.Data, Stopwatch.GetTimestamp());
-      }
+      ApplyInspectResultIfVersionCurrent(versionBefore, inspectSequence, response.Data);
 
       return response.Data;
+    }
+
+    private void ApplyInspectResultIfVersionCurrent(int versionBefore, int inspectSequence, Container data)
+    {
+      ServiceDelegates.StateChange stateChange = null;
+      StateChangeEventArgs args = null;
+      lock (_stateLock)
+      {
+        if (Volatile.Read(ref _disposeCompleted) != 0 ||
+            versionBefore != _cacheVersion ||
+            inspectSequence < _lastAppliedInspectSequence)
+          return;
+
+        _lastAppliedInspectSequence = inspectSequence;
+        if (data?.State != null)
+        {
+          var newState = data.State.Running == true
+              ? ServiceRunningState.Running
+              : ParseState(data.State.Status);
+          if (_state != newState)
+          {
+            _state = newState;
+            stateChange = StateChange;
+            args = stateChange == null ? null : new StateChangeEventArgs(this, newState);
+          }
+        }
+
+        _inspectCacheEntry = new InspectCacheEntry(data, Stopwatch.GetTimestamp());
+      }
+
+      if (stateChange != null)
+        StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
     }
 
     // ponytail: key on _disposeCompleted (dispose finished), not _disposed (dispose started), so

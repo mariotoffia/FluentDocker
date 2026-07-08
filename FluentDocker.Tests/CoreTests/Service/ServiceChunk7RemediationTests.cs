@@ -275,12 +275,13 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task PauseAsync_WhenContainerRemoved_ReturnsWithoutDriverCall()
+    public async Task PauseAsync_WhenContainerRemoved_ThrowsWithoutDriverCall()
     {
       var service = new ContainerService(
           Kernel, DriverId, "container-123", "alpine", "test", initialState: ServiceRunningState.Removed);
 
-      await service.PauseAsync(TestContext.Current.CancellationToken);
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          service.PauseAsync(TestContext.Current.CancellationToken));
 
       MockPack.ContainerDriver.Verify(d => d.PauseAsync(
           It.IsAny<DriverContext>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
