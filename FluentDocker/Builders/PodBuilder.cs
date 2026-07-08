@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,12 +35,15 @@ namespace FluentDocker.Builders
 
     public IPodBuilder WithPort(string hostPort, string containerPort)
     {
+      ArgumentException.ThrowIfNullOrWhiteSpace(hostPort);
+      ArgumentException.ThrowIfNullOrWhiteSpace(containerPort);
       _ports.Add($"{hostPort}:{containerPort}");
       return this;
     }
 
     public IPodBuilder ExposePort(string containerPort)
     {
+      ArgumentException.ThrowIfNullOrWhiteSpace(containerPort);
       _ports.Add(containerPort);
       return this;
     }

@@ -105,6 +105,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithEnvironment(string keyValue)
     {
+      ArgumentNullException.ThrowIfNull(keyValue);
       var parts = keyValue.Split(EqualsSeparator, 2);
       ValidateEnvironmentName(parts[0], $"Expected format name=value, empty name in the name value string: '{keyValue}'");
       if (parts.Length == 2)
@@ -459,7 +460,7 @@ namespace FluentDocker.Builders
         {
           await service.StartAsync(cancellationToken).ConfigureAwait(false);
           await WaitForContainerStartedAsync(
-              driver, context, response.Data.Id, AllowCleanExitOnStart,
+              driver, context, response.Data.Id, _name, AllowCleanExitOnStart,
               StartupTimeoutMs, StartupPollIntervalMs, cancellationToken).ConfigureAwait(false);
           _waitConditionsExecuted = true;
           await RunPostStartAsync(service, cancellationToken).ConfigureAwait(false);

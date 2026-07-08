@@ -12,11 +12,15 @@ namespace FluentDocker.Builders
   public class DockerApiFluentBuilder
   {
     private readonly Builder _inner;
+    private readonly FluentDockerKernel _kernel;
+    private readonly string _driverId;
 
-    internal DockerApiFluentBuilder(Builder inner)
+    internal DockerApiFluentBuilder(Builder inner, FluentDockerKernel kernel, string driverId)
     {
       ArgumentNullException.ThrowIfNull(inner);
       _inner = inner;
+      _kernel = kernel;
+      _driverId = driverId;
     }
 
     /// <summary>
@@ -24,7 +28,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerApiFluentBuilder UseContainer(Action<IContainerBuilder> configure)
     {
-      _inner.UseContainer(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseContainer(configure));
       return this;
     }
 
@@ -33,7 +37,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerApiFluentBuilder UseNetwork(Action<INetworkBuilder> configure)
     {
-      _inner.UseNetwork(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseNetwork(configure));
       return this;
     }
 
@@ -42,7 +46,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerApiFluentBuilder UseVolume(Action<IVolumeBuilder> configure)
     {
-      _inner.UseVolume(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseVolume(configure));
       return this;
     }
 
@@ -51,7 +55,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerApiFluentBuilder UseImage(string imageName, Action<DockerfileBuilder> configure)
     {
-      _inner.UseImage(imageName, configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseImage(imageName, configure));
       return this;
     }
 

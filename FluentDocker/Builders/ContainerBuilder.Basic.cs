@@ -39,6 +39,8 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithPort(string hostPort, string containerPort)
     {
+      ArgumentNullException.ThrowIfNull(hostPort);
+      ArgumentException.ThrowIfNullOrWhiteSpace(containerPort);
       var normalized = NormalizeContainerPort(containerPort);
       if (_ports.TryGetValue(normalized, out var existing) &&
           !string.Equals(existing, hostPort, StringComparison.Ordinal))

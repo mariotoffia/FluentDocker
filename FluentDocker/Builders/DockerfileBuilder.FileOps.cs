@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -44,15 +45,13 @@ namespace FluentDocker.Builders
     private static async Task DownloadFileAsync(
         Uri url, string destinationPath, CancellationToken cancellationToken)
     {
-      using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(100));
-      using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-          cancellationToken, timeoutCts.Token);
-      var response = await Common.SharedHttpClient.Instance.GetAsync(url, linkedCts.Token)
-          .ConfigureAwait(false);
+      using var response = await Common.SharedHttpClient.Instance.GetAsync(
+          url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
       response.EnsureSuccessStatusCode();
 
-      var content = await response.Content.ReadAsByteArrayAsync(linkedCts.Token).ConfigureAwait(false);
-      await File.WriteAllBytesAsync(destinationPath, content, linkedCts.Token).ConfigureAwait(false);
+      await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+      await using var destination = File.Create(destinationPath);
+      await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
     }
 
     #region Private Methods

@@ -83,7 +83,7 @@ namespace FluentDocker.Builders
         string driverId, FluentDockerKernel kernel = null)
     {
       SetScope(driverId, kernel);
-      return new DockerCliFluentBuilder(this);
+      return new DockerCliFluentBuilder(this, _currentKernel, _currentDriverId);
     }
 
     /// <summary>
@@ -95,7 +95,7 @@ namespace FluentDocker.Builders
         string driverId, FluentDockerKernel kernel = null)
     {
       SetScope(driverId, kernel);
-      return new DockerApiFluentBuilder(this);
+      return new DockerApiFluentBuilder(this, _currentKernel, _currentDriverId);
     }
 
     /// <summary>
@@ -107,7 +107,7 @@ namespace FluentDocker.Builders
         string driverId, FluentDockerKernel kernel = null)
     {
       SetScope(driverId, kernel);
-      return new PodmanCliFluentBuilder(this);
+      return new PodmanCliFluentBuilder(this, _currentKernel, _currentDriverId);
     }
 
     #endregion
@@ -255,7 +255,8 @@ namespace FluentDocker.Builders
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
         ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct),
-        FailureKeepReason = _ => builder.AttachToExisting ? "borrowed" : null
+        ForceRemoveOnFailure = _ => !builder.BorrowedProject,
+        FailureKeepReason = _ => builder.BorrowedProject ? "borrowed" : null
       });
       return this;
     }
@@ -342,6 +343,11 @@ namespace FluentDocker.Builders
 
       if (Interlocked.CompareExchange(ref _buildInProgress, 1, 0) != 0)
         throw new InvalidOperationException("BuildAsync is already running on this Builder instance");
+      if (_buildSucceeded)
+      {
+        Interlocked.Exchange(ref _buildInProgress, 0);
+        throw new InvalidOperationException("builder already consumed by BuildAsync; create a new Builder");
+      }
 
       var effectiveCleanupTimeout = cleanupTimeout ?? TimeSpan.FromSeconds(120);
       var scopes = new Dictionary<(FluentDockerKernel, string), BuildScope>();
@@ -428,6 +434,25 @@ namespace FluentDocker.Builders
       _currentDriverId = driverId;
     }
 
+    internal T RunInScope<T>(FluentDockerKernel kernel, string driverId, Func<T> action)
+    {
+      var previousKernel = _currentKernel;
+      var previousDriverId = _currentDriverId;
+      SetScope(driverId, kernel);
+      try
+      {
+        return action();
+      }
+      finally
+      {
+        _currentKernel = previousKernel;
+        _currentDriverId = previousDriverId;
+      }
+    }
+
+    internal void RunInScope(FluentDockerKernel kernel, string driverId, Action action) =>
+        RunInScope(kernel, driverId, () => { action(); return true; });
+
     private static async Task StartContainersWithLinksAsync(
         BuildScope scope,
         IReadOnlyList<(BuildOperation Operation, IServiceAsync Service)> operations,
@@ -449,7 +474,7 @@ namespace FluentDocker.Builders
         var container = (IContainerService)item.Service;
         await container.StartAsync(cancellationToken).ConfigureAwait(false);
         await ContainerBuilder.WaitForContainerStartedAsync(
-            driver, context, container.Id, item.Operation.AllowCleanExit,
+            driver, context, container.Id, item.Operation.ResourceName, item.Operation.AllowCleanExit,
             item.Operation.StartupTimeoutMs, item.Operation.StartupPollIntervalMs, cancellationToken)
             .ConfigureAwait(false);
       }
