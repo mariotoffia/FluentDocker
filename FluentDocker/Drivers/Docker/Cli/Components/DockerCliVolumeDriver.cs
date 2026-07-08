@@ -50,7 +50,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             args.Add($"--opt {QuoteArgumentIfNeeded($"{opt.Key}={opt.Value}")}");
         }
 
-        args.Add(QuotePositionalArgument(config.Name, nameof(config.Name)));
+        if (!string.IsNullOrEmpty(config.Name))
+          args.Add(QuotePositionalArgument(config.Name, nameof(config.Name)));
 
         var result = await ExecuteCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 

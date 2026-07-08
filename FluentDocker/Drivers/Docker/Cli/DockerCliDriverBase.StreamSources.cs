@@ -48,7 +48,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (process.StartInfo.RedirectStandardInput)
         process.StartInfo.StandardInputEncoding = Utf8NoBom;
 
-      process.Start();
+      StartProcessOrThrow(process, binaryPath);
       if (passwordForStdin != null)
         _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken).ConfigureAwait(false);
 

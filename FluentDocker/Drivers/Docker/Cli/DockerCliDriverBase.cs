@@ -253,6 +253,21 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
     }
 
+    private static void StartProcessOrThrow(Process process, string binaryPath)
+    {
+      try
+      {
+        process.Start();
+      }
+      catch (Exception ex)
+      {
+        throw new DriverException(
+            $"Failed to start Docker CLI binary '{binaryPath}'.",
+            ErrorCodes.Driver.CommandExecutionFailed,
+            ex);
+      }
+    }
+
     #endregion
 
     #region Argument Quoting

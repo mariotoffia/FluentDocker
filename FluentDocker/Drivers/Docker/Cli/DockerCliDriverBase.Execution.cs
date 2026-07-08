@@ -22,14 +22,13 @@ namespace FluentDocker.Drivers.Docker.Cli
     #region Command Execution
 
     /// <summary>
-    /// Sanity cap (4 MiB) on the buffered stdout of a non-streaming Docker command.
-    /// Normal model/system command output (e.g. <c>docker model ls --json</c>) is tiny;
-    /// this only guards against pathological CLI output being buffered without limit
-    /// (which would otherwise risk an out-of-memory condition). On exceeding the cap the
-    /// command fails with a clear error rather than continuing to allocate. Streaming
-    /// commands are unaffected — they are read line-by-line and never fully buffered.
+    /// Sanity cap (64 MiB) on buffered stdout of a non-streaming Docker command.
+    /// Large hosts can produce multi-MiB JSON from list/inspect reads; those outputs must
+    /// fail above a high ceiling, not truncate into corrupt JSON. Streaming commands are
+    /// unaffected — they are read line-by-line and never fully buffered.
     /// </summary>
-    private const int MaxNonStreamingOutputBytes = 4 * 1024 * 1024;
+    private const int MaxNonStreamingOutputBytes = 64 * 1024 * 1024;
+    private const int MaxNonStreamingErrorBytes = 4 * 1024 * 1024;
 
     /// <summary>
     /// Default wall-clock timeout applied to a buffered (non-streaming) Docker CLI command
@@ -196,6 +195,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       Process process = null;
       Task<string> outputTask = null;
       Task<string> errorTask = null;
+      var processStarted = false;
       try
       {
         process = new Process
@@ -222,14 +222,15 @@ namespace FluentDocker.Drivers.Docker.Cli
             process.StartInfo.Environment[kvp.Key] = kvp.Value;
         }
 
-        process.Start();
+        StartProcessOrThrow(process, fileName);
+        processStarted = true;
         if (!needsStdin)
           process.StandardInput.Close();
 
         // Start readers before writing stdin so a child that immediately writes enough
         // output cannot deadlock while this side is still feeding stdin.
         outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
-        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
+        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, linkedToken);
 
         var stdinFailure = needsStdin
             ? await TryWriteStandardInputAsync(process, passwordForStdin, stdinData, linkedToken).ConfigureAwait(false)
@@ -267,7 +268,7 @@ namespace FluentDocker.Drivers.Docker.Cli
             $"Docker CLI command timed out after {timeout.TotalSeconds:0}s.",
             ErrorCodes.General.Timeout);
       }
-      catch (Exception ex)
+      catch (Exception ex) when (processStarted || ex is not DriverException)
       {
         try
         {
@@ -339,7 +340,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (process.StartInfo.RedirectStandardInput)
         process.StartInfo.StandardInputEncoding = Utf8NoBom;
 
-      process.Start();
+      StartProcessOrThrow(process, binaryPath);
 
       if (passwordForStdin != null)
       {
@@ -349,7 +350,7 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       // Drain stderr concurrently so a chatty child cannot deadlock by filling the
       // stderr pipe buffer while we only read stdout.
-      var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, cancellationToken);
+      var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, cancellationToken);
       var reader = process.StandardOutput;
       string failure = null;
 
@@ -433,7 +434,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (process.StartInfo.RedirectStandardInput)
         process.StartInfo.StandardInputEncoding = Utf8NoBom;
 
-      process.Start();
+      StartProcessOrThrow(process, binaryPath);
 
       if (passwordForStdin != null)
       {

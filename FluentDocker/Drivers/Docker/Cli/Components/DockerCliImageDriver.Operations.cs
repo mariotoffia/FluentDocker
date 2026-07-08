@@ -158,6 +158,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
+        if (images == null || images.Length == 0)
+          return CommandResponse<Unit>.Fail(
+              "images must contain at least one image.",
+              ErrorCodes.General.InvalidArgument);
+
         var result = await ExecuteUnboundedCommandAsync(context, $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(i => QuotePositionalArgument(i, nameof(images))))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
