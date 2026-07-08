@@ -82,7 +82,7 @@ namespace FluentDocker.Drivers.Podman
     /// <summary>Enable rootful mode (default: rootless).</summary>
     public bool Rootful { get; set; }
 
-    /// <summary>Custom VM image URL or path.</summary>
+    /// <summary>Custom VM image URL or path; emitted as <c>--image</c> (Podman 5+, Podman 4 used <c>--image-path</c>).</summary>
     public string Image { get; set; }
 
     /// <summary>SSH username for the VM.</summary>

@@ -60,8 +60,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       string cidFile = null;
       try
       {
-        if (!config.Detach)
-          cidFile = Path.Combine(DirectoryHelper.GetTempPath(), $"podman-cid-{Guid.NewGuid():N}");
+        cidFile = Path.Combine(DirectoryHelper.GetTempPath(), $"podman-cid-{Guid.NewGuid():N}");
         var args = BuildCreateArgsWithCidFile("run", config, config.Detach, cidFile);
 
         // run can be inherently long (it waits for a non-detached container to finish);

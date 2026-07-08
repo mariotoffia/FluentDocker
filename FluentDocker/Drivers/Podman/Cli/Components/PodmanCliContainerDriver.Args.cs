@@ -54,7 +54,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var args = detach ? $"{command} -d" : command;
 
       if (!string.IsNullOrEmpty(config.Name))
-        args += $" --name {QuoteArgumentIfNeeded(config.Name)}";
+        args += $" --name {QuotePositionalArgument(config.Name, nameof(config.Name))}";
       if (!string.IsNullOrEmpty(config.Hostname))
         args += $" --hostname {QuoteArgumentIfNeeded(config.Hostname)}";
       if (!string.IsNullOrEmpty(config.User))

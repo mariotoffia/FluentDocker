@@ -23,7 +23,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region Information Operations (continued)
 
-    /// <inheritdoc />
+    /// <summary>Gets bounded, non-following container logs using <c>podman logs</c>.</summary>
+    /// <remarks>
+    /// Podman process stdout and stderr are retained as separate 256 KiB rolling tails and then
+    /// merged with stderr appended after stdout, so chronological interleaving can be lost. Use
+    /// <see cref="FluentDocker.Drivers.IStreamDriver.StreamLogsAsync"/> when stdout/stderr order matters.
+    /// </remarks>
     public async Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context, string containerId,
         bool follow = false, int? tail = null, bool timestamps = false,

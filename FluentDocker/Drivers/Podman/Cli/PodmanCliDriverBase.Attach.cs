@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       if (process.StartInfo.RedirectStandardInput)
         process.StartInfo.StandardInputEncoding = Utf8NoBom;
 
-      process.Start();
+      StartProcessOrThrow(process, binaryPath);
 
       return new AttachResult
       {
