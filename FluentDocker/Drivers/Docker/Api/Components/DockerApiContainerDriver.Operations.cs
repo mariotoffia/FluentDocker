@@ -53,10 +53,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (Exception ex)
       {
+        var statusCode = HttpStatusCodeOrZero(ex);
         return CommandResponse<string>.Fail(
             $"Failed to get logs for container '{containerId}': {ex.Message}",
             ErrorCodes.Container.LogsFailed,
-            CreateErrorContext($"GET /containers/{containerId}/logs", 0));
+            CreateErrorContext($"GET /containers/{containerId}/logs", statusCode),
+            statusCode);
       }
     }
 
@@ -217,8 +219,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         if (config.Tty)
         {
           // TTY mode: raw stream, no multiplexed framing
-          using var reader = new StreamReader(stream, Encoding.UTF8);
-          stdout = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+          stdout = await ReadTextTailAsync(stream, cancellationToken).ConfigureAwait(false);
           stderr = string.Empty;
         }
         else
@@ -279,8 +280,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private static async Task<(string StdOut, string StdErr)> DemultiplexStreamAsync(
         Stream stream, CancellationToken ct)
     {
-      var stdoutBuf = new StringBuilder();
-      var stderrBuf = new StringBuilder();
+      var stdoutBuf = CreateOutputTail();
+      var stderrBuf = CreateOutputTail();
       var stdoutDecoder = Encoding.UTF8.GetDecoder();
       var stderrDecoder = Encoding.UTF8.GetDecoder();
       var header = new byte[8];
@@ -327,22 +328,22 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       FlushUtf8(stdoutDecoder, stdoutBuf);
       FlushUtf8(stderrDecoder, stderrBuf);
-      return (stdoutBuf.ToString(), stderrBuf.ToString());
+      return (stdoutBuf.ToText(), stderrBuf.ToText());
     }
 
     private static void AppendUtf8(
-        Decoder decoder, byte[] payload, int count, StringBuilder output)
+        Decoder decoder, byte[] payload, int count, TailText output)
     {
       var chars = new char[Encoding.UTF8.GetMaxCharCount(count)];
       var written = decoder.GetChars(payload, 0, count, chars, 0, flush: false);
-      output.Append(chars, 0, written);
+      output.Append(chars.AsSpan(0, written));
     }
 
-    private static void FlushUtf8(Decoder decoder, StringBuilder output)
+    private static void FlushUtf8(Decoder decoder, TailText output)
     {
       var chars = new char[Encoding.UTF8.GetMaxCharCount(0)];
       var written = decoder.GetChars([], 0, 0, chars, 0, flush: true);
-      output.Append(chars, 0, written);
+      output.Append(chars.AsSpan(0, written));
     }
 
     #endregion
@@ -369,7 +370,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId, string outputPath,
         CancellationToken cancellationToken = default)
     {
-      var partialCreated = false;
+      string tempPath = null;
       try
       {
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}/export";
@@ -377,10 +378,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var outputDir = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(outputDir))
           Directory.CreateDirectory(outputDir);
-        await using var fileStream = new FileStream(
-            outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        partialCreated = true;
-        await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
+        tempPath = Path.Combine(outputDir ?? ".", $".{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
+        await using (var fileStream = new FileStream(
+            tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+            bufferSize: 81920, FileOptions.Asynchronous))
+        {
+          await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
+        }
+        File.Move(tempPath, outputPath, overwrite: true);
+        tempPath = null;
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -389,11 +395,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (Exception ex)
       {
-        if (partialCreated)
-          TryDelete(outputPath);
-        var statusCode = ex is HttpRequestException { StatusCode: not null } httpEx
-            ? (int)httpEx.StatusCode.Value
-            : 0;
+        if (tempPath != null)
+          TryDelete(tempPath);
+        var statusCode = HttpStatusCodeOrZero(ex);
         return CommandResponse<Unit>.Fail(
             $"Failed to export container '{containerId}': {ex.Message}",
             ErrorCodes.Container.ExportFailed,

@@ -18,7 +18,7 @@ namespace FluentDocker.Drivers.Docker.Api
       var read = await ReadExactAsync(stream, header, 8, cancellationToken).ConfigureAwait(false);
       if (read == 0)
         return string.Empty;
-      if (read < 8 || header[0] > 2 || header[1] != 0 || header[2] != 0 || header[3] != 0)
+      if (read < 8 || !IsValidStdCopyHeader(header))
       {
         tail.Append(header.AsSpan(0, read));
         await CopyTailAsync(stream, tail, cancellationToken).ConfigureAwait(false);
@@ -27,6 +27,10 @@ namespace FluentDocker.Drivers.Docker.Api
 
       while (read == 8)
       {
+        if (!IsValidStdCopyHeader(header))
+          throw new DriverException(
+              "Docker stream has an invalid multiplexed frame header",
+              Model.Drivers.ErrorCodes.Api.ServerError);
         var frameSize = (header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7];
         if (frameSize < 0 || frameSize > MaxFrameSizeBytes)
           throw new DriverException(
@@ -40,6 +44,9 @@ namespace FluentDocker.Drivers.Docker.Api
             Model.Drivers.ErrorCodes.Api.ServerError);
       return tail.ToText();
     }
+
+    private static bool IsValidStdCopyHeader(byte[] header) =>
+        header[0] <= 2 && header[1] == 0 && header[2] == 0 && header[3] == 0;
 
     private static async Task CopyTailAsync(Stream stream, TailBytes tail, CancellationToken ct)
     {
@@ -77,7 +84,7 @@ namespace FluentDocker.Drivers.Docker.Api
       /// <inheritdoc />
       public void Append(ReadOnlySpan<byte> bytes)
       {
-        if (bytes.Length >= _buffer.Length)
+        if (bytes.Length > _buffer.Length)
         {
           bytes[^_buffer.Length..].CopyTo(_buffer);
           _start = 0;

@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Api
@@ -29,7 +30,13 @@ namespace FluentDocker.Drivers.Docker.Api
       };
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Maps 404 to an operation-specific code and all other statuses to generic API codes.
+    /// </summary>
+    /// <remarks>
+    /// Docker API 404 handling intentionally varies by verb/caller: resource lookups usually
+    /// expose NotFound, while operation endpoints can return their operation-failed code.
+    /// </remarks>
     protected static string MapNotFoundErrorCode(int statusCode, string defaultErrorCode)
     {
       return statusCode == 404 ? defaultErrorCode : MapHttpErrorCode(statusCode);
@@ -44,6 +51,7 @@ namespace FluentDocker.Drivers.Docker.Api
         599 => ErrorCodes.Api.ConnectionFailed,
         400 => ErrorCodes.Api.BadRequest,
         401 => ErrorCodes.Api.Unauthorized,
+        403 => ErrorCodes.Api.Unauthorized,
         404 => ErrorCodes.Api.NotFound,
         409 => ErrorCodes.Api.Conflict,
         >= 500 => ErrorCodes.Api.ServerError,
@@ -72,6 +80,9 @@ namespace FluentDocker.Drivers.Docker.Api
     /// <inheritdoc />
     protected (int StatusCode, string Message) DescribeTransportFailure(Exception ex)
     {
+      if (ex is DockerApiTtfbTimeoutException ttfb)
+        return (408, $"Docker API connection/TTFB timed out after {ttfb.Timeout}: {ttfb.InnerException?.Message ?? ttfb.Message}");
+
       if (ex is TaskCanceledException)
       {
         var timeout = Context?.RequestTimeout ?? TimeSpan.FromMinutes(5);

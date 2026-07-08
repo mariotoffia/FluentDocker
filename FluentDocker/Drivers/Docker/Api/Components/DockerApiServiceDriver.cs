@@ -62,7 +62,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               result.StatusCode);
       }
 
-      return CommandResponse<Unit>.Ok(Unit.Default);
+      throw new InvalidOperationException("unreachable: retry loop always returns");
     }
 
     /// <inheritdoc />
@@ -70,29 +70,45 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string serviceId, ServiceUpdateConfig config,
         CancellationToken cancellationToken = default)
     {
-      // First get current service spec and version
-      var inspectResult = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
-      if (!inspectResult.Success)
-        return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
-
-      var version = inspectResult.Data.Version;
-      var body = BuildUpdateSpec(inspectResult.Data, config);
       var escapedId = Uri.EscapeDataString(serviceId);
+      for (var attempt = 0; attempt < 2; attempt++)
+      {
+        var inspectResult = await InspectAsync(
+            context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!inspectResult.Success)
+          return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
 
-      var image = config.Image ?? inspectResult.Data.Image;
-      var result = await PostAsync(
-          $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString(CultureInfo.InvariantCulture))}",
-          body, DockerApiRegistryAuth.HeaderFor(Connection, image), cancellationToken).ConfigureAwait(false);
-      if (!result.Success)
+        var version = inspectResult.Data.Version;
+        var body = BuildUpdateSpec(inspectResult.Data, config);
+        var image = config.Image ?? inspectResult.Data.Image;
+        var result = await PostAsync(
+            $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString(CultureInfo.InvariantCulture))}",
+            body, DockerApiRegistryAuth.HeaderFor(Connection, image), cancellationToken).ConfigureAwait(false);
+        if (result.Success)
+          return CommandResponse<Unit>.Ok(Unit.Default);
+
+        if (attempt == 0 && IsVersionConflict(result))
+          continue;
+
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             result.StatusCode is 599 or 408
                 ? MapHttpErrorCode(result.StatusCode)
                 : ErrorCodes.Service.UpdateFailed,
             CreateErrorContext($"POST /services/{serviceId}/update", result.StatusCode, result.ResponseBody),
             result.StatusCode);
+      }
 
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
+
+    private static bool IsVersionConflict(ApiResult result) =>
+        result.StatusCode == 409 ||
+        (result.StatusCode >= 500 &&
+         (ContainsVersionConflict(result.ErrorMessage) ||
+          ContainsVersionConflict(result.ResponseBody)));
+
+    private static bool ContainsVersionConflict(string value) =>
+        value?.Contains("update out of sequence", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> RollbackAsync(

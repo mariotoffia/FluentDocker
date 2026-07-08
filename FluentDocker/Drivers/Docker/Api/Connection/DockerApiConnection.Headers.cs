@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
@@ -44,9 +45,26 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
       using var ttfbCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
       ttfbCts.CancelAfter(_config.ConnectionTimeout);
-      return await _longRunningHttpClient.SendAsync(
-          request, HttpCompletionOption.ResponseHeadersRead, ttfbCts.Token)
-          .ConfigureAwait(false);
+      try
+      {
+        return await _longRunningHttpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, ttfbCts.Token)
+            .ConfigureAwait(false);
+      }
+      catch (OperationCanceledException ex) when (
+          !ct.IsCancellationRequested && ttfbCts.IsCancellationRequested)
+      {
+        throw new DockerApiTtfbTimeoutException(_config.ConnectionTimeout, ex);
+      }
     }
+  }
+
+  internal sealed class DockerApiTtfbTimeoutException : TaskCanceledException
+  {
+    public DockerApiTtfbTimeoutException(TimeSpan timeout, Exception innerException)
+        : base($"Docker API connection/TTFB timed out after {timeout}", innerException)
+        => Timeout = timeout;
+
+    public TimeSpan Timeout { get; }
   }
 }

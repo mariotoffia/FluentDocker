@@ -148,10 +148,22 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       using var request = new HttpRequestMessage(HttpMethod.Get, versionedPath);
-      var response = await SendForHeadersAsync(request, ct).ConfigureAwait(false);
-      await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
-      var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-      return new ResponseOwningStream(stream, response);
+      HttpResponseMessage response = null;
+      var transferred = false;
+      try
+      {
+        response = await SendForHeadersAsync(request, ct).ConfigureAwait(false);
+        await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
+        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        transferred = true;
+        return new ResponseOwningStream(stream, response);
+      }
+      catch
+      {
+        if (!transferred)
+          response?.Dispose();
+        throw;
+      }
     }
 
     /// <inheritdoc />
@@ -174,10 +186,22 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         foreach (var header in headers)
           request.Headers.TryAddWithoutValidation(header.Key, header.Value);
       }
-      var response = await SendForHeadersAsync(request, ct).ConfigureAwait(false);
-      await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
-      var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-      return new ResponseOwningStream(stream, response);
+      HttpResponseMessage response = null;
+      var transferred = false;
+      try
+      {
+        response = await SendForHeadersAsync(request, ct).ConfigureAwait(false);
+        await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
+        var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        transferred = true;
+        return new ResponseOwningStream(stream, response);
+      }
+      catch
+      {
+        if (!transferred)
+          response?.Dispose();
+        throw;
+      }
     }
 
     /// <summary>

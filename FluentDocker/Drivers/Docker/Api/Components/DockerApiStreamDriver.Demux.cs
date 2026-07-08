@@ -92,7 +92,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           continue;
 
         var payload = new byte[frameSize];
-        var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
+        int payloadRead;
+        try
+        {
+          payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+          throw;
+        }
+        catch (Exception ex)
+        {
+          throw new DriverException(
+              $"Docker log stream read failed: {ex.Message}", ErrorCodes.Api.ServerError, ex);
+        }
         if (payloadRead < frameSize)
           throw new DriverException(
               $"Docker log stream truncated: expected {frameSize} payload bytes, read {payloadRead}",
@@ -150,6 +163,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
           throw;
+        }
+        catch (Exception ex)
+        {
+          throw new DriverException(
+              $"Docker log stream read failed: {ex.Message}", ErrorCodes.Api.ServerError, ex);
         }
 
         if (line == null)
