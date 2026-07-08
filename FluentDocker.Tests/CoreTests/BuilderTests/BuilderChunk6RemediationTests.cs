@@ -17,7 +17,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.BuilderTests
 {
   [Trait("Category", "Unit")]
-  public class BuilderChunk6RemediationTests : MockKernelTestBase, IAsyncLifetime
+  public partial class BuilderChunk6RemediationTests : MockKernelTestBase, IAsyncLifetime
   {
     public async ValueTask InitializeAsync()
     {

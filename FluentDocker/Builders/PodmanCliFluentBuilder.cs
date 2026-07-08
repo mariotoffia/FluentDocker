@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
+using FluentDocker.Services;
 
 namespace FluentDocker.Builders
 {
@@ -64,6 +65,38 @@ namespace FluentDocker.Builders
       _inner.UsePod(configure);
       return this;
     }
+
+    /// <summary>
+    /// Enters the model runner fluent builder to manage local models and run inference.
+    /// </summary>
+    /// <remarks>
+    /// The Podman CLI pack registers no model ports today; use a model-capable pack or the
+    /// standard interface-not-supported error is surfaced.
+    /// </remarks>
+    /// <returns>A model runner builder.</returns>
+    public IModelRunnerBuilder UseModelRunner() => _inner.UseModelRunner();
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="IModelService"/> in the current Podman CLI scope.
+    /// </summary>
+    /// <remarks>
+    /// The Podman CLI pack registers no model ports today; use a model-capable pack or the
+    /// standard interface-not-supported error is surfaced.
+    /// </remarks>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(string reference) => _inner.UseModel(reference);
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="IModelService"/> from a pre-built <see cref="Model.Models.ModelReference"/>.
+    /// </summary>
+    /// <remarks>
+    /// The Podman CLI pack registers no model ports today; use a model-capable pack or the
+    /// standard interface-not-supported error is surfaced.
+    /// </remarks>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(Model.Models.ModelReference reference) => _inner.UseModel(reference);
 
     /// <summary>
     /// TERMINAL - Builds all operations synchronously.

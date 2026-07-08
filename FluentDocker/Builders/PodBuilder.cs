@@ -28,6 +28,7 @@ namespace FluentDocker.Builders
     private readonly Dictionary<string, string> _labels = [];
     internal IServiceAsync PendingService { get; private set; }
     internal bool CreatedResource { get; private set; }
+    internal string PodName => _name;
 
     public IPodBuilder WithName(string name) { _name = name; return this; }
 

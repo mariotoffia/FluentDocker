@@ -112,12 +112,14 @@ namespace FluentDocker.Builders
     IComposeBuilder WithProjectName(string name);
 
     /// <summary>Sets an environment variable available during compose interpolation.</summary>
+    /// <remarks>Explicit environment values always win over env-file entries regardless of call order.</remarks>
     /// <param name="key">Environment variable name.</param>
     /// <param name="value">Environment variable value.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithEnvironment(string key, string value);
 
     /// <summary>Sets multiple environment variables from a dictionary.</summary>
+    /// <remarks>Explicit environment values always win over env-file entries regardless of call order.</remarks>
     /// <param name="environment">Dictionary of environment variable key-value pairs.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithEnvironment(IDictionary<string, string> environment);
@@ -188,7 +190,7 @@ namespace FluentDocker.Builders
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithWait(bool wait = true);
 
-    /// <summary>Sets the maximum time to wait for services to become healthy.</summary>
+    /// <summary>Sets the maximum time to wait for services to become healthy and enables waiting.</summary>
     /// <param name="seconds">Wait timeout in seconds.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithWaitTimeout(int seconds);

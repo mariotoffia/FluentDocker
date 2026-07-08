@@ -331,7 +331,10 @@ namespace FluentDocker.Builders
             if (delay == 0)
               continue;
             if (delay > 0)
+            {
               await Task.Delay((int)delay, cancellationToken).ConfigureAwait(false);
+              continue;
+            }
           }
           else if (response.IsSuccessStatusCode)
           {

@@ -51,7 +51,8 @@ namespace FluentDocker.Builders
 
     /// <summary>Sets an environment variable using "KEY=VALUE" format.</summary>
     /// <param name="keyValue">
-    /// The environment variable in "KEY=VALUE" format (e.g. "POSTGRES_PASSWORD=secret").
+    /// The environment variable in "KEY=VALUE" format (e.g. "POSTGRES_PASSWORD=secret");
+    /// a key without "=" is set to an empty value and does not pass through the host value.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithEnvironment(string keyValue);
@@ -93,7 +94,7 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ExposePort(int hostPort, int containerPort);
 
-    /// <summary>Sets the command to run in the container, overriding the image's default CMD.</summary>
+    /// <summary>Appends command arguments to run in the container, overriding the image's default CMD.</summary>
     /// <param name="command">
     /// The command and its arguments. Each element is a separate argument
     /// (e.g. <c>"sh", "-c", "echo hello"</c>).
@@ -118,12 +119,22 @@ namespace FluentDocker.Builders
     IContainerBuilder WithTty(bool tty = true);
 
     /// <summary>
-    /// Overrides the image entrypoint (<c>docker run --entrypoint</c>). Each element is a
+    /// Replaces the image entrypoint (<c>docker run --entrypoint</c>). Each element is a
     /// separate token; the first is the executable and the rest are its arguments.
     /// </summary>
     /// <param name="entrypoint">The entrypoint executable and arguments.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithEntrypoint(params string[] entrypoint);
+
+    /// <summary>
+    /// Overrides the container-start budget — how long to wait for the container to reach the
+    /// running state before startup is treated as failed. Applies whether or not explicit wait
+    /// conditions are configured; without it the budget defaults to 3 seconds when no wait
+    /// conditions are set, otherwise the longest configured wait-condition timeout.
+    /// </summary>
+    /// <param name="milliseconds">Startup timeout in milliseconds; must be positive.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IContainerBuilder WithStartupTimeout(int milliseconds);
 
     /// <summary>Binds a host path or named volume to a container path as a volume mount.</summary>
     /// <param name="hostPath">The host path or named volume source.</param>
@@ -228,6 +239,7 @@ namespace FluentDocker.Builders
     /// <remarks>
     /// Container linking is a legacy Docker feature. Consider using user-defined networks instead.
     /// Links allow containers to discover each other and securely transfer information about one container to another.
+    /// Linked containers are started only after all build operations complete.
     /// </remarks>
 #pragma warning disable CA1716 // Parameter 'alias' conflicts with reserved keyword — intentional API design
     IContainerBuilder WithLink(string containerName, string alias = null);
@@ -295,7 +307,12 @@ namespace FluentDocker.Builders
 
     #region Container Existence Behavior
 
-    /// <summary>Reuses a same-case name match; already-running containers skip waits and ignore config differences.</summary>
+    /// <summary>Reuses a same-case name match.</summary>
+    /// <remarks>
+    /// Already-running containers verify wait conditions but skip start hooks
+    /// (<see cref="CopyToOnStart"/>/<see cref="ExecuteOnRunning"/>) and ignore configuration
+    /// differences; <see cref="ForcePullImage"/> is also not applied on the reuse path.
+    /// </remarks>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ReuseIfExists();
 

@@ -12,11 +12,14 @@ namespace FluentDocker.Builders
     internal IServiceAsync PendingService => _pendingService;
     internal bool StartDeferred => _startDeferred;
     internal string ContainerName => _name;
-    internal IReadOnlyCollection<string> NetworkReferences => _networks;
+    internal IReadOnlyCollection<string> NetworkReferences => [.. _networks];
     internal IReadOnlyCollection<string> LinkReferences => [.. _links.Select(l => l.ContainerName)];
+    internal IReadOnlyCollection<string> ImageReferences => string.IsNullOrWhiteSpace(_image) ? [] : [_image];
+    internal IReadOnlyCollection<string> PodReferences => string.IsNullOrWhiteSpace(_pod) ? [] : [_pod];
     internal IReadOnlyCollection<string> VolumeReferences => [.. _volumes
         .Select(GetVolumeSource)
         .Where(IsNamedVolumeSource)];
+    private int? _startupTimeoutMs;
 
     internal void ResetForRetry()
     {
@@ -66,6 +69,14 @@ namespace FluentDocker.Builders
     }
 
     public IContainerBuilder WithCommand(params string[] command) { _command.AddRange(command); return this; }
+    public IContainerBuilder WithStartupTimeout(int milliseconds)
+    {
+      if (milliseconds <= 0)
+        throw new ArgumentOutOfRangeException(nameof(milliseconds), milliseconds, "Value must be positive.");
+      _startupTimeoutMs = milliseconds;
+      return this;
+    }
+
     public IContainerBuilder WithInteractive(bool interactive = true) { _interactive = interactive; return this; }
     public IContainerBuilder WithTty(bool tty = true) { _tty = tty; return this; }
     public IContainerBuilder WithEntrypoint(params string[] entrypoint) { _entrypoint = entrypoint; return this; }

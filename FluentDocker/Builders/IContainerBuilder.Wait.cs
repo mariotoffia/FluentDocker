@@ -97,7 +97,7 @@ namespace FluentDocker.Builders
     /// <param name="condition">
     /// A function receiving the <see cref="IContainerService"/> and the current attempt count (zero-based).
     /// Return a positive value in milliseconds to retry after that delay,
-    /// 0 to continue polling immediately, or -1 to indicate success.
+    /// 0 to poll again after the default poll interval, or -1 to indicate success.
     /// </param>
     /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 60000 (60 seconds).</param>
     /// <returns>The builder instance for method chaining.</returns>

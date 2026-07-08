@@ -17,6 +17,8 @@ namespace FluentDocker.Builders
         ValidateReferences(i, operation, "network", operation.NetworkReferences);
         ValidateReferences(i, operation, "volume", operation.VolumeReferences);
         ValidateReferences(i, operation, "container", operation.LinkReferences);
+        ValidateReferences(i, operation, "image", operation.ImageReferences);
+        ValidateReferences(i, operation, "pod", operation.PodReferences);
       }
     }
 

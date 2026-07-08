@@ -17,6 +17,11 @@ namespace FluentDocker.Builders
   /// For type-safe driver-specific APIs, use <see cref="WithinDockerCli"/>,
   /// <see cref="WithinDockerApi"/>, or <see cref="WithinPodmanCli"/>.
   /// </summary>
+  /// <remarks>
+  /// A <see cref="Builder"/> instance is not thread-safe for configuration: only concurrent
+  /// <see cref="BuildAsync(TimeSpan?, CancellationToken)"/> calls are guarded; mutate operations
+  /// from a single thread before building.
+  /// </remarks>
   public partial class Builder : IBuilder, IDriverScopedBuilder
   {
     private FluentDockerKernel _currentKernel;
@@ -128,6 +133,8 @@ namespace FluentDocker.Builders
         NetworkReferences = builder.NetworkReferences,
         VolumeReferences = builder.VolumeReferences,
         LinkReferences = builder.LinkReferences,
+        ImageReferences = builder.ImageReferences,
+        PodReferences = builder.PodReferences,
         ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct),
         GetFailedService = () => builder.PendingService,
         PostStartAsync = ct => builder.ExecuteDeferredWaitConditionsAsync(ct),
@@ -247,7 +254,8 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
-        ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct)
+        ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct),
+        FailureKeepReason = _ => builder.AttachToExisting ? "borrowed" : null
       });
       return this;
     }
@@ -267,6 +275,8 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceKind = "pod",
+        ResourceName = builder.PodName,
         ExecuteAsync = (_, ct) => builder.ExecuteAsync(ct),
         GetFailedService = () => builder.PendingService,
         ResetForRetry = builder.ResetForRetry,
@@ -289,6 +299,8 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceKind = "image",
+        ResourceName = imageName,
         ExecuteAsync = async (_, ct) => (IServiceAsync)await imageBuilder.ExecuteAsync(ct).ConfigureAwait(false),
         FailureKeepReason = _ => "built"
       });
@@ -408,6 +420,7 @@ namespace FluentDocker.Builders
 
     private void SetScope(string driverId, FluentDockerKernel kernel)
     {
+      ArgumentException.ThrowIfNullOrWhiteSpace(driverId);
       _currentKernel = kernel ?? _currentKernel ?? throw new InvalidOperationException(
           "Kernel required in first WithinDriver() call. " +
           "Provide a kernel or create one with FluentDockerKernel.Create().BuildAsync()");
@@ -452,37 +465,6 @@ namespace FluentDocker.Builders
     }
 
     #endregion
-  }
-
-  /// <summary>
-  /// Represents a build operation to be executed.
-  /// </summary>
-  internal sealed class BuildOperation
-  {
-    public FluentDockerKernel Kernel { get; set; }
-    public string DriverId { get; set; }
-    public object ResourceBuilder { get; set; }
-    public Func<TimeSpan, CancellationToken, Task<IServiceAsync>> ExecuteAsync { get; set; }
-    public Func<IServiceAsync> GetFailedService { get; set; }
-    public Action ResetForRetry { get; set; }
-    public Func<IServiceAsync, bool> ForceRemoveOnFailure { get; set; }
-    public Func<IServiceAsync, string?> FailureKeepReason { get; set; }
-    public string ResourceKind { get; set; }
-    public string ResourceName { get; set; }
-    public IReadOnlyCollection<string> NetworkReferences { get; set; } = [];
-    public IReadOnlyCollection<string> VolumeReferences { get; set; } = [];
-    public IReadOnlyCollection<string> LinkReferences { get; set; } = [];
-
-    /// <summary>
-    /// Optional post-start callback for executing deferred operations
-    /// (e.g., wait conditions on linked containers).
-    /// </summary>
-    public Func<CancellationToken, Task> PostStartAsync { get; set; }
-
-    public bool AllowCleanExit { get; set; } = true;
-    public Func<bool> StartDeferred { get; set; } = () => false;
-    public long StartupTimeoutMs { get; set; } = 3000;
-    public int StartupPollIntervalMs { get; set; } = 100;
   }
 
 }

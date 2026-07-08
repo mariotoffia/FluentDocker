@@ -70,13 +70,14 @@ namespace FluentDocker.Builders
           // Building must never delete a pre-existing resource the builder did not create.
           // Reuse the existing network as a borrowed (non-removing) wrapper; _removeOnDispose
           // only governs networks this builder actually creates below.
-          if (_subnet != null || _gateway != null || _ipRange != null || _enableIPv6 || _internal
+          if (CreatedResource || _removeOnDispose || _subnet != null || _gateway != null || _ipRange != null || _enableIPv6 || _internal
               || _labels.Count > 0 || _options.Count > 0
               || !string.Equals(_driver, "bridge", StringComparison.OrdinalIgnoreCase))
           {
             _kernel.LoggerFactory.CreateLogger<NetworkBuilder>().LogWarning(
                 "Network '{Name}' already exists; reusing it. Requested configuration " +
-                "(subnet/gateway/ip-range/driver/labels/options/internal/ipv6) is ignored.",
+                "(subnet/gateway/ip-range/driver/labels/options/internal/ipv6/RemoveOnDispose) may be ignored. " +
+                "If this was left over from a prior failed build attempt, state may be dirty.",
                 _name);
           }
 
@@ -151,6 +152,16 @@ namespace FluentDocker.Builders
         var existing = await driver.InspectAsync(context, _name, cancellationToken).ConfigureAwait(false);
         if (existing is { Success: true, Data: not null })
         {
+          if (CreatedResource || _removeOnDispose || _driverOpts.Count > 0 || _labels.Count > 0
+              || !string.Equals(_driver, "local", StringComparison.OrdinalIgnoreCase))
+          {
+            _kernel.LoggerFactory.CreateLogger<VolumeBuilder>().LogWarning(
+                "Volume '{Name}' already exists; reusing it. Requested configuration " +
+                "(driver/options/labels/RemoveOnDispose) may be ignored. If this was left over " +
+                "from a prior failed build attempt, state may be dirty.",
+                _name);
+          }
+
           return new Services.Impl.VolumeService(
               _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: CreatedResource);
         }
@@ -260,6 +271,8 @@ namespace FluentDocker.Builders
 
     public IComposeBuilder WithWaitTimeout(int seconds)
     {
+      if (seconds < 0)
+        throw new ArgumentOutOfRangeException(nameof(seconds), seconds, "Value must be non-negative.");
       _waitTimeout = seconds;
       _wait = true;
       return this;
@@ -267,6 +280,7 @@ namespace FluentDocker.Builders
 
     public IComposeBuilder WithProfiles(params string[] profiles) { _profiles.AddRange(profiles); return this; }
     public IComposeBuilder ConnectToExisting(bool connect = true) { _attachToExisting = connect; return this; }
+    internal bool AttachToExisting => _attachToExisting;
 
     public Task<IServiceAsync> ExecuteAsync(CancellationToken cancellationToken) =>
         ExecuteAsync(TimeSpan.FromSeconds(30), cancellationToken);
@@ -366,10 +380,14 @@ namespace FluentDocker.Builders
           var eqIndex = trimmed.IndexOf('=');
           if (eqIndex <= 0)
             continue;
-          var key = trimmed[..eqIndex];
+          var key = trimmed[..eqIndex].Trim();
+          if (string.IsNullOrEmpty(key))
+            continue;
           if (_explicitEnvironmentKeys.Contains(key))
             continue;
-          _environment[key] = StripEnvValueQuotes(trimmed[(eqIndex + 1)..]);
+          // ponytail: trim outer whitespace off the unquoted value (compose-go/godotenv parity);
+          // StripEnvValueQuotes then removes surrounding quotes, preserving quoted inner spaces.
+          _environment[key] = StripEnvValueQuotes(trimmed[(eqIndex + 1)..].Trim());
         }
       }
     }

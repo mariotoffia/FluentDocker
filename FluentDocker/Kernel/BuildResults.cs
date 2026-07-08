@@ -30,6 +30,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Gets all services across all scopes.
     /// </summary>
+    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
     public IReadOnlyList<IServiceAsync> All =>
         [.. _scopes.SelectMany(s => s.Results)];
 
@@ -38,6 +39,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <param name="driverId">Driver identifier</param>
     /// <returns>Services for the specified driver</returns>
+    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
     public IReadOnlyList<IServiceAsync> ForDriver(string driverId) =>
         [.. _scopes
             .Where(s => s.DriverId == driverId)
@@ -46,29 +48,34 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Gets all scopes.
     /// </summary>
+    /// <remarks>After disposal, scope result collections are empty snapshots.</remarks>
     public IReadOnlyList<BuildScope> Scopes => _scopes;
 
     /// <summary>
     /// Gets all container services across all scopes.
     /// </summary>
+    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
     public IReadOnlyList<IContainerService> Containers =>
         [.. All.OfType<IContainerService>()];
 
     /// <summary>
     /// Gets all network services across all scopes.
     /// </summary>
+    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
     public IReadOnlyList<INetworkService> Networks =>
         [.. All.OfType<INetworkService>()];
 
     /// <summary>
     /// Gets all volume services across all scopes.
     /// </summary>
+    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
     public IReadOnlyList<IVolumeService> Volumes =>
         [.. All.OfType<IVolumeService>()];
 
     /// <summary>
     /// Gets all compose services across all scopes.
     /// </summary>
+    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
     public IReadOnlyList<IComposeService> ComposeServices =>
         [.. All.OfType<IComposeService>()];
 
@@ -105,6 +112,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <typeparam name="T">Service type</typeparam>
     /// <returns>Services of the specified type</returns>
+    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
     public IReadOnlyList<T> OfType<T>() where T : IServiceAsync =>
         [.. All.OfType<T>()];
 
