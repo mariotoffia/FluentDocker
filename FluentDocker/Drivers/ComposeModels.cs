@@ -48,7 +48,10 @@ namespace FluentDocker.Drivers
     public int? WaitTimeout { get; set; }
     /// <summary>Shutdown timeout in seconds.</summary>
     public int? Timeout { get; set; }
-    /// <summary>Pull image policy (always, missing, never).</summary>
+    /// <summary>
+    /// Pull image policy passed through to the compose adapter. Accepted values are
+    /// <c>always</c>, <c>missing</c>, <c>never</c>, and adapter-supported aliases.
+    /// </summary>
     public string Pull { get; set; }
     /// <summary>Scale service replicas (service=count) for the up command.</summary>
     public Dictionary<string, int> Scale { get; set; } = [];
@@ -120,7 +123,10 @@ namespace FluentDocker.Drivers
   {
     /// <summary>Show all containers (default: running only).</summary>
     public bool All { get; set; }
-    /// <summary>Output format (json, table).</summary>
+    /// <summary>
+    /// Output format passed through to the compose adapter. Accepted values are
+    /// <c>json</c>, <c>table</c>, and adapter-supported template strings.
+    /// </summary>
     public string Format { get; set; }
     /// <summary>Only display IDs.</summary>
     public bool Quiet { get; set; }

@@ -77,14 +77,13 @@ namespace FluentDocker.Kernel
     }
 
     /// <summary>
-    /// Tries to get a driver component interface. Returns false instead of throwing
-    /// when the interface is not supported. A missing driver still throws.
+    /// Tries to get a driver component interface. Returns false when the interface is
+    /// not supported or a driver pack faults while resolving it. A missing driver still throws.
     /// </summary>
     public bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
       ThrowIfDisposed();
       instance = null;
-
       driverId = ResolveDriverIdOrDefault(driverId);
 
       if (TryResolveCore(driverId, typeof(T), out var resolved))
@@ -94,8 +93,6 @@ namespace FluentDocker.Kernel
       }
 
       return false;
-      // DriverNotFoundException intentionally propagates -
-      // a missing driver is a hard error, not a "not supported" case
     }
 
     #endregion
@@ -108,7 +105,7 @@ namespace FluentDocker.Kernel
     public IDriver GetDriver(string driverId)
     {
       ThrowIfDisposed();
-      driverId = RequireDriverId(driverId);
+      driverId = ResolveDriverIdOrDefault(driverId);
       return _registry.GetDriver(driverId);
     }
 
@@ -118,7 +115,7 @@ namespace FluentDocker.Kernel
     public IDriverPack GetDriverPack(string driverId)
     {
       ThrowIfDisposed();
-      driverId = RequireDriverId(driverId);
+      driverId = ResolveDriverIdOrDefault(driverId);
       return _registry.GetDriverPack(driverId);
     }
 
@@ -128,7 +125,7 @@ namespace FluentDocker.Kernel
     public bool IsDriverPack(string driverId)
     {
       ThrowIfDisposed();
-      driverId = RequireDriverId(driverId);
+      driverId = ResolveDriverIdOrDefault(driverId);
       return _registry.IsDriverPack(driverId);
     }
 
@@ -279,8 +276,16 @@ namespace FluentDocker.Kernel
             return true;
           LogTypeMismatch(driverPack, interfaceType, resolved);
         }
-        catch (InterfaceNotSupportedException)
+        catch (Exception ex)
         {
+          if (_logger.IsEnabled(LogLevel.Debug))
+          {
+            _logger.LogDebug(
+                ex,
+                "Driver pack {DriverPackType} failed to resolve interface {InterfaceType}",
+                driverPack.GetType().FullName,
+                TypeNameFormatter.Format(interfaceType));
+          }
         }
 
         resolved = null;
@@ -304,7 +309,7 @@ namespace FluentDocker.Kernel
         return false;
       }
 
-      throw new DriverNotFoundException(driverId);
+      throw new DriverNotFoundException(driverId, _registry.GetAllDriverIds());
     }
 
     private string ResolveDriverIdOrDefault(string driverId)

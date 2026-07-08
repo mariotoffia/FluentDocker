@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Kernel;
@@ -68,7 +69,7 @@ namespace FluentDocker.Drivers.Docker.Api
         RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
         ApiVersion = context.ApiVersion,
         AllowTlsHostnameMismatch = context.Metadata?.TryGetValue(
-            "DockerApi.AllowTlsHostnameMismatch", out var allowMismatch) == true &&
+            DockerApiDriverMetadataKeys.AllowTlsHostnameMismatch, out var allowMismatch) == true &&
             bool.TryParse(allowMismatch, out var parsedAllowMismatch) &&
             parsedAllowMismatch,
       };
