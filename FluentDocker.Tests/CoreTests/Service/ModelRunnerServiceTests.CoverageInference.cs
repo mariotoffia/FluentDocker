@@ -169,6 +169,65 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task ChatAsync_ChoiceWithNullContent_ThrowsContentMessage()
+    {
+      var (kernel, runner, _) = await BuildWithPackAsync(p =>
+          p.ModelInferenceDriver
+              .Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(CommandResponse<ChatCompletionResponse>.Ok(new ChatCompletionResponse
+              {
+                Choices = new List<ChatChoice>
+                {
+                  new() { Message = new ChatMessage { Role = "assistant", Content = null! } }
+                }
+              })));
+      await using (kernel)
+      {
+        var ex = await Assert.ThrowsAsync<ModelRunnerException>(
+            () => runner.ChatAsync("hello", TestContext.Current.CancellationToken));
+
+        Assert.DoesNotContain("no choices", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("tool_calls", ex.Message, StringComparison.Ordinal);
+      }
+    }
+
+    [Fact]
+    public async Task ChatAsync_EmptyChoices_ThrowsNoChoicesMessage()
+    {
+      var (kernel, runner, _) = await BuildWithPackAsync(p => p.SetupModelChatNoChoices());
+      await using (kernel)
+      {
+        var ex = await Assert.ThrowsAsync<ModelRunnerException>(
+            () => runner.ChatAsync("hello", TestContext.Current.CancellationToken));
+
+        Assert.Contains("no choices", ex.Message, StringComparison.OrdinalIgnoreCase);
+      }
+    }
+
+    [Fact]
+    public async Task GenericOpenAiModelRunner_ChatAsync_ChoiceWithNullContent_ThrowsContentMessage()
+    {
+      var inference = new Mock<IModelInferenceDriver>();
+      inference
+          .Setup(d => d.ChatCompletionAsync(It.IsAny<DriverContext>(), It.IsAny<ChatCompletionRequest>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ChatCompletionResponse>.Ok(new ChatCompletionResponse
+          {
+            Choices = new List<ChatChoice>
+            {
+              new() { Message = new ChatMessage { Role = "assistant", Content = null! } }
+            }
+          }));
+      var runner = new GenericOpenAiModelRunner(
+          ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), inference.Object);
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(
+          () => runner.ChatAsync("hello", TestContext.Current.CancellationToken));
+
+      Assert.DoesNotContain("no choices", ex.Message, StringComparison.OrdinalIgnoreCase);
+      Assert.Contains("tool_calls", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task EmbedAsync_NoDefaultModelAndNoModelArg_ThrowsArgumentException()
     {
       var (kernel, runner, _) = await BuildWithPackAsync(p => p.SetupModelEmbeddings(0.1f), withDefaultModel: false);

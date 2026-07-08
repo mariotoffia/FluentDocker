@@ -206,7 +206,7 @@ namespace FluentDocker.Drivers.Models.Connection
         // /engines/.../v1/* is not false-negatived. ANY HTTP response — including 4xx/5xx —
         // proves the endpoint is reachable; only a transport-level failure (connection
         // refused / DNS / socket / timeout) means unreachable.
-        using var response = await _httpClient.GetAsync(_pingPath, token).ConfigureAwait(false);
+        using var response = await _httpClient.GetAsync(_pingPath, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
         return true;
       }
       catch (OperationCanceledException) when (ct.IsCancellationRequested)

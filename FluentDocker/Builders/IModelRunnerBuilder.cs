@@ -68,7 +68,9 @@ namespace FluentDocker.Builders
     /// <summary>Pulls the default model at build time if it is not present.</summary>
     IModelRunnerBuilder PullIfMissing(bool pull = true);
 
-    /// <summary>Builds the runner.</summary>
+    /// <summary>
+    /// Builds the runner. Blocking convenience; prefer <see cref="BuildAsync"/> in async code.
+    /// </summary>
     IModelRunner Build();
 
     /// <summary>Builds the runner asynchronously.</summary>

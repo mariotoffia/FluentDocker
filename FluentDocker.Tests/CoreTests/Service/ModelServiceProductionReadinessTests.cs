@@ -136,7 +136,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StartAsync_WinnerTokenCancels_SharedLoadRunsUnderNoneAndAllComplete()
+    public async Task StartAsync_WinnerTokenCancels_SharedLoadRunsUnderNoneAndOtherWaitersComplete()
     {
       await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
@@ -160,14 +160,13 @@ namespace FluentDocker.Tests.CoreTests.Service
       await loadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
       var loser = service.StartAsync(TestContext.Current.CancellationToken);
 
-      // Cancelling the winner's token must NOT poison the shared load: it runs under
-      // CancellationToken.None, so both callers still complete once the load releases.
+      // Cancelling the winner's token abandons only that caller's wait and must NOT poison the
+      // shared load: it runs under CancellationToken.None, so the other caller completes once released.
       winnerCts.Cancel();
-      Assert.False(winner.IsCompleted);
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => winner);
       Assert.False(loser.IsCompleted);
 
       releaseLoad.SetResult(true);
-      await winner;
       await loser;
       Assert.Equal(ServiceRunningState.Running, service.State);
       Assert.True(observed.HasValue);

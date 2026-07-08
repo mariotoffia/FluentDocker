@@ -367,14 +367,54 @@ namespace FluentDocker.Tests.CoreTests.Service
         Assert.NotSame(contender, raced);
         Assert.False(contender.IsCompleted);
 
-        // Completing the load lets StartAsync finish and release the gate; the contender proceeds.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
+
+        // Completing the load releases the gate; the contender proceeds.
         load.SetResult(CommandResponse<Unit>.Ok(Unit.Default));
-        await startTask;
         var handle = await contender.WaitAsync(TimeSpan.FromSeconds(5), ct);
         await handle.DisposeAsync();
 
         await service.DisposeAsync();
       }
+    }
+
+    [Fact]
+    public async Task StartAsync_CancelledWaiterAbandonsWaitWithoutCancellingSharedLoad()
+    {
+      await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var runner = new Mock<IModelRunner>();
+      var enteredLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var releaseLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var loadCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      runner.Setup(r => r.LoadAsync(
+              It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
+          .Returns(async () =>
+          {
+            enteredLoad.TrySetResult();
+            await releaseLoad.Task.ConfigureAwait(false);
+            loadCompleted.TrySetResult();
+          });
+      runner.Setup(r => r.DisposeAsync()).Returns(ValueTask.CompletedTask);
+      var service = new ModelService(
+          kernel, "docker", Model, runner.Object, null!, keepRunning: true);
+
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+      var startTask = service.StartAsync(cts.Token);
+      await enteredLoad.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+      cts.Cancel();
+      var completed = await Task.WhenAny(
+          startTask, Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+
+      Assert.Same(startTask, completed);
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
+      Assert.False(releaseLoad.Task.IsCompleted);
+
+      releaseLoad.SetResult();
+      await loadCompleted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+      Assert.True(loadCompleted.Task.IsCompletedSuccessfully);
+      await service.DisposeAsync();
     }
 
     [Fact]

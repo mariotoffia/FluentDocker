@@ -153,9 +153,12 @@ namespace FluentDocker.Services.Impl
         Messages = new List<ChatMessage> { new() { Role = "user", Content = prompt } }
       }, cancellationToken).ConfigureAwait(false);
 
-      var content = response.Choices is { Count: > 0 } ? response.Choices[0].Message?.Content : null;
-      return content
-          ?? throw new ModelRunnerException("Chat completion returned no content (model produced no choices).",
+      if (response.Choices is not { Count: > 0 })
+        throw new ModelRunnerException(
+            "Chat completion returned no choices.", ErrorCodes.ModelInference.RequestFailed);
+      return response.Choices[0].Message?.Content
+          ?? throw new ModelRunnerException(
+              "Chat completion choice carried no text content (e.g. tool_calls or a refusal); use ChatCompletionAsync to read the full message.",
               ErrorCodes.ModelInference.RequestFailed);
     }
 

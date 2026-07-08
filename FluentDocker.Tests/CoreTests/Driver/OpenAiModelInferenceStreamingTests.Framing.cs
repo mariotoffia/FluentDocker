@@ -89,15 +89,15 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Equal(new[] { "a", "b" }, await CollectDeltas(Create(conn)));
     }
 
-    // ---- M3.2: a trailing content frame with NO final blank line before EOF still dispatches. ----
+    // ---- M3.2: a trailing [DONE] frame with NO final blank line before EOF still dispatches. ----
 
     [Fact]
     [Trait("Category", "Unit")]
     public async Task ChatCompletionStreamAsync_TrailingFrameNoFinalBlankLine_StillDispatched()
     {
-      // The last event carries no closing blank line and the stream just ends — the EOF flush
-      // (line-level then event-level) must still surface it, otherwise the final delta is lost.
-      const string script = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"end\"}}]}";
+      // The [DONE] event carries no closing blank line and the stream just ends — the EOF flush
+      // (line-level then event-level) must still surface it, otherwise clean termination is lost.
+      const string script = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"end\"}}]}\n\ndata: [DONE]";
       var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
 
       Assert.Equal(new[] { "end" }, await CollectDeltas(Create(conn)));

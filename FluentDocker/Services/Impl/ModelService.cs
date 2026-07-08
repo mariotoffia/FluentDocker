@@ -112,6 +112,11 @@ namespace FluentDocker.Services.Impl
 #pragma warning restore CA1710
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The first caller drives one shared load and concurrent callers await that same load.
+    /// Cancelling a caller's token abandons only that caller's wait, not the shared load; the
+    /// per-model gate remains held until the load actually completes.
+    /// </remarks>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
@@ -140,16 +145,15 @@ namespace FluentDocker.Services.Impl
       // runs under CancellationToken.None (see DriveSharedLoadAsync), so it is deliberately NOT
       // abandoned when an individual caller's token fires: one load serves every concurrent
       // caller, and the per-model gate must stay held until the driver's load actually returns
-      // (StartAsync_HoldsGateForFullLoad_NotReleasedEarlyOnCancel). A pre-cancelled token still
-      // fails fast via the guard above; a bounded wait otherwise relies on the driver timeout.
-      await loadTask.ConfigureAwait(false);
+      // (StartAsync_HoldsGateForFullLoad_NotReleasedEarlyOnCancel). Each waiter still honors
+      // its own token via WaitAsync while the shared load runs to completion under None.
+      await loadTask.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     // Drives the one elected load to completion and publishes its outcome to every waiter.
     // ponytail: the load runs under CancellationToken.None so a single caller cancelling cannot
-    // fail it for the others; every caller awaits the shared outcome to completion (the per-model
-    // gate is held for the full load — see StartAsync). Give the load a caller-driven cancel only
-    // if a concrete need for a bounded, abandonable wait ever appears.
+    // fail it for the others; callers may abandon their own wait while the per-model gate stays
+    // held for the full load. Give the load a caller-driven cancel only if a concrete need appears.
     private async Task DriveSharedLoadAsync(TaskCompletionSource<bool> completion)
     {
       try
@@ -162,9 +166,10 @@ namespace FluentDocker.Services.Impl
         // Self-heal the start-once gate on ANY failure (load or hook) so a later StartAsync can
         // retry instead of the service wedging permanently.
         // Matches the stop/remove reset idiom (Volatile.Write); the winning StartAsync reads the
-        // gate under _startSync, whose Monitor barrier observes this release.
+        // gate under _startSync, whose Monitor barrier observes this release. TrySetException
+        // (not SetException) so publishing the failure can never itself throw and wedge the gate.
+        completion.TrySetException(ex);
         Volatile.Write(ref _loadInitiated, 0);
-        completion.SetException(ex);
       }
     }
 

@@ -109,6 +109,8 @@ namespace FluentDocker.Drivers.Models
       var events = ReadSseEventsAsync(
           stream, firstByteTimeout, idleTimeout, context, operation, cancellationToken)
           .GetAsyncEnumerator(cancellationToken);
+      var sawAnyEvent = false;
+      var sawDone = false;
       try
       {
         while (true)
@@ -117,7 +119,7 @@ namespace FluentDocker.Drivers.Models
           try
           {
             if (!await events.MoveNextAsync().ConfigureAwait(false))
-              yield break;
+              break;
             payload = events.Current;
           }
           catch (Exception ex) when (ex is IOException or HttpRequestException)
@@ -134,12 +136,17 @@ namespace FluentDocker.Drivers.Models
           if (span.IsEmpty)
             continue;
 
+          sawAnyEvent = true;
           if (span.SequenceEqual("[DONE]"))
+          {
+            sawDone = true;
             yield break;
+          }
 
           // A mid-stream error frame (e.g. {"error":{"message":"context length exceeded"}})
           // deserializes into a non-null chunk with no choices, silently losing the error — detect
-          // it first and surface the server's message as a typed failure.
+          // it first and surface the server's message as a typed failure. If a frame carries both
+          // error and choices, error wins and the delta is intentionally dropped; no known DMR frame mixes both.
           if (TryGetSseError(span, out var errorMessage))
             throw new ModelRunnerException(
                 errorMessage, ErrorCodes.ModelInference.RequestFailed,
@@ -166,6 +173,15 @@ namespace FluentDocker.Drivers.Models
 
           yield return chunk;
         }
+
+        if (!sawAnyEvent)
+          throw new ModelRunnerException(
+              "Inference stream produced no events (empty or non-SSE response).",
+              ErrorCodes.ModelInference.StreamParseError, CreateStreamErrorContext(context, operation));
+        if (!sawDone)
+          throw new ModelRunnerException(
+              "Inference stream ended without a [DONE] terminator (response may be truncated).",
+              ErrorCodes.ModelInference.StreamParseError, CreateStreamErrorContext(context, operation));
       }
       finally
       {

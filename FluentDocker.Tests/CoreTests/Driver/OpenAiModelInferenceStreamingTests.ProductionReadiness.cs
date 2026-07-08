@@ -167,6 +167,62 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Equal(new[] { "Hi" }, chunks);
     }
 
+    [Fact]
+    public async Task ChatCompletionStreamAsync_NonSseBody_ThrowsStreamParseErrorWithoutChunks()
+    {
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", "<html>proxy error</html>");
+      var driver = Create(conn);
+      var chunks = new List<ChatCompletionChunk>();
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var chunk in driver.ChatCompletionStreamAsync(
+            DiagnosticCtx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+          chunks.Add(chunk);
+      });
+
+      Assert.Empty(chunks);
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, ex.ErrorCode);
+      Assert.Contains("no events", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_MissingDoneAfterChunk_ThrowsStreamParseErrorAfterYield()
+    {
+      const string script = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+      var chunks = new List<string>();
+
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      {
+        await foreach (var chunk in driver.ChatCompletionStreamAsync(
+            DiagnosticCtx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+          chunks.Add(chunk.Choices[0].Delta.Content);
+      });
+
+      Assert.Equal(new[] { "Hi" }, chunks);
+      Assert.Equal(ErrorCodes.ModelInference.StreamParseError, ex.ErrorCode);
+      Assert.Contains("[DONE]", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ChatCompletionStreamAsync_ChunkThenDone_CompletesNormally()
+    {
+      const string script =
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\n" +
+          "data: [DONE]\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+      var chunks = new List<string>();
+
+      await foreach (var chunk in driver.ChatCompletionStreamAsync(
+          DiagnosticCtx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+        chunks.Add(chunk.Choices[0].Delta.Content);
+
+      Assert.Equal(new[] { "Hi" }, chunks);
+    }
+
     private sealed class ThrowingStreamConnection(ModelRunnerException exception) : IModelApiConnection
     {
       public Uri BaseAddress => new("http://localhost:12434");
