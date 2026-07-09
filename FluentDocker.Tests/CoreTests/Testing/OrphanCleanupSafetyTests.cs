@@ -91,6 +91,96 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task CleanupOrphanedResources_ReapRunningAfterElapsed_RemovesOldRunningContainer()
+    {
+      var previous = Environment.GetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER");
+      Environment.SetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER", "1h");
+      try
+      {
+        var oldEnough = DateTime.UtcNow.AddHours(-2);
+        var container = LabeledContainer("running-old", "other-session", oldEnough);
+        SetupContainerList(container);
+        SetupContainerInspect(LabeledContainer(
+            "running-old", "other-session", oldEnough,
+            running: true, created: DateTimeOffset.UtcNow.AddHours(-2)));
+        SetupEmptyNetworkList();
+        SetupEmptyVolumeList();
+        MockPack.SetupContainerRemove();
+
+        var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
+            Kernel, DriverId, "current-session", TimeSpan.FromHours(1),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, result.ContainersRemoved);
+        VerifyContainerRemove("running-old", Times.Once());
+      }
+      finally
+      {
+        Environment.SetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER", previous);
+      }
+    }
+
+    [Fact]
+    public async Task CleanupOrphanedResources_ReapRunningAfterNotElapsed_PreservesYoungRunningContainer()
+    {
+      var previous = Environment.GetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER");
+      Environment.SetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER", "24h");
+      try
+      {
+        var young = DateTime.UtcNow.AddHours(-2);
+        var container = LabeledContainer("running-young", "other-session", young);
+        SetupContainerList(container);
+        SetupContainerInspect(LabeledContainer(
+            "running-young", "other-session", young,
+            running: true, created: DateTimeOffset.UtcNow.AddHours(-2)));
+        SetupEmptyNetworkList();
+        SetupEmptyVolumeList();
+        MockPack.SetupContainerRemove();
+
+        var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
+            Kernel, DriverId, "current-session", TimeSpan.FromHours(1),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, result.ContainersRemoved);
+        VerifyContainerRemove("running-young", Times.Never());
+      }
+      finally
+      {
+        Environment.SetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER", previous);
+      }
+    }
+
+    [Fact]
+    public async Task CleanupOrphanedResources_ReapRunningAfterOverflowValue_TreatedAsOffAndDoesNotThrow()
+    {
+      var previous = Environment.GetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER");
+      Environment.SetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER", "999999999d");
+      try
+      {
+        var oldEnough = DateTime.UtcNow.AddHours(-2);
+        var container = LabeledContainer("running-overflow", "other-session", oldEnough);
+        SetupContainerList(container);
+        SetupContainerInspect(LabeledContainer(
+            "running-overflow", "other-session", oldEnough,
+            running: true, created: DateTimeOffset.UtcNow.AddHours(-2)));
+        SetupEmptyNetworkList();
+        SetupEmptyVolumeList();
+        MockPack.SetupContainerRemove();
+
+        var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
+            Kernel, DriverId, "current-session", TimeSpan.FromHours(1),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, result.ContainersRemoved);
+        VerifyContainerRemove("running-overflow", Times.Never());
+      }
+      finally
+      {
+        Environment.SetEnvironmentVariable("FLUENTDOCKER_REAP_RUNNING_AFTER", previous);
+      }
+    }
+
+    [Fact]
     public async Task CleanupOrphanedResources_SharedSessionEnvironment_PreservesMatchingSession()
     {
       var previous = Environment.GetEnvironmentVariable("FLUENTDOCKER_TEST_SESSION");

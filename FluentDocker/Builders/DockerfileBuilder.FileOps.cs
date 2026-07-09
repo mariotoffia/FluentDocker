@@ -13,20 +13,6 @@ namespace FluentDocker.Builders
 {
   public sealed partial class DockerfileBuilder
   {
-    private static TemplateString CopyToWorkDir(string source, string workingFolder)
-    {
-      if (Directory.Exists(source))
-        throw new NotSupportedException(
-            "Directory sources are not supported by DockerfileBuilder; add files individually.");
-
-      if (!File.Exists(source))
-        return source;
-
-      var dest = Path.Combine(workingFolder, Path.GetFileName(source));
-      File.Copy(source, dest, true);
-      return Path.GetFileName(source);
-    }
-
     internal void DeleteOwnedWorkingFolder()
     {
       if (!_ownsWorkingFolder || IsInPlaceBuild || string.IsNullOrWhiteSpace(_workingFolder))
@@ -171,14 +157,23 @@ namespace FluentDocker.Builders
             throw new NotSupportedException(
                 $"Multiple rooted COPY/ADD sources share the file name '{name}'; rename the sources.");
           rootedNames[name] = source;
-        }
-        var wff = Path.IsPathRooted(source)
-            ? Path.Combine(workingFolder, Path.GetFileName(source))
-            : Path.Combine(workingFolder, source);
-        if (File.Exists(wff) || Directory.Exists(wff))
-        {
-          if (Path.IsPathRooted(source))
+          var rootedDest = Path.Combine(workingFolder, name);
+          if (File.Exists(rootedDest) || Directory.Exists(rootedDest))
+          {
             _addSourceOverrides[command] = Path.GetFileName(source);
+            continue;
+          }
+          if (Directory.Exists(source))
+            throw new NotSupportedException(
+                "Directory sources are not supported by DockerfileBuilder; add files individually.");
+          if (!File.Exists(source))
+          {
+            if (!strictCopySources)
+              continue;
+            throw new FluentDockerException($"ADD source '{source}' not found");
+          }
+          File.Copy(source, rootedDest, true);
+          _addSourceOverrides[command] = name;
           continue;
         }
         if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
@@ -194,8 +189,12 @@ namespace FluentDocker.Builders
           throw new FluentDockerException($"ADD source '{source}' not found");
         }
 
-        // Copy to working folder
-        _addSourceOverrides[command] = CopyToWorkDir(source, workingFolder);
+        var wff = ResolveOwnedContextPath(workingFolder, source);
+        var wdp = Path.GetDirectoryName(wff);
+        if (!string.IsNullOrEmpty(wdp) && !Directory.Exists(wdp))
+          Directory.CreateDirectory(wdp);
+
+        File.Copy(source, wff, true);
       }
     }
 
@@ -212,7 +211,7 @@ namespace FluentDocker.Builders
       var destination = Path.GetFullPath(Path.Combine(root, relativePath));
       if (!destination.StartsWith(rootWithSeparator, StringComparison.Ordinal))
         throw new FluentDockerException(
-            $"COPY source '{relativePath}' escapes the build context");
+            $"COPY/ADD source '{relativePath}' escapes the build context");
       return destination;
     }
 

@@ -244,6 +244,10 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Adds LABEL instructions.
     /// </summary>
+    /// <remarks>
+    /// Docker expands <c>$name</c> / <c>${name}</c> in LABEL values during build. Use
+    /// <c>$$</c> when the final image metadata should contain a literal <c>$</c>.
+    /// </remarks>
     /// <param name="nameValue">Name=value pairs</param>
     public DockerfileBuilder Label(params string[] nameValue)
     {
@@ -351,6 +355,10 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Adds ENV instructions.
     /// </summary>
+    /// <remarks>
+    /// Docker expands <c>$name</c> / <c>${name}</c> in ENV values during build. Use
+    /// <c>$$</c> when the final environment value should contain a literal <c>$</c>.
+    /// </remarks>
     /// <param name="nameValue">Name=value pairs</param>
     public DockerfileBuilder Environment(params string[] nameValue)
     {

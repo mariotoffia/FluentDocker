@@ -303,6 +303,24 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.Contains(ServiceRunningState.Running, states);
     }
 
+    [Fact]
+    public async Task InspectAsync_WhenStateChanges_FiresMatchingHookOnce()
+    {
+      MockPack.SetupContainerInspect("container-123", running: true);
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+      var runningHooks = 0;
+      service.AddHook(ServiceRunningState.Running, _ =>
+      {
+        runningHooks++;
+        return Task.CompletedTask;
+      });
+
+      await service.InspectAsync(TestContext.Current.CancellationToken);
+      await service.InspectAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal(1, runningHooks);
+    }
+
     [Theory]
     [InlineData("restarting", ServiceRunningState.Starting)]
     [InlineData("removing", ServiceRunningState.Removing)]
@@ -315,13 +333,78 @@ namespace FluentDocker.Tests.CoreTests.Service
           .ReturnsAsync(CommandResponse<Container>.Ok(new Container
           {
             Id = "container-123",
-            State = new ContainerState { Running = false, Status = dockerState }
+            State = new ContainerState
+            {
+              Running = dockerState == "restarting",
+              Restarting = dockerState == "restarting",
+              Status = dockerState
+            }
           }));
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
 
       await service.InspectAsync(TestContext.Current.CancellationToken);
 
       Assert.Equal(expected, service.State);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WhenDockerReportsRestartingAndRunning_MapsToStarting()
+    {
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+             It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "container-123",
+            State = new ContainerState
+            {
+              Running = true,
+              Restarting = true,
+              Status = "restarting"
+            }
+          }));
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+
+      await service.InspectAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal(ServiceRunningState.Starting, service.State);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WithLargeCleanupTimeout_AllowsRemovePastFiveSeconds()
+    {
+      MockPack.ContainerDriver
+          .Setup(d => d.RemoveAsync(
+             It.IsAny<DriverContext>(), "container-123", It.IsAny<bool>(), It.IsAny<bool>(),
+             It.IsAny<CancellationToken>()))
+          .Returns(async (DriverContext _, string _, bool _, bool _, CancellationToken token) =>
+          {
+            var canceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var registration = token.Register(
+                static state => ((TaskCompletionSource)state!).TrySetResult(),
+                canceled);
+            var delay = Task.Delay(
+                TimeSpan.FromMilliseconds(5200),
+                TestContext.Current.CancellationToken);
+            var completed = await Task.WhenAny(delay, canceled.Task);
+            if (completed == canceled.Task)
+              token.ThrowIfCancellationRequested();
+            await delay;
+            return CommandResponse<Unit>.Ok(Unit.Default);
+          });
+      var service = new ContainerService(
+          Kernel,
+          DriverId,
+          "container-123",
+          "alpine",
+          "test",
+          stopOnDispose: false,
+          deleteOnDispose: true,
+          disposeCleanupTimeout: TimeSpan.FromSeconds(18));
+
+      await service.DisposeAsync();
+
+      Assert.Equal(ServiceRunningState.Removed, service.State);
     }
 
     [Fact]

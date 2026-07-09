@@ -13,6 +13,8 @@ machines, host inspection, engine switching, event/stats streaming, and system
 prune. This page shows how to reach those ports and gives one worked snippet per
 capability.
 
+{% include preview-banner.html %}
+
 ## Overview
 
 Every capability here is a driver **port** — a small interface resolved from the

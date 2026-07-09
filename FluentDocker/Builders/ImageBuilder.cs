@@ -82,6 +82,10 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Adds labels in <c>KEY=VALUE</c> format; entries without <c>=</c> use an empty value.
     /// </summary>
+    /// <remarks>
+    /// This passes build labels directly to the image builder. For Dockerfile <c>LABEL</c>
+    /// instructions, see <see cref="DockerfileBuilder.Label"/> for Docker <c>$</c> expansion rules.
+    /// </remarks>
     /// <param name="labels">Labels in <c>KEY=VALUE</c> format.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder Label(params string[] labels);

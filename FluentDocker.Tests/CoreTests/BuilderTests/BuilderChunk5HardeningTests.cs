@@ -2,8 +2,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -136,10 +134,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .SetupContainerRemove()
           .SetupContainerGetLogs("");
 
-      using var listener = new HttpListener();
-      var port = GetAvailableLoopbackPort();
-      listener.Prefixes.Add($"http://127.0.0.1:{port}/");
-      listener.Start();
+      using var listener = LoopbackHttpListenerSupport.Start(out var baseUrl);
       var requests = 0;
       var server = Task.Run(async () =>
       {
@@ -159,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("alpine")
               .WithWaitPollInterval(50)
               .WaitForHttpUrl(
-                  $"http://127.0.0.1:{port}/",
+                  baseUrl,
                   timeoutMs: 2000,
                   continuation: (_, iteration) => iteration < 2 ? 0 : -1))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
@@ -169,15 +164,6 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.Single(results.Containers);
       Assert.Equal(3, requests);
       Assert.True(elapsed.ElapsedMilliseconds >= 80, $"Expected poll delay, elapsed {elapsed.ElapsedMilliseconds}ms.");
-    }
-
-    private static int GetAvailableLoopbackPort()
-    {
-      var listener = new TcpListener(IPAddress.Loopback, 0);
-      listener.Start();
-      var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-      listener.Stop();
-      return port;
     }
 
     [Fact]

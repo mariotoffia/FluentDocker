@@ -79,9 +79,8 @@ namespace FluentDocker.Services.Impl
       if (_state == ServiceRunningState.Removed)
         return;
 
-      var removeBudget = TimeSpan.FromMilliseconds(Math.Min(
-          5_000,
-          Math.Max(1, _disposeCleanupTimeout.TotalMilliseconds / 3)));
+      var removeBudget = TimeSpan.FromMilliseconds(
+          Math.Max(1, _disposeCleanupTimeout.TotalMilliseconds / 3));
       var preRemoveBudget = _disposeCleanupTimeout > removeBudget
           ? _disposeCleanupTimeout - removeBudget
           : TimeSpan.FromMilliseconds(1);
@@ -173,8 +172,7 @@ namespace FluentDocker.Services.Impl
 
       try
       {
-        UpdateState(ServiceRunningState.Removing);
-        await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
         await ExecuteLifecycleHooksAsync(
             ServiceRunningState.Removing,
             cancellationToken,
@@ -207,28 +205,26 @@ namespace FluentDocker.Services.Impl
         {
           if (IsContainerAlreadyGone(response))
           {
-            UpdateState(ServiceRunningState.Removed);
-            await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+            await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
             await RemoveNamedVolumesAsync(namedVolumeDriver, context, namedVolumes, cancellationToken)
                 .ConfigureAwait(false);
             return;
           }
 
-          UpdateState(ServiceRunningState.Unknown);
+          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
           throw new DriverException(
               $"Failed to remove container '{_name}': {response.Error}",
               response.ErrorCode,
               response.ErrorContext);
         }
 
-        UpdateState(ServiceRunningState.Removed);
-        await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
         await RemoveNamedVolumesAsync(namedVolumeDriver, context, namedVolumes, cancellationToken)
             .ConfigureAwait(false);
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -338,33 +334,38 @@ namespace FluentDocker.Services.Impl
             TaskContinuationOptions.OnlyOnFaulted,
             TaskScheduler.Default);
 
-    private void UpdateState(ServiceRunningState newState) => UpdateStateCore(newState, invalidateInspectCache: true);
+    private bool UpdateState(ServiceRunningState newState) => UpdateStateCore(newState, invalidateInspectCache: true);
 
-    private void UpdateStateCore(ServiceRunningState newState, bool invalidateInspectCache)
+    private async Task UpdateStateAndExecuteHooksAsync(ServiceRunningState newState)
     {
-      ServiceDelegates.StateChange stateChange;
-      StateChangeEventArgs args;
+      if (UpdateState(newState))
+        await ExecuteHooksAsync(newState).ConfigureAwait(false);
+    }
+
+    private bool UpdateStateCore(ServiceRunningState newState, bool invalidateInspectCache)
+    {
+      ServiceDelegates.StateChange stateChange = null;
+      StateChangeEventArgs args = null;
       lock (_stateLock)
       {
         if (Volatile.Read(ref _disposeCompleted) != 0)
-          return;
+          return false;
 
         var oldState = _state;
         if (oldState == newState)
-          return;
+          return false;
 
         _state = newState;
         if (invalidateInspectCache)
           InvalidateInspectCache();
 
         stateChange = StateChange;
-        if (stateChange == null)
-          return;
-
-        args = new StateChangeEventArgs(this, newState);
+        args = stateChange == null ? null : new StateChangeEventArgs(this, newState);
       }
 
-      StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
+      if (stateChange != null)
+        StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
+      return true;
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)

@@ -401,8 +401,14 @@ namespace FluentDocker.Drivers
   {
     /// <summary>Service name.</summary>
     public string Service { get; set; }
-    /// <summary>Container ID.</summary>
+    /// <summary>
+    /// Real container ID from the <c>compose ps</c> join. May be <c>null</c> when the join is
+    /// unavailable (ps failed, malformed, or no matching container), in which case only
+    /// <see cref="ContainerName"/> is authoritative.
+    /// </summary>
     public string ContainerId { get; set; }
+    /// <summary>Container name (e.g. project-service-1).</summary>
+    public string ContainerName { get; set; }
     /// <summary>Process information.</summary>
     public List<Dictionary<string, string>> Processes { get; set; } = [];
   }

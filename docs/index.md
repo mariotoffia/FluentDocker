@@ -14,6 +14,8 @@ permalink: /
 
 FluentDocker is a .NET library providing a fluent API for Docker and Docker Compose. It simplifies container management for development, testing, and CI/CD pipelines.
 
+{% include preview-banner.html %}
+
 ## New Here?
 
 First 30 minutes, in order:
@@ -128,6 +130,8 @@ await kube.DownAsync(context, "pod.yaml");
 `DriverContext` carries per-operation driver state (driver ID, host URI, certs, sudo, timeouts). End-users only construct one when invoking a driver via `SysCtl<T>` directly — the builder/kernel flow supplies it implicitly.
 
 ## Installation
+
+> **Preview:** the published NuGet is 3.1.0. These docs describe 3.2.0-preview.2 — until it ships, build from the [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) branch or pin a matching `PackageReference`; 3.1.0's `WithPort` is container-first (host-first here).
 
 ```bash
 dotnet add package FluentDocker

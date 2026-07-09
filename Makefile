@@ -39,7 +39,7 @@ test:
 # async [ClassInitialize]/[ClassCleanup]/[TestInitialize]/[TestCleanup] actually fire in order.
 .PHONY: test-mstest
 test-mstest:
-	dotnet test FluentDocker.Testing.MsTest.RunnerTests/FluentDocker.Testing.MsTest.RunnerTests.csproj --framework net10.0 --configuration Debug --filter "Category=Unit" --verbosity normal
+	dotnet test FluentDocker.Testing.MsTest.RunnerTests/FluentDocker.Testing.MsTest.RunnerTests.csproj --framework net10.0 --configuration Debug --filter "TestCategory=Unit" --verbosity normal
 
 .PHONY: test-nunit
 test-nunit:

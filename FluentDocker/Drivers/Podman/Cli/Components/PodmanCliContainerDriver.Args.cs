@@ -39,8 +39,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               ? $" --filter {QuoteArgumentIfNeeded($"label={label.Key}")}"
               : $" --filter {QuoteArgumentIfNeeded($"label={label.Key}={label.Value}")}";
       }
-      if (filter.Limit.HasValue)
-        args += $" --last {filter.Limit.Value}";
+      // ponytail: --last implies all-states and treats non-positive as "no limit"/"none"; ignore <= 0.
+      if (filter.Limit is int limit && limit > 0)
+        args += $" --last {limit}";
 
       return args;
     }

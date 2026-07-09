@@ -280,6 +280,10 @@ namespace FluentDocker.Kernel
             LogTypeMismatch(driverPack, interfaceType, resolved);
           }
         }
+        catch (InterfaceNotSupportedException ex)
+        {
+          unsupportedCause = ex;
+        }
         catch (Exception ex) when (!IsResolutionContractException(ex))
         {
           LogPackFallbackFailure(driverPack, interfaceType, ex);
@@ -324,6 +328,10 @@ namespace FluentDocker.Kernel
             if (driverResolver.TryResolve(interfaceType, out resolved)
                 && interfaceType.IsInstanceOfType(resolved))
               return true;
+          }
+          catch (InterfaceNotSupportedException ex)
+          {
+            unsupportedCause = ex;
           }
           catch (Exception ex) when (!IsResolutionContractException(ex))
           {

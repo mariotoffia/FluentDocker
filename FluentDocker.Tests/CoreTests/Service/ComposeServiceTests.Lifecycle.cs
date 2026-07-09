@@ -173,6 +173,37 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task StartAsync_Failure_ExecutesRegisteredUnknownHooks()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ComposeDriver
+          .Setup(d => d.StartAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeFileConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("compose start failed"));
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = CreateService(kernel);
+        var unknownHookCalled = false;
+        service.AddHook(ServiceRunningState.Unknown, _ =>
+        {
+          unknownHookCalled = true;
+          return Task.CompletedTask;
+        }, "test-unknown-hook");
+
+        await Assert.ThrowsAsync<DriverException>(
+            () => service.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.True(unknownHookCalled);
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    [Fact]
     public async Task Hook_ThrowingException_DoesNotPropagateError()
     {
       var mockPack = new MockDriverPack();

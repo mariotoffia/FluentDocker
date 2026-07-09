@@ -95,10 +95,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " top";
         var result = await ExecuteCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<IList<ComposeProcesses>>.Ok(ParseTopOutput(result.Output))
-            : CommandResponse<IList<ComposeProcesses>>.Fail(
-                ErrorOrDefault(result, "Compose top failed"), FailureCode(result.Error, ErrorCodes.Compose.TopFailed));
+        if (!result.Success)
+          return CommandResponse<IList<ComposeProcesses>>.Fail(
+              ErrorOrDefault(result, "Compose top failed"), FailureCode(result.Error, ErrorCodes.Compose.TopFailed));
+
+        return CommandResponse<IList<ComposeProcesses>>.Ok(
+            await ParseTopOutputWithServiceInfoAsync(context, config, result.Output, cancellationToken).ConfigureAwait(false));
       }
       catch (OperationCanceledException)
       {

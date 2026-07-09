@@ -325,11 +325,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
     private static HttpListener StartHttpListener(out string url)
     {
-      var listener = new HttpListener();
-      var port = Random.Shared.Next(30000, 50000);
-      url = $"http://127.0.0.1:{port}/health";
-      listener.Prefixes.Add($"http://127.0.0.1:{port}/");
-      listener.Start();
+      var listener = LoopbackHttpListenerSupport.Start(out var baseUrl);
+      url = baseUrl + "health";
       return listener;
     }
 

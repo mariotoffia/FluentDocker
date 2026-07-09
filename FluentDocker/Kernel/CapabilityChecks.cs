@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Kernel
@@ -9,6 +10,12 @@ namespace FluentDocker.Kernel
   /// <summary>
   /// Helper methods for checking driver capabilities before performing operations.
   /// </summary>
+  /// <remarks>
+  /// These checks validate the driver's declared capability surface, not live daemon/runtime
+  /// feature availability. A check can pass for a feature the current daemon lacks (for example,
+  /// stack support on a non-swarm daemon); use <see cref="IDriverPack.IsHealthyAsync"/> and the
+  /// operation's result or exception for runtime truth.
+  /// </remarks>
   public static class CapabilityChecks
   {
     /// <summary>Ensures the driver supports container operations.</summary>

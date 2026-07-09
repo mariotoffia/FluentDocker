@@ -80,31 +80,21 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     public async Task Copy_RelativeSourceWithDotDotCannotEscapeOwnedBuildContext()
     {
       Directory.CreateDirectory(".out");
-      var originalCwd = Directory.GetCurrentDirectory();
       var testRoot = Path.GetFullPath(Path.Combine(".out", "copy-dotdot"));
-      var cwd = Path.Combine(testRoot, "cwd");
-      var workingFolder = Path.Combine(cwd, "context");
-      Directory.CreateDirectory(cwd);
-      await File.WriteAllTextAsync(Path.Combine(testRoot, "source.txt"), "safe", TestContext.Current.CancellationToken);
+      var workingFolder = Path.Combine(testRoot, "context");
+      var sourceFile = Path.Combine(testRoot, "source.txt");
+      Directory.CreateDirectory(testRoot);
+      await File.WriteAllTextAsync(sourceFile, "safe", TestContext.Current.CancellationToken);
+      var source = Path.Combine("..", new DirectoryInfo(Directory.GetCurrentDirectory()).Name,
+          Path.GetRelativePath(Directory.GetCurrentDirectory(), sourceFile)).Replace('\\', '/');
 
-      try
-      {
-        // ponytail: cwd must equal the working folder's parent so File.Exists resolves the
-        // relative "../source.txt" precondition; only relative sources reach the containment
-        // guard (rooted sources take the GetFileName branch). Restored in finally.
-        Directory.SetCurrentDirectory(cwd);
-        var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new DockerfileBuilder()
-            .WorkingFolder(workingFolder)
-            .UseParent("alpine")
-            .Copy("../source.txt", "/app/source.txt")
-            .ToDockerfileStringAsync());
+      var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new DockerfileBuilder()
+          .WorkingFolder(workingFolder)
+          .UseParent("alpine")
+          .Copy(source, "/app/source.txt")
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken));
 
-        Assert.Contains("escapes the build context", ex.Message);
-      }
-      finally
-      {
-        Directory.SetCurrentDirectory(originalCwd);
-      }
+      Assert.Contains("escapes the build context", ex.Message);
     }
 
     [Fact]

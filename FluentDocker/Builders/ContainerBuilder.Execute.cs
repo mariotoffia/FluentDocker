@@ -35,6 +35,7 @@ namespace FluentDocker.Builders
           if (_existsBehavior == ContainerExistsBehavior.Reuse)
           {
             _reusedExisting = true;
+            LogQueuedConfigIgnoredForReuse();
             var reuseService = new Services.Impl.ContainerService(
                 _kernel, _driverId, existing, _image, _name,
                 false, false,
@@ -197,6 +198,19 @@ namespace FluentDocker.Builders
       }
 
       return service;
+    }
+
+    private bool HasQueuedContainerConfig() =>
+        _environment.Count > 0 || _ports.Count > 0 || _volumes.Count > 0;
+
+    private void LogQueuedConfigIgnoredForReuse()
+    {
+      if (!HasQueuedContainerConfig())
+        return;
+
+      _logger.LogWarning(
+          "Existing container '{Name}' is reused as-is; queued env, ports, and volumes are not applied.",
+          _name);
     }
 
     #endregion

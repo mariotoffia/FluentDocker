@@ -22,6 +22,14 @@ namespace FluentDocker.Kernel
     /// <exception cref="System.IO.IOException">If a driver or driver pack reports an I/O failure while resolving the interface</exception>
     /// <exception cref="ObjectDisposedException">If the kernel or driver pack has been disposed</exception>
     /// <exception cref="OperationCanceledException">If a driver or driver pack reports cancellation while resolving the interface</exception>
+    /// <remarks>
+    /// The returned instance is a borrowed view owned by the registered driver or driver pack.
+    /// Resolve it fresh per operation; do not cache it across unregister or kernel disposal.
+    /// Unregistering the driver disposes the owner, so held ports may later fault (for example,
+    /// <see cref="ObjectDisposedException"/>), and fresh resolution throws
+    /// <see cref="FluentDocker.Common.DriverNotFoundException"/>. After kernel disposal,
+    /// fresh resolution throws <see cref="ObjectDisposedException"/>.
+    /// </remarks>
     T SysCtl<T>(string driverId) where T : class;
 
     /// <summary>
@@ -38,6 +46,14 @@ namespace FluentDocker.Kernel
     /// <exception cref="System.IO.IOException">If a driver or driver pack reports an I/O failure while resolving the interface</exception>
     /// <exception cref="ObjectDisposedException">If the kernel or driver pack has been disposed</exception>
     /// <exception cref="OperationCanceledException">If a driver or driver pack reports cancellation while resolving the interface</exception>
+    /// <remarks>
+    /// The returned instance is a borrowed view owned by the registered driver or driver pack.
+    /// Resolve it fresh per operation; do not cache it across unregister or kernel disposal.
+    /// Unregistering the driver disposes the owner, so held ports may later fault (for example,
+    /// <see cref="ObjectDisposedException"/>), and fresh resolution throws
+    /// <see cref="FluentDocker.Common.DriverNotFoundException"/>. After kernel disposal,
+    /// fresh resolution throws <see cref="ObjectDisposedException"/>.
+    /// </remarks>
     object SysCtl(string driverId, Type interfaceType);
 
     /// <summary>
@@ -56,6 +72,14 @@ namespace FluentDocker.Kernel
     /// <exception cref="System.IO.IOException">If a driver or driver pack reports an I/O failure while resolving the interface</exception>
     /// <exception cref="ObjectDisposedException">If the kernel or driver pack has been disposed</exception>
     /// <exception cref="OperationCanceledException">If a driver or driver pack reports cancellation while resolving the interface</exception>
+    /// <remarks>
+    /// The returned instance is a borrowed view owned by the registered driver or driver pack.
+    /// Resolve it fresh per operation; do not cache it across unregister or kernel disposal.
+    /// Unregistering the driver disposes the owner, so held ports may later fault (for example,
+    /// <see cref="ObjectDisposedException"/>), and fresh resolution throws
+    /// <see cref="FluentDocker.Common.DriverNotFoundException"/>. After kernel disposal,
+    /// fresh resolution throws <see cref="ObjectDisposedException"/>.
+    /// </remarks>
     bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class;
   }
 }

@@ -9,6 +9,8 @@ description: "FluentDocker architecture - Driver layer, kernel configuration, as
 
 This document describes the pluggable driver layer, kernel configuration, and async patterns.
 
+{% include preview-banner.html %}
+
 ## Step by Step
 
 This is an advanced guide. If you are new to FluentDocker, complete [Getting Started](getting-started.md) first.

@@ -9,9 +9,10 @@ namespace FluentDocker.Services
   /// Async compose service interface.
   /// </summary>
   /// <remarks>
-  /// Services created by <c>ConnectToExisting</c> are borrowed handles: disposing them releases
-  /// local resources only and does not run <c>docker compose down</c>. Services created by normal
-  /// compose builds own the project and run <c>down</c> on dispose.
+  /// Services created by <c>ConnectToExisting</c>, or by an up build that detects a pre-existing
+  /// project, are borrowed handles: disposing them releases local resources only and does not run
+  /// <c>docker compose down</c>. Services created by normal compose builds own the project and run
+  /// <c>down</c> on dispose.
   /// </remarks>
   public interface IComposeService : IServiceAsync
   {
@@ -25,6 +26,15 @@ namespace FluentDocker.Services
     /// Compose file paths.
     /// </summary>
     IReadOnlyList<string> ComposeFiles { get; }
+
+    /// <summary>
+    /// Gets whether this service is a borrowed handle to a pre-existing compose project.
+    /// </summary>
+    /// <remarks>
+    /// Borrowed services do not run <c>docker compose down</c> when disposed; they release
+    /// FluentDocker-local resources only.
+    /// </remarks>
+    bool IsBorrowed { get; }
 
     /// <summary>
     /// Lists all services in this compose project.

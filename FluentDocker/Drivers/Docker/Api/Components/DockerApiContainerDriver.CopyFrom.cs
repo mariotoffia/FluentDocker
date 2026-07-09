@@ -1,13 +1,11 @@
 using System;
+using System.Formats.Tar;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
-using SharpCompress.Common;
-using SharpCompress.Common.Tar;
-using SharpCompress.Readers;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -46,6 +44,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           if (files.Count > 1)
             throw new InvalidOperationException("Docker archive contained multiple files; copy to a directory path instead");
           var file = files[0];
+          // Defense-in-depth: EnumerateFiles(AllDirectories) follows directory symlinks, so a crafted
+          // archive that plants an in-tree symlink resolving out of tree could surface an out-of-tree
+          // file here. The "multiple files" guard above usually pre-empts it (following the symlink
+          // expands the listing past one entry), but reject explicitly rather than rely on that.
+          if (!IsPlainRegularFileWithinRoot(Path.GetFullPath(extractDir), file))
+            throw new InvalidOperationException(
+                "Docker archive single-file entry resolves outside the extraction root");
           await using var source = new FileStream(
               file, FileMode.Open, FileAccess.Read, FileShare.Read,
               bufferSize: 81920, FileOptions.Asynchronous);
@@ -100,29 +105,72 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         await using var readFs = new FileStream(
             tmp, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 81920, FileOptions.Asynchronous);
-        using var reader = ReaderFactory.OpenReader(readFs);
-        while (reader.MoveToNextEntry())
+        using var reader = new TarReader(readFs, leaveOpen: true);
+        while (await reader.GetNextEntryAsync(copyData: false, cancellationToken)
+            .ConfigureAwait(false) is { } entry)
         {
-          var target = GetSafeArchiveTarget(root, rootWithSeparator, reader.Entry.Key);
-          if (!string.IsNullOrEmpty(reader.Entry.LinkTarget))
+          var target = GetSafeArchiveTarget(root, rootWithSeparator, entry.Name);
+          // GetSafeArchiveTarget only checks lexical containment. Before creating anything AT target,
+          // reject any entry whose parent chain reaches destination through a symlinked directory
+          // component: a crafted archive composes two lexically-innocent symlinks (x->'.', x/climb->'..')
+          // to make an in-tree path physically resolve outside the tree, turning a plain file write,
+          // mkdir, symlink, or hardlink copy into an out-of-tree write/read (CWE-59). One guard here
+          // covers every branch because every entry routes through this target.
+          EnsureNoSymlinkInParentChain(root, target);
+          // A duplicate-named earlier entry may have planted a symlink AT the leaf target; both
+          // FileStream(FileMode.Create) and File.Copy(overwrite:true) FOLLOW a leaf symlink and would
+          // write through it, out of tree (CWE-59). Unlink any pre-existing reparse point at target
+          // first (deleting a symlink removes the link, never its target) - tar's unlink-before-extract.
+          // Real files/dirs are left untouched for normal overwrite semantics.
+          RemoveLeafSymlink(root, target);
+          switch (entry.EntryType)
           {
-            logger.LogWarning(
-                "Skipping Docker archive link entry dereference; preserving symlink '{Entry}' with target '{Target}' during CopyFrom extraction",
-                reader.Entry.Key, reader.Entry.LinkTarget);
-            PreserveSymlink(target, reader.Entry.LinkTarget, root, rootWithSeparator, logger);
-            continue;
+            case TarEntryType.Directory:
+              Directory.CreateDirectory(target);
+              continue;
+            case TarEntryType.SymbolicLink:
+              logger.LogWarning(
+                  "Skipping Docker archive link entry dereference; preserving symlink '{Entry}' with target '{Target}' during CopyFrom extraction",
+                  entry.Name, entry.LinkName);
+              PreserveSymlink(target, entry.LinkName, root, rootWithSeparator, logger);
+              continue;
+            case TarEntryType.HardLink:
+              // A hardlink's LinkName is the archive-root-relative name of an already-extracted
+              // regular-file entry. Materialize it as a copy when it resolves to an in-tree file.
+              // TryResolveExtractedHardLinkSource walks the SOURCE's parent chain (via
+              // IsPlainRegularFileWithinRoot) because the destination guard above only protects writes:
+              // a crafted archive can plant an in-tree symlink with a clean parent chain whose SOURCE
+              // path still resolves out of tree, so the source needs its own reparse-point check.
+              if (TryResolveExtractedHardLinkSource(root, rootWithSeparator, entry.LinkName,
+                  out var hardLinkSource))
+              {
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(hardLinkSource, target, overwrite: true);
+                ApplyUnixFileMode(target, entry);
+              }
+              else
+              {
+                logger.LogWarning(
+                    "Skipping Docker archive hardlink '{Entry}': target '{Target}' did not resolve to a safe in-tree file",
+                    entry.Name, entry.LinkName);
+              }
+              continue;
+            case TarEntryType.RegularFile:
+            case TarEntryType.V7RegularFile:
+            case TarEntryType.ContiguousFile:
+              break;
+            default:
+              continue;
           }
-          if (reader.Entry.IsDirectory)
-            continue;
           Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-          await using var entry = reader.OpenEntryStream();
           await using (var output = new FileStream(
               target, FileMode.Create, FileAccess.Write, FileShare.None,
               bufferSize: 81920, FileOptions.Asynchronous))
           {
-            await entry.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+            if (entry.DataStream is { } data)
+              await data.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
           }
-          ApplyUnixFileMode(target, reader.Entry);
+          ApplyUnixFileMode(target, entry);
         }
 
         if (Directory.Exists(destination))
@@ -159,6 +207,87 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return target;
     }
 
+    private static bool TryResolveExtractedHardLinkSource(
+        string root, string rootWithSeparator, string linkTarget, out string source)
+    {
+      source = null!;
+      if (string.IsNullOrEmpty(linkTarget) || Path.IsPathRooted(linkTarget))
+        return false;
+      var candidate = Path.GetFullPath(Path.Combine(rootWithSeparator, linkTarget.TrimStart('/')));
+      if (!string.Equals(candidate, root, StringComparison.Ordinal) &&
+          !candidate.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+        return false;
+      if (!IsPlainRegularFileWithinRoot(root, candidate))
+        return false;
+      source = candidate;
+      return true;
+    }
+
+    // A file we are about to READ from staging (a hardlink source, or the single extracted file) is only
+    // safe if its on-disk path neither IS a symlink nor descends through one from root. The lexical
+    // containment check above collapses '..' as string ops and never resolves on-disk symlinks, so a
+    // crafted archive can pre-create an in-root symlink whose own parent chain is clean yet which
+    // physically resolves out of tree (CWE-59); File.Copy/FileStream would then read an out-of-tree file.
+    // This complements EnsureNoSymlinkInParentChain, which only guards WRITE destinations. FileSystemInfo
+    // reports the link's own attributes (never the target's), so the reparse flag is visible on the walk.
+    private static bool IsPlainRegularFileWithinRoot(string root, string candidate)
+    {
+      var info = new FileInfo(candidate);
+      if (!info.Exists || (info.Attributes & FileAttributes.ReparsePoint) != 0)
+        return false;
+      for (var dir = info.Directory; dir != null; dir = dir.Parent)
+      {
+        var full = dir.FullName.TrimEnd(
+            Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.Equals(full, root, StringComparison.Ordinal))
+          return true;
+        if (dir.Exists && (dir.Attributes & FileAttributes.ReparsePoint) != 0)
+          return false;
+      }
+      return false;
+    }
+
+    // Reject any target whose parent chain, up to root, traverses an EXISTING symlinked directory
+    // component. GetSafeArchiveTarget's containment check is purely lexical (Path.GetFullPath collapses
+    // '..' as string ops, never resolving on-disk symlinks), so a crafted archive can pre-create an
+    // in-root symlink (via an earlier link entry) that lexically stays in-tree but physically resolves
+    // out of tree; writing/reading through it escapes the staging boundary (CWE-59). FileSystemInfo
+    // reports the link's own attributes, never the target's, so the walk sees the reparse point. A
+    // well-formed container archive never writes through a symlinked component, so throwing (consistent
+    // with GetSafeArchiveTarget's own escape guard) fails closed without harming legitimate archives.
+    private static void EnsureNoSymlinkInParentChain(string root, string target)
+    {
+      if (string.Equals(target, root, StringComparison.Ordinal))
+        return;
+      for (var dir = new DirectoryInfo(Path.GetDirectoryName(target)!); dir != null; dir = dir.Parent)
+      {
+        var full = dir.FullName.TrimEnd(
+            Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.Equals(full, root, StringComparison.Ordinal))
+          return;
+        if (dir.Exists && (dir.Attributes & FileAttributes.ReparsePoint) != 0)
+          throw new InvalidOperationException(
+              $"Docker archive entry writes through a symlinked directory component: {target}");
+      }
+      throw new InvalidOperationException($"Docker archive entry escapes destination: {target}");
+    }
+
+    // Unlink a symlink planted at the leaf target by a duplicate-named earlier entry, so the subsequent
+    // write does not follow it out of tree. Only reparse points are removed (deleting a symlink unlinks
+    // the link, never its target); real files/dirs are left for normal FileMode.Create/overwrite:true.
+    private static void RemoveLeafSymlink(string root, string target)
+    {
+      if (string.Equals(target, root, StringComparison.Ordinal))
+        return;
+      if (!TryGetFileAttributes(target, out var attributes) ||
+          (attributes & FileAttributes.ReparsePoint) == 0)
+        return;
+      if ((attributes & FileAttributes.Directory) != 0)
+        Directory.Delete(target);
+      else
+        File.Delete(target);
+    }
+
     private static void PreserveSymlink(
         string target, string linkTarget, string root, string rootWithSeparator, ILogger logger)
     {
@@ -185,16 +314,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
-    private static void ApplyUnixFileMode(string target, IEntry entry)
+    private static void ApplyUnixFileMode(string target, TarEntry entry)
     {
-      if (OperatingSystem.IsWindows() || entry is not TarEntry tarEntry)
+      if (OperatingSystem.IsWindows())
         return;
-      var mode = (int)tarEntry.Mode & 511;
+      var mode = entry.Mode & (UnixFileMode)511;
       if (mode == 0)
         return;
       try
       {
-        File.SetUnixFileMode(target, (UnixFileMode)mode);
+        File.SetUnixFileMode(target, mode);
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
       {

@@ -69,6 +69,38 @@ exit 2
     }
 
     [Fact]
+    public async Task ComposeTopAsync_JoinsPsJsonToServiceAndContainerId()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell script fake docker; not applicable on Windows");
+
+      var driver = new DockerCliComposeDriver(new FakeResolver(CreateFakeDocker("""
+#!/bin/sh
+if [ "$1" = "compose" ] && [ "$2" = "top" ]; then
+  printf '%s\n' 'proj-web-1' 'UID    PID     CMD' 'root   1       nginx'
+  exit 0
+fi
+if [ "$1" = "compose" ] && [ "$2" = "ps" ]; then
+  printf '%s\n' '{"ID":"abc123def","Name":"proj-web-1","Service":"web","State":"running"}'
+  exit 0
+fi
+exit 2
+""")));
+      driver.Initialize(new DriverContext("docker"));
+
+      var result = await driver.TopAsync(
+          new DriverContext("docker"),
+          new ComposeFileConfig(),
+          TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      var processes = Assert.Single(result.Data);
+      Assert.Equal("web", processes.Service);
+      Assert.Equal("abc123def", processes.ContainerId);
+      Assert.Equal("proj-web-1", processes.ContainerName);
+    }
+
+    [Fact]
     public async Task SystemGetInfoAsync_MalformedJsonReturnsParseFailureMessage()
     {
       if (OperatingSystem.IsWindows())

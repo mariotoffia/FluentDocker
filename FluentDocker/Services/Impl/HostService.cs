@@ -418,7 +418,9 @@ namespace FluentDocker.Services.Impl
 
     private static ServiceRunningState ParseContainerState(Container container)
     {
-      if (container?.State?.Running == true && container.State.Paused != true)
+      if (container?.State?.Running == true &&
+          container.State.Paused != true &&
+          container.State.Restarting != true)
         return ServiceRunningState.Running;
 
       return ParseContainerListState(container?.State?.Status);

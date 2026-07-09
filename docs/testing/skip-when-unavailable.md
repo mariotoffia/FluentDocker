@@ -1,7 +1,16 @@
+---
+layout: default
+title: Skip When Unavailable
+parent: Testing
+nav_order: 9
+---
+
 # Skip xUnit tests when Docker is unavailable
 
 `XunitContainerFixtureBase.SkipWhenUnavailable` was removed — xUnit cannot turn a fixture
 into a skip from `InitializeAsync`. Two pieces replace it.
+
+{% include preview-banner.html %}
 
 **Preflight (fail fast).** Every `ITestResource` runs a runtime-health check before it
 provisions. If the selected runtime is down, initialization throws

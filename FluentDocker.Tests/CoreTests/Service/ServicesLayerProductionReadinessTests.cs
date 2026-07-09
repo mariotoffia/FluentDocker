@@ -246,14 +246,14 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task ComposeRefreshStateAsync_WhenServicePaused_SetsUnknown()
+    public async Task ComposeRefreshStateAsync_WhenServicePaused_SetsPaused()
     {
       MockPack.SetupComposeList(new ComposeServiceInfo { Name = "web", State = "paused" });
       var service = new ComposeService(Kernel, DriverId, ["compose.yml"], "project");
 
       await service.RefreshStateAsync(TestContext.Current.CancellationToken);
 
-      Assert.Equal(ServiceRunningState.Unknown, service.State);
+      Assert.Equal(ServiceRunningState.Paused, service.State);
     }
 
     [Fact]

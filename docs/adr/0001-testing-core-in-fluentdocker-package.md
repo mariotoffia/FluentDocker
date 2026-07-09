@@ -7,6 +7,8 @@ nav_order: 8
 
 # ADR 0001: Keep testing core in the FluentDocker package during preview
 
+{% include preview-banner.html %}
+
 ## Status
 
 Accepted for `3.2.0-preview.2`; revisit before `3.2.0` GA.

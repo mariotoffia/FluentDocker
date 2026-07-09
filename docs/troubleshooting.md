@@ -10,6 +10,8 @@ Start from the exception type and `DriverException.ErrorCode`. Stable codes live
 `FluentDocker.Model.Drivers.ErrorCodes`; raw daemon text can vary by Docker/Podman
 version.
 
+{% include preview-banner.html %}
+
 ## Docker daemon not running or unreachable
 
 - **Symptom:** `Cannot connect to the Docker daemon`, `connection refused`, or

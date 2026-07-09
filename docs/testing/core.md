@@ -199,6 +199,26 @@ Add this step when jobs run on ephemeral or shared CI agents, or anywhere a forc
 can interrupt teardown. `xargs -r` skips the `rm` call when nothing matches, so the step
 is a no-op on a clean daemon.
 
+### Reaping leaked running containers (`FLUENTDOCKER_REAP_RUNNING_AFTER`)
+
+`SIGKILL` (`kill -9`) can't be caught, so a job killed mid-run leaves its
+session-labeled **running** containers up with no exit reaper. Orphan cleanup never
+reaps running containers by default, so those leaks survive into the next run.
+
+`FLUENTDOCKER_REAP_RUNNING_AFTER` opts in: the orphan sweep then reclaims crash-leaked
+managed running containers older than the ceiling you set. The value is a duration —
+`24h`, `30m`, `2d`, or a bare number read as hours. Unset, invalid, or `<= 0` leaves it
+off (the default fail-safe: running foreign-session containers are never reaped).
+
+This env var is the **sole** age gate for running containers and is independent of
+`OrphanCleanupMinimumAge`, which gates only stopped containers and unused
+networks/volumes. Set a ceiling longer than your slowest test so a live sibling job is
+never reaped.
+
+```bash
+export FLUENTDOCKER_REAP_RUNNING_AFTER=24h
+```
+
 ## Skipping when Docker is unavailable
 
 `DockerAvailability.IsAvailableAsync` (in `FluentDocker.Testing.Core`) probes the

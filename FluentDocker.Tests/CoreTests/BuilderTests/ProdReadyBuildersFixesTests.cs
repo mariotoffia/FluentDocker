@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
@@ -302,11 +301,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
     private static HttpListener StartHttpListener(out string url)
     {
-      var listener = new HttpListener();
-      var port = GetAvailableLoopbackPort();
-      url = $"http://127.0.0.1:{port}/";
-      listener.Prefixes.Add(url);
-      listener.Start();
+      var listener = LoopbackHttpListenerSupport.Start(out url);
       return listener;
     }
 
@@ -345,13 +340,5 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       }
     }
 
-    private static int GetAvailableLoopbackPort()
-    {
-      var listener = new TcpListener(IPAddress.Loopback, 0);
-      listener.Start();
-      var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-      listener.Stop();
-      return port;
-    }
   }
 }

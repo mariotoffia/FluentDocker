@@ -73,34 +73,15 @@ namespace FluentDocker.Model.Models.Inference
     }
   }
 
-  public sealed class ChatMessageContentConverter : JsonConverter<string?>
+  public sealed class ChatMessageRawContentConverter : JsonConverter<JsonElement?>
   {
-    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override JsonElement? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-      if (reader.TokenType == JsonTokenType.Null)
-        return null;
-      if (reader.TokenType == JsonTokenType.String)
-        return reader.GetString();
-      if (reader.TokenType != JsonTokenType.StartArray)
-        throw new JsonException("Chat message content must be a JSON string or an array of content parts.");
-
       using var doc = JsonDocument.ParseValue(ref reader);
-      var text = new StringBuilder();
-      foreach (var part in doc.RootElement.EnumerateArray())
-      {
-        if (part.ValueKind != JsonValueKind.Object)
-          continue;
-        if (!part.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String ||
-            !string.Equals(type.GetString(), "text", StringComparison.Ordinal))
-          continue;
-        if (part.TryGetProperty("text", out var value) && value.ValueKind == JsonValueKind.String)
-          text.Append(value.GetString());
-      }
-
-      return text.ToString();
+      return doc.RootElement.Clone();
     }
 
-    public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, JsonElement? value, JsonSerializerOptions options)
     {
       if (value is null)
       {
@@ -108,7 +89,7 @@ namespace FluentDocker.Model.Models.Inference
         return;
       }
 
-      writer.WriteStringValue(value);
+      value.Value.WriteTo(writer);
     }
   }
 
@@ -134,7 +115,8 @@ namespace FluentDocker.Model.Models.Inference
   }
 
   /// <summary>
-  /// A single chat message (system / user / assistant / tool). (Preview)
+  /// A single chat message (system / user / assistant / tool). Content is a convenience
+  /// text projection; set <see cref="RawContent"/> to send multimodal or non-text parts verbatim. (Preview)
   /// </summary>
   public sealed class ChatMessage
   {
@@ -144,19 +126,16 @@ namespace FluentDocker.Model.Models.Inference
     }
 
     /// <summary>
-    /// Creates an independent copy of <paramref name="other"/>. Although all current
-    /// properties are strings (immutable), the public setters mean a caller could
-    /// mutate the element after construction. This copy constructor ensures that
-    /// each <see cref="ChatMessage"/> in a cloned <see cref="ChatCompletionRequest"/>
-    /// is a fully independent instance so mutations in the driver copy cannot leak
-    /// back to the caller's original list.
+    /// Creates an independent copy of <paramref name="other"/>. The raw content element and
+    /// extension data are cloned so a copied <see cref="ChatMessage"/> survives later source
+    /// mutations and source <see cref="JsonDocument"/> disposal.
     /// </summary>
     /// <param name="other">The message to copy.</param>
     public ChatMessage(ChatMessage other)
     {
       ArgumentNullException.ThrowIfNull(other);
       Role = other.Role;
-      Content = other.Content;
+      RawContent = other.RawContent is { } el ? el.Clone() : null;
       Name = other.Name;
       AdditionalProperties = InferenceDto.CopyExtensionData<ChatMessage>(other.AdditionalProperties);
     }
@@ -164,15 +143,44 @@ namespace FluentDocker.Model.Models.Inference
     /// <summary>The role: <c>system</c> | <c>user</c> | <c>assistant</c> | <c>tool</c>.</summary>
     [JsonPropertyName("role")] public string? Role { get; set; }
 
-    /// <summary>The message text content.</summary>
+    /// <summary>
+    /// The serialized <c>content</c> value, preserved verbatim for string, array, and object content.
+    /// </summary>
     /// <remarks>
-    /// Inbound OpenAI multimodal array content is accepted only to concatenate text parts
-    /// (<c>{"type":"text","text":"..."}</c>). Image and other non-text parts are not modeled
-    /// and are dropped; outbound content is always written as a plain JSON string.
+    /// Set this to a <see cref="JsonElement"/> array/object to send multimodal or otherwise
+    /// non-text content parts. Use <see cref="Content"/> when a plain text message is enough.
+    /// Explicit JSON <c>null</c> and an absent <c>content</c> field both normalize to an omitted
+    /// <c>content</c> on re-serialization (every OpenAI-compatible server treats them equivalently).
     /// </remarks>
     [JsonPropertyName("content")]
-    [JsonConverter(typeof(ChatMessageContentConverter))]
-    public string? Content { get; set; }
+    [JsonConverter(typeof(ChatMessageRawContentConverter))]
+    public JsonElement? RawContent { get; set; }
+
+    /// <summary>
+    /// Convenience text projection over <see cref="RawContent"/>.
+    /// </summary>
+    /// <remarks>
+    /// String content returns unchanged. Multimodal array content returns concatenated
+    /// <c>{"type":"text","text":"..."}</c> parts only; image and other non-text parts remain
+    /// preserved in <see cref="RawContent"/> and are re-serialized verbatim. Set
+    /// <see cref="RawContent"/> directly to send multimodal / non-text content parts.
+    /// </remarks>
+    [JsonIgnore]
+    public string? Content
+    {
+      get
+      {
+        if (RawContent is not { } content)
+          return null;
+        return content.ValueKind switch
+        {
+          JsonValueKind.String => content.GetString(),
+          JsonValueKind.Array => FlattenTextContent(content),
+          _ => null
+        };
+      }
+      set => RawContent = value is null ? null : JsonSerializer.SerializeToElement(value);
+    }
 
     /// <summary>An optional participant name.</summary>
     [JsonPropertyName("name")] public string? Name { get; set; }
@@ -180,11 +188,27 @@ namespace FluentDocker.Model.Models.Inference
     /// <summary>
     /// Pass-through for any unmodeled message field — notably <c>tool_calls</c> on an assistant
     /// message and <c>tool_call_id</c> on a tool message. Modeled fields such as
-    /// <c>content</c> are reserved: array content is accepted on read by <see cref="Content"/>
-    /// and text parts are concatenated, but image/non-text parts are not modeled and outbound
-    /// content is string-only. (Preview)
+    /// <c>content</c> are reserved: use <see cref="Content"/> for plain text or
+    /// <see cref="RawContent"/> for multimodal/non-text content. (Preview)
     /// </summary>
     [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
+
+    private static string FlattenTextContent(JsonElement content)
+    {
+      var text = new StringBuilder();
+      foreach (var part in content.EnumerateArray())
+      {
+        if (part.ValueKind != JsonValueKind.Object)
+          continue;
+        if (!part.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String ||
+            !string.Equals(type.GetString(), "text", StringComparison.Ordinal))
+          continue;
+        if (part.TryGetProperty("text", out var value) && value.ValueKind == JsonValueKind.String)
+          text.Append(value.GetString());
+      }
+
+      return text.ToString();
+    }
   }
 
   /// <summary>

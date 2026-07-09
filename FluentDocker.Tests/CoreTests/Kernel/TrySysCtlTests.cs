@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
@@ -50,6 +52,58 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       // Assert
       Assert.False(result);
       Assert.Null(instance);
+    }
+
+    [Fact]
+    public async Task TrySysCtl_WhenPackTryResolveThrowsInterfaceNotSupported_ReturnsFalse()
+    {
+      await using var kernel = new FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync(
+          "test",
+          new ThrowingUnsupportedPack(),
+          new DriverContext("test"),
+          TestContext.Current.CancellationToken);
+
+      var result = kernel.TrySysCtl<IDisposable>("test", out var instance);
+
+      Assert.False(result);
+      Assert.Null(instance);
+    }
+
+    [Fact]
+    public async Task TrySysCtl_WhenDriverResolverThrowsInterfaceNotSupported_ReturnsFalse()
+    {
+      await using var kernel = new FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverAsync(
+          "test",
+          new ThrowingResolverDriver(),
+          new DriverContext("test"),
+          TestContext.Current.CancellationToken);
+
+      var result = kernel.TrySysCtl<IDisposable>("test", out var instance);
+
+      Assert.False(result);
+      Assert.Null(instance);
+    }
+
+    [Fact]
+    public async Task TrySysCtl_AfterUnregister_CannotResolveFreshPortAndDisposesPack()
+    {
+      await using var kernel = new FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var pack = new DisposableResolvingPack();
+      await kernel.RegisterDriverPackAsync(
+          "test", pack, new DriverContext("test"), TestContext.Current.CancellationToken);
+      var resolved = kernel.TrySysCtl<IContainerDriver>("test", out var port);
+      Assert.True(resolved);
+      Assert.NotNull(port);
+
+      await kernel.UnregisterDriverAsync("test", TestContext.Current.CancellationToken);
+
+      Assert.True(pack.Disposed);
+      Assert.Throws<DriverNotFoundException>(() => kernel.SysCtl<IContainerDriver>("test"));
     }
 
     [Fact]
@@ -123,6 +177,94 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public interface ICustomKernelInterface
     {
       void Custom();
+    }
+
+    private class ThrowingUnsupportedPack : IDriverPack, IAsyncDisposable
+    {
+      public DriverType Type => DriverType.Custom;
+      public RuntimeType Runtime => RuntimeType.Unknown;
+
+      public Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default) =>
+          Task.CompletedTask;
+
+      public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default) =>
+          Task.FromResult(DriverCapabilities.Default());
+
+      public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
+          Task.FromResult(true);
+
+      public T SysCtl<T>(string driverId) where T : class =>
+          throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+
+      public object SysCtl(string driverId, Type interfaceType) =>
+          throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+
+      public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+      {
+        instance = null!;
+        return false;
+      }
+
+      public virtual bool TryResolve(Type interfaceType, out object implementation)
+      {
+        implementation = null!;
+        throw new InterfaceNotSupportedException("test", interfaceType.Name);
+      }
+
+      public IReadOnlyCollection<Type> GetSupportedInterfaces() =>
+          [];
+
+      public virtual ValueTask DisposeAsync() =>
+          ValueTask.CompletedTask;
+    }
+
+    private sealed class DisposableResolvingPack : ThrowingUnsupportedPack
+    {
+      private readonly Moq.Mock<IContainerDriver> _containerDriver = new();
+
+      public bool Disposed { get; private set; }
+
+      public override bool TryResolve(Type interfaceType, out object implementation)
+      {
+        if (interfaceType == typeof(IContainerDriver))
+        {
+          implementation = _containerDriver.Object;
+          return true;
+        }
+
+        implementation = null!;
+        return false;
+      }
+
+      public override ValueTask DisposeAsync()
+      {
+        Disposed = true;
+        return ValueTask.CompletedTask;
+      }
+    }
+
+    private sealed class ThrowingResolverDriver : IDriver, IDriverInterfaceResolver
+    {
+      public DriverType Type => DriverType.Custom;
+      public RuntimeType Runtime => RuntimeType.Unknown;
+
+      public Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default) =>
+          Task.CompletedTask;
+
+      public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default) =>
+          Task.FromResult(DriverCapabilities.Default());
+
+      public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
+          Task.FromResult(true);
+
+      public bool TryResolve(Type interfaceType, out object implementation)
+      {
+        implementation = null!;
+        throw new InterfaceNotSupportedException("test", interfaceType.Name);
+      }
+
+      public IReadOnlyCollection<Type> GetSupportedInterfaces() =>
+          [];
     }
   }
 }

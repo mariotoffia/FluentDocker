@@ -28,10 +28,10 @@ namespace FluentDocker.Model.Models.Inference
     {
       ArgumentNullException.ThrowIfNull(other);
       Model = other.Model;
-      // Deep-copy each ChatMessage element: although current properties are strings
-      // (immutable values), the public setters mean a caller can mutate an element
-      // post-construction. Cloning each element ensures the driver copy is fully
-      // independent of the caller's original list.
+      // Deep-copy each ChatMessage element: the public setters let a caller mutate an
+      // element post-construction, and RawContent (a JsonElement) is cloned to detach it
+      // from any pooled parent document. Cloning each element ensures the driver copy is
+      // fully independent of the caller's original list.
       Messages = other.Messages?.Select(m => new ChatMessage(m)).ToList();
       MaxTokens = other.MaxTokens;
       Temperature = other.Temperature;
@@ -77,8 +77,8 @@ namespace FluentDocker.Model.Models.Inference
     /// <summary>
     /// Pass-through for any OpenAI-compatible request field not modeled above (e.g.
     /// <c>tools</c>, <c>tool_choice</c>, <c>response_format</c>). Message <c>content</c> is a
-    /// modeled field, not extension data: inbound array content is reduced to text parts and
-    /// outbound content remains string-only. (Preview)
+    /// modeled field, not extension data: use <see cref="ChatMessage.Content"/> for plain text
+    /// or <see cref="ChatMessage.RawContent"/> for multimodal/non-text content. (Preview)
     /// </summary>
     [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }

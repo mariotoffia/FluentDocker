@@ -17,8 +17,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// process data rows.
     /// </summary>
     /// <param name="output">Raw CLI output from <c>docker compose top</c>.</param>
+    /// <param name="containersByName">Optional compose ps records keyed by container name.</param>
     /// <returns>Parsed list of processes grouped by container.</returns>
-    public static IList<ComposeProcesses> ParseTopOutput(string output)
+    public static IList<ComposeProcesses> ParseTopOutput(
+        string output,
+        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName = null)
     {
       var result = new List<ComposeProcesses>();
 
@@ -58,11 +61,20 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var containerName = block[0].Trim();
         var headerLine = block[1];
         var columns = SplitTopHeaderLine(headerLine);
+        // ponytail: compose top only names the container; without ps JSON this is the best-effort fallback.
+        var service = containerName;
+        string containerId = null;
+        if (containersByName?.TryGetValue(containerName, out var serviceInfo) == true)
+        {
+          service = serviceInfo.Name;
+          containerId = serviceInfo.ContainerId;
+        }
 
         var processes = new ComposeProcesses
         {
-          Service = containerName,
-          ContainerId = containerName
+          Service = service,
+          ContainerId = containerId,
+          ContainerName = containerName
         };
 
         for (var i = 2; i < block.Count; i++)

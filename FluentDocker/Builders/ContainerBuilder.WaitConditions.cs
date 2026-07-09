@@ -370,7 +370,9 @@ namespace FluentDocker.Builders
         if (inspectResult?.Success == true)
         {
           var state = inspectResult.Data?.State;
-          if (state?.Running == true)
+          // A crash-looping container reports Running=true while Restarting=true; keep polling
+          // (it has not truly started) so WaitForRunning cannot succeed on a restarting container.
+          if (state?.Running == true && state.Restarting != true)
             return;
           if (HasReachedTerminalState(state))
           {

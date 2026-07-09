@@ -42,12 +42,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var containers = JsonHelper.TryDeserialize<List<Container>>(result.Output);
-        if (containers == null)
+        if (!JsonHelper.TryDeserialize<List<Container>>(result.Output, out var containers, out var parseError))
         {
-          Logger.LogError("Container inspect JSON parsing failed");
+          Logger.LogError(parseError, "Container inspect JSON parsing failed");
+          var error = parseError == null
+              ? "Container inspect JSON parsing failed"
+              : $"Container inspect JSON parsing failed: {parseError.Message}";
           return CommandResponse<Container>.Fail(
-              "Container inspect JSON parsing failed",
+              error,
               ErrorCodes.Container.InspectFailed);
         }
 
@@ -60,6 +62,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorCodes.Container.NotFound);
         }
 
+        container.Name = container.Name?.TrimStart('/');
         return CommandResponse<Container>.Ok(container);
       }
       catch (OperationCanceledException)
@@ -112,6 +115,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // Add ancestor filter
         if (!string.IsNullOrEmpty(filter?.Ancestor))
           args += $" --filter {QuoteArgumentIfNeeded($"ancestor={filter.Ancestor}")}";
+
+        // ponytail: --last implies all-states and treats non-positive as "no limit"/"none"; ignore <= 0.
+        if (filter?.Limit is int limit && limit > 0)
+          args += $" --last {limit}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 

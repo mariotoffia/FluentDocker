@@ -139,6 +139,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void BuildListArgs_NonPositiveLimit_OmitsLastFlag()
+    {
+      var filter = new ContainerListFilter { Limit = 0 };
+      var result = PodmanCliContainerDriver.BuildListArgs(filter);
+      Assert.DoesNotContain("--last", result);
+    }
+
+    [Fact]
     public void BuildListArgs_AllFields_ProducesCorrectArgs()
     {
       var filter = new ContainerListFilter

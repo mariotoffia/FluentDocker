@@ -18,6 +18,58 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     #region Multi-Service Output
 
     [Fact]
+    public void ParseTopOutput_WithContainerMap_UsesServiceAndContainerIdFromPs()
+    {
+      var output = string.Join("\n", new[]
+      {
+                "proj-web-1",
+                "UID    PID     CMD",
+                "root   1       nginx"
+            });
+      var containers = new Dictionary<string, ComposeServiceInfo>
+      {
+        {
+          "proj-web-1",
+          new ComposeServiceInfo
+          {
+            Name = "web",
+            ContainerId = "abc123def",
+            ContainerName = "proj-web-1"
+          }
+        }
+      };
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output, containers);
+
+      var processes = Assert.Single(result);
+      Assert.Equal("web", processes.Service);
+      Assert.Equal("abc123def", processes.ContainerId);
+      Assert.Equal("proj-web-1", processes.ContainerName);
+      var process = Assert.Single(processes.Processes);
+      Assert.Equal("root", process["UID"]);
+      Assert.Equal("1", process["PID"]);
+      Assert.Equal("nginx", process["CMD"]);
+    }
+
+    [Fact]
+    public void ParseTopOutput_WithoutContainerMap_KeepsContainerNameAndDoesNotFabricateId()
+    {
+      var output = string.Join("\n", new[]
+      {
+                "proj-web-1",
+                "UID    PID     CMD",
+                "root   1       nginx"
+            });
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output);
+
+      var processes = Assert.Single(result);
+      Assert.Equal("proj-web-1", processes.ContainerName);
+      Assert.Equal("proj-web-1", processes.Service);
+      Assert.Null(processes.ContainerId);
+    }
+
+    [Fact]
     public void ParseTopOutput_MultiService_ParsesBothContainers()
     {
       var output = string.Join("\n", new[]
@@ -38,12 +90,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       // First container: web
       Assert.Equal("my-project-web-1", result[0].Service);
-      Assert.Equal("my-project-web-1", result[0].ContainerId);
+      Assert.Equal("my-project-web-1", result[0].ContainerName);
+      Assert.Null(result[0].ContainerId);
       Assert.Equal(2, result[0].Processes.Count);
 
       // Second container: db
       Assert.Equal("my-project-db-1", result[1].Service);
-      Assert.Equal("my-project-db-1", result[1].ContainerId);
+      Assert.Equal("my-project-db-1", result[1].ContainerName);
+      Assert.Null(result[1].ContainerId);
       Assert.Single(result[1].Processes);
     }
 
@@ -121,7 +175,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       Assert.Single(result);
       Assert.Equal("my-project-app-1", result[0].Service);
-      Assert.Equal("my-project-app-1", result[0].ContainerId);
+      Assert.Equal("my-project-app-1", result[0].ContainerName);
+      Assert.Null(result[0].ContainerId);
       Assert.Single(result[0].Processes);
 
       var proc = result[0].Processes[0];

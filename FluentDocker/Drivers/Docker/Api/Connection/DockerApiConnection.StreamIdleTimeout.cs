@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -47,14 +48,24 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         if (buffer.Length == 0)
           return 0;
 
+        // DAPI-1: read into a wrapper-owned buffer and copy out only on success. If the idle timeout
+        // fires, inner.ReadAsync is abandoned but still owns whatever buffer we handed it; the caller
+        // recycles its buffer to ArrayPool the moment we throw, so the abandoned read must never hold it.
+        var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
         try
         {
-          return await inner.ReadAsync(buffer, cancellationToken).AsTask()
-              .WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+          var read = await inner.ReadAsync(rented.AsMemory(0, buffer.Length), cancellationToken)
+              .AsTask().WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+          rented.AsMemory(0, read).CopyTo(buffer);
+          ArrayPool<byte>.Shared.Return(rented);
+          return read;
         }
         catch (TimeoutException)
         {
           Volatile.Write(ref _timedOut, 1);
+          // ponytail: intentionally do NOT return `rented` to the pool — the abandoned inner read may
+          // still write into it. Leaking one buffer per timed-out stream (the stream is dead after) is
+          // the safe trade vs. corrupting a recycled segment.
           throw CreateTimeoutException();
         }
       }

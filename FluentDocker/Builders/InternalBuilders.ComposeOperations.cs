@@ -95,6 +95,14 @@ namespace FluentDocker.Builders
       }
     }
 
+    private void LogImplicitBorrow(Drivers.ComposeUpConfig config)
+    {
+      Logger.LogWarning(
+          "Compose project '{ProjectName}' pre-existing or not proven new; attaching as borrowed. " +
+          "It will not be torn down on dispose.",
+          config.ProjectName ?? "<derived>");
+    }
+
     private static string StripEnvValueQuotes(string value)
     {
       if (value.Length >= 2 &&

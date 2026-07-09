@@ -210,7 +210,7 @@ namespace FluentDocker.Testing.Core
       AppDomain.CurrentDomain.ProcessExit += (_, _) => Core.RunCleanup();
       try
       {
-        // ponytail: SIGKILL and hard host termination cannot be caught; next-run label reaping is the fallback.
+        // ponytail: SIGKILL/hard host termination cannot be caught; next-run label reaping reclaims STOPPED leaks, and running leaks only via the opt-in FLUENTDOCKER_REAP_RUNNING_AFTER age ceiling.
         _sigIntRegistration = PosixSignalRegistration.Create(PosixSignal.SIGINT, OnPosixSignal);
         _sigTermRegistration = PosixSignalRegistration.Create(PosixSignal.SIGTERM, OnPosixSignal);
       }

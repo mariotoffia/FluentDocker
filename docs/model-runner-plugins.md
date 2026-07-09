@@ -13,6 +13,8 @@ runtime-neutral — nothing in them is Docker-specific. Any OpenAI-compatible ru
 (vLLM, LM Studio, a bare `llama-server`, a hosted endpoint, or your own engine) plugs
 in, from a two-line inference client up to a first-class kernel driver.
 
+{% include preview-banner.html %}
+
 ## The easy path — any OpenAI-compatible endpoint
 
 If you only need chat / completion / embeddings against an existing endpoint, you need

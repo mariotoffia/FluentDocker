@@ -261,6 +261,21 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.NotEqual(ErrorCodes.ModelInference.RequestFailed, resp.ErrorCode);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task ChatCompletionAsync_200ErrorEnvelope_ReturnsRequestFailed()
+    {
+      const string body = "{\"error\":{\"message\":\"context length exceeded\"}}";
+      var conn = new MockModelApiConnection().SetupPost("/chat/completions", 200, body);
+      var driver = Create(conn);
+
+      var resp = await driver.ChatCompletionAsync(Ctx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken);
+
+      Assert.False(resp.Success);
+      Assert.Equal(ErrorCodes.ModelInference.RequestFailed, resp.ErrorCode);
+      Assert.Contains("context length exceeded", resp.Error, StringComparison.Ordinal);
+    }
+
     // ---- NEW6: copy constructors must preserve every property and be independent of the source ----
 
     [Fact]

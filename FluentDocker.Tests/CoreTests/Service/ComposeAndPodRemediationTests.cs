@@ -54,6 +54,32 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task ComposeRefreshStateAsync_WhenAllServicesPaused_SetsPaused()
+    {
+      MockPack.SetupComposeList(
+          new ComposeServiceInfo { Name = "web", State = "paused" },
+          new ComposeServiceInfo { Name = "api", State = "paused" });
+      var service = new ComposeService(Kernel, DriverId, [], "project");
+
+      await service.RefreshStateAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal(ServiceRunningState.Paused, service.State);
+    }
+
+    [Fact]
+    public async Task ComposeRefreshStateAsync_WhenServiceRestarting_SetsStarting()
+    {
+      MockPack.SetupComposeList(
+          new ComposeServiceInfo { Name = "web", State = "restarting" },
+          new ComposeServiceInfo { Name = "api", State = "exited" });
+      var service = new ComposeService(Kernel, DriverId, [], "project");
+
+      await service.RefreshStateAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal(ServiceRunningState.Starting, service.State);
+    }
+
+    [Fact]
     public async Task PodStartAsync_WhenDriverFails_PreservesErrorCodeAndMarksTransient()
     {
       var podDriver = new Mock<IPodmanPodDriver>();

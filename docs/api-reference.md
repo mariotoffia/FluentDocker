@@ -11,6 +11,8 @@ public type in `FluentDocker`. It is not committed to the repository: the docs
 CI build runs `xmldocmd` against the compiled assembly and writes the pages under
 `api-reference/` on each deploy.
 
+{% include preview-banner.html %}
+
 - [Browse the generated API reference](https://mariotoffia.github.io/FluentDocker/api-reference/FluentDocker.html)
 
 Every generated page is indexed by the site search box at the top of the page, so

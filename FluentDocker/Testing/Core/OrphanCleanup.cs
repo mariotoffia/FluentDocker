@@ -17,6 +17,7 @@ namespace FluentDocker.Testing.Core
     public const string ManagedKey = "fluentdocker.managed";
     public const string SessionEnvironmentVariable = "FLUENTDOCKER_TEST_SESSION";
     public const string ReaperEnvironmentVariable = "FLUENTDOCKER_TEST_REAPER_ON_EXIT";
+    public const string ReapRunningAfterEnvironmentVariable = "FLUENTDOCKER_REAP_RUNNING_AFTER";
     public static string NewSessionId() => Guid.NewGuid().ToString("N");
     internal static string SharedSessionId() =>
         Environment.GetEnvironmentVariable(SessionEnvironmentVariable);
@@ -152,10 +153,17 @@ namespace FluentDocker.Testing.Core
         if (!targetCleanup && !isAbandonedLateProvision)
         {
           inspected ??= await TryInspectContainerAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
+          var created = GetCreated(container, inspected);
           if (IsRunning(container, inspected))
+          {
+            // Running foreign-session containers are preserved unless the opt-in FLUENTDOCKER_REAP_RUNNING_AFTER ceiling marks them old enough to reclaim.
+            if (!ShouldReapRunning(containerLabels, created))
+              continue;
+          }
+          else if (ShouldPreserveDueToAge(containerLabels, minimumAge, created))
+          {
             continue;
-          if (ShouldPreserveDueToAge(containerLabels, minimumAge, GetCreated(container, inspected)))
-            continue;
+          }
         }
         try
         {
@@ -380,6 +388,22 @@ namespace FluentDocker.Testing.Core
         return true;
 
       return created.ToUniversalTime() > DateTimeOffset.UtcNow - minimumAge;
+    }
+
+    private static bool ShouldReapRunning(IDictionary<string, string> labels, DateTimeOffset created) =>
+        RunningReapCeiling() is { } ceiling && ceiling > TimeSpan.Zero && !ShouldPreserveDueToAge(labels, ceiling, created);
+    private static TimeSpan? RunningReapCeiling() => ParseDuration(Environment.GetEnvironmentVariable(SessionLabel.ReapRunningAfterEnvironmentVariable));
+    private static TimeSpan? ParseDuration(string raw)
+    {
+      if (string.IsNullOrWhiteSpace(raw))
+        return null;
+      raw = raw.Trim();
+      var unit = char.ToLowerInvariant(raw[raw.Length - 1]);
+      var perUnit = unit switch { 'd' => TimeSpan.FromDays(1), 'h' => TimeSpan.FromHours(1), 'm' => TimeSpan.FromMinutes(1), 's' => TimeSpan.FromSeconds(1), _ => TimeSpan.Zero };
+      var number = perUnit == TimeSpan.Zero ? raw : raw.Substring(0, raw.Length - 1);
+      if (perUnit == TimeSpan.Zero)
+        perUnit = TimeSpan.FromHours(1);
+      return double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value > 0 && value < TimeSpan.MaxValue / perUnit ? perUnit * value : null;
     }
 
     private static async Task<Model.Containers.Container> TryInspectContainerAsync(

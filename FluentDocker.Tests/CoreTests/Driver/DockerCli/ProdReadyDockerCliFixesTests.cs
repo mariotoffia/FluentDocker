@@ -63,6 +63,31 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerCli
     }
 
     [Fact]
+    public async Task InspectAsync_MalformedContainerJson_ReturnsParseDetail()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell script fixture; not applicable on Windows");
+
+      var fixture = CreateResolver("inspect-malformed-container-json", """
+          #!/bin/sh
+          printf '{ this is : not json'
+          exit 0
+          """);
+      var driver = new DockerCliContainerDriver(fixture.Resolver);
+      driver.Initialize(Context());
+
+      var response = await driver.InspectAsync(
+          Context(),
+          "broken",
+          TestContext.Current.CancellationToken);
+
+      Assert.False(response.Success);
+      Assert.Equal(ErrorCodes.Container.InspectFailed, response.ErrorCode);
+      Assert.Contains("Container inspect JSON parsing failed", response.Error, StringComparison.Ordinal);
+      Assert.Contains("BytePositionInLine", response.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task InspectAsync_NoSuchServiceStderr_ReturnsServiceNotFound()
     {
       if (OperatingSystem.IsWindows())

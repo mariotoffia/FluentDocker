@@ -129,6 +129,93 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.DoesNotContain("--shm-size", args);
     }
 
+    [Fact]
+    public async Task InspectAsync_DockerNameWithLeadingSlash_TrimsToBareName()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell script fixture; not applicable on Windows");
+
+      var directory = Path.Combine(".out", "docker-inspect-name", Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(directory);
+      var dockerPath = Path.Combine(directory, "docker");
+      await File.WriteAllTextAsync(dockerPath,
+          "#!/bin/sh\n" +
+          "printf '%s\\n' '[{\"Id\":\"abc123\",\"Name\":\"/foo\"}]'\n",
+          TestContext.Current.CancellationToken);
+      File.SetUnixFileMode(dockerPath,
+          UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      var driver = new DockerCliContainerDriver(new TestBinaryResolver(directory));
+      driver.Initialize(new DriverContext("docker"));
+
+      var response = await driver.InspectAsync(
+          new DriverContext("docker"),
+          "foo",
+          TestContext.Current.CancellationToken);
+
+      Assert.True(response.Success, response.Error);
+      Assert.Equal("foo", response.Data.Name);
+    }
+
+    [Fact]
+    public async Task ListAsync_WithLimit_EmitsLastFlag()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell script fixture; not applicable on Windows");
+
+      var directory = Path.Combine(".out", "docker-list-limit", Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(directory);
+      var dockerPath = Path.Combine(directory, "docker");
+      var argsPath = Path.Combine(directory, "args.txt");
+      await File.WriteAllTextAsync(dockerPath,
+          "#!/bin/sh\n" +
+          $"printf '%s\\n' \"$@\" > '{argsPath}'\n" +
+          "printf '%s\\n' '{\"ID\":\"abc123\",\"Image\":\"alpine\",\"Names\":\"foo\",\"State\":\"running\",\"Status\":\"Up\"}'\n",
+          TestContext.Current.CancellationToken);
+      File.SetUnixFileMode(dockerPath,
+          UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      var driver = new DockerCliContainerDriver(new TestBinaryResolver(directory));
+      driver.Initialize(new DriverContext("docker"));
+
+      var response = await driver.ListAsync(
+          new DriverContext("docker"),
+          new ContainerListFilter { Limit = 3 },
+          TestContext.Current.CancellationToken);
+
+      Assert.True(response.Success, response.Error);
+      var args = await File.ReadAllLinesAsync(argsPath, TestContext.Current.CancellationToken);
+      Assert.Equal(["ps", "--format", "{{json .}}", "--last", "3"], args);
+    }
+
+    [Fact]
+    public async Task ListAsync_WithNonPositiveLimit_OmitsLastFlag()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell script fixture; not applicable on Windows");
+
+      var directory = Path.Combine(".out", "docker-list-limit-zero", Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(directory);
+      var dockerPath = Path.Combine(directory, "docker");
+      var argsPath = Path.Combine(directory, "args.txt");
+      await File.WriteAllTextAsync(dockerPath,
+          "#!/bin/sh\n" +
+          $"printf '%s\\n' \"$@\" > '{argsPath}'\n" +
+          "printf '%s\\n' '{\"ID\":\"abc123\",\"Image\":\"alpine\",\"Names\":\"foo\",\"State\":\"running\",\"Status\":\"Up\"}'\n",
+          TestContext.Current.CancellationToken);
+      File.SetUnixFileMode(dockerPath,
+          UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      var driver = new DockerCliContainerDriver(new TestBinaryResolver(directory));
+      driver.Initialize(new DriverContext("docker"));
+
+      var response = await driver.ListAsync(
+          new DriverContext("docker"),
+          new ContainerListFilter { Limit = 0 },
+          TestContext.Current.CancellationToken);
+
+      Assert.True(response.Success, response.Error);
+      var args = await File.ReadAllLinesAsync(argsPath, TestContext.Current.CancellationToken);
+      Assert.DoesNotContain("--last", args);
+    }
+
     private sealed class TestBinaryResolver(string directory) : IBinaryResolver
     {
       private readonly DockerBinary _binary = new(directory, "docker", SudoMechanism.None, null!);

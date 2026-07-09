@@ -131,13 +131,23 @@ namespace FluentDocker.Drivers.Models
               (int)response.StatusCode);
         }
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-
         // A literal JSON `null` body (or empty stream) deserializes to null without throwing.
         // Treat it as a protocol/parse failure rather than a successful null payload — a null
         // response is never a valid OpenAI completion/embeddings result. Return a failed
         // CommandResponse rather than throwing so callers always get a typed result.
-        var dto = await JsonSerializer.DeserializeAsync<TResponse>(stream, JsonHelper.CaseInsensitiveOptions, cancellationToken).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(body))
+          return CommandResponse<TResponse>.Fail(
+              $"{operation}: inference response body was null (expected JSON object)",
+              ErrorCodes.ModelInference.StreamParseError,
+              CreateApiErrorContext(context, operation, response));
+        if (TryGetSseError(body, out var errorMessage))
+          return CommandResponse<TResponse>.Fail(
+              errorMessage,
+              ErrorCodes.ModelInference.RequestFailed,
+              CreateApiErrorContext(context, operation, response));
+
+        var dto = JsonSerializer.Deserialize<TResponse>(body, JsonHelper.CaseInsensitiveOptions);
         if (dto is null)
           return CommandResponse<TResponse>.Fail(
               $"{operation}: inference response body was null (expected JSON object)",

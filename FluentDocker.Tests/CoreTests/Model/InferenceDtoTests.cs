@@ -11,7 +11,7 @@ namespace FluentDocker.Tests.CoreTests.Model
   /// real payloads captured from Docker Model Runner v1.2.1.
   /// </summary>
   [Trait("Category", "Unit")]
-  public class InferenceDtoTests
+  public partial class InferenceDtoTests
   {
     // Real non-stream chat response captured from ai/smollm2.
     private const string ChatJson =

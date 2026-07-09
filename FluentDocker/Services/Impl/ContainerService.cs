@@ -159,8 +159,7 @@ namespace FluentDocker.Services.Impl
 
       try
       {
-        UpdateState(ServiceRunningState.Starting);
-        await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
         var response = await driver.StartAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
@@ -177,7 +176,7 @@ namespace FluentDocker.Services.Impl
         var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
         if (inspect == null)
         {
-          UpdateState(ServiceRunningState.Unknown);
+          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
           throw new DriverException(
               $"Failed to inspect container '{_name}' after start: empty response",
               ErrorCodes.General.Unknown);
@@ -189,14 +188,12 @@ namespace FluentDocker.Services.Impl
               inspect.ErrorContext);
 
         var inspectedState = ParseInspectState(inspect.Data?.State);
-        UpdateState(inspectedState);
-        if (_state == ServiceRunningState.Running)
-          await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(inspectedState).ConfigureAwait(false);
         // Builder orchestrates CopyToOnStart / ExecuteOnRunning once, after wait conditions.
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -226,12 +223,11 @@ namespace FluentDocker.Services.Impl
               response.ErrorContext);
         }
 
-        UpdateState(ServiceRunningState.Paused);
-        await ExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -265,17 +261,15 @@ namespace FluentDocker.Services.Impl
           var actual = inspect?.Success == true
               ? ParseInspectState(inspect.Data?.State)
               : ServiceRunningState.Unknown;
-          UpdateState(actual);
-          await ExecuteHooksAsync(actual).ConfigureAwait(false);
+          await UpdateStateAndExecuteHooksAsync(actual).ConfigureAwait(false);
           return;
         }
 
-        UpdateState(ServiceRunningState.Running);
-        await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -300,8 +294,7 @@ namespace FluentDocker.Services.Impl
 
       try
       {
-        UpdateState(ServiceRunningState.Stopping);
-        await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
         var response = await driver.StopAsync(context, _containerId, null, cancellationToken).ConfigureAwait(false);
 
@@ -317,13 +310,12 @@ namespace FluentDocker.Services.Impl
         if (removeVersion != Volatile.Read(ref _disposeRemoveVersion))
           return;
 
-        UpdateState(ServiceRunningState.Stopped);
-        await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
       }
       catch
       {
         if (removeVersion == Volatile.Read(ref _disposeRemoveVersion))
-          UpdateState(ServiceRunningState.Unknown);
+          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -340,8 +332,7 @@ namespace FluentDocker.Services.Impl
 
       try
       {
-        UpdateState(ServiceRunningState.Stopping);
-        await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
         var response = await driver.KillAsync(context, _containerId, signal, cancellationToken).ConfigureAwait(false);
 
@@ -354,12 +345,11 @@ namespace FluentDocker.Services.Impl
               response.ErrorContext);
         }
 
-        UpdateState(ServiceRunningState.Stopped);
-        await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -407,22 +397,24 @@ namespace FluentDocker.Services.Impl
       if (!response.Success)
       {
         if (IsContainerAlreadyGone(response))
-          UpdateState(ServiceRunningState.Removed);
+          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
         throw new DriverException(
             $"Failed to inspect container '{_name}': {response.Error}",
             response.ErrorCode,
             response.ErrorContext);
       }
 
-      ApplyInspectResultIfVersionCurrent(versionBefore, inspectSequence, response.Data);
+      await ApplyInspectResultIfVersionCurrentAsync(versionBefore, inspectSequence, response.Data)
+          .ConfigureAwait(false);
 
       return response.Data;
     }
 
-    private void ApplyInspectResultIfVersionCurrent(int versionBefore, int inspectSequence, Container data)
+    private async Task ApplyInspectResultIfVersionCurrentAsync(int versionBefore, int inspectSequence, Container data)
     {
       ServiceDelegates.StateChange stateChange = null;
       StateChangeEventArgs args = null;
+      ServiceRunningState? changedState = null;
       lock (_stateLock)
       {
         if (Volatile.Read(ref _disposeCompleted) != 0 ||
@@ -437,6 +429,7 @@ namespace FluentDocker.Services.Impl
           if (_state != newState)
           {
             _state = newState;
+            changedState = newState;
             stateChange = StateChange;
             args = stateChange == null ? null : new StateChangeEventArgs(this, newState);
           }
@@ -447,10 +440,13 @@ namespace FluentDocker.Services.Impl
 
       if (stateChange != null)
         StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
+
+      if (changedState.HasValue)
+        await ExecuteHooksAsync(changedState.Value).ConfigureAwait(false);
     }
 
     private static ServiceRunningState ParseInspectState(ContainerState? state) =>
-        state?.Running == true && state.Paused != true
+        state?.Running == true && state.Paused != true && state.Restarting != true
             ? ServiceRunningState.Running
             : ParseState(state?.Status);
 

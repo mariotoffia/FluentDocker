@@ -13,10 +13,19 @@ namespace FluentDocker.Common
   /// Provides thread-safe, reusable serializer options that match
   /// Docker/Podman JSON conventions (camelCase, targeted lenient parsing).
   /// </summary>
+  /// <remarks>
+  /// Targeted lenient parsing means <see cref="DateTimeOffset"/> properties tolerate
+  /// unparseable daemon-emitted values: an invalid date resolves to
+  /// <c>default(DateTimeOffset)</c> instead of failing the whole deserialization. Callers
+  /// that pass their own types through <see cref="TryDeserialize{T}(string, out T)"/> inherit
+  /// this behavior, so a defaulted <see cref="DateTimeOffset"/> may indicate a malformed value
+  /// rather than an absent one.
+  /// </remarks>
   public static class JsonHelper
   {
     private const string ContainerNetworkSettingsTypeName = "FluentDocker.Model.Containers.ContainerNetworkSettings";
     private static readonly JsonConverter<string?> TolerantNetworkPrefixConverter = new TolerantStringConverter();
+    private static readonly JsonConverter<DateTimeOffset> TolerantDateTimeOffsetConverterInstance = new TolerantDateTimeOffsetConverter();
     private static readonly HashSet<string> TolerantNetworkPrefixProperties =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -264,6 +273,7 @@ namespace FluentDocker.Common
     {
       var resolver = new DefaultJsonTypeInfoResolver();
       resolver.Modifiers.Add(ApplyTolerantNetworkPrefixConverters);
+      resolver.Modifiers.Add(ApplyTolerantDateTimeOffsetConverters);
       return resolver;
     }
 
@@ -276,6 +286,15 @@ namespace FluentDocker.Common
       {
         if (TolerantNetworkPrefixProperties.Contains(property.Name))
           property.CustomConverter = TolerantNetworkPrefixConverter;
+      }
+    }
+
+    private static void ApplyTolerantDateTimeOffsetConverters(JsonTypeInfo typeInfo)
+    {
+      foreach (var property in typeInfo.Properties)
+      {
+        if (property.PropertyType == typeof(DateTimeOffset))
+          property.CustomConverter = TolerantDateTimeOffsetConverterInstance;
       }
     }
   }

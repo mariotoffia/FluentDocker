@@ -22,7 +22,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 {
   [Trait("Category", "Unit")]
-  public sealed class DockerApiProdReadyFindingsTests
+  public sealed partial class DockerApiProdReadyFindingsTests
   {
     private static DriverContext Ctx => new("docker-api-prod-ready-test");
 

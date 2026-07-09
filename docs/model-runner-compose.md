@@ -15,6 +15,8 @@ file, appends it to the compose-files list for you, and **deletes the temp file
 automatically** when the compose service is torn down / disposed — no path juggling,
 no manual cleanup:
 
+{% include preview-banner.html %}
+
 ```csharp
 using FluentDocker.Builders;
 using FluentDocker.Builders.Compose;

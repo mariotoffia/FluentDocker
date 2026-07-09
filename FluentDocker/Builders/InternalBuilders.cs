@@ -357,7 +357,6 @@ namespace FluentDocker.Builders
         Scale = _scale,
         Profiles = _profiles
       };
-
       CommandResponse<Drivers.ComposeUpResult> response;
       var borrowedProject = true;
       try
@@ -365,6 +364,8 @@ namespace FluentDocker.Builders
         borrowedProject = await ComposeProjectExistsAsync(driver, context, config, cancellationToken)
             .ConfigureAwait(false);
         BorrowedProject = borrowedProject;
+        if (borrowedProject)
+          LogImplicitBorrow(config);
         response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
       }
       catch
@@ -377,7 +378,6 @@ namespace FluentDocker.Builders
         DeleteTempFiles(ownedTempFiles);
         throw;
       }
-
       if (!response.Success)
       {
         var cleanedUp = await CleanupFailedComposeAsync(

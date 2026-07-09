@@ -89,6 +89,7 @@ namespace FluentDocker.Services.Impl
     public string DriverId => _driverId;
     public string ProjectName => _projectName;
     public IReadOnlyList<string> ComposeFiles => _composeFiles;
+    public bool IsBorrowed => !_downOnDispose;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     public event ServiceDelegates.StateChange StateChange;
@@ -224,28 +225,47 @@ namespace FluentDocker.Services.Impl
       }
 
       var anyRunning = false;
+      var anyStarting = false;
+      var allPaused = true;
       var allStopped = true;
       foreach (var s in services)
       {
-        if (!string.IsNullOrEmpty(s.State) &&
-            s.State.Contains("running", StringComparison.OrdinalIgnoreCase))
+        var state = s.State;
+        if (!string.IsNullOrEmpty(state) &&
+            state.Contains("running", StringComparison.OrdinalIgnoreCase))
         {
           anyRunning = true;
           break;
         }
 
-        if (string.IsNullOrEmpty(s.State) ||
-            (!s.State.Contains("stopped", StringComparison.OrdinalIgnoreCase) &&
-             !s.State.Contains("exited", StringComparison.OrdinalIgnoreCase) &&
-             !s.State.Contains("dead", StringComparison.OrdinalIgnoreCase)))
+        if (string.IsNullOrEmpty(state) ||
+            (!state.Contains("stopped", StringComparison.OrdinalIgnoreCase) &&
+             !state.Contains("exited", StringComparison.OrdinalIgnoreCase) &&
+             !state.Contains("dead", StringComparison.OrdinalIgnoreCase)))
         {
           allStopped = false;
+        }
+
+        if (string.IsNullOrEmpty(state) ||
+            !state.Contains("paused", StringComparison.OrdinalIgnoreCase))
+        {
+          allPaused = false;
+        }
+
+        if (!string.IsNullOrEmpty(state) &&
+            state.Contains("restarting", StringComparison.OrdinalIgnoreCase))
+        {
+          anyStarting = true;
         }
       }
 
       UpdateState(anyRunning
           ? ServiceRunningState.Running
-          : allStopped ? ServiceRunningState.Stopped : ServiceRunningState.Unknown);
+          : anyStarting
+              ? ServiceRunningState.Starting
+              : allStopped
+                  ? ServiceRunningState.Stopped
+                  : allPaused ? ServiceRunningState.Paused : ServiceRunningState.Unknown);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -284,7 +304,7 @@ namespace FluentDocker.Services.Impl
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -322,7 +342,7 @@ namespace FluentDocker.Services.Impl
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -363,7 +383,7 @@ namespace FluentDocker.Services.Impl
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -409,7 +429,7 @@ namespace FluentDocker.Services.Impl
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
         throw;
       }
     }
@@ -429,24 +449,31 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
-    private void UpdateState(ServiceRunningState newState)
+    private bool UpdateState(ServiceRunningState newState)
     {
       ServiceDelegates.StateChange stateChange;
       StateChangeEventArgs args;
       lock (_stateLock)
       {
         if (Volatile.Read(ref _disposeCompleted) != 0 || _state == newState)
-          return;
+          return false;
 
         _state = newState;
         stateChange = StateChange;
         if (stateChange == null)
-          return;
+          return true;
 
         args = new StateChangeEventArgs(this, newState);
       }
 
       StateChangeNotifier.Invoke(stateChange, args, _logger, "ComposeService");
+      return true;
+    }
+
+    private async Task UpdateStateAndExecuteHooksAsync(ServiceRunningState newState)
+    {
+      if (UpdateState(newState))
+        await ExecuteHooksAsync(newState).ConfigureAwait(false);
     }
 
     private async Task ExecuteHooksAsync(ServiceRunningState state)

@@ -190,11 +190,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var volumes = JsonHelper.TryDeserialize<List<Volume>>(result.Output);
-        if (volumes == null)
+        if (!JsonHelper.TryDeserialize<List<Volume>>(result.Output, out var volumes, out var parseError))
         {
-          Logger.LogError("Volume inspect JSON parsing failed");
-          return CommandResponse<Volume>.Fail("Volume inspect JSON parsing failed", ErrorCodes.Volume.InspectFailed);
+          Logger.LogError(parseError, "Volume inspect JSON parsing failed");
+          var error = parseError == null
+              ? "Volume inspect JSON parsing failed"
+              : $"Volume inspect JSON parsing failed: {parseError.Message}";
+          return CommandResponse<Volume>.Fail(error, ErrorCodes.Volume.InspectFailed);
         }
         var volume = volumes?.FirstOrDefault();
         return volume == null

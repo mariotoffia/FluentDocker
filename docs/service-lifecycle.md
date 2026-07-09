@@ -12,6 +12,8 @@ model — implements `IServiceAsync`. That interface carries the running state, 
 `StateChange` event, and a hook API you can use to react when a service starts, stops,
 pauses, or is removed.
 
+{% include preview-banner.html %}
+
 ## Step by Step
 
 - Basics: [Running state](#running-state), [StateChange event](#statechange-event)

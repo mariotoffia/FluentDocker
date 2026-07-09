@@ -127,6 +127,30 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task GetContainersAsync_WhenDockerReportsRestartingAndRunning_MapsContainerToStarting()
+    {
+      MockPack.SetupContainerList(new Container
+      {
+        Id = "container-123",
+        Name = "web",
+        Image = "alpine",
+        State = new ContainerState
+        {
+          Running = true,
+          Restarting = true,
+          Status = "restarting"
+        }
+      });
+      var service = new HostService(Kernel, DriverId, "host");
+
+      var containers = await service.GetContainersAsync(
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.Single(containers);
+      Assert.Equal(ServiceRunningState.Starting, containers[0].State);
+    }
+
+    [Fact]
     public async Task CreateContainerAsync_DisposeOptions_AreAppliedToReturnedService()
     {
       MockPack.SetupContainerCreate("container-123");
