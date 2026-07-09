@@ -119,8 +119,26 @@ namespace FluentDocker.Testing.Core
         FluentDockerKernel kernel,
         string driverId,
         string currentSessionId = null,
-        TimeSpan minimumAge = default,
+        TimeSpan? minimumAge = null,
         CancellationToken cancellationToken = default)
+    {
+      return CleanupResourcesAsync(
+          kernel, driverId, currentSessionId, minimumAge ?? DefaultMinimumAge,
+          targetSessionId: null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Removes FluentDocker-managed containers, networks, and volumes that do
+    /// not belong to the specified current session. This overload preserves the
+    /// original binary signature; pass <see cref="TimeSpan.Zero"/> only as an
+    /// explicit opt-in to disable the age guard.
+    /// </summary>
+    public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        string currentSessionId,
+        TimeSpan minimumAge,
+        CancellationToken cancellationToken)
     {
       return CleanupResourcesAsync(
           kernel, driverId, currentSessionId, minimumAge,
@@ -228,17 +246,19 @@ namespace FluentDocker.Testing.Core
           containerLabels = inspected?.Config?.Labels as IDictionary<string, string>;
         }
 
-        var isAbandonedLateProvision = IsAbandonedLateProvision(container.Id, container.Name);
-        if (!string.IsNullOrEmpty(targetSessionId) &&
-            !IsSession(containerLabels, targetSessionId) &&
-            !isAbandonedLateProvision)
+        var targetCleanup = !string.IsNullOrEmpty(targetSessionId);
+        var isTargetSession = IsSession(containerLabels, targetSessionId);
+        if (targetCleanup && !isTargetSession)
           continue;
 
-        if (string.IsNullOrEmpty(targetSessionId) &&
+        var isAbandonedLateProvision = !targetCleanup &&
+            IsAbandonedLateProvision(containerLabels, container.Id, container.Name);
+
+        if (!targetCleanup &&
             IsCurrentSession(containerLabels, currentSessionId) &&
             !isAbandonedLateProvision)
           continue;
-        if (string.IsNullOrEmpty(targetSessionId) && !isAbandonedLateProvision)
+        if (!targetCleanup && !isAbandonedLateProvision)
         {
           inspected ??= await TryInspectContainerAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
           if (IsRunning(container, inspected))
@@ -280,17 +300,19 @@ namespace FluentDocker.Testing.Core
       foreach (var network in listResult.Data ?? Enumerable.Empty<Network>())
       {
         var networkLabels = network.Labels as IDictionary<string, string>;
-        var isAbandonedLateProvision = IsAbandonedLateProvision(network.Id, network.Name);
-        if (!string.IsNullOrEmpty(targetSessionId) &&
-            !IsSession(networkLabels, targetSessionId) &&
-            !isAbandonedLateProvision)
+        var targetCleanup = !string.IsNullOrEmpty(targetSessionId);
+        var isTargetSession = IsSession(networkLabels, targetSessionId);
+        if (targetCleanup && !isTargetSession)
           continue;
 
-        if (string.IsNullOrEmpty(targetSessionId) &&
+        var isAbandonedLateProvision = !targetCleanup &&
+            IsAbandonedLateProvision(networkLabels, network.Id, network.Name);
+
+        if (!targetCleanup &&
             IsCurrentSession(networkLabels, currentSessionId) &&
             !isAbandonedLateProvision)
           continue;
-        if (string.IsNullOrEmpty(targetSessionId) &&
+        if (!targetCleanup &&
             !isAbandonedLateProvision &&
             ShouldPreserveDueToAge(networkLabels, minimumAge))
           continue;
@@ -327,17 +349,19 @@ namespace FluentDocker.Testing.Core
       foreach (var volume in listResult.Data ?? Enumerable.Empty<Model.Volumes.Volume>())
       {
         var volumeLabels = volume.Labels as IDictionary<string, string>;
-        var isAbandonedLateProvision = IsAbandonedLateProvision(volume.Name);
-        if (!string.IsNullOrEmpty(targetSessionId) &&
-            !IsSession(volumeLabels, targetSessionId) &&
-            !isAbandonedLateProvision)
+        var targetCleanup = !string.IsNullOrEmpty(targetSessionId);
+        var isTargetSession = IsSession(volumeLabels, targetSessionId);
+        if (targetCleanup && !isTargetSession)
           continue;
 
-        if (string.IsNullOrEmpty(targetSessionId) &&
+        var isAbandonedLateProvision = !targetCleanup &&
+            IsAbandonedLateProvision(volumeLabels, volume.Name);
+
+        if (!targetCleanup &&
             IsCurrentSession(volumeLabels, currentSessionId) &&
             !isAbandonedLateProvision)
           continue;
-        if (string.IsNullOrEmpty(targetSessionId) &&
+        if (!targetCleanup &&
             !isAbandonedLateProvision &&
             ShouldPreserveDueToAge(volumeLabels, minimumAge, volume.Created))
           continue;
@@ -372,23 +396,36 @@ namespace FluentDocker.Testing.Core
              && resourceSessionId == sessionId;
     }
 
-    internal static void MarkAbandonedLateProvision(string resourceName)
+    internal static void MarkAbandonedLateProvision(string resourceName, string sessionId)
     {
-      if (!string.IsNullOrWhiteSpace(resourceName))
-        AbandonedLateProvisionNames.TryAdd(NormalizeResourceName(resourceName), 0);
+      if (!string.IsNullOrWhiteSpace(resourceName) &&
+          !string.IsNullOrWhiteSpace(sessionId))
+        AbandonedLateProvisionNames.TryAdd(
+            AbandonedLateProvisionKey(resourceName, sessionId), 0);
     }
 
-    private static bool IsAbandonedLateProvision(params string[] names)
+    private static bool IsAbandonedLateProvision(
+        IDictionary<string, string> labels,
+        params string[] names)
     {
+      if (labels == null ||
+          !labels.TryGetValue(SessionLabel.Key, out var sessionId) ||
+          string.IsNullOrWhiteSpace(sessionId))
+        return false;
+
       foreach (var name in names)
       {
         if (!string.IsNullOrWhiteSpace(name) &&
-            AbandonedLateProvisionNames.TryRemove(NormalizeResourceName(name), out _))
+            AbandonedLateProvisionNames.TryRemove(
+                AbandonedLateProvisionKey(name, sessionId), out _))
           return true;
       }
 
       return false;
     }
+
+    private static string AbandonedLateProvisionKey(string name, string sessionId) =>
+        $"{sessionId}\u001f{NormalizeResourceName(name)}";
 
     private static string NormalizeResourceName(string name) =>
         name.Trim().TrimStart('/');

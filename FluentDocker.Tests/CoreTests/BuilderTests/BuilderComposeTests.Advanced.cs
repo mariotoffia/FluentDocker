@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
@@ -82,6 +83,30 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             It.IsAny<DriverContext>(),
             It.Is<ComposeUpConfig>(c => c.WaitTimeout == 120 && c.Wait == true),
             It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    [Fact]
+    public async Task WithNoStartAndWait_ThrowsValidationError()
+    {
+      var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+
+      try
+      {
+        var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new Builder()
+            .WithinDriver("docker", kernel)
+            .UseCompose(c => c
+                .WithComposeFile("/compose.yml")
+                .WithNoStart()
+                .WithWait())
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Contains("WithNoStart() and WithWait()", ex.Message);
+        mockPack.ComposeDriver.Verify(d => d.UpAsync(
+            It.IsAny<DriverContext>(),
+            It.IsAny<ComposeUpConfig>(),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Never);
       }
       finally { kernel.Dispose(); }
     }

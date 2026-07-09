@@ -182,7 +182,7 @@ namespace FluentDocker.Drivers.Models
           throw new ModelRunnerException(
               "Inference stream produced no events (empty or non-SSE response).",
               ErrorCodes.ModelInference.StreamParseError, CreateStreamErrorContext(context, operation));
-        if (!sawDone && (observedChoices.Count != 1 || finishedChoices.Count != 1))
+        if (!sawDone && (observedChoices.Count == 0 || !finishedChoices.SetEquals(observedChoices)))
           throw new ModelRunnerException(
               "Inference stream ended without a [DONE] terminator (response may be truncated).",
               ErrorCodes.ModelInference.StreamParseError, CreateStreamErrorContext(context, operation));

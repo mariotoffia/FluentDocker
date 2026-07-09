@@ -51,7 +51,7 @@ namespace FluentDocker.Drivers.Docker.Api
         599 => ErrorCodes.Api.ConnectionFailed,
         400 => ErrorCodes.Api.BadRequest,
         401 => ErrorCodes.Api.Unauthorized,
-        403 => ErrorCodes.Api.Unauthorized,
+        403 => ErrorCodes.Api.Forbidden,
         404 => ErrorCodes.Api.NotFound,
         409 => ErrorCodes.Api.Conflict,
         >= 500 => ErrorCodes.Api.ServerError,

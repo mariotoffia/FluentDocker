@@ -285,9 +285,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public void MapHttpErrorCode_403_MapsToUnauthorizedNotBadRequest()
+    public void MapHttpErrorCode_403_MapsToForbidden()
     {
-      Assert.Equal(ErrorCodes.Api.Unauthorized, ExposedDriver.Map(403));
+      Assert.Equal(ErrorCodes.Api.Forbidden, ExposedDriver.Map(403));
     }
 
     [Fact]

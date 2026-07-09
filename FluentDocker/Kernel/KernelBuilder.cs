@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
@@ -97,35 +96,19 @@ namespace FluentDocker.Kernel
         {
           var config = _driverConfigurations[configIndex];
           var driverPack = config.DriverPackFactory?.Invoke() ?? config.DriverPack;
-          var attemptedInstance = (object)driverPack ?? config.Driver;
-          try
+          if (driverPack != null)
           {
-            if (driverPack != null)
-            {
-              await kernel.RegisterDriverPackAsync(
-                  config.DriverId, driverPack, config.Context, cancellationToken).ConfigureAwait(false);
-            }
-            else if (config.Driver != null)
-            {
-              await kernel.RegisterDriverAsync(
-                  config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (config.IsDefault)
-              kernel.SetDefaultDriver(config.DriverId);
+            await kernel.RegisterDriverPackAsync(
+                config.DriverId, driverPack, config.Context, cancellationToken).ConfigureAwait(false);
           }
-          catch (Exception ex) when (IsPreOwnershipRegistrationFailure(ex))
+          else if (config.Driver != null)
           {
-            if (attemptedInstance != null)
-            {
-              await DisposeOwnedInstanceAsync(
-                  attemptedInstance,
-                  _loggerFactory.CreateLogger<KernelBuilder>(),
-                  config.DriverId).ConfigureAwait(false);
-            }
-
-            throw;
+            await kernel.RegisterDriverAsync(
+                config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
           }
+
+          if (config.IsDefault)
+            kernel.SetDefaultDriver(config.DriverId);
         }
       }
       catch
@@ -178,18 +161,6 @@ namespace FluentDocker.Kernel
       {
         logger.LogWarning(ex, "Failed to dispose unregistered driver configuration {DriverId}", driverId);
       }
-    }
-
-    private static bool IsPreOwnershipRegistrationFailure(Exception ex)
-    {
-      // Safe because BuildAsync uses a fresh non-shared registry with sequential awaits,
-      // so AlreadyRegistered here can only originate from the pre-ownership
-      // ThrowIfDriverIdUnavailable check, never the post-ownership TryAdd race at
-      // DriverRegistry.cs:102.
-      return (ex is ArgumentException argumentException
-              && string.Equals(argumentException.ParamName, "context", StringComparison.Ordinal)
-              && argumentException.Message.Contains("does not match registration ID", StringComparison.Ordinal))
-          || ex is DriverException { ErrorCode: ErrorCodes.Driver.AlreadyRegistered };
     }
 
     internal sealed class DriverConfiguration

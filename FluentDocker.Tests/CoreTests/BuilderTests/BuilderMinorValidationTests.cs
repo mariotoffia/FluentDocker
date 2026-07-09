@@ -54,8 +54,18 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
-    public void UseImage_NullName_ThrowsAtConfigurationTime() =>
-        Assert.Throws<ArgumentException>(() => NewScopedBuilder().UseImage(null!, df => df.UseParent("alpine")));
+    public async Task UseImage_NullName_ThrowsAtBuildTime()
+    {
+      var builder = NewScopedBuilder().UseImage(null!, df => df.UseParent("alpine"));
+
+      var ex = await Assert.ThrowsAsync<FluentDockerException>(() =>
+          builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+      Assert.Contains("without a name", ex.Message);
+      MockPack.ImageDriver.Verify(d => d.BuildAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ImageBuildConfig>(),
+          It.IsAny<IProgress<ImageBuildProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 
     [Fact]
     public async Task ImageBuild_WithNoFromInstruction_ThrowsClearException()
@@ -145,6 +155,40 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
       await volume.DisposeAsync();
       MockPack.VolumeDriver.Verify(d => d.RemoveAsync(It.IsAny<DriverContext>(), "owned-vol", true, It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task RetryAfterFailedCleanup_PreservesBuilderCreatedNetworkOwnershipById()
+    {
+      var listCalls = 0;
+      MockPack.NetworkDriver
+          .Setup(d => d.ListAsync(It.IsAny<DriverContext>(), null!, It.IsAny<CancellationToken>()))
+          .ReturnsAsync(() => CommandResponse<IList<Network>>.Ok(listCalls++ == 0
+              ? []
+              : [new Network { Id = "owned-net", Name = "owned-net" }]));
+      MockPack.SetupNetworkCreate("owned-net");
+      MockPack.NetworkDriver
+          .Setup(d => d.RemoveAsync(It.IsAny<DriverContext>(), "owned-net", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("cleanup missed"));
+      MockPack.ContainerDriver
+          .SetupSequence(d => d.CreateAsync(It.IsAny<DriverContext>(), It.IsAny<ContainerCreateConfig>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ContainerCreateResult>.Fail("first boom"))
+          .ReturnsAsync(CommandResponse<ContainerCreateResult>.Ok(new ContainerCreateResult { Id = "retry-container" }));
+      MockPack
+          .SetupContainerStart()
+          .SetupContainerInspect("retry-container", running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+      var builder = NewScopedBuilder()
+          .UseNetwork(n => n.WithName("owned-net").RemoveOnDispose())
+          .UseContainer(c => c.UseImage("alpine"));
+
+      await Assert.ThrowsAsync<DriverException>(() => builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+      await using var results = await builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+      var network = Assert.IsAssignableFrom<INetworkService>(results.All.Single(s => s is INetworkService));
+
+      await network.DisposeAsync();
+      MockPack.NetworkDriver.Verify(d => d.RemoveAsync(It.IsAny<DriverContext>(), "owned-net", It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     private Builder NewScopedBuilder() => new Builder().WithinDriver(DriverId, Kernel);

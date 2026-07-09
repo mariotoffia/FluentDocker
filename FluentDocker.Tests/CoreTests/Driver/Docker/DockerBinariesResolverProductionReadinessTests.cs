@@ -45,6 +45,20 @@ exit 0
       Assert.Equal(second, resolver.MainDockerClient.Path);
     }
 
+    [Fact]
+    public void ResolveFromPaths_StripsSurroundingQuotesFromSearchPath()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell script fake docker; not applicable on Windows");
+
+      var dir = CreateOutputDirectory();
+      WriteExecutable(Path.Combine(dir, "docker"), "#!/bin/sh\nexit 0\n");
+
+      var resolver = new DockerBinariesResolver(new BinaryConfiguration { SearchPaths = [$"\"{dir}\""] });
+
+      Assert.Equal(dir, resolver.MainDockerClient.Path);
+    }
+
     private static string CreateOutputDirectory()
     {
       var dir = Path.Combine(

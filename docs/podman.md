@@ -12,21 +12,32 @@ production. For a runnable sample see the [Podman quick start](index.md#podman-c
 ## On this page
 
 - [Supported Podman versions](#supported-podman-versions)
+- [Not supported on Podman](#not-supported-on-podman)
 - [Machines: macOS / Windows vs Linux](#machines-macos--windows-vs-linux)
 - [Machine naming — the default machine, not "default"](#machine-naming--the-default-machine-not-default)
 - [Readiness wait](#readiness-wait)
 - [Cancellation of long operations](#cancellation-of-long-operations)
 - [Progress callbacks](#progress-callbacks)
 - [Remote TLS verification](#remote-tls-verification)
+- [Health checks](#health-checks)
 - [Standard output caps](#standard-output-caps)
 - [Related](#related)
 
 ## Supported Podman versions
 
-FluentDocker targets Podman CLI **4.x and 5.x**. Podman 5.x is required when
-`MachineInitConfig.Image` emits `podman machine init --image` (Podman 4 used
-`--image-path`), and Podman **5.1+** is required for `podman update --restart`.
-Avoid those options on older 4.x/5.0 clients.
+FluentDocker targets Podman CLI **4.x and 5.x**. Podman **4.1+** is required
+for `podman kube play` (`4.0` used `podman play kube`). Podman 5.x is required
+when `MachineInitConfig.Image` emits `podman machine init --image` (Podman 4
+used `--image-path`; FluentDocker does not retry that legacy spelling), and
+Podman **5.1+** is required for `podman update --restart`. Avoid those options
+on older 4.x/5.0 clients.
+
+## Not supported on Podman
+
+Podman driver packs do **not** register Docker Compose, Swarm service, or Stack
+drivers. Requesting those interfaces for a Podman driver id fails with
+`InterfaceNotSupportedException`; use Docker for those APIs or call Podman's
+own tooling outside FluentDocker.
 
 ## Machines: macOS / Windows vs Linux
 
@@ -125,6 +136,12 @@ CLI driver. Podman exposes no Docker-style daemon TLS flags (`--tlsverify`, `--t
 connection setting, so it cannot substitute for daemon verification. Setting either property logs
 a one-time warning. To reach a remote Podman securely, use an SSH connection (`ssh://…`) configured
 via `podman system connection`.
+
+## Health checks
+
+`HealthCheckConfig.Test` exec-form `CMD` values are emitted through Podman's
+string-only `--health-cmd`, so they still require a shell in the image. Use a
+shell-compatible health command or avoid CLI health checks for shell-less images.
 
 ## Standard output caps
 

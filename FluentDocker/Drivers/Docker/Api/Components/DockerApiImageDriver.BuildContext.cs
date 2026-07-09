@@ -61,6 +61,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             continue;
           try
           {
+            if ((file.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+              var linkTarget = GetContainedSymlinkTarget(file, contextRoot);
+              if (linkTarget == null)
+                continue;
+              await DockerApiTarWriter.WriteSymlinkAsync(fileStream, relativePath, linkTarget,
+                  file.LastWriteTimeUtc, cancellationToken).ConfigureAwait(false);
+              continue;
+            }
+
             await using var src = new FileStream(
                 file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
                 bufferSize: 81920, FileOptions.Asynchronous);
@@ -149,9 +159,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// security posture: directory symlinks are not traversed (avoids infinite loops and
     /// paths that escape the context) and file symlinks whose target resolves outside the
     /// context are skipped (avoids exfiltrating host files such as <c>/etc/passwd</c>).
-    /// File symlinks that stay inside the context are dereferenced as before. Because no
-    /// directory symlink is followed, content under an in-context directory symlink is
-    /// included only via its real path (SharpCompress cannot emit symlink tar entries).
+    /// File symlinks that stay inside the context and use relative targets are emitted as
+    /// symlink entries. Because no directory symlink is followed, content under an
+    /// in-context directory symlink is included only via its real path.
     /// </summary>
     private static IEnumerable<FileInfo> EnumerateContextFilesSafe(string contextRoot)
     {
@@ -202,17 +212,40 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         if (realFile is null || realRoot is null)
           return null;
 
-        var root = realRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? realRoot
-            : realRoot + Path.DirectorySeparatorChar;
-        return realFile == realRoot || realFile.StartsWith(root, StringComparison.Ordinal)
-            ? realFile
-            : null;
+        return IsContainedRealPath(realFile, realRoot) ? realFile : null;
       }
       catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
       {
         return null;
       }
+    }
+
+    private static string? GetContainedSymlinkTarget(FileInfo file, string contextRoot)
+    {
+      var linkTarget = file.LinkTarget;
+      if (string.IsNullOrEmpty(linkTarget) || Path.IsPathRooted(linkTarget))
+        return null;
+
+      try
+      {
+        var realRoot = RealPath(contextRoot);
+        var realTarget = RealPath(file.FullName);
+        return IsContainedRealPath(realTarget, realRoot) ? linkTarget.Replace('\\', '/') : null;
+      }
+      catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+      {
+        return null;
+      }
+    }
+
+    private static bool IsContainedRealPath(string? realFile, string? realRoot)
+    {
+      if (realFile is null || realRoot is null)
+        return false;
+      var root = realRoot.EndsWith(Path.DirectorySeparatorChar)
+          ? realRoot
+          : realRoot + Path.DirectorySeparatorChar;
+      return realFile == realRoot || realFile.StartsWith(root, StringComparison.Ordinal);
     }
 
     /// <summary>

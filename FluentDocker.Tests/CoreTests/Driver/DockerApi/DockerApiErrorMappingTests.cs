@@ -29,6 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Theory]
     [InlineData(400, "API_400")]
     [InlineData(401, "API_401")]
+    [InlineData(403, "API_403")]
     [InlineData(404, "API_404")]
     [InlineData(409, "API_409")]
     [InlineData(500, "API_500")]
@@ -54,6 +55,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       _ = CreateDriver();
       Assert.Equal(ErrorCodes.Api.Unauthorized, TestableDriverBase.TestMapHttpErrorCode(401));
+    }
+
+    [Fact]
+    public void MapHttpErrorCode_403_ReturnsForbidden()
+    {
+      _ = CreateDriver();
+      Assert.Equal(ErrorCodes.Api.Forbidden, TestableDriverBase.TestMapHttpErrorCode(403));
     }
 
     [Fact]

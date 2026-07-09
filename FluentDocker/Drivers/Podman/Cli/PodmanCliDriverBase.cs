@@ -93,7 +93,8 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// Builds global CLI flags from the driver context.
     /// Podman uses --url for the remote host. TLS settings are not supported via the
     /// Podman CLI, so <see cref="DriverContext.CertificatePath"/> and
-    /// <see cref="DriverContext.VerifyTls"/> are ignored (a one-time warning is logged).
+    /// <see cref="DriverContext.VerifyTls"/> are ignored. Warning deduplication is
+    /// process-wide and keyed by driver/host, so long-lived hosts see each warning once.
     /// </summary>
     /// <param name="context">The driver context (may be null).</param>
     /// <param name="logger">Optional logger used for one-time warnings about ignored settings.</param>

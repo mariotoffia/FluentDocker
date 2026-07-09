@@ -8,6 +8,7 @@ using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -18,6 +19,11 @@ namespace FluentDocker.Testing.Core
   public class PodmanKubernetesResource : ResourceBase
   {
     private readonly KubePlayConfig _config;
+    private static readonly Action<ILogger, Exception> MissingSessionLabels =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, nameof(MissingSessionLabels)),
+            "Podman Kubernetes resources cannot apply FluentDocker session labels automatically; use unique YAML resource names and run kube-specific cleanup for leaks.");
 
     /// <summary>
     /// Creates a Podman Kubernetes resource.
@@ -90,6 +96,10 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
+      if (Options.EnableSessionLabels)
+        MissingSessionLabels(Logger, null);
+
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
 
@@ -100,11 +110,20 @@ namespace FluentDocker.Testing.Core
             $"Podman kube play failed for '{_config.YamlPath}': {result.Error}");
       }
 
-      PlayResult = result.Data
+      var playResult = result.Data
           ?? throw new FluentDockerException(
               $"Podman kube play for '{_config.YamlPath}' returned Success " +
               "but no result payload.");
-      ResourceName = _config.YamlPath;
+      if (TryCommitProvision(generation, () =>
+      {
+        PlayResult = playResult;
+        ResourceName = _config.YamlPath;
+      }))
+      {
+        return;
+      }
+
+      await RemoveStaleKubeAsync(driver, context, generation).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -157,6 +176,28 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized)
         throw new InvalidOperationException(
             "PodmanKubernetes resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleKubeAsync(
+        IPodmanKubernetesDriver driver,
+        DriverContext context,
+        int generation)
+    {
+      if (!ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var downTask = driver.DownAsync(context, _config.YamlPath, cts.Token);
+        var result = await downTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && !IsNotFound(result))
+          OrphanCleanup.MarkAbandonedLateProvision(_config.YamlPath, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(_config.YamlPath, Options.SessionId);
+      }
     }
   }
 }

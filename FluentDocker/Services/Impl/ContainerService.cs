@@ -231,7 +231,7 @@ namespace FluentDocker.Services.Impl
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
-        return;
+        throw new InvalidOperationException("Cannot unpause a removed container.");
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);

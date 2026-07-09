@@ -42,13 +42,16 @@ namespace FluentDocker.Tests.CoreTests.Testing
           ]),
           new DockerResourceOptions
           {
-            InitializationTimeout = TimeSpan.FromMilliseconds(20),
-            TeardownTimeout = TimeSpan.FromMilliseconds(50)
+            InitializationTimeout = TimeSpan.FromSeconds(30),
+            TeardownTimeout = TimeSpan.FromMilliseconds(200)
           });
 
-      var firstInit = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      using var firstCts =
+          CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+      var firstInit = resource.InitializeAsync(firstCts.Token);
       await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-      await Assert.ThrowsAsync<ResourceInitializationException>(() => firstInit);
+      await firstCts.CancelAsync();
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => firstInit);
 
       await resource.DisposeAsync();
 
@@ -63,6 +66,37 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       Assert.Equal("fresh", resource.Handle);
       Assert.Equal("fresh", resource.ResourceName);
+    }
+
+    [Fact]
+    public async Task LateProvisionCompletion_AfterInitializationCancellation_DoesNotPublishHandle()
+    {
+      var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var resource = new GenerationGuardResource(
+          _kernel,
+          new Queue<ProvisionStep>([
+            new ProvisionStep("stale", entered, release)
+          ]),
+          new DockerResourceOptions
+          {
+            InitializationTimeout = TimeSpan.FromSeconds(30),
+            TeardownTimeout = TimeSpan.FromMilliseconds(200)
+          });
+
+      using var cts =
+          CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+      var init = resource.InitializeAsync(cts.Token);
+      await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+      await cts.CancelAsync();
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => init);
+
+      release.SetResult();
+      await resource.StaleCommitObserved.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+      Assert.Equal(string.Empty, resource.Handle);
+      Assert.Null(resource.ResourceName);
+      await resource.DisposeAsync();
     }
 
     private sealed record ProvisionStep(

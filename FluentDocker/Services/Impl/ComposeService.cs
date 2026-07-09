@@ -30,7 +30,7 @@ namespace FluentDocker.Services.Impl
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private readonly bool _downOnDispose;
     private readonly object _stateLock = new();
-    private volatile ServiceRunningState _state = ServiceRunningState.Running;
+    private volatile ServiceRunningState _state = ServiceRunningState.Stopped;
 
     public ComposeService(
         FluentDockerKernel kernel,
@@ -42,7 +42,7 @@ namespace FluentDocker.Services.Impl
         IReadOnlyList<string> ownedTempFiles = null,
         TimeSpan? disposeCleanupTimeout = null,
         bool downOnDispose = true,
-        ServiceRunningState initialState = ServiceRunningState.Running)
+        ServiceRunningState initialState = ServiceRunningState.Stopped)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -55,7 +55,7 @@ namespace FluentDocker.Services.Impl
       _kernel = kernel;
       _logger = kernel.LoggerFactory.CreateLogger<ComposeService>();
       _driverId = driverId;
-      _composeFiles = composeFiles;
+      _composeFiles = [.. composeFiles];
       _projectName = projectName;
       _removeVolumes = removeVolumes;
       _removeImages = removeImages;
@@ -201,6 +201,7 @@ namespace FluentDocker.Services.Impl
       }
 
       var anyRunning = false;
+      var allStopped = true;
       foreach (var s in services)
       {
         if (!string.IsNullOrEmpty(s.State) &&
@@ -209,9 +210,19 @@ namespace FluentDocker.Services.Impl
           anyRunning = true;
           break;
         }
+
+        if (string.IsNullOrEmpty(s.State) ||
+            (!s.State.Contains("stopped", StringComparison.OrdinalIgnoreCase) &&
+             !s.State.Contains("exited", StringComparison.OrdinalIgnoreCase) &&
+             !s.State.Contains("dead", StringComparison.OrdinalIgnoreCase)))
+        {
+          allStopped = false;
+        }
       }
 
-      UpdateState(anyRunning ? ServiceRunningState.Running : ServiceRunningState.Stopped);
+      UpdateState(anyRunning
+          ? ServiceRunningState.Running
+          : allStopped ? ServiceRunningState.Stopped : ServiceRunningState.Unknown);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -265,19 +276,26 @@ namespace FluentDocker.Services.Impl
         ProjectName = _projectName
       };
 
-      var response = await driver.PauseAsync(context, config, cancellationToken).ConfigureAwait(false);
+      try
+      {
+        var response = await driver.PauseAsync(context, config, cancellationToken).ConfigureAwait(false);
 
-      if (!response.Success)
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to pause compose project '{_projectName}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Paused);
+        await ExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
+      }
+      catch
       {
         UpdateState(ServiceRunningState.Unknown);
-        throw new DriverException(
-            $"Failed to pause compose project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
+        throw;
       }
-
-      UpdateState(ServiceRunningState.Paused);
-      await ExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -353,11 +371,6 @@ namespace FluentDocker.Services.Impl
           await RefreshStateAsync(cancellationToken).ConfigureAwait(false);
         if (_state == ServiceRunningState.Running)
           await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
-      }
-      catch (OperationCanceledException)
-      {
-        UpdateState(ServiceRunningState.Unknown);
-        throw;
       }
       catch
       {

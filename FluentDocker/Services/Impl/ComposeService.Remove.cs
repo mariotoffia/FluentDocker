@@ -33,22 +33,29 @@ namespace FluentDocker.Services.Impl
         RemoveImages = _removeImages ? "all" : null
       };
 
-      UpdateState(ServiceRunningState.Removing);
-      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
+      try
+      {
+        UpdateState(ServiceRunningState.Removing);
+        await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
 
-      var response = await driver.DownAsync(context, config, cancellationToken).ConfigureAwait(false);
+        var response = await driver.DownAsync(context, config, cancellationToken).ConfigureAwait(false);
 
-      if (!response.Success)
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to remove compose project '{_projectName}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Removed);
+        await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+      }
+      catch
       {
         UpdateState(ServiceRunningState.Unknown);
-        throw new DriverException(
-            $"Failed to remove compose project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
+        throw;
       }
-
-      UpdateState(ServiceRunningState.Removed);
-      await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
     }
   }
 }

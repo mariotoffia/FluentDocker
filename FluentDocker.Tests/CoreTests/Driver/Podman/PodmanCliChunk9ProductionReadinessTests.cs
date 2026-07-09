@@ -144,6 +144,37 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public async Task CreateAsync_PodmanEntrypointUsesJsonArrayArgument()
+    {
+      RequirePosixShellFixture();
+      var dir = CreateOutputDirectory("podman-entrypoint-json");
+      var record = Path.Combine(dir, "args.txt");
+      WriteExecutable(Path.Combine(dir, "podman"), $"""
+          #!/bin/sh
+          printf '%s\n' "$@" > '{record}'
+          echo 'ctr'
+          """);
+      var driver = CreateContainerDriverFromDirectory(dir);
+
+      var result = await driver.CreateAsync(
+          new DriverContext("podman"),
+          new ContainerCreateConfig
+          {
+            Image = "alpine",
+            Entrypoint = ["/bin/sh", "-c"],
+            Command = ["echo hi"]
+          },
+          TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      var args = await File.ReadAllLinesAsync(record, TestContext.Current.CancellationToken);
+      var entrypoint = Array.IndexOf(args, "--entrypoint");
+      Assert.True(entrypoint >= 0, string.Join(" ", args));
+      Assert.Equal(@"[""/bin/sh"",""-c""]", args[entrypoint + 1]);
+      Assert.DoesNotContain(args, arg => arg == "-c");
+    }
+
+    [Fact]
     public async Task LoadAsync_ReturnsParsedLoadedImageNames()
     {
       RequirePosixShellFixture();
@@ -191,41 +222,84 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal(ErrorCodes.Container.InspectFailed, result.ErrorCode);
     }
 
-    [Theory]
-    [InlineData(false, false, "y")]
-    [InlineData(true, true, "")]
-    public async Task RemoveMachineAsync_UsesForceOnlyWhenRequested(bool force, bool expectForce, string expectedStdin)
+    [Fact]
+    public async Task RemoveMachineAsync_NonForceStoppedMachineUsesForceWithoutStdin()
     {
       RequirePosixShellFixture();
       var dir = CreateOutputDirectory("podman-machine-rm-force");
       var record = Path.Combine(dir, "args.txt");
       var stdinRecord = Path.Combine(dir, "stdin.txt");
-      WriteExecutable(Path.Combine(dir, "podman"), $"""
+      WriteExecutable(Path.Combine(dir, "podman"), $$"""
           #!/bin/sh
-          printf '%s\n' "$@" > '{record}'
-          has_force=0
-          for arg in "$@"; do
-            [ "$arg" = "-f" ] && has_force=1
-          done
-          if [ "$has_force" = "1" ]; then
-            : > '{stdinRecord}'
-          else
-            cat > '{stdinRecord}'
-          fi
-          exit 0
+          case "$*" in
+            "machine inspect vm")
+              echo '[{"Name":"vm","State":"stopped"}]'
+              exit 0
+              ;;
+            "machine rm -f vm")
+              printf '%s\n' "$@" > '{{record}}'
+              cat > '{{stdinRecord}}'
+              exit 0
+              ;;
+          esac
+          printf '%s\n' "$@" > '{{record}}'
+          exit 2
           """);
       var driver = CreateMachineDriverFromDirectory(dir);
 
       var result = await driver.RemoveAsync(
-          new DriverContext("podman"), "vm", force, TestContext.Current.CancellationToken);
+          new DriverContext("podman"), "vm", force: false, TestContext.Current.CancellationToken);
 
       Assert.True(result.Success, result.Error);
       var args = await File.ReadAllLinesAsync(record, TestContext.Current.CancellationToken);
-      if (expectForce)
-        Assert.Contains("-f", args);
-      else
-        Assert.DoesNotContain("-f", args);
-      Assert.Equal(expectedStdin, (await File.ReadAllTextAsync(stdinRecord, TestContext.Current.CancellationToken)).Trim());
+      Assert.Contains("-f", args);
+      Assert.Equal("", await File.ReadAllTextAsync(stdinRecord, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task RemoveMachineAsync_NonForceRunningMachineFailsWithoutRemove()
+    {
+      RequirePosixShellFixture();
+      var dir = CreateOutputDirectory("podman-machine-rm-running");
+      var invoked = Path.Combine(dir, "rm-invoked");
+      WriteExecutable(Path.Combine(dir, "podman"), $$"""
+          #!/bin/sh
+          case "$*" in
+            "machine inspect vm")
+              echo '[{"Name":"vm","State":"running"}]'
+              exit 0
+              ;;
+            "machine rm"*)
+              touch '{{invoked}}'
+              exit 0
+              ;;
+          esac
+          exit 2
+          """);
+      var driver = CreateMachineDriverFromDirectory(dir);
+
+      var result = await driver.RemoveAsync(
+          new DriverContext("podman"), "vm", force: false, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Contains("running", result.Error, StringComparison.OrdinalIgnoreCase);
+      Assert.False(File.Exists(invoked));
+    }
+
+    [Fact]
+    public async Task RemovePodAsync_NoSuchPodMapsToNotFound()
+    {
+      RequirePosixShellFixture();
+      var driver = CreatePodDriver(Return("""
+          echo 'Error: no pod with name or ID missing found: no such pod' >&2
+          exit 125
+          """));
+
+      var result = await driver.RemovePodAsync(
+          new DriverContext("podman"), "missing", force: true, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Pod.NotFound, result.ErrorCode);
     }
 
     [Fact]
@@ -274,6 +348,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     {
       var dir = CreatePodmanDirectory("podman-chunk9-system", script);
       var driver = new PodmanCliSystemDriver(new PodmanResolver(dir));
+      driver.Initialize(new DriverContext("podman"));
+      return driver;
+    }
+
+    private static PodmanCliPodDriver CreatePodDriver(string script)
+    {
+      var dir = CreatePodmanDirectory("podman-chunk9-pod", script);
+      var driver = new PodmanCliPodDriver(new PodmanResolver(dir));
       driver.Initialize(new DriverContext("podman"));
       return driver;
     }

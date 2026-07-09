@@ -28,12 +28,12 @@ namespace FluentDocker.Common
     private static readonly Type[] Whitelist = [typeof(IOException), typeof(UnauthorizedAccessException)];
 
     /// <summary>
-    /// Gets a path to a temporary folder that is writeable.
+    /// Gets a delegate that returns a writeable temporary folder path.
     /// </summary>
     /// <remarks>
-    ///  This folder may be the same from time to time. It is possible to override this
-    ///  process-global property at startup to provide for a custom path. The default uses the
-    ///  <see cref="Path.GetTempPath"/> implementation.
+    ///  This mutable process-wide hook is intended for test hosts that must redirect temporary
+    ///  files. Set it at startup only; changing it while other operations run affects all callers.
+    ///  The default uses the <see cref="Path.GetTempPath"/> implementation.
     /// </remarks>
     public static Func<string> GetTempPath
     {
@@ -42,6 +42,10 @@ namespace FluentDocker.Common
     }
 
     /// <summary>Recursively copies all files and subdirectories from source to target.</summary>
+    /// <remarks>
+    /// During copy, LibGit2Sharp-style fixture names are restored:
+    /// <c>dot_git</c> becomes <c>.git</c>, and <c>gitmodules</c> becomes <c>.gitmodules</c>.
+    /// </remarks>
     /// <param name="source">The source directory to copy from.</param>
     /// <param name="target">The target directory to copy into.</param>
     public static void CopyFilesRecursively(DirectoryInfo source, DirectoryInfo target)

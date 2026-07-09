@@ -32,6 +32,11 @@ namespace FluentDocker.Drivers.Podman
         CancellationToken cancellationToken = default);
 
     /// <summary>Removes a machine VM.</summary>
+    /// <remarks>
+    /// Non-force removal first inspects the machine. Stopped machines are removed with
+    /// <c>-f</c> to avoid Podman's interactive prompt; running machines fail clearly and
+    /// must be stopped first or removed with <paramref name="force"/> set to <c>true</c>.
+    /// </remarks>
     Task<CommandResponse<Unit>> RemoveAsync(
         DriverContext context, string name = null, bool force = false,
         CancellationToken cancellationToken = default);

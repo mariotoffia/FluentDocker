@@ -27,6 +27,11 @@
     <ProjectReference Include="..\FluentDocker.Testing.NUnit\FluentDocker.Testing.NUnit.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Foo\Bar\child.txt" LogicalName="Foo.Bar.child.txt" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Foo\Barbaz\sibling.txt" LogicalName="Foo.Barbaz.sibling.txt" />
+  </ItemGroup>
+
   <!-- DMR (Docker Model Runner) fixtures — embedded so they survive Release test runs -->
   <ItemGroup>
     <EmbeddedResource Include="Fixtures\Dmr\**\*.json" />
@@ -35,7 +40,7 @@
     <EmbeddedResource Include="Fixtures\Dmr\**\*.ndjson" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+  <ItemGroup>
     <!-- Compose Test Resources -->
     <None Update="Resources\ComposeTests\MongoDbAndNetwork\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

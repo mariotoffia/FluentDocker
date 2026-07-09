@@ -207,6 +207,31 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task ChatCompletionStreamAsync_MissingDoneAfterAllObservedChoicesFinish_CompletesNormally()
+    {
+      const string script =
+          "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"A\"}}]}\n\n" +
+          "data: {\"choices\":[{\"index\":1,\"delta\":{\"content\":\"B\"}}]}\n\n" +
+          "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n" +
+          "data: {\"choices\":[{\"index\":1,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n";
+      var conn = new MockModelApiConnection().SetupStream("/chat/completions", script);
+      var driver = Create(conn);
+      var choices = new List<(int Index, string Content)>();
+
+      await foreach (var chunk in driver.ChatCompletionStreamAsync(
+          DiagnosticCtx, new ChatCompletionRequest { Model = "ai/x" }, TestContext.Current.CancellationToken))
+      {
+        foreach (var choice in chunk.Choices ?? [])
+        {
+          if (!string.IsNullOrEmpty(choice.Delta?.Content))
+            choices.Add((choice.Index, choice.Delta.Content));
+        }
+      }
+
+      Assert.Equal(new[] { (0, "A"), (1, "B") }, choices);
+    }
+
+    [Fact]
     public async Task ChatCompletionStreamAsync_ChunkThenDone_CompletesNormally()
     {
       const string script =

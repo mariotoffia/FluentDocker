@@ -77,6 +77,10 @@ namespace FluentDocker.Extensions
     /// <returns>The resource name (without any path) written.</returns>
     public static string ToFile(this EmbeddedUri resource, TemplateString targetPath)
     {
+      if (string.IsNullOrWhiteSpace(resource.Resource))
+        throw new FluentDockerException($"Embedded resource URI '{resource}' must include a resource segment.");
+
+      var resourceName = resource.Resource;
       new FileResourceWriter(targetPath).Write(
         new ResourceReader(
         [
@@ -85,11 +89,11 @@ namespace FluentDocker.Extensions
             Assembly = GetAssembly(resource.Assembly),
             Namespace = resource.Namespace,
             RelativeRootNamespace = string.Empty,
-            Resource = resource.Resource!
+            Resource = resourceName
           }
         ]));
 
-      return resource.Resource!;
+      return resourceName;
     }
 
     private static Assembly GetAssembly(string assemblyName)

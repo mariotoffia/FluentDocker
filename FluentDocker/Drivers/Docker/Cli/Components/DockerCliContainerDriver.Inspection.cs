@@ -182,9 +182,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         if (follow)
         {
-          throw new NotSupportedException(
+          return CommandResponse<string>.Fail(
               "GetLogsAsync does not support follow=true because 'docker logs -f' " +
-              "streams indefinitely. Use IStreamDriver.StreamLogsAsync instead.");
+              "streams indefinitely. Use IStreamDriver.StreamLogsAsync instead.",
+              ErrorCodes.Container.LogsFailed);
         }
 
         var args = "logs";

@@ -16,11 +16,52 @@ using DriverContext = FluentDocker.Model.Drivers.DriverContext;
 namespace FluentDocker.Tests.CoreTests.Testing
 {
   [Trait("Category", "Unit")]
+  [Collection(TestingEnvVarsCollection.Name)]
   public class OrphanCleanupSafetyTests : MockKernelTestBase, IAsyncLifetime
   {
     public async ValueTask InitializeAsync()
     {
       await InitializeMockKernelAsync();
+    }
+
+    [Fact]
+    public async Task CleanupOrphanedResources_DefaultMinimumAge_PreservesYoungResource()
+    {
+      var young = DateTime.UtcNow.AddMinutes(-10);
+      SetupContainerList(LabeledContainer("young", "other-session", young));
+      SetupContainerInspect(LabeledContainer(
+          "young", "other-session", young,
+          running: false, created: DateTimeOffset.UtcNow.AddMinutes(-10)));
+      SetupEmptyNetworkList();
+      SetupEmptyVolumeList();
+      MockPack.SetupContainerRemove();
+
+      var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
+          Kernel, DriverId, "current-session",
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.Equal(0, result.ContainersRemoved);
+      VerifyContainerRemove("young", Times.Never());
+    }
+
+    [Fact]
+    public async Task CleanupOrphanedResources_ExplicitZeroMinimumAge_RemovesYoungResource()
+    {
+      var young = DateTime.UtcNow.AddMinutes(-10);
+      SetupContainerList(LabeledContainer("young", "other-session", young));
+      SetupContainerInspect(LabeledContainer(
+          "young", "other-session", young,
+          running: false, created: DateTimeOffset.UtcNow.AddMinutes(-10)));
+      SetupEmptyNetworkList();
+      SetupEmptyVolumeList();
+      MockPack.SetupContainerRemove();
+
+      var result = await OrphanCleanup.CleanupOrphanedResourcesAsync(
+          Kernel, DriverId, "current-session", TimeSpan.Zero,
+          TestContext.Current.CancellationToken);
+
+      Assert.Equal(1, result.ContainersRemoved);
+      VerifyContainerRemove("young", Times.Once());
     }
 
     [Fact]
@@ -113,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       MockPack.ContainerDriver
           .Setup(d => d.InspectAsync(
               It.IsAny<DriverContext>(),
-              container.Id,
+              container.Id!,
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(CommandResponse<Container>.Ok(container));
     }

@@ -32,6 +32,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     private ILogger<DockerCliDriverPack> _logger = NullLogger<DockerCliDriverPack>.Instance;
     // ponytail: init-then-read discipline; use immutable dictionary if runtime registration appears.
     private bool _initialized;
+    private IReadOnlyCollection<Type> _supportedInterfaces;
 
     /// <summary>
     /// Gets the binary resolver for this driver pack.
@@ -139,6 +140,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       _drivers[typeof(IModelManagementDriver)] = _modelManagementDriver;
       _drivers[typeof(IModelRuntimeDriver)] = _modelRuntimeDriver;
 
+      _supportedInterfaces = BuildSupportedInterfaces();
       _initialized = true;
       await Task.CompletedTask;
     }
@@ -211,7 +213,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (TryGetDriver(typeof(T), out var driver))
         return (T)driver;
 
-      throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(typeof(T)));
     }
 
     #region IDriverInterfaceResolver
@@ -228,7 +230,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       ThrowIfNotInitialized();
       // Inference is built lazily and not in the dict, but it is always supported.
-      return new List<Type>(_drivers.Keys) { typeof(IModelInferenceDriver) }.AsReadOnly();
+      return _supportedInterfaces ??= BuildSupportedInterfaces();
     }
 
     #endregion
@@ -241,7 +243,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       ThrowIfNotInitialized();
       if (TryGetDriver(interfaceType, out var driver))
         return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <inheritdoc />
@@ -272,6 +274,11 @@ namespace FluentDocker.Drivers.Docker.Cli
         }
       }
       return _drivers.TryGetValue(interfaceType, out driver);
+    }
+
+    private IReadOnlyCollection<Type> BuildSupportedInterfaces()
+    {
+      return new List<Type>(_drivers.Keys) { typeof(IModelInferenceDriver) }.AsReadOnly();
     }
 
     private OpenAiModelInferenceDriver EnsureInferenceDriver()

@@ -357,9 +357,11 @@ using FluentDocker.Services.Extensions;
 var container = /* ... */;
 
 // Get endpoint for exposed port
-var endpoint = container.ToHostExposedEndpoint("8080/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("8080/tcp");
 Console.WriteLine($"Connect to: {endpoint.Address}:{endpoint.Port}");
 ```
+
+Use `ToHostExposedEndpoint(...)` only in sync-only code; it blocks on the async resolver.
 
 ### Get All Endpoints
 
@@ -395,13 +397,13 @@ Custom endpoint resolvers for special network configurations.
 
 ```csharp
 // Uses container's exposed port mapping
-var endpoint = container.ToHostExposedEndpoint("8080/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("8080/tcp");
 ```
 
 ### Custom Resolver
 
 The custom resolver is set via `UseCustomResolver()` on the container builder, not passed
-to `ToHostExposedEndpoint()`. The resolver signature is:
+to `ToHostExposedEndpointAsync()`. The resolver signature is:
 `Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>`
 
 ```csharp
@@ -566,28 +568,6 @@ public static class ContainerFactory
             .BuildAsync();
     }
 
-    public static Task<BuildResults> CreateRedisAsync(FluentDockerKernel kernel)
-    {
-        return new Builder()
-            .WithinDriver("docker", kernel)
-            .UseContainer(c => c
-                .UseImage("redis:alpine")
-                .ExposePort("6379")
-                .WaitForPort("6379/tcp", 30000))
-            .BuildAsync();
-    }
-
-    public static Task<BuildResults> CreateRabbitMQAsync(FluentDockerKernel kernel)
-    {
-        return new Builder()
-            .WithinDriver("docker", kernel)
-            .UseContainer(c => c
-                .UseImage("rabbitmq:3-management-alpine")
-                .ExposePort("5672")
-                .ExposePort("15672")
-                .WaitForPort("5672/tcp", 60000))
-            .BuildAsync();
-    }
 }
 
 // Usage
@@ -596,5 +576,4 @@ await using var kernel = await FluentDockerKernel.Create()
     .BuildAsync();
 
 await using var db = await ContainerFactory.CreatePostgresAsync(kernel);
-await using var cache = await ContainerFactory.CreateRedisAsync(kernel);
 ```

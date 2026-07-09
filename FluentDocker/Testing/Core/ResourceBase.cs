@@ -367,6 +367,7 @@ namespace FluentDocker.Testing.Core
         if (teardownFailure != null)
           ExceptionDispatchInfo.Capture(teardownFailure).Throw();
 
+        ProcessExitReaper.Unregister(Kernel, DriverId, Options.SessionId);
         disposalCompleted = true;
       }
       finally

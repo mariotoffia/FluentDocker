@@ -13,9 +13,8 @@ LM Studio, or a hosted endpoint). It mirrors the existing
 `Builder → WithinDriver → UseXxx` pattern, so a model handle lives in the *same*
 kernel and lifecycle as your containers, networks and volumes.
 
-> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
-> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build from
+> [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package is **3.1.0** — don't run these samples against it.
 
 ## Two surfaces, one façade
 
@@ -25,6 +24,15 @@ DMR exposes two surfaces, and FluentDocker keeps them behind one interface famil
 |---|---|---|
 | **Management / runtime** | pull / ls / inspect / rm / tag / push / package / df / prune, status / version / ps / load / unload / **configure** / logs / install | the `docker model …` CLI |
 | **Inference** | chat (uni + streaming), completion, embeddings, engine-model list | the OpenAI-compatible REST API on `:12434` |
+
+### "Engine" glossary
+
+| Term | Meaning |
+|---|---|
+| `IModelEngine` | Runtime-control API: status/version/load/unload/configure/logs. |
+| `EngineScope` | Docker daemon context switch helper. |
+| `ModelRunnerEndpoint.EngineV1Path` `{engine}` | REST path segment, e.g. `llama.cpp`. |
+| `ModelRunnerCapabilities.DefaultBackend` | Adapter-reported inference backend name. |
 
 The public `IModelRunner` composes three small capability interfaces
 (`IModelStore`, `IModelEngine`, `IModelInference`) plus a few ergonomic helpers.
@@ -396,26 +404,20 @@ guessed):
 | Runner not running / TCP endpoint disabled / connection refused / DNS / socket error | `ErrorCodes.ModelInference.EndpointUnreachable` (inference fails; management/runtime still work over the CLI) |
 | HTTP 404 from the inference endpoint (model not loaded/known) | `ErrorCodes.ModelInference.ModelNotLoaded` (auto-pull with `PullIfMissing`) |
 | HTTP 401 (API key required/invalid) | `ErrorCodes.ModelInference.Unauthorized` |
+| HTTP 429 / 503 | `ErrorCodes.ModelInference.ServiceUnavailable` (`MIN_007`, retryable) |
 | Any other HTTP 4xx/5xx response | `ErrorCodes.ModelInference.RequestFailed` |
 | Empty / `null` response body where a payload was required | `ErrorCodes.ModelInference.StreamParseError` |
 | Malformed SSE chunk, or an oversized SSE frame | `ErrorCodes.ModelInference.StreamParseError` (thrown mid-stream) |
 | Mid-stream OpenAI `data: {"error":…}` frame | `ErrorCodes.ModelInference.RequestFailed` (the server's error message is preserved; thrown mid-stream) |
 | Request timeout, streaming header wait timeout, or streaming idle timeout | `ErrorCodes.ModelInference.Timeout` (`ModelRunnerException`, not `TimeoutException`) |
 
-> Transport failure (no HTTP response) → `EndpointUnreachable`; HTTP errors map by status/body (401 → `Unauthorized`, 404 with model-missing body → `ModelNotLoaded`, route/base-path 404 → `RequestFailed`, otherwise `RequestFailed`). Cancellation → `OperationCanceledException`; configured timeouts → `ModelRunnerException` with `ErrorCodes.ModelInference.Timeout`.
+> Transport failure (no HTTP response) → `EndpointUnreachable`; HTTP errors map by status/body (401 → `Unauthorized`, 404 with model-missing body → `ModelNotLoaded`, 429/503 → `ServiceUnavailable`, route/base-path 404 → `RequestFailed`, otherwise `RequestFailed`). Cancellation → `OperationCanceledException`; configured timeouts → `ModelRunnerException` with `ErrorCodes.ModelInference.Timeout`.
 
 Known limitations (acceptable for v3.2.0; revisit as needed):
 
-- **Chat models can crash on load (Docker Model Runner v1.2.1) unless a context size
-  is pinned.** The bundled llama.cpp aborts — `GGML_ASSERT(n_outputs >= 1)` in its
-  auto *fit-params-to-device-memory* step — when a chat model is loaded with no
-  explicit context. This reproduces with a raw call to
-  `…/engines/llama.cpp/v1/chat/completions` (FluentDocker not involved), so it is an
-  engine bug, not a library one; the engine log even suggests `-fit off`.
-  **Workaround:** pin a context size — `.WithContextSize(4096)` on the runner/service
-  builder (or `docker model configure <model> --context-size 4096`) — which skips the
-  buggy probe and lets the model load and stream normally. Embedding models (e.g.
-  `ai/embeddinggemma`) are unaffected.
+- **Chat models can crash on load (Docker Model Runner v1.2.1) unless a context size is pinned.**
+  The bundled llama.cpp can abort (`GGML_ASSERT(n_outputs >= 1)`) during auto *fit-params-to-device-memory* with no explicit context; this reproduces via raw `…/engines/llama.cpp/v1/chat/completions`, so it is an engine bug.
+  **Workaround:** pin a context size — `.WithContextSize(4096)` or `docker model configure <model> --context-size 4096`. Embedding models (e.g. `ai/embeddinggemma`) are unaffected.
 - **Re-pull of an already-present model** is reported as success even if the
   underlying `docker model pull` errors — `PullAsync` confirms availability via
   `InspectAsync`, so a genuine *first* pull failure is still caught.

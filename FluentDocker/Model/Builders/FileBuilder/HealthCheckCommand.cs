@@ -19,10 +19,14 @@ namespace FluentDocker.Model.Builders.FileBuilder
   /// </remarks>
   public sealed class HealthCheckCommand(string cmd, string? interval = null, string? timeout = null, string? startPeriod = null, int retries = 3) : ICommand
   {
-    public string Cmd { get; } = cmd;
-    public string Interval { get; } = string.IsNullOrEmpty(interval) ? "30s" : interval;
-    public string Timeout { get; } = string.IsNullOrEmpty(timeout) ? "30s" : timeout;
-    public string StartPeriod { get; } = string.IsNullOrEmpty(startPeriod) ? "0s" : startPeriod;
+    public string Cmd { get; } = DockerfileInstructionGuard.Require(
+        cmd, "HEALTHCHECK", "command", "HEALTHCHECK requires a command.");
+    public string Interval { get; } = DockerfileInstructionGuard.Optional(
+        interval, "HEALTHCHECK", "interval", "30s");
+    public string Timeout { get; } = DockerfileInstructionGuard.Optional(
+        timeout, "HEALTHCHECK", "timeout", "30s");
+    public string StartPeriod { get; } = DockerfileInstructionGuard.Optional(
+        startPeriod, "HEALTHCHECK", "start period", "0s");
     public int Retries { get; } = retries;
 
     public override string ToString()

@@ -280,6 +280,8 @@ public class BuildResults : IAsyncDisposable, IDisposable
 All builders implement `IDriverScopedBuilder`, providing access to the kernel and driver ID inside builder lambdas. This enables driver-specific fluent extensions to resolve optional capabilities and fail clearly when the current driver doesn't support the feature:
 
 ```csharp
+using FluentDocker.Drivers.Podman.BuilderExtensions;
+
 // Podman-specific .UsePod() — throws on Docker
 await using var results = await new Builder()
     .WithinDriver("podman", kernel)
@@ -367,9 +369,10 @@ public interface IContainerDriver
 
 ### Capability Discovery
 
-`DriverCapabilities` is a flat runtime summary. It exposes the supported resource
-families and optional version strings; feature-level checks still use `TrySysCtl<T>()`
-or `IDriverScopedBuilder.TryDriver<T>()`.
+`DriverCapabilities` is a declared API-surface summary: it says which adapter
+families a pack implements, not which backend features are currently available.
+For runtime truth, use `IsHealthyAsync()` for basic availability and handle
+first-call errors for features such as Compose plugins or Swarm services.
 
 ```csharp
 using FluentDocker.Kernel;
@@ -392,8 +395,7 @@ var canManageMachines = caps.SupportsMachines;
 var canUseManifests = caps.SupportsManifests;
 var canUseStacks = caps.SupportsStacks;
 var canUseServices = caps.SupportsServices;
-var runtimeVersion = caps.Version;
-var apiVersion = caps.ApiVersion;
+// Version and ApiVersion are optional; first-party packs do not populate them today.
 ```
 
 ### Interface Discovery
@@ -500,9 +502,9 @@ FluentDocker uses a simple exception hierarchy:
   - `DriverNotFoundException` -- driver ID not registered
   - `DriverNotAvailableException` -- driver not healthy/reachable
   - `PodmanMachineNotRunningException` -- machine unavailable (`ErrorCodes.Machine.NotRunning`, `IsTransient = true`)
-- `ContainerNotFoundException`, `ContainerStartException`
-- `ImageNotFoundException`, `ImagePullException`
-- `CapabilityNotSupportedException`, `InterfaceNotSupportedException`
+  - `CapabilityNotSupportedException`, `InterfaceNotSupportedException`
+  - `ContainerNotFoundException`, `ContainerStartException`
+  - `ImageNotFoundException`, `ImagePullException`
 
 Error codes use a category-prefixed format defined in `ErrorCodes`:
 

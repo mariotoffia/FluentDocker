@@ -86,6 +86,7 @@ await using var dbResults = await new Builder()
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WithNetwork("backend")
+        .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
     .BuildAsync();
 
@@ -458,7 +459,7 @@ await using var gatewayResults = await new Builder()
         .ExposePort(8443, 8443))
     .BuildAsync();
 
-// User Service
+// User service (add other services with the same WithNetwork/WithIPv4 pattern)
 await using var userResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
@@ -466,26 +467,6 @@ await using var userResults = await new Builder()
         .UseImage("user-service:latest")
         .WithNetwork("microservices")
         .WithIPv4("10.100.1.10"))
-    .BuildAsync();
-
-// Order Service
-await using var orderResults = await new Builder()
-    .WithinDriver("docker", kernel)
-    .UseContainer(c => c
-        .WithName("order-service")
-        .UseImage("order-service:latest")
-        .WithNetwork("microservices")
-        .WithIPv4("10.100.2.10"))
-    .BuildAsync();
-
-// Product Service
-await using var productResults = await new Builder()
-    .WithinDriver("docker", kernel)
-    .UseContainer(c => c
-        .WithName("product-service")
-        .UseImage("product-service:latest")
-        .WithNetwork("microservices")
-        .WithIPv4("10.100.3.10"))
     .BuildAsync();
 
 // Services communicate via DNS names or static IPs
@@ -509,50 +490,44 @@ await using var results = await new Builder()
 
 ### Disposing BuildResults
 
-```csharp
-var results = await new Builder()
-    .WithinDriver("docker", kernel)
-    .UseNetwork(n => n.WithName("manual-network").RemoveOnDispose())
-    .BuildAsync();
-
-results.Dispose();                // dispose all services synchronously
-await results.DisposeAllAsync();  // or dispose asynchronously
-```
+Prefer `await using var results = await ...BuildAsync();`; call
+`await results.DisposeAllAsync()` only when you cannot scope the result.
 
 ## Testing with Isolated Networks
 
 ```csharp
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
 using Xunit;
 
-public class NetworkIsolatedTest : IDisposable
+public class NetworkIsolatedTest : IAsyncLifetime
 {
-    private readonly FluentDockerKernel _kernel;
-    private readonly BuildResults _netResults;
-    private readonly BuildResults _dbResults;
-    private readonly BuildResults _apiResults;
+    private FluentDockerKernel _kernel = null!;
+    private BuildResults _netResults = null!;
+    private BuildResults _dbResults = null!;
+    private BuildResults _apiResults = null!;
 
-    public NetworkIsolatedTest()
+    public async ValueTask InitializeAsync()
     {
-        _kernel = FluentDockerKernel.Create()
+        _kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
-            .Build();
+            .BuildAsync();
 
         // Each test run gets isolated network
         var testId = Guid.NewGuid().ToString("N")[..8];
 
-        _netResults = new Builder()
+        _netResults = await new Builder()
             .WithinDriver("docker", _kernel)
             .UseNetwork(n => n
                 .WithName($"test-{testId}")
                 .WithSubnet("10.200.0.0/24")
                 .RemoveOnDispose())
-            .Build();
+            .BuildAsync();
 
-        _dbResults = new Builder()
+        _dbResults = await new Builder()
             .WithinDriver("docker", _kernel)
             .UseContainer(c => c
                 .WithName($"db-{testId}")
@@ -560,10 +535,11 @@ public class NetworkIsolatedTest : IDisposable
                 .WithEnvironment("POSTGRES_PASSWORD=test")
                 .WithNetwork($"test-{testId}")
                 .WithIPv4("10.200.0.10")
+                .ExposePort("5432")
                 .WaitForPort("5432/tcp", 30000))
-            .Build();
+            .BuildAsync();
 
-        _apiResults = new Builder()
+        _apiResults = await new Builder()
             .WithinDriver("docker", _kernel)
             .UseContainer(c => c
                 .WithName($"api-{testId}")
@@ -572,7 +548,7 @@ public class NetworkIsolatedTest : IDisposable
                 .WithNetwork($"test-{testId}")
                 .ExposePort("8080")
                 .WaitForPort("8080/tcp", 30000))
-            .Build();
+            .BuildAsync();
     }
 
     [Fact]
@@ -583,12 +559,12 @@ public class NetworkIsolatedTest : IDisposable
         Assert.NotNull(api);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _apiResults?.Dispose();
-        _dbResults?.Dispose();
-        _netResults?.Dispose();
-        _kernel?.Dispose();
+        await _apiResults.DisposeAsync();
+        await _dbResults.DisposeAsync();
+        await _netResults.DisposeAsync();
+        await _kernel.DisposeAsync();
     }
 }
 ```

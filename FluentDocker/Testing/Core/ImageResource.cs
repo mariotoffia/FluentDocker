@@ -73,7 +73,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
-      ResourceName = ImageReference;
+      var generation = ProvisionGeneration;
 
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
       var result = await driver.PullAsync(
@@ -86,7 +86,17 @@ namespace FluentDocker.Testing.Core
       // Resolve the image ID via inspect
       var inspect = await driver.InspectAsync(
           new DriverContext(DriverId), ImageReference, cancellationToken).ConfigureAwait(false);
-      ImageId = inspect.Success ? inspect.Data?.Id : null;
+      var imageId = inspect.Success ? inspect.Data?.Id : null;
+      if (TryCommitProvision(generation, () =>
+      {
+        ResourceName = ImageReference;
+        ImageId = imageId;
+      }))
+      {
+        return;
+      }
+
+      await RemoveStaleImageAsync(driver, imageId, generation).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -141,6 +151,30 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized)
         throw new InvalidOperationException(
             "Image resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleImageAsync(IImageDriver driver, string imageId, int generation)
+    {
+      if (!_removeOnDispose)
+        return;
+
+      var target = string.IsNullOrEmpty(imageId) ? ImageReference : imageId;
+      if (!ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = driver.RemoveAsync(
+            new DriverContext(DriverId), target, true, false, cts.Token);
+        var result = await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && result.ErrorCode != ErrorCodes.Image.NotFound)
+          OrphanCleanup.MarkAbandonedLateProvision(target, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(target, Options.SessionId);
+      }
     }
   }
 }

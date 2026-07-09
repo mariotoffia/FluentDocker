@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Directory.CreateDirectory(dir);
       try
       {
-        File.WriteAllText(Path.Combine(dir, "mypodman"), string.Empty);
+        WriteExecutableFile(Path.Combine(dir, "mypodman"));
 
         var resolver = new PodmanBinariesResolver(new PodmanBinaryConfiguration
         {
@@ -122,7 +122,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Directory.CreateDirectory(dir);
       try
       {
-        File.WriteAllText(Path.Combine(dir, "podman"), string.Empty);
+        WriteExecutableFile(Path.Combine(dir, "podman"));
 
         var resolver = new PodmanBinariesResolver(new PodmanBinaryConfiguration
         {
@@ -149,7 +149,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Directory.CreateDirectory(dir);
       try
       {
-        File.WriteAllText(Path.Combine(dir, "Podman"), string.Empty);
+        WriteExecutableFile(Path.Combine(dir, "Podman"));
 
         var resolver = new PodmanBinariesResolver(new PodmanBinaryConfiguration
         {
@@ -164,6 +164,39 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       {
         Directory.Delete(dir, recursive: true);
       }
+    }
+
+    [Fact]
+    public void Resolver_SkipsNonExecutablePodmanOnUnix()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("Unix executable-bit probing is POSIX-only");
+
+      var dir = Path.Combine(AppContext.BaseDirectory, ".out", $"podman-resolver-{Guid.NewGuid():N}");
+      Directory.CreateDirectory(dir);
+      try
+      {
+        File.WriteAllText(Path.Combine(dir, "podman"), string.Empty);
+
+        Assert.Throws<DriverNotAvailableException>(() =>
+            new PodmanBinariesResolver(new PodmanBinaryConfiguration
+            {
+              SearchPaths = [dir]
+            }));
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
+    private static void WriteExecutableFile(string path)
+    {
+      File.WriteAllText(path, string.Empty);
+      if (!OperatingSystem.IsWindows())
+        File.SetUnixFileMode(
+            path,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
     }
   }
 }

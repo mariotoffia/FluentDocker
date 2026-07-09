@@ -1,4 +1,5 @@
 using System.Linq;
+using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
@@ -132,15 +133,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         foreach (var alias in OrEmpty(networkAlias.Value))
           args += $" --network-alias {QuoteArgumentIfNeeded(alias)}";
 
-      // Entrypoint — Podman CLI --entrypoint only accepts the executable.
-      // Additional arguments from the entrypoint array are prepended to Command below.
-      string[] entrypointArgs = null;
       if (config.Entrypoint != null && config.Entrypoint.Length > 0)
-      {
-        args += $" --entrypoint {QuoteArgumentIfNeeded(config.Entrypoint[0])}";
-        if (config.Entrypoint.Length > 1)
-          entrypointArgs = config.Entrypoint[1..];
-      }
+        args += $" --entrypoint {QuoteArgumentIfNeeded(JsonHelper.Serialize(config.Entrypoint))}";
 
       if (config.HealthCheck != null)
       {
@@ -163,10 +157,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
 
       args += $" {QuotePositionalArgument(config.Image, nameof(config.Image))}";
-
-      // Entrypoint overflow args come before Command
-      if (entrypointArgs != null)
-        args += " " + string.Join(" ", entrypointArgs.Select(QuoteArgumentIfNeeded));
 
       if (config.Command != null && config.Command.Length > 0)
         args += " " + string.Join(" ", config.Command.Select(QuoteArgumentIfNeeded));

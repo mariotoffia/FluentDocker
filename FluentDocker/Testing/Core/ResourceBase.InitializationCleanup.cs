@@ -21,6 +21,14 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     private void AbandonProvision(Task task)
     {
+      int generation;
+      lock (_provisionCommitLock)
+      {
+        generation = _provisionGeneration;
+        _provisionGeneration++;
+        _disposeProvisionGeneration = _provisionGeneration;
+      }
+
       _abandonedProvision = task;
       _ = task.ContinueWith(
           static (t, state) =>
@@ -28,7 +36,7 @@ namespace FluentDocker.Testing.Core
             var (self, generation) = ((ResourceBase, int))state!;
             return self.CleanupLateProvisionAsync(t, generation);
           },
-          (this, _provisionGeneration),
+          (this, generation),
           CancellationToken.None,
           TaskContinuationOptions.None,
           TaskScheduler.Default).Unwrap();
@@ -98,7 +106,7 @@ namespace FluentDocker.Testing.Core
             // (e.g. the kernel is already disposed). On the success path the resource is gone,
             // so marking would leak this name in process-static state and risk wrong-reaping a
             // later same-named (caller-fixed) resource. The rethrow is logged by the outer catch.
-            OrphanCleanup.MarkAbandonedLateProvision(ResourceName);
+            OrphanCleanup.MarkAbandonedLateProvision(ResourceName, Options.SessionId);
             throw;
           }
 
@@ -137,6 +145,19 @@ namespace FluentDocker.Testing.Core
           return false;
         commit();
         return true;
+      }
+    }
+
+    /// <summary>
+    /// True when a rejected provision belongs to an abandoned initialization being
+    /// disposed, not to a resource that has already been re-initialized.
+    /// </summary>
+    protected bool ShouldCleanupRejectedProvision(int generation)
+    {
+      lock (_provisionCommitLock)
+      {
+        return generation != _provisionGeneration &&
+               _disposeProvisionGeneration == _provisionGeneration;
       }
     }
 

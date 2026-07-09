@@ -18,6 +18,8 @@ namespace FluentDocker.Testing.Core
     /// (rather than fail) when Docker or Podman is absent (e.g. on runtime-less CI
     /// agents). Availability failures — daemon down, binary missing, internal timeout
     /// — return <c>false</c>. Driver resolution/configuration failures propagate.
+    /// Each call builds/probes/disposes a kernel; cache the result in your fixture
+    /// when many tests share the same runtime.
     /// Caller-requested cancellation is honored: if <paramref name="cancellationToken"/>
     /// is cancelled the resulting <see cref="OperationCanceledException"/> propagates
     /// rather than being reported as unavailable.

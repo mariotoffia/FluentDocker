@@ -19,7 +19,7 @@ namespace FluentDocker.Testing.Core
   public class TopologyResource : ResourceBase
   {
     private readonly Action<Builder> _configure;
-    private readonly List<IServiceAsync> _services = [];
+    private IReadOnlyList<IServiceAsync> _services = [];
     private static readonly Action<ILogger, Exception> DiagnosticsLogCollectionFailed =
         LoggerMessage.Define(
             LogLevel.Warning,
@@ -47,7 +47,7 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public IReadOnlyList<IServiceAsync> Services
     {
-      get { EnsureInitialized(); return _services.AsReadOnly(); }
+      get { EnsureInitialized(); return _services; }
     }
 
     /// <summary>
@@ -56,8 +56,9 @@ namespace FluentDocker.Testing.Core
     public IContainerService GetContainer(string name)
     {
       EnsureInitialized();
+      var requested = NormalizeContainerName(name);
       return _services.OfType<IContainerService>()
-          .FirstOrDefault(c => c.Name == name);
+          .FirstOrDefault(c => NormalizeContainerName(c.Name) == requested);
     }
 
     /// <summary>
@@ -90,6 +91,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var builder = new Builder();
       builder.WithinDriver(DriverId, Kernel);
       _configure(builder);
@@ -98,12 +100,17 @@ namespace FluentDocker.Testing.Core
       var results = await builder.BuildAsync(
           cleanupTimeout: Options.TeardownTimeout,
           cancellationToken: cancellationToken).ConfigureAwait(false);
-      foreach (var service in results.All.OfType<IServiceAsync>())
+      var services = results.All.OfType<IServiceAsync>().ToArray();
+      if (TryCommitProvision(generation, () =>
       {
-        _services.Add(service);
+        _services = services;
+        ResourceName = $"topology-{services.Length}-services";
+      }))
+      {
+        return;
       }
 
-      ResourceName = $"topology-{_services.Count}-services";
+      await RemoveStaleServicesAsync(services).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -128,7 +135,7 @@ namespace FluentDocker.Testing.Core
             $"{failures.Count} service(s) failed to remove during teardown.",
             failures);
 
-      _services.Clear();
+      _services = [];
     }
 
     /// <inheritdoc />
@@ -148,7 +155,7 @@ namespace FluentDocker.Testing.Core
             $"{failures.Count} service(s) failed to force-remove.",
             failures);
 
-      _services.Clear();
+      _services = [];
     }
 
     /// <inheritdoc />
@@ -199,6 +206,9 @@ namespace FluentDocker.Testing.Core
              ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static string NormalizeContainerName(string name) =>
+        name?.Trim().TrimStart('/');
+
     private void ApplySessionLabels(Builder builder)
     {
       if (!Options.EnableSessionLabels)
@@ -225,6 +235,22 @@ namespace FluentDocker.Testing.Core
         case IVolumeBuilder volume:
           volume.WithLabel(key, value);
           break;
+      }
+    }
+
+    private async Task RemoveStaleServicesAsync(IReadOnlyList<IServiceAsync> services)
+    {
+      for (var i = services.Count - 1; i >= 0; i--)
+      {
+        try
+        {
+          using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+          await services[i].RemoveAsync(force: true, cts.Token).ConfigureAwait(false);
+        }
+        catch
+        {
+          OrphanCleanup.MarkAbandonedLateProvision(services[i].Name, Options.SessionId);
+        }
       }
     }
   }

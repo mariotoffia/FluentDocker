@@ -280,9 +280,7 @@ namespace FluentDocker.Common
             ErrorCodes.General.Unknown,
             response.ExitCode);
 
-      return response.Output == null
-          ? CommandResponse<TResult>.Ok(mapped)
-          : CommandResponse<TResult>.Ok(mapped, response.Output);
+      return CommandResponse<TResult>.Ok(mapped, response.Output, response.ExitCode);
     }
 
     /// <summary>

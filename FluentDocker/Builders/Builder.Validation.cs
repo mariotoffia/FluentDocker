@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 
 namespace FluentDocker.Builders
@@ -19,6 +20,35 @@ namespace FluentDocker.Builders
         ValidateReferences(i, operation, "container", operation.LinkReferences);
         ValidateReferences(i, operation, "image", operation.ImageReferences);
         ValidateReferences(i, operation, "pod", operation.PodReferences);
+      }
+    }
+
+    private void ValidateContiguousScopes()
+    {
+      var closedScopes = new HashSet<(FluentDockerKernel Kernel, string DriverId)>();
+      var hasCurrent = false;
+      FluentDockerKernel currentKernel = null;
+      string currentDriverId = null;
+
+      foreach (var operation in _operations)
+      {
+        if (hasCurrent &&
+            (operation.Kernel != currentKernel ||
+             !string.Equals(operation.DriverId, currentDriverId, StringComparison.Ordinal)))
+        {
+          closedScopes.Add((currentKernel, currentDriverId));
+        }
+
+        if (closedScopes.Contains((operation.Kernel, operation.DriverId)))
+        {
+          throw new FluentDockerException(
+              $"operations for driver scope '{operation.DriverId}' are not contiguous; " +
+              "declare each scope's operations together or use separate builders");
+        }
+
+        currentKernel = operation.Kernel;
+        currentDriverId = operation.DriverId;
+        hasCurrent = true;
       }
     }
 

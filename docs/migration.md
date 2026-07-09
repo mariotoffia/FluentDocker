@@ -31,7 +31,7 @@ This guide helps you migrate from v2.x.x to the FluentDocker v3 line.
 | Commands namespace removed | HIGH | Use Driver Layer |
 | Compose: struct-based arguments | MEDIUM | Update Compose calls |
 | Legacy test packages removed | HIGH | Use `FluentDocker.Testing.*` adapters ([details](testing/migration-from-legacy.md)) |
-| `FluentDockerTestBase` base class removed | HIGH | Use `XunitContainerFixture` / `MsTestResourceHelpers` / `NUnitResourceHelpers` (or generic `XunitResourceFixture<T>` / `CreateResourceAsync<T>`) |
+| `FluentDockerTestBase` base class removed | HIGH | Use `XunitContainerFixtureBase` / `MsTestResourceHelpers` / `NUnitResourceHelpers` (or generic `XunitResourceFixture<T>` / `CreateResourceAsync<T>`) |
 | xUnit v3: `IAsyncLifetime` returns `ValueTask` | MEDIUM | Update `Task` → `ValueTask` |
 
 ## Step 1: Update NuGet Packages
@@ -101,13 +101,13 @@ using var container = new Builder()
     .Start();
 
 // NEW
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .ExposePort("80")
         .WaitForPort("80/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 ```
@@ -122,12 +122,12 @@ using var network = new Builder()
     .Build();
 
 // NEW
-using var nwResults = new Builder()
+await using var nwResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("my-network")
         .WithSubnet("10.18.0.0/16"))
-    .Build();
+    .BuildAsync();
 
 var network = nwResults.Networks.First();
 ```
@@ -141,11 +141,11 @@ using var vol = new Builder()
     .Build();
 
 // NEW
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v
         .WithName("my-data"))
-    .Build();
+    .BuildAsync();
 
 var volume = volResults.Volumes.First();
 ```
@@ -164,14 +164,14 @@ using var svc = new Builder()
     .Start();
 
 // NEW
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveOrphans()
         .WithWait()
         .WithWaitTimeout(30))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Image Builder
@@ -187,14 +187,14 @@ using var img = new Builder()
     .Build();
 
 // NEW
-using var imgResults = new Builder()
+await using var imgResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img
         .From("node:18-alpine")
         .Run("npm install")
         .ExposePorts(8080)
         .Command("node", "app.js"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Step 5: Update Test Base Classes
@@ -202,7 +202,7 @@ using var imgResults = new Builder()
 The legacy `FluentDockerTestBase` (xUnit) and `FluentDockerTestBase` (MSTest) base
 classes have been **removed**. Use the new adapter packages instead.
 
-### xUnit — `XunitContainerFixture`
+### xUnit — `XunitContainerFixtureBase`
 
 ```csharp
 // OLD
@@ -214,22 +214,32 @@ public class RedisFixture : FluentDockerTestBase
 }
 
 // NEW
-public class RedisFixture : XunitContainerFixture
+public class RedisFixture : XunitContainerFixtureBase
 {
-    public RedisFixture()
-    {
-        InitializeAsync(builder => builder
+    protected override void ConfigureContainer(IContainerBuilder builder)
+        => builder
             .UseImage("redis:alpine")
             .ExposePort("6379")
-            .WaitForPort("6379/tcp", 30000)
-        ).GetAwaiter().GetResult();
+            .WaitForPort("6379/tcp", 30000);
+}
+
+public class RedisTests : IClassFixture<RedisFixture>
+{
+    private readonly RedisFixture _fixture;
+    public RedisTests(RedisFixture fixture) => _fixture = fixture;
+
+    [Fact]
+    public async Task Redis_IsReachable()
+    {
+        var endpoint = await _fixture.Container.ToHostExposedEndpointAsync("6379/tcp");
+        Assert.True(endpoint.Port > 0);
     }
 }
 ```
 
-> **Tip:** For new code, prefer the `Configure(...)` pattern shown in
-> [docs/testing/xunit.md](testing/xunit.md) instead of the sync-over-async
-> constructor — it avoids deadlock risk in some sync contexts.
+`XunitContainerFixtureBase` implements `IAsyncLifetime`; xUnit initializes and
+disposes the fixture without sync-over-async constructors. See
+[Test Migration Guide](migrate-v2-to-v3/test-migration.md) for broader fixture patterns.
 
 ### MSTest — `MsTestResourceHelpers`
 
@@ -281,11 +291,11 @@ await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Step 7: Update Compose Commands
@@ -348,7 +358,7 @@ To suppress all logging (equivalent to v2's `Logging.Disabled()`), pass
 ```csharp
 using Microsoft.Extensions.Logging.Abstractions;
 
-var silentKernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+await using var silentKernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -400,21 +410,21 @@ await container.CopyFromToPathAsync("/container/logs/", "/local/logs/");
 ### Static IPv4/IPv6
 
 ```csharp
-using var nwResults = new Builder()
+await using var nwResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("mynet")
         .WithSubnet("10.10.0.0/16"))
-    .Build();
+    .BuildAsync();
 
-using var cResults = new Builder()
+await using var cResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("mynet")
         .WithIPv4("10.10.0.100")
         .WithIPv6("2001:db8::100"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Full Async/Await

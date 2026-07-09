@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Getting Started
-nav_order: 3
+nav_order: 2
 ---
 
 # Getting Started
@@ -151,14 +151,14 @@ scope is Podman).
 The typed scopes target the same driver but expose only the operations that driver
 supports, checked at compile time:
 
-- `WithinDockerCli(id, kernel)` — Docker CLI; adds `UseCompose`, `UseModelRunner`, `UseModel`.
+- `WithinDockerCli(id, kernel)` — Docker CLI; typed access to `UseCompose`, `UseModelRunner`, `UseModel`.
 - `WithinDockerApi(id, kernel)` — Docker Engine API; the container/network/volume/image subset.
 - `WithinPodmanCli(id, kernel)` — Podman CLI; adds `UsePod`.
 
-Use `WithinDriver` when the id is dynamic or you only need the core operations. Use
-a typed scope when you want the driver's extras at the call site — `UseCompose` on
-Docker CLI, `UsePod` on Podman CLI. Both forms build the same resources; the README
-quick start uses `WithinDockerCli`.
+Use `WithinDriver` when the id is dynamic or you only need the core operations; generic
+`Builder.UseCompose` is also available when the selected driver is Docker CLI. Use a
+typed scope when you want driver-specific extras at the call site — `UsePod` on Podman
+CLI, or Model Runner helpers on Docker CLI. Both forms build the same resources.
 
 ## Linux Users
 
@@ -260,7 +260,10 @@ await using var results = await new Builder()
     .BuildAsync();
 
 // Both containers can communicate via the network
-var redis = results.GetContainer("my-redis");
+if (results.GetContainer("my-redis") is { } redis)
+{
+    Console.WriteLine($"Redis container: {redis.Name}");
+}
 var app = results.GetContainer("my-app");
 ```
 

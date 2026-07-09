@@ -14,6 +14,11 @@ namespace FluentDocker.Builders
         throw new FluentDocker.Common.FluentDockerException(
             $"Invalid compose project name '{_projectName}'. Expected [a-z0-9][a-z0-9_-]*.");
       }
+      if (_noStart && _wait)
+      {
+        throw new FluentDocker.Common.FluentDockerException(
+            "WithNoStart() and WithWait() cannot be used together; docker compose rejects --no-start --wait.");
+      }
     }
 
     private static bool IsValidProjectName(string name)

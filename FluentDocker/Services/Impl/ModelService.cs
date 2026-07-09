@@ -126,8 +126,8 @@ namespace FluentDocker.Services.Impl
     /// The first caller drives one shared load and concurrent callers await that same load.
     /// Cancelling a caller's token abandons only that caller's wait, not the shared load; the
     /// per-model gate remains held until the load actually completes. A load timeout or dispose
-    /// abandons the wait and resets the gate; the underlying runner load continues in the
-    /// background, so a retry may briefly overlap with the timed-out load.
+    /// cancels the service-owned load token and resets the gate so the driver can reap
+    /// cancellable work before a retry.
     /// </remarks>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -237,7 +237,7 @@ namespace FluentDocker.Services.Impl
       try
       {
         Volatile.Write(ref _loadAttempted, 1);
-        await _runner.LoadAsync(_model, _runOptions, CancellationToken.None).ConfigureAwait(false);
+        await _runner.LoadAsync(_model, _runOptions, cancellationToken).ConfigureAwait(false);
       }
       catch
       {

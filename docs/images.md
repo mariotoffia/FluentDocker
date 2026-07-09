@@ -29,9 +29,9 @@ using FluentDocker.Kernel;
 using FluentDocker.Builders;
 
 // Create kernel (multiple kernels per app are supported)
-var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 ```
 
 The kernel manages driver lifecycle. Many apps reuse one kernel across builder
@@ -42,11 +42,11 @@ calls, but using multiple kernels in the same app is supported.
 ### Basic Build
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img
         .FromFile("/path/to/Dockerfile"))
-    .Build();
+    .BuildAsync();
 
 var image = results.All.OfType<IImageService>().First();
 Console.WriteLine($"Image: {image.Name}");
@@ -63,11 +63,11 @@ RUN npm install
 CMD [""node"", ""app.js""]
 ";
 
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img
         .FromString(dockerfileContent))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Inline Dockerfile
@@ -75,7 +75,7 @@ var results = new Builder()
 ### Simple Application
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("mynode:latest", img => img
         .From("node:18-alpine")
@@ -86,7 +86,7 @@ var results = new Builder()
         .Run("npm install")
         .ExposePorts(3000)
         .Command("node", "app.js"))
-    .Build();
+    .BuildAsync();
 ```
 
 **Important**: The `UseImage(name, configure)` lambda receives a `DockerfileBuilder`, not an
@@ -161,7 +161,7 @@ await using var results = await new Builder()
 ### With Environment Variables
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapi:latest", img => img
         .From("node:18-alpine")
@@ -174,7 +174,7 @@ var results = new Builder()
         .Copy("server.js", "/app/server.js")
         .ExposePorts(8080)
         .Command("node", "server.js"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Multi-Stage Build
@@ -196,12 +196,12 @@ EXPOSE 80
 ```
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", df => df
         .FromFile("Dockerfile")
         .WithBuildContext("."))
-    .Build();
+    .BuildAsync();
 ```
 
 Note: Docker resolves `COPY --from=builder` against the earlier stage; the build context supplies `COPY . .` and the glob.
@@ -328,12 +328,12 @@ ENTRYPOINT ["dotnet", "MyApi.dll"]
 ```
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapi:latest", df => df
         .FromFile("Dockerfile")
         .WithBuildContext("."))
-    .Build();
+    .BuildAsync();
 ```
 
 ### .NET Worker Service
@@ -352,12 +352,12 @@ ENTRYPOINT ["dotnet", "MyWorker.dll"]
 ```
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myworker:latest", df => df
         .FromFile("Dockerfile")
         .WithBuildContext("."))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Python Application
@@ -375,12 +375,12 @@ CMD ["flask", "run", "--host=0.0.0.0"]
 ```
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myflask:latest", df => df
         .FromFile("Dockerfile")
         .WithBuildContext("."))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Go Application
@@ -403,12 +403,12 @@ CMD ["./main"]
 ```
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("mygo:latest", df => df
         .FromFile("Dockerfile")
         .WithBuildContext("."))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Build with Container
@@ -426,7 +426,7 @@ CMD ["npm", "start"]
 ```
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:test", df => df
         .FromFile("Dockerfile")
@@ -435,7 +435,7 @@ var results = new Builder()
         .UseImage("myapp:test")
         .ExposePort(3000, 3000)
         .WaitForPort("3000/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 // Access the running container from results
 var container = results.Containers.First();
@@ -457,28 +457,28 @@ COPY . .
 ```
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", df => df
         .FromFile("Dockerfile")
         .WithBuildContext(".")
         .ToImage()
         .BuildArguments("VERSION=1.0.0", "BUILD_DATE=2024-01-01"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Accessing Build Results
 
-The `Build()` and `BuildAsync()` methods return a `BuildResults` object:
+`BuildAsync()` returns a `BuildResults` object:
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img.From("alpine:latest"))
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .WithName("myapp"))
-    .Build();
+    .BuildAsync();
 
 // All services
 var allServices = results.All;
@@ -490,8 +490,7 @@ var containers = results.Containers;
 // By name (requires .WithName("myapp") on the container builder)
 var myContainer = results.GetContainer("myapp");
 
-// Dispose all services when done
-results.Dispose();
+// Disposed asynchronously by await using
 ```
 
 **Note**: `BuildResults` does not have an `Images` property. To access built images, use the
@@ -511,7 +510,7 @@ The available typed convenience properties on `BuildResults` are: `Containers`, 
 For async contexts (ASP.NET, UI applications), use `BuildAsync` to avoid deadlocks:
 
 ```csharp
-var results = await new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img
         .From("alpine:latest")
@@ -534,18 +533,18 @@ using FluentDocker.Kernel;
 using FluentDocker.Services.Extensions;
 using Xunit;
 
-public class CustomImageTest : IDisposable
+public class CustomImageTest : IAsyncLifetime
 {
-    private readonly FluentDockerKernel _kernel;
-    private readonly BuildResults _results;
+    private FluentDockerKernel _kernel = null!;
+    private BuildResults _results = null!;
 
-    public CustomImageTest()
+    public async ValueTask InitializeAsync()
     {
-        _kernel = FluentDockerKernel.Create()
+        _kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
-            .Build();
+            .BuildAsync();
 
-        _results = new Builder()
+        _results = await new Builder()
             .WithinDriver("docker", _kernel)
             .UseImage("test-app:latest", img => img
                 .From("node:18-alpine")
@@ -559,24 +558,24 @@ public class CustomImageTest : IDisposable
                 .UseImage("test-app:latest")
                 .ExposePort(3000, 3000)
                 .WaitForPort("3000/tcp", 30000))
-            .Build();
+            .BuildAsync();
     }
 
     [Fact]
     public async Task App_ReturnsHealthy()
     {
         var container = _results.Containers.First();
-        var endpoint = container.ToHostExposedEndpoint("3000/tcp");
+        var endpoint = await container.ToHostExposedEndpointAsync("3000/tcp");
         using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var response = await FluentDocker.Common.SharedHttpClient.Instance.GetStringAsync(
             $"http://localhost:{endpoint.Port}/health", requestCts.Token);
         Assert.Contains("healthy", response);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _results?.Dispose();
-        _kernel?.Dispose();
+        await _results.DisposeAsync();
+        await _kernel.DisposeAsync();
     }
 }
 ```

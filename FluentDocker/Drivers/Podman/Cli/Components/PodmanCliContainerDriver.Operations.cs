@@ -161,7 +161,15 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region Execution Operations
 
-    /// <inheritdoc />
+    /// <summary>Executes a command inside a container using <c>podman exec</c>.</summary>
+    /// <remarks>
+    /// Podman uses exit code <c>125</c> when the exec operation itself fails. This driver
+    /// treats <c>125</c> with empty stdout as infrastructure failure; a genuine in-container
+    /// command that exits <c>125</c> and writes no stdout is indistinguishable from that CLI
+    /// failure and is reported as <see cref="CommandResponse{T}.Success"/> = <c>false</c>.
+    /// Commands that produced stdout are treated as in-container results and preserve their
+    /// exit code in <see cref="ExecResult.ExitCode"/>.
+    /// </remarks>
     public async Task<CommandResponse<ExecResult>> ExecAsync(
         DriverContext context, string containerId, ExecConfig config,
         CancellationToken cancellationToken = default)

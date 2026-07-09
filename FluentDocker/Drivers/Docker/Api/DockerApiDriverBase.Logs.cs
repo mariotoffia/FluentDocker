@@ -4,14 +4,50 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Connection;
 
 namespace FluentDocker.Drivers.Docker.Api
 {
   public abstract partial class DockerApiDriverBase
   {
     /// <summary>Reads the tail of a Docker log stream, stripping stdcopy headers when present.</summary>
-    protected static async Task<string> ReadDockerLogTailAsync(
+    private const string MultiplexedStreamContentType = "application/vnd.docker.multiplexed-stream";
+    private const string RawStreamContentType = "application/vnd.docker.raw-stream";
+
+    protected async Task<string> ReadDockerLogTailAsync(
         Stream stream, CancellationToken cancellationToken)
+    {
+      var contentType = (stream as ResponseOwningStream)?.ContentType;
+      if (UseDockerLogContentType(contentType))
+      {
+        if (string.Equals(contentType, RawStreamContentType, StringComparison.OrdinalIgnoreCase))
+          return await ReadRawLogTailAsync(stream, cancellationToken).ConfigureAwait(false);
+        return await ReadMultiplexedLogTailAsync(
+            stream, sniffOnInvalidHeader: false, cancellationToken).ConfigureAwait(false);
+      }
+
+      return await ReadMultiplexedLogTailAsync(
+          stream, sniffOnInvalidHeader: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool UseDockerLogContentType(string contentType)
+    {
+      return (string.Equals(contentType, MultiplexedStreamContentType, StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(contentType, RawStreamContentType, StringComparison.OrdinalIgnoreCase)) &&
+          Version.TryParse(Connection.ApiVersion, out var version) &&
+          version.CompareTo(new Version(1, 42)) >= 0;
+    }
+
+    private static async Task<string> ReadRawLogTailAsync(
+        Stream stream, CancellationToken cancellationToken)
+    {
+      var tail = new TailBytes(CliOutputTruncation.DefaultTailChars);
+      await CopyTailAsync(stream, tail, cancellationToken).ConfigureAwait(false);
+      return tail.ToText();
+    }
+
+    private static async Task<string> ReadMultiplexedLogTailAsync(
+        Stream stream, bool sniffOnInvalidHeader, CancellationToken cancellationToken)
     {
       var tail = new TailBytes(CliOutputTruncation.DefaultTailChars);
       var header = new byte[8];
@@ -20,6 +56,12 @@ namespace FluentDocker.Drivers.Docker.Api
         return string.Empty;
       if (read < 8 || !IsValidStdCopyHeader(header))
       {
+        if (!sniffOnInvalidHeader)
+          throw new DriverException(
+              read < 8
+                  ? $"Docker stream truncated: partial {read}-byte frame header"
+                  : "Docker stream has an invalid multiplexed frame header",
+              Model.Drivers.ErrorCodes.Api.ServerError);
         tail.Append(header.AsSpan(0, read));
         await CopyTailAsync(stream, tail, cancellationToken).ConfigureAwait(false);
         return tail.ToText();

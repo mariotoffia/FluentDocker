@@ -65,29 +65,32 @@ namespace FluentDocker.Kernel
       ArgumentNullException.ThrowIfNull(context);
       ThrowIfDisposed();
 
-      DriverContext preparedContext;
-      await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      DriverContext preparedContext = null;
+      var reserved = false;
       try
       {
-        ThrowIfDisposed();
+        await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+          ThrowIfDisposed();
 
-        preparedContext = PrepareContext(driverId, context);
-        ThrowIfDriverIdUnavailable(driverId, "Driver");
-        _reservedDriverIds.Add(driverId);
-      }
-      finally
-      {
-        _registrationLock.Release();
-      }
+          preparedContext = PrepareContext(driverId, context);
+          ThrowIfDriverIdUnavailable(driverId, "Driver");
+          _reservedDriverIds.Add(driverId);
+          reserved = true;
+        }
+        finally
+        {
+          _registrationLock.Release();
+        }
 
-      try
-      {
         await driver.InitializeAsync(preparedContext, cancellationToken).ConfigureAwait(false);
 
         await _registrationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
           _reservedDriverIds.Remove(driverId);
+          reserved = false;
           ThrowIfDisposed();
 
           var registration = new DriverRegistration
@@ -111,7 +114,8 @@ namespace FluentDocker.Kernel
       }
       catch
       {
-        await RollbackReservationAsync(driverId).ConfigureAwait(false);
+        if (reserved)
+          await RollbackReservationAsync(driverId).ConfigureAwait(false);
         await DisposeDriverSafelyAsync(driver, _logger).ConfigureAwait(false);
         throw;
       }
@@ -209,29 +213,32 @@ namespace FluentDocker.Kernel
       ArgumentNullException.ThrowIfNull(context);
       ThrowIfDisposed();
 
-      DriverContext preparedContext;
-      await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      DriverContext preparedContext = null;
+      var reserved = false;
       try
       {
-        ThrowIfDisposed();
+        await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+          ThrowIfDisposed();
 
-        preparedContext = PrepareContext(driverId, context);
-        ThrowIfDriverIdUnavailable(driverId, "Driver pack");
-        _reservedDriverIds.Add(driverId);
-      }
-      finally
-      {
-        _registrationLock.Release();
-      }
+          preparedContext = PrepareContext(driverId, context);
+          ThrowIfDriverIdUnavailable(driverId, "Driver pack");
+          _reservedDriverIds.Add(driverId);
+          reserved = true;
+        }
+        finally
+        {
+          _registrationLock.Release();
+        }
 
-      try
-      {
         await driverPack.InitializeAsync(preparedContext, cancellationToken).ConfigureAwait(false);
 
         await _registrationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
           _reservedDriverIds.Remove(driverId);
+          reserved = false;
           ThrowIfDisposed();
 
           var registration = new DriverPackRegistration
@@ -255,7 +262,8 @@ namespace FluentDocker.Kernel
       }
       catch
       {
-        await RollbackReservationAsync(driverId).ConfigureAwait(false);
+        if (reserved)
+          await RollbackReservationAsync(driverId).ConfigureAwait(false);
         await DisposeDriverPackSafelyAsync(driverPack, _logger).ConfigureAwait(false);
         throw;
       }

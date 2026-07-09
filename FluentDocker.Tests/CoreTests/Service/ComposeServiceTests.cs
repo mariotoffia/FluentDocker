@@ -37,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.Equal("docker-compose.yml", service.ComposeFiles[0]);
       Assert.Equal(kernel, service.Kernel);
       Assert.Equal("docker", service.DriverId);
-      Assert.Equal(ServiceRunningState.Running, service.State);
+      Assert.Equal(ServiceRunningState.Stopped, service.State);
 
       kernel.Dispose();
     }
@@ -472,7 +472,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         await Assert.ThrowsAsync<OperationCanceledException>(() => service.RestartAsync(cts.Token));
 
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        Assert.Equal(ServiceRunningState.Stopped, service.State);
       }
       finally
       {

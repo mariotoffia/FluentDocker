@@ -233,10 +233,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             : $"pod rm {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
+        {
+          var error = ErrorOrDefault(result, "Pod remove failed");
           return CommandResponse<Unit>.Fail(
-              ErrorOrDefault(result, "Pod remove failed"),
-              ErrorCodes.Pod.RemoveFailed,
+              error,
+              IsPodNotFound(error) ? ErrorCodes.Pod.NotFound : ErrorCodes.Pod.RemoveFailed,
               CreateErrorContext(context, "RemovePod", result), result.ExitCode);
+        }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
@@ -249,6 +252,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Pod.RemoveFailed));
       }
     }
+
+    private static bool IsPodNotFound(string error) =>
+        error?.Contains("no such pod", StringComparison.OrdinalIgnoreCase) == true;
 
     #endregion
 

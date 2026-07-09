@@ -156,7 +156,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
         var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         transferred = true;
-        return new ResponseOwningStream(stream, response);
+        return CreateResponseStream(stream, response);
       }
       catch
       {
@@ -194,7 +194,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         await EnsureStreamSuccessAsync(response, ct).ConfigureAwait(false);
         var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         transferred = true;
-        return new ResponseOwningStream(stream, response);
+        return CreateResponseStream(stream, response);
       }
       catch
       {
@@ -391,6 +391,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         VerifyTls = config.VerifyTls || !string.IsNullOrEmpty(tlsVerify),
         ConnectionTimeout = config.ConnectionTimeout,
         RequestTimeout = config.RequestTimeout,
+        StreamIdleTimeout = config.StreamIdleTimeout,
         ApiVersion = config.ApiVersion,
         AllowTlsHostnameMismatch = config.AllowTlsHostnameMismatch
       };

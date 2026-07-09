@@ -80,14 +80,33 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var builder = new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseModel(_model);
       _configure?.Invoke(builder);
 
-      _service = await builder.BuildAsync(cancellationToken).ConfigureAwait(false);
-      await _service.StartAsync(cancellationToken).ConfigureAwait(false);
-      ResourceName = _service.Name;
+      var service = await builder.BuildAsync(cancellationToken).ConfigureAwait(false);
+      try
+      {
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+      }
+      catch
+      {
+        await service.DisposeAsync().ConfigureAwait(false);
+        throw;
+      }
+
+      if (TryCommitProvision(generation, () =>
+      {
+        _service = service;
+        ResourceName = service.Name;
+      }))
+      {
+        return;
+      }
+
+      await RemoveStaleModelAsync(service, generation).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -157,6 +176,29 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized || _service == null)
         throw new InvalidOperationException(
             "Model resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleModelAsync(IModelService service, int generation)
+    {
+      if (!ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        if (!service.KeepRunning &&
+            service.State != ServiceRunningState.Stopped &&
+            service.State != ServiceRunningState.Removed)
+        {
+          var stopTask = service.StopAsync(cts.Token);
+          await stopTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        }
+        await service.DisposeAsync().AsTask().WaitAsync(cts.Token).ConfigureAwait(false);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(_model.ToString(), Options.SessionId);
+      }
     }
   }
 }

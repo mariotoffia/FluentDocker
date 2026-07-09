@@ -28,7 +28,7 @@ using FluentDocker.Kernel;
 using FluentDocker.Builders;
 
 // Create once and reuse across builder calls
-var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -43,13 +43,13 @@ The kernel owns its driver instances, so dispose it when the app or fixture shut
 ### Start Services
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml"))
-    .Build();
+    .BuildAsync();
 
-// Services are started during Build() -- no separate Start() call.
+// Services are started during BuildAsync() -- no separate Start() call.
 var compose = results.ComposeServices.First();
 Console.WriteLine($"Project: {compose.ProjectName}");
 ```
@@ -89,24 +89,24 @@ defined in the compose file to report healthy before returning.
 ### Wait for Healthy Services
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait())
-    .Build();
+    .BuildAsync();
 ```
 
 ### Wait with Timeout
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait()
         .WithWaitTimeout(120))  // seconds
-    .Build();
+    .BuildAsync();
 ```
 
 For `--wait` to be effective, define healthchecks in your compose file:
@@ -146,12 +146,12 @@ services:
 ### Custom Project Name
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithProjectName("my-test-project"))
-    .Build();
+    .BuildAsync();
 
 // Containers named: my-test-project-web-1, my-test-project-api-1, etc.
 // Without WithProjectName, compose derives the name from the compose-file directory;
@@ -161,23 +161,23 @@ using var results = new Builder()
 ### Remove Orphans
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveOrphans())  // Remove containers not in compose file
-    .Build();
+    .BuildAsync();
 ```
 
 ### Force Recreate
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithForceRecreate())  // Recreate even if unchanged
-    .Build();
+    .BuildAsync();
 ```
 
 ## Multiple Compose Files
@@ -186,26 +186,26 @@ using var results = new Builder()
 
 ```csharp
 // Base + override pattern
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFiles(
             "docker-compose.yml",
             "docker-compose.override.yml"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Environment-Specific
 
 ```csharp
 // Development environment
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFiles(
             "docker-compose.yml",
             "docker-compose.dev.yml"))
-    .Build();
+    .BuildAsync();
 ```
 
 ```yaml
@@ -414,12 +414,12 @@ Console.WriteLine($"Management: http://localhost:{mgmtPort}");
 ### Build Images
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithBuild())  // Build images before starting
-    .Build();
+    .BuildAsync();
 ```
 
 > **Note**: For a no-cache rebuild, run `docker compose build --no-cache` separately
@@ -430,13 +430,13 @@ using var results = new Builder()
 ### Inline Environment
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithEnvironment("DB_PASSWORD", "secret")
         .WithEnvironment("API_KEY", "abc123"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Bulk Environment
@@ -448,23 +448,23 @@ var env = new Dictionary<string, string>
     ["API_KEY"] = "abc123"
 };
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithEnvironment(env))
-    .Build();
+    .BuildAsync();
 ```
 
 ### With .env File
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithEnvFile(".env"))
-    .Build();
+    .BuildAsync();
 ```
 
 ```yaml
@@ -501,13 +501,13 @@ Console.WriteLine($"Workers: {workers.Count}");  // 3
 ## Cleanup Options
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveVolumes()   // Remove volumes when disposed
         .WithRemoveImages())   // Remove images when disposed
-    .Build();
+    .BuildAsync();
 ```
 
 By default, compose services are torn down on dispose. Use `.WithRemoveVolumes()`
@@ -526,24 +526,24 @@ The compose builder also supports these options:
 ## Profiles
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithProfiles("debug", "monitoring"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Target Specific Services
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .ForServices("web", "api")  // Only start web and api
         .WithNoDeps())              // Skip their dependencies
-    .Build();
+    .BuildAsync();
 ```
 
 ## Integration Tests Example

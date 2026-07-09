@@ -2,21 +2,27 @@
 # cleanup-test-resources: remove stale FluentDocker test resources from
 # Docker/Podman. Managed resources (containers/networks/volumes labelled
 # fluentdocker.managed=true) are removed with session/age guards; legacy
-# integration-test containers (com.fluentdocker.test=integration) are swept
-# unconditionally, matching the historical behaviour of this script.
+# integration-test containers (com.fluentdocker.test=integration) use the same
+# running-container guard unless --force-running is passed.
 set -euo pipefail
 
 MANAGED_LABEL="fluentdocker.managed=true"
 LEGACY_LABEL="com.fluentdocker.test=integration"
 SESSION_LABEL="fluentdocker.session"
 CREATED_LABEL="fluentdocker.created-at"
-CURRENT_SESSION="${FLUENTDOCKER_SESSION_ID:-}"
+CURRENT_SESSION="${FLUENTDOCKER_TEST_SESSION:-${FLUENTDOCKER_SESSION_ID:-}}"
 MIN_AGE_SECONDS="${FLUENTDOCKER_CLEANUP_MIN_AGE_SECONDS:-3600}"
 DRY_RUN=0
+FORCE_RUNNING=0
 
-if [ "${1:-}" = "--dry-run" ]; then
-  DRY_RUN=1
-fi
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    --force-running) FORCE_RUNNING=1 ;;
+    *) echo "Unknown argument: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 echo "=== Cleaning Up Test Resources ==="
 
@@ -44,6 +50,12 @@ created_epoch() {
   date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$value" +%s 2>/dev/null && return 0
 }
 
+is_running_container() {
+  local runtime="$1" id="$2"
+  [ "$FORCE_RUNNING" -eq 0 ] || return 1
+  [ "$("$runtime" container inspect -f "{{ .State.Running }}" "$id" 2>/dev/null || true)" = "true" ]
+}
+
 should_remove() {
   local runtime="$1" type="$2" id="$3" session created epoch now
   session="$(label_value "$runtime" "$type" "$id" "$SESSION_LABEL")"
@@ -51,9 +63,12 @@ should_remove() {
     return 1
   fi
 
+  if [ "$type" = "container" ] && is_running_container "$runtime" "$id"; then
+    return 1
+  fi
+
   created="$(label_value "$runtime" "$type" "$id" "$CREATED_LABEL")"
-  epoch="$(created_epoch "$created")"
-  if [ -z "$epoch" ]; then
+  if ! epoch="$(created_epoch "$created")"; then
     return 1
   fi
 
@@ -96,6 +111,9 @@ cleanup_legacy_containers() {
   local runtime="$1" ids id count=0
   ids=$("$runtime" ps -aq --filter "label=$LEGACY_LABEL" 2>/dev/null || true)
   for id in $ids; do
+    if is_running_container "$runtime" "$id"; then
+      continue
+    fi
     if remove_resource "$runtime" container "$id"; then
       count=$((count + 1))
     fi

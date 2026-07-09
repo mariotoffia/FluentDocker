@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api;
 using FluentDocker.Model.Drivers;
@@ -11,11 +12,13 @@ namespace FluentDocker.Kernel
   internal sealed class DockerApiDriverBuilder(string driverId) : IDockerApiDriverBuilder
   {
     private readonly string _driverId = driverId;
+    private const string StreamIdleTimeoutMetadataKey = "DockerApi.StreamIdleTimeoutTicks";
     private string _host;
     private string _certificatePath;
     private bool _isDefault;
     private TimeSpan? _connectionTimeout;
     private TimeSpan? _requestTimeout;
+    private TimeSpan? _streamIdleTimeout;
     private string _apiVersion;
     private bool _verifyTls = true;
     private bool _allowTlsHostnameMismatch;
@@ -47,6 +50,14 @@ namespace FluentDocker.Kernel
     public IDockerApiDriverBuilder WithRequestTimeout(TimeSpan timeout)
     {
       _requestTimeout = timeout;
+      return this;
+    }
+
+    public IDockerApiDriverBuilder WithStreamIdleTimeout(TimeSpan timeout)
+    {
+      if (timeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Stream idle timeout must be positive.");
+      _streamIdleTimeout = timeout;
       return this;
     }
 
@@ -83,6 +94,12 @@ namespace FluentDocker.Kernel
       {
         context.Metadata ??= [];
         context.Metadata[DockerApiDriverMetadataKeys.AllowTlsHostnameMismatch] = "true";
+      }
+      if (_streamIdleTimeout.HasValue)
+      {
+        context.Metadata ??= [];
+        context.Metadata[StreamIdleTimeoutMetadataKey] =
+            _streamIdleTimeout.Value.Ticks.ToString(CultureInfo.InvariantCulture);
       }
 
       return new KernelBuilder.DriverConfiguration

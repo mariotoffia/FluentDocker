@@ -273,7 +273,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task WaitForLogMessageAsync_WhenTailMissesReadiness_DoesFinalFullLogScan()
+    public async Task WaitForLogMessageAsync_WhenTailMissesReadiness_DoesPeriodicFullLogScan()
     {
       var tails = new System.Collections.Generic.List<int?>();
       MockPack.ContainerDriver
@@ -299,17 +299,18 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var found = await service.WaitForLogMessageAsync(
           "ready",
-          timeout: 20,
-          pollIntervalMs: 1,
+          timeout: 2_000,
+          pollIntervalMs: 10,
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(found);
       Assert.Contains(tails, tail => tail == 100);
+      Assert.True(tails.FindAll(tail => tail == null).Count >= 2);
       streamDriver.Verify(d => d.StreamLogsAsync(
           It.IsAny<DriverContext>(),
           "container-123",
           It.Is<StreamLogsConfig>(c => !c.Follow && c.Tail == null),
-          It.IsAny<CancellationToken>()), Times.Once);
+          It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static async IAsyncEnumerable<string> StreamLogs(

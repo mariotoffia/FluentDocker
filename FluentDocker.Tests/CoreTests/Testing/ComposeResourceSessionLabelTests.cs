@@ -23,8 +23,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
     [Fact]
     public async Task InitializeAsync_WhenSessionLabelsEnabled_AddsOverlayComposeFileWithLabels()
     {
-      ComposeConfigConfig configConfig = null;
-      ComposeUpConfig config = null;
+      ComposeConfigConfig? configConfig = null;
+      ComposeUpConfig? config = null;
       MockPack.SetupComposeStop()
           .SetupComposeDown();
       MockPack.ComposeDriver
@@ -59,11 +59,13 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      var overlayFiles = config.ComposeFiles
+      Assert.NotNull(config);
+      Assert.NotNull(configConfig);
+      var overlayFiles = config!.ComposeFiles
           .Where(path => path.Contains("compose-labels-", StringComparison.Ordinal))
           .ToList();
       var overlay = Assert.Single(overlayFiles);
-      Assert.Equal("debug", configConfig.Environment["COMPOSE_PROFILES"]);
+      Assert.Equal("debug", configConfig!.Environment["COMPOSE_PROFILES"]);
       var json = await File.ReadAllTextAsync(overlay, TestContext.Current.CancellationToken);
       Assert.Contains("\"fluentdocker.session\": \"session-123\"", json);
       Assert.Contains("\"fluentdocker.managed\": \"true\"", json);

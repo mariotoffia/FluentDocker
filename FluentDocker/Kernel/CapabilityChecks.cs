@@ -2,7 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
-using FluentDocker.Drivers;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Kernel
@@ -12,275 +11,146 @@ namespace FluentDocker.Kernel
   /// </summary>
   public static class CapabilityChecks
   {
-    /// <summary>
-    /// Ensures the driver supports container operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when containers are not supported.</exception>
-    public static async Task EnsureContainerSupportAsync(
+    /// <summary>Ensures the driver supports container operations.</summary>
+    public static Task EnsureContainerSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Container, cancellationToken);
 
-      if (!capabilities.SupportsContainers)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Containers");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports network operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when networks are not supported.</exception>
-    public static async Task EnsureNetworkSupportAsync(
+    /// <summary>Ensures the driver supports network operations.</summary>
+    public static Task EnsureNetworkSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Network, cancellationToken);
 
-      if (!capabilities.SupportsNetworks)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Networks");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports volume operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when volumes are not supported.</exception>
-    public static async Task EnsureVolumeSupportAsync(
+    /// <summary>Ensures the driver supports volume operations.</summary>
+    public static Task EnsureVolumeSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Volume, cancellationToken);
 
-      if (!capabilities.SupportsVolumes)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Volumes");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports compose operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when compose is not supported.</exception>
-    public static async Task EnsureComposeSupportAsync(
+    /// <summary>Ensures the driver supports compose operations.</summary>
+    public static Task EnsureComposeSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Compose, cancellationToken);
 
-      if (!capabilities.SupportsCompose)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Compose");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports image operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when images are not supported.</exception>
-    public static async Task EnsureImageSupportAsync(
+    /// <summary>Ensures the driver supports image operations.</summary>
+    public static Task EnsureImageSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Image, cancellationToken);
 
-      if (!capabilities.SupportsImages)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Images");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports pod operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when pods are not supported.</exception>
-    public static async Task EnsurePodSupportAsync(
+    /// <summary>Ensures the driver supports pod operations.</summary>
+    public static Task EnsurePodSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Pod, cancellationToken);
 
-      if (!capabilities.SupportsPods)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Pods");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports system operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when system operations are not supported.</exception>
-    public static async Task EnsureSystemSupportAsync(
+    /// <summary>Ensures the driver supports system operations.</summary>
+    public static Task EnsureSystemSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.System, cancellationToken);
 
-      if (!capabilities.SupportsSystem)
-      {
-        throw new CapabilityNotSupportedException(driverId, "System");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports Kubernetes YAML operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when Kubernetes operations are not supported.</exception>
-    public static async Task EnsureKubernetesSupportAsync(
+    /// <summary>Ensures the driver supports Kubernetes YAML operations.</summary>
+    public static Task EnsureKubernetesSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Kubernetes, cancellationToken);
 
-      if (!capabilities.SupportsKubernetes)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Kubernetes");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports Swarm stack operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when stack operations are not supported.</exception>
-    public static async Task EnsureStackSupportAsync(
+    /// <summary>Ensures the driver supports Swarm stack operations.</summary>
+    public static Task EnsureStackSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Stack, cancellationToken);
 
-      if (!capabilities.SupportsStacks)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Stacks");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports Swarm service operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when service operations are not supported.</exception>
-    public static async Task EnsureServiceSupportAsync(
+    /// <summary>Ensures the driver supports Swarm service operations.</summary>
+    public static Task EnsureServiceSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Service, cancellationToken);
 
-      if (!capabilities.SupportsServices)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Services");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports machine management.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when machine operations are not supported.</exception>
-    public static async Task EnsureMachineSupportAsync(
+    /// <summary>Ensures the driver supports machine management.</summary>
+    public static Task EnsureMachineSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Machine, cancellationToken);
 
-      if (!capabilities.SupportsMachines)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Machines");
-      }
-    }
-
-    /// <summary>
-    /// Ensures the driver supports manifest operations.
-    /// </summary>
-    /// <param name="kernel">The kernel to check.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <exception cref="CapabilityNotSupportedException">Thrown when manifest operations are not supported.</exception>
-    public static async Task EnsureManifestSupportAsync(
+    /// <summary>Ensures the driver supports manifest operations.</summary>
+    public static Task EnsureManifestSupportAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Manifest, cancellationToken);
 
-      if (!capabilities.SupportsManifests)
-      {
-        throw new CapabilityNotSupportedException(driverId, "Manifests");
-      }
-    }
+    /// <summary>Ensures the driver supports model operations.</summary>
+    public static Task EnsureModelSupportAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        CancellationToken cancellationToken = default) =>
+        EnsureCapabilitySupportAsync(kernel, driverId, DriverCapability.Model, cancellationToken);
 
     /// <summary>
     /// Gets the capabilities for a driver.
     /// </summary>
-    /// <param name="kernel">The kernel.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The driver capabilities.</returns>
-    public static async Task<DriverCapabilities> GetCapabilitiesAsync(
+    public static Task<DriverCapabilities> GetCapabilitiesAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
-    {
-      return await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-    }
+        CancellationToken cancellationToken = default) =>
+        GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken);
 
     /// <summary>
     /// Checks if the driver is healthy.
     /// </summary>
-    /// <param name="kernel">The kernel.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the driver is healthy, false otherwise.</returns>
-    public static async Task<bool> IsHealthyAsync(
+    public static Task<bool> IsHealthyAsync(
         FluentDockerKernel kernel,
         string driverId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        IsHealthyCoreAsync(kernel, driverId, cancellationToken);
+
+    internal static async Task EnsureCapabilitySupportAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        DriverCapability capability,
+        CancellationToken cancellationToken)
     {
-      return await IsHealthyCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+      var descriptor = GetCapabilityDescriptor(capability);
+      var capabilities = await GetCapabilitiesCoreAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
+      if (!descriptor.IsSupported(capabilities))
+        throw new CapabilityNotSupportedException(driverId, descriptor.Name);
     }
+
+    private static (string Name, Func<DriverCapabilities, bool> IsSupported) GetCapabilityDescriptor(
+        DriverCapability capability) =>
+        capability switch
+        {
+          DriverCapability.Container => ("Containers", c => c.SupportsContainers),
+          DriverCapability.Network => ("Networks", c => c.SupportsNetworks),
+          DriverCapability.Volume => ("Volumes", c => c.SupportsVolumes),
+          DriverCapability.Compose => ("Compose", c => c.SupportsCompose),
+          DriverCapability.Image => ("Images", c => c.SupportsImages),
+          DriverCapability.Pod => ("Pods", c => c.SupportsPods),
+          DriverCapability.System => ("System", c => c.SupportsSystem),
+          DriverCapability.Kubernetes => ("Kubernetes", c => c.SupportsKubernetes),
+          DriverCapability.Stack => ("Stacks", c => c.SupportsStacks),
+          DriverCapability.Service => ("Services", c => c.SupportsServices),
+          DriverCapability.Machine => ("Machines", c => c.SupportsMachines),
+          DriverCapability.Manifest => ("Manifests", c => c.SupportsManifests),
+          DriverCapability.Model => ("Models", c => c.SupportsModels),
+          _ => throw new ArgumentOutOfRangeException(nameof(capability), capability, null)
+        };
 
     private static async Task<DriverCapabilities> GetCapabilitiesCoreAsync(
         FluentDockerKernel kernel,
@@ -320,62 +190,15 @@ namespace FluentDocker.Kernel
   /// </summary>
   public static class KernelCapabilityExtensions
   {
-
     /// <summary>
     /// Ensures the specified capability is supported before an operation.
     /// </summary>
-    /// <param name="kernel">The kernel.</param>
-    /// <param name="driverId">The driver ID.</param>
-    /// <param name="capability">The capability to check.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    public static async Task EnsureCapabilityAsync(
+    public static Task EnsureCapabilityAsync(
         this FluentDockerKernel kernel,
         string driverId,
         DriverCapability capability,
-        CancellationToken cancellationToken = default)
-    {
-      switch (capability)
-      {
-        case DriverCapability.Container:
-          await CapabilityChecks.EnsureContainerSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Network:
-          await CapabilityChecks.EnsureNetworkSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Volume:
-          await CapabilityChecks.EnsureVolumeSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Compose:
-          await CapabilityChecks.EnsureComposeSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Image:
-          await CapabilityChecks.EnsureImageSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Pod:
-          await CapabilityChecks.EnsurePodSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.System:
-          await CapabilityChecks.EnsureSystemSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Kubernetes:
-          await CapabilityChecks.EnsureKubernetesSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Stack:
-          await CapabilityChecks.EnsureStackSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Service:
-          await CapabilityChecks.EnsureServiceSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Machine:
-          await CapabilityChecks.EnsureMachineSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        case DriverCapability.Manifest:
-          await CapabilityChecks.EnsureManifestSupportAsync(kernel, driverId, cancellationToken).ConfigureAwait(false);
-          break;
-        default:
-          throw new ArgumentOutOfRangeException(nameof(capability), capability, null);
-      }
-    }
+        CancellationToken cancellationToken = default) =>
+        CapabilityChecks.EnsureCapabilitySupportAsync(kernel, driverId, capability, cancellationToken);
   }
 
   /// <summary>
@@ -406,6 +229,8 @@ namespace FluentDocker.Kernel
     /// <summary>Machine management operations (docker-machine, podman machine).</summary>
     Machine,
     /// <summary>Multi-architecture manifest operations.</summary>
-    Manifest
+    Manifest,
+    /// <summary>Docker Model Runner operations.</summary>
+    Model
   }
 }

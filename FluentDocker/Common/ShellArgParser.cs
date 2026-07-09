@@ -85,7 +85,7 @@ namespace FluentDocker.Common
           inDoubleQuote = true;
           sawQuote = true;
         }
-        else if (c == '\\' && i + 1 < command.Length)
+        else if (c == '\\' && i + 1 < command.Length && IsEscapableOutsideQuotes(command[i + 1]))
         {
           current.Add(command[i + 1]);
           i++; // skip escaped character
@@ -114,6 +114,11 @@ namespace FluentDocker.Common
       }
 
       return [.. args];
+    }
+
+    private static bool IsEscapableOutsideQuotes(char c)
+    {
+      return c == '\'' || c == '"' || c == '\\' || char.IsWhiteSpace(c);
     }
   }
 }

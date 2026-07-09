@@ -25,7 +25,12 @@ namespace FluentDocker.Model.Drivers
     /// <see cref="FluentDocker.Drivers.IDriverPack.InitializeAsync"/> is invoked,
     /// so packs can rely on it being the consumer-supplied factory at initialization time.
     /// </summary>
-    // ponytail: deliberate abstraction-only dependency (ILoggerFactory), not logging behavior in Model.
+    /// <remarks>
+    /// This is a deliberate exception to the dependency-free Model core rule: the model carries only
+    /// <c>Microsoft.Extensions.Logging.Abstractions</c> so driver packs can receive consumer logging
+    /// without a FluentDocker-specific logging port. No logging behavior lives in Model, and
+    /// <see cref="NullLoggerFactory.Instance"/> keeps contexts usable without dependency injection.
+    /// </remarks>
     public ILoggerFactory LoggerFactory { get; set; } = NullLoggerFactory.Instance;
 
     /// <summary>

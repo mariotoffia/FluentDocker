@@ -138,7 +138,11 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Creates an ImageBuilder with the specified image name.
     /// </summary>
-    public ImageBuilder(FluentDockerKernel kernel, string driverId, string imageName) : this(kernel, driverId) => SetImageName(imageName);
+    public ImageBuilder(FluentDockerKernel kernel, string driverId, string imageName) : this(kernel, driverId)
+    {
+      if (!string.IsNullOrEmpty(imageName))
+        SetImageName(imageName);
+    }
 
     #region IImageBuilder Implementation
 
@@ -266,21 +270,13 @@ namespace FluentDocker.Builders
 
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
+      EnsureDefaultTag();
 
-      // If reuse is enabled, check if image already exists
       if (_reuseIfExists)
       {
-        var tag = _tags.Count > 0 ? _tags[0] : "latest";
-        var existingImages = await driver.ListAsync(context, new ImageListFilter
-        {
-          Reference = $"{_imageName}:{tag}"
-        }, cancellationToken).ConfigureAwait(false);
-
-        if (existingImages.Success && existingImages.Data.Count > 0)
-        {
-          var existing = existingImages.Data[0];
-          return new ImageService(_kernel, _driverId, existing.Id, _imageName, tag);
-        }
+        var existing = await TryResolveReusableImageAsync(driver, context, cancellationToken).ConfigureAwait(false);
+        if (existing != null)
+          return existing;
       }
 
       try
@@ -290,10 +286,6 @@ namespace FluentDocker.Builders
             strictCopySources: true, cancellationToken).ConfigureAwait(false);
         if (!_dockerfileBuilder.HasFromInstruction)
           throw new FluentDockerException("Cannot build a Dockerfile with no FROM instruction.");
-
-        // Ensure at least one tag
-        if (_tags.Count == 0)
-          _tags.Add("latest");
 
         // Build the image
         var buildConfig = new ImageBuildConfig
@@ -339,6 +331,34 @@ namespace FluentDocker.Builders
         if (!_tags.Contains(tag))
           _tags.Add(tag);
       }
+    }
+
+    private void EnsureDefaultTag()
+    {
+      if (_tags.Count == 0)
+        _tags.Add("latest");
+    }
+
+    private async Task<IImageService> TryResolveReusableImageAsync(
+        IImageDriver driver, DriverContext context, CancellationToken cancellationToken)
+    {
+      string imageId = null;
+      foreach (var tag in _tags)
+      {
+        var existingImages = await driver.ListAsync(context, new ImageListFilter
+        {
+          Reference = $"{_imageName}:{tag}"
+        }, cancellationToken).ConfigureAwait(false);
+        var existing = existingImages.Success ? existingImages.Data?.FirstOrDefault() : null;
+        if (existing?.Id == null)
+          return null;
+        if (imageId == null)
+          imageId = existing.Id;
+        else if (!string.Equals(imageId, existing.Id, StringComparison.Ordinal))
+          return null;
+      }
+
+      return new ImageService(_kernel, _driverId, imageId, _imageName, _tags[0]);
     }
 
     #endregion

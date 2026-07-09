@@ -1,4 +1,7 @@
 #nullable enable
+using System.Text.Json.Serialization;
+using FluentDocker.Common;
+
 // ReSharper disable InconsistentNaming
 
 namespace FluentDocker.Model.Containers
@@ -10,7 +13,13 @@ namespace FluentDocker.Model.Containers
     public string? EndpointID { get; set; }
     public string? Gateway { get; set; }
     public string? IPAddress { get; set; }
+
+    /// <summary>
+    /// IPv4 prefix length. Stays an <see cref="int"/> for API compatibility; null or unparsable runtime drift reads as 0.
+    /// </summary>
+    [JsonConverter(typeof(LenientInt32Converter))]
     public int IPPrefixLen { get; set; }
+
     public string? IPv6Gateway { get; set; }
     public string? GlobalIPv6Address { get; set; }
     public int GlobalIPv6PrefixLen { get; set; }

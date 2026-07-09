@@ -18,11 +18,11 @@ namespace FluentDocker.Model.Builders.FileBuilder
       }
 
 
-      User = user.Rendered;
+      User = DockerfileInstructionGuard.Validate(user.Rendered, "USER", "user");
 
       if (null != group && !string.IsNullOrEmpty(group.Rendered))
       {
-        Group = group.Rendered;
+        Group = DockerfileInstructionGuard.Validate(group.Rendered, "USER", "group");
       }
     }
 

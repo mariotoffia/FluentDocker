@@ -82,7 +82,8 @@ namespace FluentDocker.Model.Drivers
     public string? ApiVersion { get; set; }
 
     /// <summary>
-    /// Creates default capabilities (all supported).
+    /// Creates conservative default capabilities: core container, image, network, volume,
+    /// compose, and system operations are supported; runtime-specific capabilities default to false.
     /// </summary>
     public static DriverCapabilities Default()
     {

@@ -109,12 +109,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var args = "machine rm";
         if (force)
           args += " -f";
+        else
+        {
+          var state = await InspectAsync(context, name, cancellationToken).ConfigureAwait(false);
+          if (!state.Success)
+            return CommandResponse<Unit>.Fail(
+                $"Machine remove state check failed: {state.Error}",
+                ErrorCodes.Machine.RemoveFailed, state.ErrorContext, state.ExitCode, state.Output);
+          if (IsActiveMachineState(state.Data?.State))
+            return CommandResponse<Unit>.Fail(
+                $"Podman machine '{MachineNameForMessage(name, state.Data)}' is {state.Data.State}; stop it first or call RemoveAsync with force: true.",
+                ErrorCodes.Machine.RemoveFailed);
+          if (string.IsNullOrWhiteSpace(state.Data?.State))
+            return CommandResponse<Unit>.Fail(
+                $"Podman machine '{MachineNameForMessage(name, state.Data)}' state could not be determined; stop it first or call RemoveAsync with force: true.",
+                ErrorCodes.Machine.RemoveFailed);
+          args += " -f";
+        }
         if (!string.IsNullOrEmpty(name))
           args += $" {QuotePositionalArgument(name, nameof(name))}";
 
-        var result = force
-            ? await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false)
-            : await ExecuteCommandAsync(context, args, "y\n", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Machine remove failed"), FailureCode(result.Error, ErrorCodes.Machine.RemoveFailed),
@@ -131,6 +146,15 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Machine.RemoveFailed));
       }
     }
+
+    private static bool IsActiveMachineState(string state) =>
+        string.Equals(state, "running", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(state, "starting", StringComparison.OrdinalIgnoreCase);
+
+    private static string MachineNameForMessage(string requestedName, MachineInspectResult result) =>
+        string.IsNullOrWhiteSpace(requestedName)
+            ? string.IsNullOrWhiteSpace(result?.Name) ? "default" : result.Name
+            : requestedName;
 
     #endregion
 

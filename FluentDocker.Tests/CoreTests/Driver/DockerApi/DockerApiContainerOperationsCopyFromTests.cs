@@ -151,7 +151,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
-      Assert.Contains("contained 2 files", result.Error);
+      Assert.Contains("contained multiple files", result.Error);
     }
 
     private static PaxTarEntry CreateEntry(string name) =>

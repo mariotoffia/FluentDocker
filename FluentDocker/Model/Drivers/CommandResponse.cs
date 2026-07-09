@@ -83,7 +83,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Creates a successful command response with output and the process exit code.
     /// </summary>
-    public static CommandResponse<T> Ok(T data, string output, int exitCode)
+    public static CommandResponse<T> Ok(T data, string? output, int exitCode)
     {
       if (exitCode < 0)
         throw new ArgumentOutOfRangeException(nameof(exitCode), exitCode, "Successful command responses must not use a negative exit code.");

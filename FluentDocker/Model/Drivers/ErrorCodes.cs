@@ -225,6 +225,7 @@ namespace FluentDocker.Model.Drivers
     {
       public const string BadRequest = "API_400";
       public const string Unauthorized = "API_401";
+      public const string Forbidden = "API_403";
       public const string NotFound = "API_404";
       public const string Conflict = "API_409";
       public const string ServerError = "API_500";

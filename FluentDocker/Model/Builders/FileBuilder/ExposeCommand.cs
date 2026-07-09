@@ -31,10 +31,14 @@ namespace FluentDocker.Model.Builders.FileBuilder
 
     private static string ValidatePort(string port)
     {
+      DockerfileInstructionGuard.Validate(port ?? string.Empty, "EXPOSE", "port");
       var slash = port?.IndexOf('/') ?? -1;
       var portPart = slash >= 0 ? port![..slash] : port;
       if (!IsValidPortRange(portPart))
         throw new FluentDockerException($"Invalid EXPOSE port '{port}'. Port must be 1-65535.");
+      if (slash >= 0 && !IsKnownProtocol(port![(slash + 1)..]))
+        throw new FluentDockerException(
+            $"Invalid EXPOSE port '{port}'. Protocol must be tcp, udp, or sctp.");
       return port!;
     }
 
@@ -50,5 +54,10 @@ namespace FluentDocker.Model.Builders.FileBuilder
     private static bool IsValidPort(string value, out int port) =>
         int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out port) &&
         port is >= 1 and <= 65535;
+
+    private static bool IsKnownProtocol(string protocol) =>
+        string.Equals(protocol, "tcp", System.StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(protocol, "udp", System.StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(protocol, "sctp", System.StringComparison.OrdinalIgnoreCase);
   }
 }

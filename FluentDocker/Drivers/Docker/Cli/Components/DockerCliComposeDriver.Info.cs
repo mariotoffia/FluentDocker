@@ -34,7 +34,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               ErrorOrDefault(result, "Compose ps failed"), FailureCode(result.Error, ErrorCodes.Compose.ListFailed));
 
         return TryParseServiceList(result.Output, Logger, out var services, out var parseError)
-            ? CommandResponse<IList<ComposeServiceInfo>>.Ok(services)
+            ? CommandResponse<IList<ComposeServiceInfo>>.Ok(config.Quiet
+                ? services.Select(s => new ComposeServiceInfo { ContainerId = s.ContainerId }).ToList()
+                : services)
             : CommandResponse<IList<ComposeServiceInfo>>.Fail(parseError, ErrorCodes.Compose.ListFailed);
       }
       catch (OperationCanceledException)

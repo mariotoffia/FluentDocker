@@ -32,6 +32,22 @@ namespace FluentDocker.Common
     }
 
     /// <summary>
+    /// Initializes a new instance with the specified driver, interface, and root cause.
+    /// </summary>
+    /// <param name="driverId">The identifier of the driver.</param>
+    /// <param name="interfaceName">The name of the unsupported interface.</param>
+    /// <param name="innerException">The exception that caused resolution to fail.</param>
+    public InterfaceNotSupportedException(string driverId, string interfaceName, Exception innerException)
+        : base(
+            $"Driver '{driverId}' does not implement interface '{interfaceName}'",
+            ErrorCodes.Driver.InterfaceNotSupported,
+            innerException)
+    {
+      DriverId = driverId;
+      InterfaceName = interfaceName;
+    }
+
+    /// <summary>
     /// Initializes a new instance with the specified driver, interface, and error context.
     /// </summary>
     /// <param name="driverId">The identifier of the driver.</param>

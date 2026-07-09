@@ -20,18 +20,25 @@ namespace FluentDocker.Services.Impl
         ProjectName = _projectName
       };
 
-      var response = await driver.UnpauseAsync(context, config, cancellationToken).ConfigureAwait(false);
-      if (!response.Success)
+      try
+      {
+        var response = await driver.UnpauseAsync(context, config, cancellationToken).ConfigureAwait(false);
+        if (!response.Success)
+        {
+          throw new DriverException(
+              $"Failed to unpause compose project '{_projectName}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
+        }
+
+        UpdateState(ServiceRunningState.Running);
+        await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      }
+      catch
       {
         UpdateState(ServiceRunningState.Unknown);
-        throw new DriverException(
-            $"Failed to unpause compose project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
+        throw;
       }
-
-      UpdateState(ServiceRunningState.Running);
-      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
     }
   }
 }

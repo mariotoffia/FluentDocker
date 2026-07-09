@@ -393,7 +393,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         var states = new List<ServiceRunningState>();
         service.StateChange += (_, args) => states.Add(args.State);
 
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        Assert.Equal(ServiceRunningState.Stopped, service.State);
 
         await service.PauseAsync(TestContext.Current.CancellationToken);
         Assert.Equal(ServiceRunningState.Paused, service.State);

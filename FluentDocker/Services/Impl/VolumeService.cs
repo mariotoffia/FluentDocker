@@ -121,29 +121,36 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      UpdateState(ServiceRunningState.Removing);
-      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
-
-      var response = await driver.RemoveAsync(context, _volumeName, force, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        if (IsVolumeAlreadyGone(response))
+        UpdateState(ServiceRunningState.Removing);
+        await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
+
+        var response = await driver.RemoveAsync(context, _volumeName, force, cancellationToken).ConfigureAwait(false);
+
+        if (!response.Success)
         {
-          UpdateState(ServiceRunningState.Removed);
-          await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
-          return;
+          if (IsVolumeAlreadyGone(response))
+          {
+            UpdateState(ServiceRunningState.Removed);
+            await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+            return;
+          }
+
+          throw new DriverException(
+              $"Failed to remove volume '{_volumeName}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
         }
 
-        UpdateState(ServiceRunningState.Unknown);
-        throw new DriverException(
-            $"Failed to remove volume '{_volumeName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
+        UpdateState(ServiceRunningState.Removed);
+        await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
       }
-
-      UpdateState(ServiceRunningState.Removed);
-      await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     // Docker CLI reports a missing volume as "<name> not found" with a generic RemoveFailed code

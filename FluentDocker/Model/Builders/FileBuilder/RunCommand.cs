@@ -5,7 +5,8 @@ namespace FluentDocker.Model.Builders.FileBuilder
 {
   public sealed class RunCommand(TemplateString run) : ICommand
   {
-    public TemplateString Run { get; } = run;
+    public string Run { get; } = DockerfileInstructionGuard.Require(
+        run, "RUN", "command", "RUN requires a command.");
 
     public override string ToString()
     {

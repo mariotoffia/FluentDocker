@@ -307,7 +307,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task GetContainersAsync_WhenListedContainerNotRunning_SeedsUnknownState()
+    public async Task GetContainersAsync_WhenListedContainerPaused_SeedsPausedState()
     {
       MockPack.SetupContainerList(new Container
       {
@@ -322,7 +322,7 @@ namespace FluentDocker.Tests.CoreTests.Service
           all: true, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.Single(containers);
-      Assert.Equal(ServiceRunningState.Unknown, containers[0].State);
+      Assert.Equal(ServiceRunningState.Paused, containers[0].State);
     }
 
     [Fact]

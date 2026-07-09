@@ -19,7 +19,10 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       try
       {
-        using var ping = await _httpClient.GetAsync("/_ping", ct).ConfigureAwait(false);
+        using var negotiationCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        negotiationCts.CancelAfter(_config.ConnectionTimeout);
+        using var ping = await _httpClient.GetAsync("/_ping", negotiationCts.Token)
+            .ConfigureAwait(false);
         if (!ping.IsSuccessStatusCode)
         {
           PinDefaultApiVersion();
@@ -27,7 +30,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         }
 
         var daemonMax = HeaderValue(ping, "API-Version");
-        var versionInfo = await TryGetVersionInfoAsync(ct).ConfigureAwait(false);
+        var versionInfo = await TryGetVersionInfoAsync(negotiationCts.Token).ConfigureAwait(false);
         daemonMax ??= versionInfo.ApiVersion;
         daemonMax ??= MaxSupportedApiVersion;
 

@@ -253,8 +253,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         await using (stream)
-        await using (var fileStream = File.Create(outputPath))
-          await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
+        {
+          await WriteStreamAtomicallyAsync(stream, outputPath, cancellationToken).ConfigureAwait(false);
+        }
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -263,12 +264,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (Exception ex)
       {
-        try
-        {
-          File.Delete(outputPath);
-        }
-        catch { /* best-effort cleanup of the partially written archive */ }
-
         return CommandResponse<Unit>.Fail($"Failed to write tar archive: {ex.Message}",
             ErrorCodes.Image.SaveFailed, CreateErrorContext("GET /images/get", 0));
       }

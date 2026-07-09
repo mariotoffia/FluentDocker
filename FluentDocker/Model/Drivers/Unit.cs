@@ -5,7 +5,7 @@ namespace FluentDocker.Model.Drivers
   /// Represents a void return type for CommandResponse when no data is returned.
   /// Similar to F# unit type or void in C#.
   /// </summary>
-  public readonly struct Unit
+  public readonly struct Unit : System.IEquatable<Unit>
   {
     /// <summary>
     /// Default instance of Unit.
@@ -17,9 +17,10 @@ namespace FluentDocker.Model.Drivers
     /// </summary>
     public override string ToString() => "()";
 
-    /// <summary>
-    /// Determines whether this Unit equals another object.
-    /// </summary>
+    /// <summary>Determines whether this Unit equals another Unit.</summary>
+    public bool Equals(Unit other) => true;
+
+    /// <summary>Determines whether this Unit equals another object.</summary>
     public override bool Equals(object? obj) => obj is Unit;
 
     /// <summary>
@@ -27,7 +28,10 @@ namespace FluentDocker.Model.Drivers
     /// </summary>
     public override int GetHashCode() => 0;
 
+    /// <summary>Returns true because all Unit values are equivalent.</summary>
     public static bool operator ==(Unit left, Unit right) => true;
+
+    /// <summary>Returns false because all Unit values are equivalent.</summary>
     public static bool operator !=(Unit left, Unit right) => false;
   }
 }

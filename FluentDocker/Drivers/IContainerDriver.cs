@@ -33,9 +33,12 @@ namespace FluentDocker.Drivers
     /// <param name="config">Container configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>
-    /// Container run result with ID. For Docker CLI foreground runs (<c>Detach=false</c>),
-    /// stdout and stderr are delimited with a newline when both are present. Very large
-    /// foreground output is returned as a bounded tail prefixed by
+    /// Container run result with ID. For Docker/Podman CLI foreground runs
+    /// (<c>Detach=false</c>), <c>Success</c> means the container was created; a non-zero
+    /// container exit is returned as <see cref="ContainerRunResult.ExitCode"/> data, so
+    /// callers must inspect it instead of gating on <c>Success</c> alone. Foreground stdout
+    /// and stderr are delimited with a newline when both are present. Very large foreground
+    /// output is returned as a bounded tail prefixed by
     /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/>.
     /// </returns>
     Task<Model.Drivers.CommandResponse<ContainerRunResult>> RunAsync(
@@ -183,7 +186,7 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ContainerRunResult
   {
-    /// <summary>Container ID (when Detach = true) or null (when Detach = false).</summary>
+    /// <summary>Container ID when the driver can determine it; Docker/Podman CLI foreground runs populate it from a cidfile.</summary>
     public string Id { get; set; }
 
     /// <summary>
@@ -352,7 +355,9 @@ namespace FluentDocker.Drivers
   {
     /// <summary>
     /// Command to run for health check. Docker CLI exec-form commands assume a Linux shell;
-    /// they are not translated for Windows containers.
+    /// they are not translated for Windows containers. Docker/Podman CLI exec-form
+    /// <c>CMD</c> values are serialized into the string-only health command flag, so
+    /// shell-less images cannot run them without providing a shell-compatible command.
     /// </summary>
     public string[] Test { get; set; }
 

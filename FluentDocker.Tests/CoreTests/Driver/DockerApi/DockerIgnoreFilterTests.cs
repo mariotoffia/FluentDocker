@@ -78,7 +78,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var f = DockerIgnoreFilter.FromLines(["node_modules/"]);
 
-      Assert.False(f.IsIgnored("node_modules"));
+      Assert.True(f.IsIgnored("node_modules"));
       Assert.True(f.IsIgnored("node_modules/lib/index.js"));
       Assert.False(f.IsIgnored("src/index.js"));
     }
@@ -88,7 +88,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var f = DockerIgnoreFilter.FromLines(["cache/"]);
 
-      Assert.False(f.IsIgnored("cache"));
+      Assert.True(f.IsIgnored("cache"));
       Assert.True(f.IsIgnored("cache/file.txt"));
     }
 

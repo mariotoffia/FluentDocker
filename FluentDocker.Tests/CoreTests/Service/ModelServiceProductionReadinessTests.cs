@@ -174,7 +174,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StartAsync_WinnerTokenCancels_SharedLoadRunsUnderNoneAndOtherWaitersComplete()
+    public async Task StartAsync_WinnerTokenCancels_SharedLoadUsesServiceTokenAndOtherWaitersComplete()
     {
       await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
@@ -199,16 +199,58 @@ namespace FluentDocker.Tests.CoreTests.Service
       var loser = service.StartAsync(TestContext.Current.CancellationToken);
 
       // Cancelling the winner's token abandons only that caller's wait and must NOT poison the
-      // shared load: it runs under CancellationToken.None, so the other caller completes once released.
+      // shared load: it runs under a service-owned token, so the other caller completes once released.
       winnerCts.Cancel();
       await Assert.ThrowsAnyAsync<OperationCanceledException>(() => winner);
       Assert.False(loser.IsCompleted);
+      Assert.True(observed.HasValue);
+      Assert.True(observed.Value.CanBeCanceled);
+      Assert.NotEqual(winnerCts.Token, observed.Value);
+      Assert.False(observed.Value.IsCancellationRequested);
 
       releaseLoad.SetResult(true);
       await loser;
       Assert.Equal(ServiceRunningState.Running, service.State);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_CancelsInFlightSharedLoadToken()
+    {
+      await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var loadCanceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var observed = new CancellationToken?();
+      var runner = new Mock<IModelRunner>();
+      runner.Setup(r => r.LoadAsync(
+              It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
+          .Returns(async (ModelReference _, ModelRunOptions __, CancellationToken tok) =>
+          {
+            observed = tok;
+            loadStarted.SetResult();
+            try
+            {
+              await Task.Delay(Timeout.InfiniteTimeSpan, tok).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (tok.IsCancellationRequested)
+            {
+              loadCanceled.SetResult();
+              throw;
+            }
+          });
+      runner.Setup(r => r.DisposeAsync()).Returns(ValueTask.CompletedTask);
+      var service = new ModelService(kernel, "docker", Model, runner.Object, null!, keepRunning: true);
+
+      var start = service.StartAsync(TestContext.Current.CancellationToken);
+      await loadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+      await service.DisposeAsync();
+
+      await loadCanceled.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+      await start.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
       Assert.True(observed.HasValue);
-      Assert.False(observed.Value.CanBeCanceled);
+      Assert.True(observed.Value.CanBeCanceled);
+      Assert.True(observed.Value.IsCancellationRequested);
     }
 
     [Fact]

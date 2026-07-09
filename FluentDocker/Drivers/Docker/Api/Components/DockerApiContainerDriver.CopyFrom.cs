@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 using SharpCompress.Readers;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
@@ -22,7 +23,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var targetIsDirectory = Directory.Exists(hostPath) || EndsWithDirectorySeparator(hostPath);
         if (targetIsDirectory)
         {
-          await ExtractArchiveToDirectoryAsync(stream, hostPath, cancellationToken)
+          await ExtractArchiveToDirectoryAsync(stream, hostPath, Logger, cancellationToken)
               .ConfigureAwait(false);
           return CommandResponse<Unit>.Ok(Unit.Default);
         }
@@ -34,14 +35,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var extractDir = Path.Combine(parent ?? ".", $".fluentdocker-copy-{Guid.NewGuid():N}");
         try
         {
-          await ExtractArchiveToDirectoryAsync(stream, extractDir, cancellationToken)
+          await ExtractArchiveToDirectoryAsync(stream, extractDir, Logger, cancellationToken)
               .ConfigureAwait(false);
           var files = Directory.EnumerateFiles(extractDir, "*", SearchOption.AllDirectories)
               .Take(2).ToList();
           if (files.Count == 0)
             throw new InvalidOperationException("Docker archive contained no file");
           if (files.Count > 1)
-            throw new InvalidOperationException("Docker archive contained 2 files; copy to a directory path instead");
+            throw new InvalidOperationException("Docker archive contained multiple files; copy to a directory path instead");
           var file = files[0];
           await using var source = new FileStream(
               file, FileMode.Open, FileAccess.Read, FileShare.Read,
@@ -73,7 +74,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     private static async Task ExtractArchiveToDirectoryAsync(
-        Stream stream, string directory, CancellationToken cancellationToken)
+        Stream stream, string directory, ILogger logger, CancellationToken cancellationToken)
     {
       var destination = Path.GetFullPath(directory).TrimEnd(
           Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -100,6 +101,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         using var reader = ReaderFactory.OpenReader(readFs);
         while (reader.MoveToNextEntry())
         {
+          if (!string.IsNullOrEmpty(reader.Entry.LinkTarget))
+          {
+            logger.LogWarning(
+                "Skipping Docker archive link entry '{Entry}' with target '{Target}' during CopyFrom extraction",
+                reader.Entry.Key, reader.Entry.LinkTarget);
+            continue;
+          }
           if (reader.Entry.IsDirectory)
             continue;
           var target = Path.GetFullPath(Path.Combine(rootWithSeparator, reader.Entry.Key));

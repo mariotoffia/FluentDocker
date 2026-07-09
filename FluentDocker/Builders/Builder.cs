@@ -31,7 +31,7 @@ namespace FluentDocker.Builders
         "UseModelRunner()/UseModel() cannot be chained after UseContainer/UseNetwork/UseVolume/UseImage/UseCompose/UsePod operations; the model builders return directly and are not part of the deferred build pipeline. Call UseModelRunner()/UseModel() on a fresh Builder.";
     internal IEnumerable<object> ResourceBuilders =>
         _operations.Where(o => o.ResourceBuilder != null).Select(o => o.ResourceBuilder);
-    private bool _buildSucceeded;
+    private volatile bool _buildSucceeded;
     private int _buildInProgress;
 
     /// <summary>
@@ -339,6 +339,7 @@ namespace FluentDocker.Builders
       // skip the per-operation ResetForRetry). Both checks are read-only.
       if (_operations.Count == 0)
         throw new InvalidOperationException("no resources configured");
+      ValidateContiguousScopes();
       ValidateOperationReferences();
 
       if (Interlocked.CompareExchange(ref _buildInProgress, 1, 0) != 0)

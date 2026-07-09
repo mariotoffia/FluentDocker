@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,8 @@ namespace FluentDocker.Drivers.Docker.Api
   public class DockerApiDriverPack : IDriverPack, IAsyncDisposable
   {
     private readonly Dictionary<Type, object> _drivers = [];
+    private readonly SemaphoreSlim _initializeLock = new(1, 1);
+    private const string StreamIdleTimeoutMetadataKey = "DockerApi.StreamIdleTimeoutTicks";
     private DriverContext _context;
     // CA1859: Must stay as interface — tests inject MockDockerApiConnection via reflection.
 #pragma warning disable CA1859
@@ -55,58 +58,67 @@ namespace FluentDocker.Drivers.Docker.Api
         DriverContext context, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      ThrowIfDisposed();
-      ArgumentNullException.ThrowIfNull(context);
-      _context = context;
-      _logger = context.LoggerFactory.CreateLogger<DockerApiDriverPack>();
-
-      var connectionConfig = new DockerApiConnectionConfig
+      await _initializeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      try
       {
-        Host = context.Host,
-        CertificatePath = context.CertificatePath,
-        VerifyTls = context.VerifyTls != false,
-        ConnectionTimeout = context.ConnectionTimeout ?? TimeSpan.FromSeconds(30),
-        RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
-        ApiVersion = context.ApiVersion,
-        AllowTlsHostnameMismatch = context.Metadata?.TryGetValue(
-            DockerApiDriverMetadataKeys.AllowTlsHostnameMismatch, out var allowMismatch) == true &&
-            bool.TryParse(allowMismatch, out var parsedAllowMismatch) &&
-            parsedAllowMismatch,
-      };
-      if (_connection != null)
-        await _connection.DisposeAsync().ConfigureAwait(false);
-      _connection = new DockerApiConnection(connectionConfig, context.LoggerFactory);
-      cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(context);
+        if (_initialized)
+          throw new InvalidOperationException("DockerApiDriverPack is already initialized.");
+        _context = context;
+        _logger = context.LoggerFactory.CreateLogger<DockerApiDriverPack>();
 
-      _containerDriver = new DockerApiContainerDriver(_connection);
-      _imageDriver = new DockerApiImageDriver(_connection);
-      _networkDriver = new DockerApiNetworkDriver(_connection);
-      _volumeDriver = new DockerApiVolumeDriver(_connection);
-      _systemDriver = new DockerApiSystemDriver(_connection);
-      _authDriver = new DockerApiAuthDriver(_connection);
-      _streamDriver = new DockerApiStreamDriver(_connection);
-      _serviceDriver = new DockerApiServiceDriver(_connection);
+        var connectionConfig = new DockerApiConnectionConfig
+        {
+          Host = context.Host,
+          CertificatePath = context.CertificatePath,
+          VerifyTls = context.VerifyTls != false,
+          ConnectionTimeout = context.ConnectionTimeout ?? TimeSpan.FromSeconds(30),
+          RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
+          StreamIdleTimeout = ParseStreamIdleTimeout(context),
+          ApiVersion = context.ApiVersion,
+          AllowTlsHostnameMismatch = context.Metadata?.TryGetValue(
+              DockerApiDriverMetadataKeys.AllowTlsHostnameMismatch, out var allowMismatch) == true &&
+              bool.TryParse(allowMismatch, out var parsedAllowMismatch) &&
+              parsedAllowMismatch,
+        };
+        _connection = new DockerApiConnection(connectionConfig, context.LoggerFactory);
+        cancellationToken.ThrowIfCancellationRequested();
 
-      _containerDriver.Initialize(context);
-      _imageDriver.Initialize(context);
-      _networkDriver.Initialize(context);
-      _volumeDriver.Initialize(context);
-      _systemDriver.Initialize(context);
-      _authDriver.Initialize(context);
-      _streamDriver.Initialize(context);
-      _serviceDriver.Initialize(context);
+        _containerDriver = new DockerApiContainerDriver(_connection);
+        _imageDriver = new DockerApiImageDriver(_connection);
+        _networkDriver = new DockerApiNetworkDriver(_connection);
+        _volumeDriver = new DockerApiVolumeDriver(_connection);
+        _systemDriver = new DockerApiSystemDriver(_connection);
+        _authDriver = new DockerApiAuthDriver(_connection);
+        _streamDriver = new DockerApiStreamDriver(_connection);
+        _serviceDriver = new DockerApiServiceDriver(_connection);
 
-      _drivers[typeof(IContainerDriver)] = _containerDriver;
-      _drivers[typeof(IImageDriver)] = _imageDriver;
-      _drivers[typeof(INetworkDriver)] = _networkDriver;
-      _drivers[typeof(IVolumeDriver)] = _volumeDriver;
-      _drivers[typeof(ISystemDriver)] = _systemDriver;
-      _drivers[typeof(IAuthDriver)] = _authDriver;
-      _drivers[typeof(IStreamDriver)] = _streamDriver;
-      _drivers[typeof(IServiceDriver)] = _serviceDriver;
+        _containerDriver.Initialize(context);
+        _imageDriver.Initialize(context);
+        _networkDriver.Initialize(context);
+        _volumeDriver.Initialize(context);
+        _systemDriver.Initialize(context);
+        _authDriver.Initialize(context);
+        _streamDriver.Initialize(context);
+        _serviceDriver.Initialize(context);
 
-      _initialized = true;
-      await Task.CompletedTask;
+        _drivers[typeof(IContainerDriver)] = _containerDriver;
+        _drivers[typeof(IImageDriver)] = _imageDriver;
+        _drivers[typeof(INetworkDriver)] = _networkDriver;
+        _drivers[typeof(IVolumeDriver)] = _volumeDriver;
+        _drivers[typeof(ISystemDriver)] = _systemDriver;
+        _drivers[typeof(IAuthDriver)] = _authDriver;
+        _drivers[typeof(IStreamDriver)] = _streamDriver;
+        _drivers[typeof(IServiceDriver)] = _serviceDriver;
+
+        _initialized = true;
+        await Task.CompletedTask;
+      }
+      finally
+      {
+        _initializeLock.Release();
+      }
     }
 
     /// <inheritdoc />
@@ -160,7 +172,7 @@ namespace FluentDocker.Drivers.Docker.Api
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(typeof(T), out var driver))
         return (T)driver;
-      throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(typeof(T)));
     }
 
     /// <inheritdoc />
@@ -169,7 +181,7 @@ namespace FluentDocker.Drivers.Docker.Api
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(interfaceType, out var driver))
         return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <inheritdoc />
@@ -287,6 +299,15 @@ namespace FluentDocker.Drivers.Docker.Api
     private void ThrowIfDisposed()
     {
       ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+    }
+
+    private static TimeSpan? ParseStreamIdleTimeout(DriverContext context)
+    {
+      if (context.Metadata?.TryGetValue(StreamIdleTimeoutMetadataKey, out var ticksText) == true &&
+          long.TryParse(ticksText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ticks) &&
+          ticks > 0)
+        return TimeSpan.FromTicks(ticks);
+      return null;
     }
   }
 }

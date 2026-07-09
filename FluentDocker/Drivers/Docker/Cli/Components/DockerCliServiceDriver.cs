@@ -325,9 +325,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         if (config?.Follow == true)
         {
-          throw new NotSupportedException(
+          return CommandResponse<string>.Fail(
               "GetLogsAsync does not support follow=true because 'docker service logs -f' " +
-              "streams indefinitely. Use a streaming logs API instead.");
+              "streams indefinitely. Use a streaming logs API instead.",
+              ErrorCodes.Service.LogsFailed);
         }
 
         var args = "service logs";
@@ -337,9 +338,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" --tail {config.Tail.Value}";
         args += $" {QuotePositionalArgument(serviceId, nameof(serviceId))}";
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
-            ? CommandResponse<string>.Ok(result.Output)
+            ? CommandResponse<string>.Ok(MergeOutputAndError(result.Output, result.Error))
             : CommandResponse<string>.Fail(ErrorOrDefault(result, "Service logs failed"), FailureCode(result.Error, ErrorCodes.Service.LogsFailed));
       }
       catch (OperationCanceledException)

@@ -80,6 +80,10 @@ namespace FluentDocker.Services
     /// <summary>
     /// Gets images with optional filters.
     /// </summary>
+    /// <remarks>
+    /// When <paramref name="filter"/> is supplied, its <c>All</c> value is used and the
+    /// <paramref name="all"/> convenience parameter is ignored.
+    /// </remarks>
     Task<IList<IImageService>> GetImagesAsync(
         bool all = true,
         ImageListFilter filter = null,

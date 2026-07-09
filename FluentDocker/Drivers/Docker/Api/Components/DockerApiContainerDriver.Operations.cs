@@ -205,6 +205,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (string.IsNullOrEmpty(execId))
         return CommandResponse<ExecResult>.Fail(
             "Exec create returned empty ID", ErrorCodes.Container.ExecFailed);
+      var escapedExecId = Uri.EscapeDataString(execId);
 
       // Phase 2: Start exec and capture output
       var startRequest = new ExecStartRequest { Detach = config.Detach, Tty = config.Tty };
@@ -214,7 +215,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var startContent = JsonContent.Create(
             startRequest, DockerApiJsonContext.Default.ExecStartRequest);
         using var stream = await Connection.PostStreamAsync(
-            $"/exec/{execId}/start", startContent, cancellationToken).ConfigureAwait(false);
+            $"/exec/{escapedExecId}/start", startContent, cancellationToken).ConfigureAwait(false);
 
         if (config.Tty)
         {
@@ -234,10 +235,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (Exception ex)
       {
+        var statusCode = HttpStatusCodeOrZero(ex);
         return CommandResponse<ExecResult>.Fail(
             $"Failed to start exec '{execId}': {ex.Message}",
             ErrorCodes.Container.ExecFailed,
-            CreateErrorContext($"POST /exec/{execId}/start", 0));
+            CreateErrorContext($"POST /exec/{escapedExecId}/start", statusCode),
+            statusCode);
       }
 
       // Phase 3: Inspect exec for exit code
@@ -246,7 +249,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (!inspectResult.Success)
         return CommandResponse<ExecResult>.Fail(inspectResult.ErrorMessage,
             ErrorCodes.Container.ExecFailed,
-            CreateErrorContext($"GET /exec/{execId}/json",
+            CreateErrorContext($"GET /exec/{escapedExecId}/json",
                 inspectResult.StatusCode, inspectResult.ResponseBody),
             inspectResult.StatusCode);
 
@@ -258,7 +261,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<ExecResult>.Fail(
             "Exec exit code is not available yet",
             ErrorCodes.Container.ExecFailed,
-            CreateErrorContext($"GET /exec/{execId}/json", 0,
+            CreateErrorContext($"GET /exec/{escapedExecId}/json", 0,
                 $"stdout:{Environment.NewLine}{stdout ?? string.Empty}{Environment.NewLine}" +
                 $"stderr:{Environment.NewLine}{stderr ?? string.Empty}"));
 

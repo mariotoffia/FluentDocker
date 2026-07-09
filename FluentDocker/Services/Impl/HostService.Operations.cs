@@ -21,6 +21,8 @@ namespace FluentDocker.Services.Impl
         ImageListFilter filter = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -58,6 +60,8 @@ namespace FluentDocker.Services.Impl
         IProgress<ImagePullProgress> progress = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -99,6 +103,8 @@ namespace FluentDocker.Services.Impl
         IProgress<ImageBuildProgress> progress = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -128,6 +134,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<IList<INetworkService>> GetNetworksAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -159,6 +167,8 @@ namespace FluentDocker.Services.Impl
         NetworkCreateConfig config = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -188,6 +198,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<IList<IVolumeService>> GetVolumesAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -221,6 +233,8 @@ namespace FluentDocker.Services.Impl
         IDictionary<string, string> options = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var volumeDriver = _kernel.SysCtl<IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -257,6 +271,8 @@ namespace FluentDocker.Services.Impl
         SystemPruneConfig config = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 

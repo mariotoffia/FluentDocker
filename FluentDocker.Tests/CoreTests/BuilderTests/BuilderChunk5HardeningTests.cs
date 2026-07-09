@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -126,7 +127,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
-    public async Task WaitForHttpUrl_WhenContinuationReturnsZero_ContinuesImmediately()
+    public async Task WaitForHttpUrl_WhenContinuationReturnsZero_WaitsPollInterval()
     {
       MockPack
           .SetupContainerCreate("container-123")
@@ -151,6 +152,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         }
       });
 
+      var elapsed = Stopwatch.StartNew();
       await using var results = await new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c
@@ -161,10 +163,12 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                   timeoutMs: 2000,
                   continuation: (_, iteration) => iteration < 2 ? 0 : -1))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+      elapsed.Stop();
 
       await server.ConfigureAwait(false);
       Assert.Single(results.Containers);
       Assert.Equal(3, requests);
+      Assert.True(elapsed.ElapsedMilliseconds >= 80, $"Expected poll delay, elapsed {elapsed.ElapsedMilliseconds}ms.");
     }
 
     private static int GetAvailableLoopbackPort()

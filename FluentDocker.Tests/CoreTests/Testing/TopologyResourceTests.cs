@@ -180,6 +180,37 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task GetContainer_NormalizesDaemonLeadingSlash()
+    {
+      MockPack
+          .SetupContainerCreate("redis-id")
+          .SetupContainerStart()
+          .SetupContainerStop()
+          .SetupContainerRemove();
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(),
+              "redis-id",
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "redis-id",
+            Name = "/redis",
+            State = new ContainerState { Running = true, Status = "running" }
+          }));
+      var resource = new TopologyResource(
+          Kernel,
+          builder => builder.UseContainer(c => c.UseImage("redis:alpine").WithName("redis")));
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.Same(resource.Containers[0], resource.GetContainer("redis"));
+      Assert.Same(resource.Containers[0], resource.GetContainer("/redis"));
+
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(

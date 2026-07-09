@@ -11,6 +11,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private const int BlockSize = 512;
     private const int FileFallbackMode = 420;      // 0644
     private const int ExecutableFallbackMode = 493; // 0755
+    private const int SymlinkFallbackMode = 511;    // 0777
 
     /// <inheritdoc />
     public static async Task WriteFileAsync(
@@ -32,6 +33,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var name = entryName[^1] == '/' ? entryName : entryName + "/";
       await WriteHeaderWithLongNameAsync(tar, name, 0, modified, (byte)'5', mode,
           cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public static async Task WriteSymlinkAsync(
+        Stream tar, string entryName, string linkTarget, DateTimeOffset modified,
+        CancellationToken cancellationToken)
+    {
+      if (string.IsNullOrEmpty(linkTarget))
+        throw new ArgumentException("Tar symlink target is required.", nameof(linkTarget));
+      if (Encoding.UTF8.GetByteCount(linkTarget) > 100)
+        throw new InvalidOperationException($"Tar symlink target is too long: {linkTarget}");
+      await WriteHeaderWithLongNameAsync(tar, entryName, 0, modified, (byte)'2',
+          SymlinkFallbackMode, cancellationToken, linkTarget.Replace('\\', '/'))
+          .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -103,7 +118,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     private static async Task WriteHeaderAsync(
         Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, string linkTarget = null)
     {
       var header = new byte[BlockSize];
       WriteName(header, entryName.Replace('\\', '/'));
@@ -115,6 +130,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       for (var i = 148; i < 156; i++)
         header[i] = 32;
       header[156] = type;
+      if (!string.IsNullOrEmpty(linkTarget))
+        WriteAscii(header, 157, 100, linkTarget);
       WriteAscii(header, 257, 6, "ustar");
       WriteAscii(header, 263, 2, "00");
 
@@ -131,7 +148,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     private static async Task WriteHeaderWithLongNameAsync(
         Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, string linkTarget = null)
     {
       var name = entryName.Replace('\\', '/');
       if (!CanWriteName(name))
@@ -144,7 +161,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         name = TruncateUtf8(name, 100);
       }
 
-      await WriteHeaderAsync(tar, name, size, modified, type, mode, cancellationToken)
+      await WriteHeaderAsync(tar, name, size, modified, type, mode, cancellationToken, linkTarget)
           .ConfigureAwait(false);
     }
 

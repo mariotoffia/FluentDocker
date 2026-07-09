@@ -22,9 +22,5 @@ namespace FluentDocker.Model.Builders.FileBuilder
     TemplateString? chownUserAndGroup = null, TemplateString? fromAlias = null) : CopyCommand(from, to, chownUserAndGroup, fromAlias)
   {
     public Uri FromURL { get; } = url;
-    public override string ToString()
-    {
-      return base.ToString();
-    }
   }
 }

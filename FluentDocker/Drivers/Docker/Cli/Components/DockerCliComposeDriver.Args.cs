@@ -38,8 +38,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var args = "ps --format json";
       if (config.All)
         args += " -a";
-      if (config.Quiet)
-        args += " -q";
       if (!string.IsNullOrEmpty(config.Status))
         args += $" --filter {QuoteIfNeeded($"status={config.Status}")}";
       return args;
@@ -258,8 +256,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>
     /// Parses <c>docker compose ps --format json</c> output.
-    /// Handles both JSON array format (Docker Compose v2.21+) and
-    /// newline-delimited JSON (older versions).
+    /// Handles both JSON array format (older versions) and
+    /// newline-delimited JSON (Docker Compose v2.21+).
     /// </summary>
     public static IList<ComposeServiceInfo> ParseServiceList(string json, ILogger logger = null)
     {

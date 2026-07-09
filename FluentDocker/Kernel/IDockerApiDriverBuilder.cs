@@ -39,6 +39,12 @@ namespace FluentDocker.Kernel
     IDockerApiDriverBuilder WithRequestTimeout(TimeSpan timeout);
 
     /// <summary>
+    /// Sets an opt-in read-idle timeout for streamed Docker API response bodies.
+    /// </summary>
+    /// <param name="timeout">Maximum idle time between received bytes. Disabled by default.</param>
+    IDockerApiDriverBuilder WithStreamIdleTimeout(TimeSpan timeout);
+
+    /// <summary>
     /// Sets a specific Docker Engine API version instead of auto-negotiating.
     /// </summary>
     /// <param name="version">API version (e.g., "1.41"). Null for auto-negotiation.</param>

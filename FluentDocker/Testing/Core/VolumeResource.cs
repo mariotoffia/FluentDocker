@@ -61,9 +61,11 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var config = new VolumeCreateConfig();
       _configure(config);
 
+      var callerName = !string.IsNullOrEmpty(config.Name);
       if (string.IsNullOrEmpty(config.Name))
         config.Name = GenerateUniqueName("vol");
 
@@ -73,8 +75,6 @@ namespace FluentDocker.Testing.Core
           config.Labels[label.Key] = label.Value;
       }
 
-      ResourceName = config.Name;
-
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
       var result = await driver.CreateAsync(
           new DriverContext(DriverId), config, cancellationToken).ConfigureAwait(false);
@@ -82,6 +82,12 @@ namespace FluentDocker.Testing.Core
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to create volume '{config.Name}': {result.Error}");
+
+      var volumeName = config.Name;
+      if (TryCommitProvision(generation, () => ResourceName = volumeName))
+        return;
+
+      await RemoveStaleVolumeAsync(driver, volumeName, generation, callerName).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -131,6 +137,30 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized)
         throw new InvalidOperationException(
             "Volume resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleVolumeAsync(
+        IVolumeDriver driver,
+        string volumeName,
+        int generation,
+        bool callerName)
+    {
+      if (callerName && !ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = driver.RemoveAsync(
+            new DriverContext(DriverId), volumeName, true, cts.Token);
+        var result = await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && result.ErrorCode != ErrorCodes.Volume.NotFound)
+          OrphanCleanup.MarkAbandonedLateProvision(volumeName, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(volumeName, Options.SessionId);
+      }
     }
   }
 }

@@ -329,21 +329,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task StreamLogsAsync_IncompleteHeader_ThrowsDriverException()
+    public async Task StreamLogsAsync_ShortRawPayloadWithFailedTtyDetect_YieldsLine()
     {
       var bytes = Encoding.UTF8.GetBytes("hello");
       var (driver, mock) = CreateDriver();
       mock.SetupStreamBytes("/containers/mux5/logs", bytes);
 
-      var error = await Assert.ThrowsAsync<DriverException>(async () =>
+      var lines = new List<string>();
+      await foreach (var line in driver.StreamLogsAsync(Ctx, "mux5",
+          new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
       {
-        await foreach (var _ in driver.StreamLogsAsync(Ctx, "mux5",
-            new StreamLogsConfig { Follow = false }, cancellationToken: TestContext.Current.CancellationToken))
-        {
-        }
-      });
+        lines.Add(line);
+      }
 
-      Assert.Contains("truncated", error.Message);
+      Assert.Equal(["hello"], lines);
     }
 
     [Fact]

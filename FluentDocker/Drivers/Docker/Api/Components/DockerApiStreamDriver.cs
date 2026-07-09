@@ -221,12 +221,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         try
         {
           var json = JsonHelper.ParseElement(line);
+          var timestamp = DateTimeOffset.UtcNow.UtcDateTime;
+          if (json.TryGetProperty("time", out var time) &&
+              time.ValueKind == JsonValueKind.Number && time.TryGetInt64(out var unixSeconds))
+            timestamp = DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
           evt = new ContainerEvent
           {
             Type = json.GetStringOrDefault("Type"),
             Action = json.GetStringOrDefault("Action"),
-            Timestamp = DateTimeOffset.FromUnixTimeSeconds(
-                  json.GetInt64OrDefault("time")).UtcDateTime,
+            Timestamp = timestamp,
             TimeNano = json.GetInt64OrDefault("timeNano"),
             Scope = json.GetStringOrDefault("scope"),
             RawJson = line

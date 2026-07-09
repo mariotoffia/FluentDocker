@@ -133,8 +133,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       var clientFile = isWindows ? $"{clientName}.exe" : clientName;
 
       var list = new List<DockerBinary>();
-      foreach (var path in paths)
+      foreach (var rawPath in paths)
       {
+        var path = StripSurroundingQuotes(rawPath);
         try
         {
           if (!Directory.Exists(path))
@@ -174,6 +175,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       }
 
       return list;
+    }
+
+    private static string StripSurroundingQuotes(string path)
+    {
+      return path is { Length: >= 2 } && path[0] == '"' && path[^1] == '"'
+          ? path[1..^1]
+          : path;
     }
 
     private static bool IsExecutable(string file)

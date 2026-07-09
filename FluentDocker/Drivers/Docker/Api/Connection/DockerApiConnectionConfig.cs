@@ -34,6 +34,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
+    /// Optional read-idle timeout for streamed response bodies. Null means disabled.
+    /// </summary>
+    public TimeSpan? StreamIdleTimeout { get; set; }
+
+    /// <summary>
     /// Docker Engine API version to use. Null means auto-negotiate via /_ping.
     /// </summary>
     public string ApiVersion { get; set; }

@@ -16,6 +16,7 @@ using FluentDocker.Model.Networks;
 using FluentDocker.Model.Volumes;
 using FluentDocker.Tests.Mocks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -133,6 +134,71 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.Contains("references pod 'app-pod' which is declared after it", ex.Message);
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
           It.IsAny<DriverContext>(), It.IsAny<ContainerCreateConfig>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BuildAsync_InterleavedDriverScopes_ThrowsContiguousScopeError()
+    {
+      var (kernel, dockerPack, podmanPack) = await CreateTwoScopeKernelAsync(TestContext.Current.CancellationToken);
+      await using (kernel)
+      {
+        dockerPack
+            .SetupContainerCreate("docker-container")
+            .SetupContainerStart()
+            .SetupContainerInspect("docker-container", running: true)
+            .SetupContainerRemove();
+        podmanPack
+            .SetupContainerCreate("podman-container")
+            .SetupContainerStart()
+            .SetupContainerInspect("podman-container", running: true)
+            .SetupContainerRemove();
+
+        var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new Builder()
+            .WithinDriver("docker", kernel)
+            .UseContainer(c => c.UseImage("alpine").WithName("docker-a"))
+            .WithinDriver("podman", kernel)
+            .UseContainer(c => c.UseImage("alpine").WithName("podman-b"))
+            .WithinDriver("docker", kernel)
+            .UseContainer(c => c.UseImage("alpine").WithName("docker-c"))
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Contains("operations for driver scope 'docker' are not contiguous", ex.Message);
+        dockerPack.ContainerDriver.Verify(d => d.CreateAsync(
+            It.IsAny<DriverContext>(), It.IsAny<ContainerCreateConfig>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        podmanPack.ContainerDriver.Verify(d => d.CreateAsync(
+            It.IsAny<DriverContext>(), It.IsAny<ContainerCreateConfig>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+      }
+    }
+
+    [Fact]
+    public async Task BuildAsync_ContiguousDriverScopes_BuildsEachScope()
+    {
+      var (kernel, dockerPack, podmanPack) = await CreateTwoScopeKernelAsync(TestContext.Current.CancellationToken);
+      await using (kernel)
+      {
+        dockerPack
+            .SetupContainerCreate("docker-container")
+            .SetupContainerStart()
+            .SetupContainerInspect("docker-container", running: true)
+            .SetupContainerRemove();
+        podmanPack
+            .SetupContainerCreate("podman-container")
+            .SetupContainerStart()
+            .SetupContainerInspect("podman-container", running: true)
+            .SetupContainerRemove();
+
+        await using var results = await new Builder()
+            .WithinDriver("docker", kernel)
+            .UseContainer(c => c.UseImage("alpine").WithName("docker-a"))
+            .UseContainer(c => c.UseImage("alpine").WithName("docker-c"))
+            .WithinDriver("podman", kernel)
+            .UseContainer(c => c.UseImage("alpine").WithName("podman-b"))
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, results.All.Count);
+      }
     }
 
     [Fact]
@@ -275,6 +341,19 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException or OperationCanceledException)
       {
       }
+    }
+
+    private static async Task<(FluentDockerKernel Kernel, MockDriverPack DockerPack, MockDriverPack PodmanPack)> CreateTwoScopeKernelAsync(
+        CancellationToken cancellationToken)
+    {
+      var dockerPack = new MockDriverPack();
+      var podmanPack = new MockDriverPack();
+      await dockerPack.InitializeAsync(new DriverContext("docker"), cancellationToken);
+      await podmanPack.InitializeAsync(new DriverContext("podman"), cancellationToken);
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync("docker", dockerPack, new DriverContext("docker"), cancellationToken: cancellationToken);
+      await kernel.RegisterDriverPackAsync("podman", podmanPack, new DriverContext("podman"), cancellationToken: cancellationToken);
+      return (kernel, dockerPack, podmanPack);
     }
 
     private sealed class CapturingLoggerFactory : ILoggerFactory

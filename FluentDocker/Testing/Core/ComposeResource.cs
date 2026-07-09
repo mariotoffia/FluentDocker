@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -85,14 +84,21 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var builder = new ComposeBuilder(Kernel, DriverId);
       _configure(builder);
+      var callerProjectName = !string.IsNullOrWhiteSpace(builder._projectName);
+      var attachToExisting = builder._attachToExisting;
+      var ownsGeneratedProject = !callerProjectName && !attachToExisting;
+      if (!callerProjectName && !attachToExisting)
+        builder._projectName = GenerateUniqueName("compose");
+      string sessionLabelOverlayPath = null;
       if (Options.EnableSessionLabels)
       {
-        _sessionLabelOverlayPath = await CreateSessionLabelOverlayAsync(builder, cancellationToken)
+        sessionLabelOverlayPath = await CreateSessionLabelOverlayAsync(builder, cancellationToken)
             .ConfigureAwait(false);
-        if (!string.IsNullOrEmpty(_sessionLabelOverlayPath))
-          builder.WithComposeFile(_sessionLabelOverlayPath);
+        if (!string.IsNullOrEmpty(sessionLabelOverlayPath))
+          builder.WithComposeFile(sessionLabelOverlayPath);
       }
 
       IServiceAsync result;
@@ -103,18 +109,30 @@ namespace FluentDocker.Testing.Core
       }
       catch
       {
-        DeleteSessionLabelOverlay();
+        DeleteSessionLabelOverlay(sessionLabelOverlayPath);
         throw;
       }
 
       if (result is IComposeService compose)
       {
-        Service = compose;
-        ResourceName = compose.ProjectName ?? compose.Name;
+        if (TryCommitProvision(generation, () =>
+        {
+          Service = compose;
+          ResourceName = compose.ProjectName ?? compose.Name;
+          _sessionLabelOverlayPath = sessionLabelOverlayPath;
+        }))
+        {
+          return;
+        }
+
+        await RemoveStaleComposeAsync(
+            compose, sessionLabelOverlayPath, generation, ownsGeneratedProject,
+            attachToExisting || builder.BorrowedProject)
+            .ConfigureAwait(false);
       }
       else
       {
-        DeleteSessionLabelOverlay();
+        DeleteSessionLabelOverlay(sessionLabelOverlayPath);
         throw new InvalidOperationException("Builder did not produce a compose service");
       }
     }
@@ -194,12 +212,12 @@ namespace FluentDocker.Testing.Core
         ComposeBuilder builder,
         CancellationToken cancellationToken)
     {
-      if (ReadField<bool>(builder, "_attachToExisting"))
+      if (builder._attachToExisting)
         return null;
 
       try
       {
-        await LoadComposeEnvFilesAsync(builder, cancellationToken).ConfigureAwait(false);
+        await builder.LoadEnvFilesAsync(cancellationToken).ConfigureAwait(false);
         var environment = ComposeEnvironmentWithProfiles(builder);
 
         var driver = Kernel.SysCtl<IComposeDriver>(DriverId);
@@ -207,8 +225,8 @@ namespace FluentDocker.Testing.Core
             new DriverContext(DriverId),
             new ComposeConfigConfig
             {
-              ComposeFiles = [.. ReadField<List<string>>(builder, "_composeFiles") ?? []],
-              ProjectName = ReadField<string>(builder, "_projectName"),
+              ComposeFiles = [.. builder._composeFiles],
+              ProjectName = builder._projectName,
               Environment = environment,
               Format = "json"
             },
@@ -265,19 +283,18 @@ namespace FluentDocker.Testing.Core
     private static Dictionary<string, string> ComposeEnvironmentWithProfiles(ComposeBuilder builder)
     {
       var environment = new Dictionary<string, string>(
-          ReadField<Dictionary<string, string>>(builder, "_environment") ?? []);
-      var profiles = ReadField<List<string>>(builder, "_profiles");
-      if (profiles is not { Count: > 0 })
+          builder._environment);
+      if (builder._profiles.Count == 0)
         return environment;
 
       if (environment.TryGetValue("COMPOSE_PROFILES", out var existing) &&
           !string.IsNullOrWhiteSpace(existing))
       {
-        environment["COMPOSE_PROFILES"] = existing + "," + string.Join(",", profiles);
+        environment["COMPOSE_PROFILES"] = existing + "," + string.Join(",", builder._profiles);
       }
       else
       {
-        environment["COMPOSE_PROFILES"] = string.Join(",", profiles);
+        environment["COMPOSE_PROFILES"] = string.Join(",", builder._profiles);
       }
 
       return environment;
@@ -323,30 +340,15 @@ namespace FluentDocker.Testing.Core
              external.ValueKind == JsonValueKind.True;
     }
 
-    private static T ReadField<T>(ComposeBuilder builder, string name)
-    {
-      // ponytail: reflection into ComposeBuilder privates — a rename silently disables session-label propagation (compose leak returns). Upgrade path: expose internal accessors on ComposeBuilder (as AttachToExisting already is) once builders can be edited together.
-      var field = typeof(ComposeBuilder).GetField(
-          name,
-          BindingFlags.Instance | BindingFlags.NonPublic);
-      return field?.GetValue(builder) is T value ? value : default;
-    }
-
-    private static async Task LoadComposeEnvFilesAsync(
-        ComposeBuilder builder,
-        CancellationToken cancellationToken)
-    {
-      var method = typeof(ComposeBuilder).GetMethod(
-          "LoadEnvFilesAsync",
-          BindingFlags.Instance | BindingFlags.NonPublic);
-      if (method?.Invoke(builder, [cancellationToken]) is Task task)
-        await task.ConfigureAwait(false);
-    }
-
     private void DeleteSessionLabelOverlay()
     {
       var path = _sessionLabelOverlayPath;
       _sessionLabelOverlayPath = null;
+      DeleteSessionLabelOverlay(path);
+    }
+
+    private static void DeleteSessionLabelOverlay(string path)
+    {
       if (string.IsNullOrEmpty(path))
         return;
 
@@ -360,6 +362,36 @@ namespace FluentDocker.Testing.Core
       }
       catch (UnauthorizedAccessException)
       {
+      }
+    }
+
+    private async Task RemoveStaleComposeAsync(
+        IComposeService compose,
+        string sessionLabelOverlayPath,
+        int generation,
+        bool ownsGeneratedProject,
+        bool borrowedProject)
+    {
+      if (borrowedProject ||
+          (!ownsGeneratedProject && !ShouldCleanupRejectedProvision(generation)))
+      {
+        DeleteSessionLabelOverlay(sessionLabelOverlayPath);
+        return;
+      }
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = compose.RemoveAsync(force: true, cts.Token);
+        await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(compose.ProjectName ?? compose.Name, Options.SessionId);
+      }
+      finally
+      {
+        DeleteSessionLabelOverlay(sessionLabelOverlayPath);
       }
     }
   }

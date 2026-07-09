@@ -329,12 +329,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void BuildListSubArgs_AllAndQuiet_IncludesFlags()
+    public void BuildListSubArgs_AllAndQuiet_DoesNotIncludeQuietFlag()
     {
       var config = new ComposeListConfig { All = true, Quiet = true };
       var result = DockerCliComposeDriver.BuildListSubArgs(config);
       Assert.Contains(" -a", result);
-      Assert.Contains(" -q", result);
+      Assert.DoesNotContain(" -q", result);
     }
 
     [Fact]
@@ -348,7 +348,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       };
       var result = DockerCliComposeDriver.BuildListSubArgs(config);
       Assert.Contains(" -a", result);
-      Assert.Contains(" -q", result);
+      Assert.DoesNotContain(" -q", result);
       Assert.Contains("--filter status=exited", result);
     }
 

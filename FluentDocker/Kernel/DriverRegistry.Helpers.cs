@@ -29,9 +29,7 @@ namespace FluentDocker.Kernel
     {
       if (!string.IsNullOrEmpty(context.DriverId)
           && !string.Equals(context.DriverId, driverId, StringComparison.Ordinal))
-        throw new ArgumentException(
-            $"Driver context ID '{context.DriverId}' does not match registration ID '{driverId}'.",
-            nameof(context));
+        throw new DriverContextIdMismatchException(context.DriverId, driverId, nameof(context));
 
       var loggerFactory = IsNullLoggerFactory(context.LoggerFactory)
           ? _loggerFactory

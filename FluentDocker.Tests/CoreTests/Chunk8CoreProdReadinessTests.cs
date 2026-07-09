@@ -77,12 +77,13 @@ namespace FluentDocker.Tests.CoreTests
     }
 
     [Fact]
-    public void LenientStringDictionaryConverter_TrimsPairsAndKeepsBareKeys()
+    [Trait("Category", "Unit")]
+    public void LenientStringDictionaryConverter_TrimsPairsAndKeepsUnsplittableRemainderInValue()
     {
       var volume = JsonSerializer.Deserialize<Volume>("{\"Labels\":\"a = b,bare\"}", JsonHelper.CaseInsensitiveOptions)!;
 
-      Assert.Equal("b", volume.Labels!["a"]);
-      Assert.Equal(string.Empty, volume.Labels["bare"]);
+      Assert.Equal("b,bare", volume.Labels!["a"]);
+      Assert.DoesNotContain("bare", volume.Labels.Keys);
     }
   }
 

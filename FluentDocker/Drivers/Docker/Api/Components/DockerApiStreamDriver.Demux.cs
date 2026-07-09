@@ -60,6 +60,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           break;
         if (bytesRead < 8)
         {
+          if (sniffOnInvalidHeader && !parsedFrame)
+          {
+            await foreach (var entry in ReadRawTextStreamAsync(
+                new PrefixReadStream(header, bytesRead, stream), ct).ConfigureAwait(false))
+              yield return entry;
+            yield break;
+          }
           throw new DriverException(
               $"Docker log stream truncated: partial {bytesRead}-byte frame header",
               ErrorCodes.Api.ServerError);

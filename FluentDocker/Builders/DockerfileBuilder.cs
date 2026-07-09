@@ -226,7 +226,9 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerfileBuilder Maintainer(string maintainer)
     {
+#pragma warning disable CS0618 // Maintainer() is the backwards-compatible wrapper for the obsolete Dockerfile instruction.
       _config.Commands.Add(new MaintainerCommand(maintainer));
+#pragma warning restore CS0618
       return this;
     }
 

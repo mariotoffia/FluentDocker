@@ -83,7 +83,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       driver.SetupGet(d => d.Type).Returns(DriverType.Custom);
       driver.SetupGet(d => d.Runtime).Returns(RuntimeType.Unknown);
 
-      var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+      var ex = await Assert.ThrowsAsync<DriverContextIdMismatchException>(() =>
           registry.RegisterAsync(
               "actual", driver.Object, new DriverContext("other"),
               TestContext.Current.CancellationToken));

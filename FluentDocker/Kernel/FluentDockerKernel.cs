@@ -62,9 +62,12 @@ namespace FluentDocker.Kernel
 
       driverId = ResolveDriverIdOrDefault(driverId);
 
-      if (TryResolveCore(driverId, interfaceType, out var resolved))
+      if (TryResolveCore(driverId, interfaceType, out var resolved, out var unsupportedCause))
         return resolved;
-      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(interfaceType));
+      var interfaceName = TypeNameFormatter.Format(interfaceType);
+      throw unsupportedCause == null
+          ? new InterfaceNotSupportedException(driverId, interfaceName)
+          : new InterfaceNotSupportedException(driverId, interfaceName, unsupportedCause);
     }
 
     /// <summary>
@@ -78,7 +81,8 @@ namespace FluentDocker.Kernel
 
     /// <summary>
     /// Tries to get a driver component interface. Returns false when the interface is
-    /// not supported or a driver pack faults while resolving it. A missing driver still throws.
+    /// unsupported. Missing drivers, disposal/cancellation, and unexpected fallback
+    /// faults still throw.
     /// </summary>
     public bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
@@ -86,7 +90,7 @@ namespace FluentDocker.Kernel
       instance = null;
       driverId = ResolveDriverIdOrDefault(driverId);
 
-      if (TryResolveCore(driverId, typeof(T), out var resolved))
+      if (TryResolveCore(driverId, typeof(T), out var resolved, out _))
       {
         instance = (T)resolved;
         return true;
@@ -258,8 +262,10 @@ namespace FluentDocker.Kernel
     private bool TryResolveCore(
         string driverId,
         Type interfaceType,
-        [NotNullWhen(true)] out object? resolved)
+        [NotNullWhen(true)] out object? resolved,
+        out Exception? unsupportedCause)
     {
+      unsupportedCause = null;
       if (_registry.TryGetDriverPack(driverId, out var driverPack))
       {
         if (driverPack.TryResolve(interfaceType, out resolved))
@@ -278,13 +284,18 @@ namespace FluentDocker.Kernel
         }
         catch (Exception ex)
         {
-          if (_logger.IsEnabled(LogLevel.Debug))
+          if (ex is OperationCanceledException || ex is ObjectDisposedException)
+            throw;
+
+          if (ex is InterfaceNotSupportedException)
           {
-            _logger.LogDebug(
-                ex,
-                "Driver pack {DriverPackType} failed to resolve interface {InterfaceType}",
-                driverPack.GetType().FullName,
-                TypeNameFormatter.Format(interfaceType));
+            unsupportedCause = ex;
+          }
+          else
+          {
+            LogPackFallbackFailure(driverPack, interfaceType, ex);
+            throw new InterfaceNotSupportedException(
+                driverId, TypeNameFormatter.Format(interfaceType), ex);
           }
         }
 
@@ -342,6 +353,15 @@ namespace FluentDocker.Kernel
           TypeNameFormatter.Format(interfaceType));
     }
 
+    private void LogPackFallbackFailure(IDriverPack driverPack, Type interfaceType, Exception ex)
+    {
+      _logger.LogWarning(
+          ex,
+          "Driver pack {DriverPackType} failed to resolve interface {InterfaceType}",
+          driverPack.GetType().FullName,
+          TypeNameFormatter.Format(interfaceType));
+    }
+
     #endregion
 
     #region IAsyncDisposable / IDisposable
@@ -371,10 +391,7 @@ namespace FluentDocker.Kernel
     {
       try
       {
-        if (_registry is IAsyncDisposable asyncDisposable)
-          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-        else if (_registry is IDisposable disposable)
-          disposable.Dispose();
+        await _registry.DisposeAsync().ConfigureAwait(false);
       }
       catch (Exception ex)
       {
@@ -392,10 +409,7 @@ namespace FluentDocker.Kernel
     {
       try
       {
-        if (_registry is IAsyncDisposable asyncDisposable)
-          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-        else if (_registry is IDisposable disposable)
-          disposable.Dispose();
+        await _registry.DisposeAsync().ConfigureAwait(false);
       }
       catch (Exception ex)
       {

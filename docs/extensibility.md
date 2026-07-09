@@ -64,14 +64,21 @@ public interface IDriverInterfaceResolver
 }
 ```
 
-The kernel uses a cascading resolution strategy when you call `SysCtl(driverId, Type)`:
+The kernel resolution path depends on what the ID names; pack and driver paths do not fall through to each other.
 
-| Step | Check | Fallback |
-|------|-------|----------|
+If the ID names a driver pack:
+
+| Step | Check | Result |
+|------|-------|--------|
 | 1 | `IDriverInterfaceResolver` on driver pack | Return resolved instance |
 | 2 | Driver pack's `SysCtl(driverId, Type)` | Return or throw |
-| 3 | `IDriverInterfaceResolver` on driver | Continue |
-| 4 | Direct cast (`driver is T`) | Throw |
+
+If the ID names a single driver:
+
+| Step | Check | Result |
+|------|-------|--------|
+| 1 | `IDriverInterfaceResolver` on driver | Return resolved instance |
+| 2 | Direct cast (`driver is T`) | Return or throw |
 
 This means any interface registered with the driver pack or driver is discoverable without kernel changes.
 

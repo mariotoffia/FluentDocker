@@ -35,6 +35,8 @@ dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter (optional)
 dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter (optional)
 ```
 
+For 3.2 previews, add `--prerelease` to the package commands.
+
 ## Quick Start
 
 Start an nginx container and read its published endpoint. Every `using` below is
@@ -161,7 +163,7 @@ Podman Kubernetes, topology, and model resource types.
 ## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.2)*
 
 > **Preview — not on NuGet yet.** Model Runner support lands in **3.2.0-preview.2**, which
-> isn't published yet; build from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to
+> isn't published yet; build from the [preview branch](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to
 > use it (the latest published package, 3.1.0, has no Model Runner). The inference DTO shapes
 > may still change. Everything above is the stable surface — reach for this section only once
 > you need local models.

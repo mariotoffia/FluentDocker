@@ -11,8 +11,8 @@ namespace FluentDocker.Drivers
   /// <summary>
   /// Hexagonal port for model distribution and local-store operations
   /// (pull/list/inspect/remove/tag/push/package/prune/disk-usage). Implemented by
-  /// CLI adapters (<c>docker model …</c>) and/or the native <c>/models*</c> socket
-  /// adapter. Returns <see cref="CommandResponse{T}"/> — never throws for expected
+  /// CLI adapters (<c>docker model …</c>). Returns <see cref="CommandResponse{T}"/>
+  /// — never throws for expected
   /// failures; the service layer translates failures into exceptions.
   /// </summary>
   public interface IModelManagementDriver
@@ -74,7 +74,11 @@ namespace FluentDocker.Drivers
     /// <param name="context">The driver context.</param>
     /// <param name="request">The package request.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>The produced model's info.</returns>
+    /// <returns>
+    /// Sparse info for the produced artifact. The CLI does not return inspect data here;
+    /// <see cref="ModelInfo.Reference"/> mirrors <see cref="ModelPackageRequest.Target"/>
+    /// and may be <c>null</c> when the request omitted a target.
+    /// </returns>
     Task<CommandResponse<ModelInfo>> PackageAsync(DriverContext context,
         ModelPackageRequest request, CancellationToken cancellationToken = default);
 

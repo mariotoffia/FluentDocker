@@ -4,13 +4,13 @@ using System;
 
 namespace FluentDocker.Extensions
 {
+  /// <summary>
+  /// String helpers used by FluentDocker's legacy extension surface.
+  /// </summary>
   public static class StringExtensions
   {
-
     /// <summary>
-    /// This function will wrap the string s with string c (start and end) if
-    /// not already existent. If already exist, it will leave it, hence it
-    /// do not double wrap.
+    /// Wraps a string with the supplied boundary string unless that boundary already exists.
     /// </summary>
     /// <param name="s">The string to wrap.</param>
     /// <param name="c">The string to check and wrap with if not existing.</param>

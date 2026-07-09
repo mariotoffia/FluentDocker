@@ -10,7 +10,7 @@ has_children: true
 FluentDocker v3 provides test support via the Testing.Core framework:
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
+> from [`feature/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
@@ -130,6 +130,14 @@ public class RedisTests : NUnitContainerFixtureBase
 | `MsTestClassContainerFixtureBase<TFixture>` | One container shared by one MSTest test class |
 | `NUnitContainerFixtureBase` | One container per NUnit fixture |
 
+### Adapter parity
+
+| Adapter | Fixture surface | Minimum runner |
+|---|---|---|
+| xUnit | Per-test base, class/collection fixture base, conditional fixture, and concrete resource fixtures | xUnit v3 |
+| MSTest | Per-test base, class-level CRTP base, and helpers | MSTest 3.x |
+| NUnit | One fixture base plus static helpers | NUnit 4.3.2+ |
+
 ## Detailed Documentation
 
 | Topic | Description |
@@ -144,10 +152,10 @@ public class RedisTests : NUnitContainerFixtureBase
 
 ## Running by Category
 
-Tests use `[Trait("Category", "...")]` attributes (`make test` runs Unit,
-`make test-integration` runs all, `dotnet test --filter "Category=X"` for a
-single category). See [Test Categories & Run Guide](testing/test-categories.md) for
-the full reference.
+Tests use `[Trait("Category", "...")]` attributes. `make test` runs Unit;
+`make test-integration` runs only `Integration` and `PodmanIntegration`;
+use `dotnet test --filter "Category=X"` for one category. See
+[Test Categories & Run Guide](testing/test-categories.md) for the full reference.
 
 Use `make check` as the pre-push gate. It runs formatting, unit tests, adapter
 runner tests through `make test-runners`, and coverage. Runner tests stay out of

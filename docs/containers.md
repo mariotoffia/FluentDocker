@@ -14,9 +14,7 @@ Complete guide to creating, configuring, and managing containers with FluentDock
 
 ## Step by Step
 
-- Basics: [Kernel Setup](#kernel-setup), [Container Lifecycle](#container-lifecycle), [Port Exposure](#port-exposure), [Environment Variables](#environment-variables)
-- Intermediate: [Wait Strategies](#wait-strategies), [Execute Commands](#execute-commands), [Container Logs](#container-logs), [Inspecting Container Info](#inspecting-container-info), [Cleanup and Dispose Behavior](#cleanup-and-dispose-behavior)
-- Advanced: [Resource Limits](#resource-limits), [Advanced Container Options](#advanced-container-options), [Container Existence Behavior](#container-existence-behavior), [File Operations](#file-operations)
+Basics: [Kernel Setup](#kernel-setup), [Container Lifecycle](#container-lifecycle), [Port Exposure](#port-exposure), [Environment Variables](#environment-variables); intermediate: [Wait Strategies](#wait-strategies), [Execute Commands](#execute-commands), [Container Logs](#container-logs), [Inspecting Container Info](#inspecting-container-info), [Cleanup and Dispose Behavior](#cleanup-and-dispose-behavior); advanced: [Resource Limits](#resource-limits), [Advanced Container Options](#advanced-container-options), [Container Existence Behavior](#container-existence-behavior), [File Operations](#file-operations).
 
 ## Kernel Setup
 
@@ -30,7 +28,7 @@ using System.Linq;
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
 using FluentDocker.Services;            // ServiceRunningState
-using FluentDocker.Services.Extensions; // ToHostExposedEndpoint
+using FluentDocker.Services.Extensions; // ToHostExposedEndpointAsync
 
 // Create kernel (multiple kernels per app are supported)
 await using var kernel = await FluentDockerKernel.Create()
@@ -44,7 +42,7 @@ All subsequent examples assume this `kernel` variable is available.
 
 ### Create and Start
 
-In v3, `Build()` both creates and starts containers automatically. The result is a
+In v3, `BuildAsync()` both creates and starts containers automatically. The result is a
 `BuildResults` object containing all built services.
 
 ```csharp
@@ -58,7 +56,7 @@ var container = results.Containers.First();
 // Container is already running at this point
 ```
 
-> A synchronous `.Build()` / `Dispose()` path is available (`Build()` offloads the async work, so it won't deadlock), but `BuildAsync()` with `await using` is the async-first default — prefer it.
+> A synchronous `.Build()` / `Dispose()` path exists for sync-only code, but it blocks on the async pipeline; prefer `BuildAsync()` with `await using`.
 
 Dispose hooks run for the service lifecycle even when a container is kept or reused.
 If build fails after create/start, FluentDocker captures a bounded log tail, runs
@@ -153,7 +151,7 @@ await using var results = await new Builder()
 var container = results.Containers.First();
 
 // Get the assigned port
-var endpoint = container.ToHostExposedEndpoint("80/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("80/tcp");
 Console.WriteLine($"Port: {endpoint.Port}");
 ```
 
@@ -273,16 +271,9 @@ await using var results = await new Builder()
         .ExposePort("8080")
         .Wait((service, iteration) =>
         {
-            try
-            {
-                var ep = service.ToHostExposedEndpoint("8080/tcp");
-                using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-                var response = FluentDocker.Common.SharedHttpClient.Instance.GetStringAsync(
-                    $"http://localhost:{ep.Port}/health", requestCts.Token)
-                    .GetAwaiter().GetResult();
-                return response.Contains("ok") ? -1 : 500;
-            }
-            catch { return 500; }
+            return service.State == ServiceRunningState.Running && iteration > 2
+                ? -1
+                : 500;
         }))
     .BuildAsync();
 ```
@@ -369,6 +360,7 @@ await using var results = await new Builder()
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
+        .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000)
         .ExecuteOnRunning("psql", "-U", "postgres", "-c", "CREATE DATABASE mydb;"))
     .BuildAsync();
@@ -448,11 +440,11 @@ foreach (var (key, value) in config.Config.Labels ?? new Dictionary<string, stri
     Console.WriteLine($"Label:   {key}={value}");
 ```
 
-To get the **host** port a container port is mapped to, use `ToHostExposedEndpoint`
+To get the **host** port a container port is mapped to, use `ToHostExposedEndpointAsync`
 (see [Port Exposure](#port-exposure)):
 
 ```csharp
-var endpoint = container.ToHostExposedEndpoint("80/tcp"); // e.g. 127.0.0.1:49162
+var endpoint = await container.ToHostExposedEndpointAsync("80/tcp"); // e.g. 127.0.0.1:49162
 Console.WriteLine($"Reachable at {endpoint.Address}:{endpoint.Port}");
 ```
 
@@ -579,6 +571,7 @@ await using var results = await new Builder()
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .WithNetwork("my-network")
+        .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
     .UseContainer(c => c
         .WithName("app")

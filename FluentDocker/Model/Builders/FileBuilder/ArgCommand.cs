@@ -18,11 +18,11 @@ namespace FluentDocker.Model.Builders.FileBuilder
       }
 
 
-      Name = name.Rendered;
+      Name = DockerfileInstructionGuard.Validate(name.Rendered, "ARG", "name");
 
       if (null != defaultValue && !string.IsNullOrEmpty(defaultValue.Rendered))
       {
-        DefaultValue = defaultValue.Rendered;
+        DefaultValue = DockerfileInstructionGuard.Validate(defaultValue.Rendered, "ARG", "default value");
       }
     }
 

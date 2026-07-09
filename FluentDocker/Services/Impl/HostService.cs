@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Services.Impl
@@ -59,6 +60,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<SystemInfo> GetSystemInfoAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -77,6 +80,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<VersionInfo> GetVersionAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -95,6 +100,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<bool> PingAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -104,6 +111,8 @@ namespace FluentDocker.Services.Impl
 
     public async Task<DiskUsageInfo> GetDiskUsageAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -134,6 +143,8 @@ namespace FluentDocker.Services.Impl
         IDictionary<string, string> filters = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -171,9 +182,7 @@ namespace FluentDocker.Services.Impl
             deleteOnDispose: false,
             // Seed the real per-container state the list already carries (docker/podman ps reports
             // it) so a paused/restarting/exited container isn't mislabeled Running; unknown → Unknown.
-            initialState: container.State?.Running == true
-                ? ServiceRunningState.Running
-                : ServiceRunningState.Unknown));
+            initialState: ParseContainerState(container)));
       }
 
       return services;
@@ -184,6 +193,8 @@ namespace FluentDocker.Services.Impl
         ContainerCreateOptions config = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       config ??= new ContainerCreateOptions();
 
       if (config.ForcePull)
@@ -276,31 +287,41 @@ namespace FluentDocker.Services.Impl
     /// <summary>Hosts represented by this service are already running; start is a no-op.</summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       return Task.CompletedTask;
     }
 
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("Docker hosts cannot be paused");
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("Native Docker hosts cannot be stopped");
     }
 
     public Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("Native Docker hosts cannot be removed");
     }
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("HostService has a fixed Running state and does not support hooks.");
     }
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
+      ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("HostService has a fixed Running state and does not support hooks.");
     }
 
@@ -386,6 +407,29 @@ namespace FluentDocker.Services.Impl
 
       return (image, "latest");
     }
+
+    private static ServiceRunningState ParseContainerState(Container container)
+    {
+      if (container?.State?.Running == true)
+        return ServiceRunningState.Running;
+
+      return container?.State?.Status?.ToLowerInvariant() switch
+      {
+        "running" => ServiceRunningState.Running,
+        "paused" => ServiceRunningState.Paused,
+        "exited" => ServiceRunningState.Stopped,
+        "stopped" => ServiceRunningState.Stopped,
+        "created" => ServiceRunningState.Starting,
+        "restarting" => ServiceRunningState.Starting,
+        "stopping" => ServiceRunningState.Stopping,
+        "removing" => ServiceRunningState.Removing,
+        "dead" => ServiceRunningState.Stopped,
+        _ => ServiceRunningState.Unknown
+      };
+    }
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     #endregion
   }

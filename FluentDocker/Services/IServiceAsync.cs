@@ -15,7 +15,8 @@ namespace FluentDocker.Services
   /// hooks are isolated from lifecycle operations: thrown exceptions are logged and swallowed.
   /// Handlers run <em>after</em> the internal state lock is released (so a handler may safely
   /// re-enter lifecycle operations); consequently, under concurrent transitions handler delivery
-  /// order is not guaranteed.
+  /// order is not guaranteed. Services that implement <see cref="IServiceCapabilities"/> expose
+  /// which lifecycle operations are meaningful for their resource type.
   /// </remarks>
   public interface IServiceAsync : IDisposable, IAsyncDisposable
   {
@@ -65,6 +66,7 @@ namespace FluentDocker.Services
     /// <remarks>
     /// Pass <paramref name="uniqueName"/> when the hook must be removable. If you want a generated
     /// removable name, use <see cref="ServiceHookExtensions.AddHookWithGeneratedName"/>.
+    /// Hooks registered for the same state run in an unspecified order.
     /// </remarks>
     IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null);
 

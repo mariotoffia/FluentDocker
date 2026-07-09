@@ -65,6 +65,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       AddRepeated(args, "-p", config.PortBindings?.Select(p => $"{p.Value}:{p.Key}"));
       AddRepeated(args, "-v", config.Volumes);
       AddRepeated(args, "--label", config.Labels?.Select(l => $"{l.Key}={l.Value}"));
+      // Multiple --network flags require Docker 25+/API 1.44+ and user-defined networks.
       AddRepeated(args, "--network", config.Networks);
       AddRepeated(args, "--dns", config.Dns);
       AddRepeated(args, "--add-host", config.ExtraHosts?.Select(h => $"{h.Key}:{h.Value}"));
@@ -72,7 +73,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
       if (config.NetworkAliases != null)
         foreach (var alias in config.NetworkAliases.SelectMany(a => a.Value))
-          // ponytail: Docker create/run aliases apply to the selected network; use network connect --alias if per-network aliasing matters.
+          // ponytail: aliases are flattened; use network connect --alias if per-network aliasing matters.
           args.Add($"--network-alias {QuoteArgumentIfNeeded(alias)}");
       if (config.Tmpfs != null)
         foreach (var tmpfs in config.Tmpfs)

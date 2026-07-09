@@ -286,9 +286,9 @@ namespace FluentDocker.Drivers.Podman.Cli
     #region Auto-Start Machine
 
     /// <summary>
-    /// Per-machine-name async locks so concurrent kernel builds cannot race to start the
-    /// same Podman machine (start/init are not safe to run twice in parallel). Keyed by the
-    /// configured machine name (or a sentinel for the default machine).
+    /// Process-wide, per-machine-name async locks so concurrent kernel builds cannot race to
+    /// start the same Podman machine (start/init are not safe to run twice in parallel).
+    /// Keyed by the configured machine name (or a sentinel for the default machine).
     /// </summary>
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> MachineLocks = new(StringComparer.OrdinalIgnoreCase);
 

@@ -57,9 +57,9 @@ namespace FluentDocker.Drivers
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>
     /// Service logs, bounded to <see cref="FluentDocker.Common.CliOutputTruncation.DefaultTailChars"/>
-    /// characters with a truncation marker when output is larger. Docker API rejects
-    /// <see cref="ServiceLogsConfig.Follow"/> for this buffered call; use streaming APIs for
-    /// indefinite logs.
+    /// characters with a truncation marker when output is larger. Drivers return a failed
+    /// response when <see cref="ServiceLogsConfig.Follow"/> is <c>true</c>; use streaming
+    /// APIs for indefinite logs.
     /// </returns>
     /// <exception cref="OperationCanceledException">
     /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.

@@ -135,12 +135,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
           if (!Directory.Exists(path))
             continue;
 
-          var comparison = isWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-          list.AddRange(from file in Directory.GetFiles(path)
-                        let f = Path.GetFileName(file)
-                        where f.Equals(clientFile, comparison)
-                            || f.Equals(remoteFile, comparison)
-                        select Make(path, file));
+          AddIfExecutable(list, path, clientFile, isWindows, Make);
+          AddIfExecutable(list, path, remoteFile, isWindows, Make);
         }
         catch (Exception e)
         {
@@ -149,6 +145,24 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
       }
 
       return list;
+    }
+
+    private static void AddIfExecutable(
+        List<PodmanBinary> list, string directory, string fileName, bool isWindows,
+        Func<string, string, PodmanBinary> make)
+    {
+      var fullPath = Path.Combine(directory, fileName);
+      if (File.Exists(fullPath) && (isWindows || HasUnixExecuteBit(fullPath)))
+        list.Add(make(directory, fileName));
+    }
+
+    private static bool HasUnixExecuteBit(string path)
+    {
+      if (OperatingSystem.IsWindows())
+        return true;
+
+      var mode = File.GetUnixFileMode(path);
+      return (mode & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
     }
   }
 }

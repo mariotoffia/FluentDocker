@@ -56,6 +56,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // container, daemon error, process couldn't start) from the in-container command's
         // own legitimate non-zero exit, which must be reported as a successful exec carrying
         // that exit code (callers inspect ExecResult.ExitCode).
+        // Heuristic: a container command can spoof daemon text on empty-stdout stderr.
         if (IsExecInfrastructureFailure(result.ExitCode, result.Output, result.Error))
         {
           return CommandResponse<ExecResult>.Fail(

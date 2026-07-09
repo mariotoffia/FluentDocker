@@ -34,7 +34,25 @@ version.
   `ErrorCodes.Container.CreateFailed` / `ErrorCodes.Driver.CommandExecutionFailed`.
 - **Cause:** another process/container owns the host port.
 - **Fix:** remove the fixed host port and let Docker assign one, or stop the owner. Read
-  the mapped port with `container.ToHostExposedEndpoint("80/tcp")`.
+  the mapped port with `await container.ToHostExposedEndpointAsync("80/tcp")`.
+
+## Container name already in use
+
+- **Symptom:** `Conflict. The container name "..." is already in use` or similar daemon
+  text under `ErrorCodes.Container.CreateFailed`.
+- **Cause:** a previous run left a container with the same `.WithName(...)`.
+- **Fix:** choose unique test names, remove the old container, or set
+  [`ReuseIfExists()` / `DestroyIfExists(...)`](containers.md#container-existence-behavior)
+  when fixed names are intentional.
+
+## Image architecture mismatch on Apple Silicon
+
+- **Symptom:** `exec format error`, `no matching manifest for linux/arm64`, or an image
+  that starts on Intel but fails on M1/M2/M3.
+- **Cause:** the image lacks a compatible architecture variant.
+- **Fix:** prefer multi-arch images; otherwise set
+  [`WithPlatform("linux/amd64")`](containers.md#advanced-container-options) on the
+  container or pull/build the image with Docker's `--platform` option.
 
 ## WaitForPort / WaitForHealthy timeout
 
@@ -53,6 +71,25 @@ version.
 - **Cause:** private registry credentials are missing or invalid.
 - **Fix:** `docker login` for CLI drivers. For Docker API, call `IAuthDriver.LoginAsync`
   because the API driver does not read CLI credential helpers.
+
+## Compose file not found
+
+- **Symptom:** `no such file or directory`, `can't find a suitable configuration file`,
+  or a failed compose `up` before any service starts.
+- **Cause:** `.WithComposeFile(...)` is relative to the process working directory, not
+  the source file containing the snippet.
+- **Fix:** pass an absolute path, set the test working directory, or use the
+  [multiple compose files](compose.md#multiple-compose-files) pattern with paths that
+  exist from the process working directory.
+
+## InvalidOperationException during build setup
+
+- **Symptom:** `InvalidOperationException` before Docker is contacted.
+- **Cause:** in 3.2, `BuildAsync()` with zero `Use*` calls throws, and `KernelBuilder`
+  is single-use.
+- **Fix:** add at least one `UseContainer`/`UseNetwork`/`UseVolume`/`UseCompose` call,
+  and create a fresh `FluentDockerKernel.Create()` builder for each kernel. See the
+  [3.2 changelog](../CHANGELOG.md).
 
 ## Podman machine not running
 

@@ -23,7 +23,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var driver = new TestDriver();
 
-      await Assert.ThrowsAsync<ArgumentException>(() =>
+      await Assert.ThrowsAsync<DriverContextIdMismatchException>(() =>
           registry.RegisterAsync(
               "docker", driver, new DriverContext("other"),
               TestContext.Current.CancellationToken));
@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var pack = new EmptyPack();
 
-      await Assert.ThrowsAsync<ArgumentException>(() =>
+      await Assert.ThrowsAsync<DriverContextIdMismatchException>(() =>
           registry.RegisterDriverPackAsync(
               "docker", pack, new DriverContext("other"),
               TestContext.Current.CancellationToken));
@@ -54,7 +54,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task TrySysCtl_WhenPackSysCtlThrows_ReturnsFalse()
+    public async Task TrySysCtl_WhenPackSysCtlThrows_WrapsFaultAsInterfaceNotSupportedException()
     {
       await using var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
@@ -62,10 +62,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
           "faulty", new FaultingPack(), new DriverContext("faulty"),
           TestContext.Current.CancellationToken);
 
-      var found = kernel.TrySysCtl<IContainerDriver>("faulty", out var driver);
+      var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
+          kernel.TrySysCtl<IContainerDriver>("faulty", out _));
 
-      Assert.False(found);
-      Assert.Null(driver);
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
     }
 
     [Fact]

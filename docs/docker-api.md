@@ -88,7 +88,11 @@ The two failure modes are kept **distinct**:
   "the engine was too slow".
 - **Long-running waits/streams** — attach/log/event/stat streams, `WaitAsync`, and
   stop/restart requests whose `t=` timeout exceeds the request timeout are exempt from the
-  request timeout and are bounded only by the caller's cancellation token.
+  request timeout and are bounded by the caller's cancellation token. Streamed response
+  bodies can also opt into a read-idle guard with `WithStreamIdleTimeout(...)`; by default
+  this is disabled to preserve existing infinite-stream behavior. API version negotiation
+  bounds its startup `/_ping` probe with `WithConnectionTimeout(...)`, not the longer
+  request timeout.
 
 ```csharp
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -105,6 +109,15 @@ catch (OperationCanceledException)
 }
 ```
 
+Use the idle timeout only when a stalled daemon should fail faster than your caller token:
+
+```csharp
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerApi("api", d => d
+        .WithStreamIdleTimeout(TimeSpan.FromSeconds(30)))
+    .BuildAsync();
+```
+
 ## Build support and build-context packaging
 
 Image builds use the Docker Engine legacy `/build` endpoint. BuildKit-only Dockerfile
@@ -113,13 +126,17 @@ driver when you need `DOCKER_BUILDKIT=1` semantics.
 
 The build context is packed by the API driver, not by the Docker CLI. File modes are preserved
 where the host exposes them (falling back to `0644` files and `0755` directories/executables),
-but symlink behavior differs from `docker build`: file symlinks are dereferenced only when the
-resolved target stays inside the context, escaping links are skipped, and directory symlinks are
-not traversed.
+but symlink behavior intentionally stays inside the context boundary: relative file symlinks
+whose resolved target stays inside the context are emitted as symlink tar entries; absolute,
+escaping, broken, and directory symlinks are skipped or not traversed.
 
-`CopyToAsync` also builds a tar archive client-side. It skips reparse-point entries to avoid
-symlink cycles and spools the archive to a delete-on-close temp file before upload, so large
-directory copies are bounded by disk instead of managed heap size.
+`CopyToAsync` also builds a tar archive client-side. It emits symlink entries for file and
+directory symlinks without traversing them, and spools the archive to a delete-on-close temp
+file before upload, so large directory copies are bounded by disk instead of managed heap size.
+
+`CopyFromAsync` extracts regular files and directories only. Symlink entries from the daemon's
+tar archive are skipped with a warning instead of being recreated, because blindly restoring a
+link could point outside the requested destination.
 
 ## TLS
 

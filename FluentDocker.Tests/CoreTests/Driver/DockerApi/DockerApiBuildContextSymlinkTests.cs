@@ -52,8 +52,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
         try
         {
-          // In-context file symlink (must be dereferenced and included).
-          File.CreateSymbolicLink(Path.Combine(root, "inside-link.txt"), Path.Combine(root, "safe.txt"));
+          // In-context relative file symlink (must be emitted as a symlink tar entry).
+          File.CreateSymbolicLink(Path.Combine(root, "inside-link.txt"), "safe.txt");
           // File symlink escaping the context (must be skipped — host-file exfiltration).
           File.CreateSymbolicLink(Path.Combine(root, "escape-link.txt"), Path.Combine(outside, "secret.txt"));
           // Directory symlink escaping the context (must not be traversed).
@@ -65,13 +65,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           return;
         }
 
-        var keys = ReadTarFileNames(await BuildAndCaptureTarAsync(root))
+        var tar = await BuildAndCaptureTarAsync(root);
+        var keys = ReadTarFileNames(tar)
             .Select(n => n.Replace('\\', '/')).ToHashSet();
+        var types = ReadTarTypes(tar);
 
         Assert.Contains("Dockerfile", keys);
         Assert.Contains("safe.txt", keys);
         Assert.Contains("sub/nested.txt", keys);
-        Assert.Contains("inside-link.txt", keys); // in-context symlink dereferenced
+        Assert.Equal((byte)'2', types["inside-link.txt"]); // in-context symlink preserved
         Assert.DoesNotContain("escape-link.txt", keys); // escaping file symlink skipped
         Assert.DoesNotContain(keys, k => k.StartsWith("evil-dir", StringComparison.Ordinal)); // dir symlink not traversed
         Assert.DoesNotContain(keys, k => k.Contains("secret", StringComparison.Ordinal)); // no host file leaked
@@ -343,6 +345,26 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
             return modes;
       }
       return modes;
+    }
+
+    private static Dictionary<string, byte> ReadTarTypes(byte[] bytes)
+    {
+      var types = new Dictionary<string, byte>();
+      using var stream = new MemoryStream(bytes);
+      var header = new byte[512];
+      while (ReadExactly(stream, header))
+      {
+        if (Array.TrueForAll(header, b => b == 0))
+          break;
+        var name = Encoding.ASCII.GetString(header, 0, 100).TrimEnd('\0');
+        var sizeField = Encoding.ASCII.GetString(header, 124, 12).Trim(' ', '\0');
+        var size = sizeField.Length == 0 ? 0 : Convert.ToInt64(sizeField, 8);
+        types[name] = header[156];
+        for (var i = (size + 511) / 512; i > 0; i--)
+          if (!ReadExactly(stream, header))
+            return types;
+      }
+      return types;
     }
 
     private static bool ReadExactly(Stream stream, byte[] buffer)

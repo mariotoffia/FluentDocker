@@ -47,22 +47,27 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         if (File.Exists(hostPath))
         {
           var file = new FileInfo(hostPath);
-          await using var src = new FileStream(
-              file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
-              bufferSize: 81920, FileOptions.Asynchronous);
-          await DockerApiTarWriter.WriteFileAsync(tarStream, tarEntryName ?? file.Name, src,
-              file.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(file.FullName),
-              cancellationToken).ConfigureAwait(false);
+          await WriteFileOrSymlinkAsync(
+              tarStream, file, tarEntryName ?? file.Name, cancellationToken)
+              .ConfigureAwait(false);
         }
         else
         {
           var root = new DirectoryInfo(hostPath);
           var entryBase = root.Name;
-          await DockerApiTarWriter.WriteDirectoryAsync(tarStream, entryBase,
-              root.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(root.FullName),
-              cancellationToken).ConfigureAwait(false);
-          await WriteDirectoryToTarAsync(tarStream, hostPath, entryBase, cancellationToken)
-              .ConfigureAwait(false);
+          if (TryGetLinkTarget(root, out var rootLinkTarget))
+          {
+            await DockerApiTarWriter.WriteSymlinkAsync(tarStream, entryBase, rootLinkTarget,
+                root.LastWriteTimeUtc, cancellationToken).ConfigureAwait(false);
+          }
+          else
+          {
+            await DockerApiTarWriter.WriteDirectoryAsync(tarStream, entryBase,
+                root.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(root.FullName),
+                cancellationToken).ConfigureAwait(false);
+            await WriteDirectoryToTarAsync(tarStream, hostPath, entryBase, cancellationToken)
+                .ConfigureAwait(false);
+          }
         }
         await DockerApiTarWriter.FinishAsync(tarStream, cancellationToken).ConfigureAwait(false);
 
@@ -125,31 +130,60 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       foreach (var file in Directory.GetFiles(rootDir).OrderBy(static p => p, StringComparer.Ordinal))
       {
         var info = new FileInfo(file);
-        if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
-          continue;
         var entryName = string.IsNullOrEmpty(entryBase)
             ? Path.GetFileName(file) : $"{entryBase}/{Path.GetFileName(file)}";
-        await using var src = new FileStream(
-            info.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920, FileOptions.Asynchronous);
-        await DockerApiTarWriter.WriteFileAsync(tarStream, entryName, src,
-            info.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(info.FullName),
-            cancellationToken).ConfigureAwait(false);
+        await WriteFileOrSymlinkAsync(tarStream, info, entryName, cancellationToken)
+            .ConfigureAwait(false);
       }
       foreach (var dir in Directory.GetDirectories(rootDir).OrderBy(static p => p, StringComparer.Ordinal))
       {
         var info = new DirectoryInfo(dir);
-        if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
-          continue;
         var dirName = Path.GetFileName(dir);
         var newBase = string.IsNullOrEmpty(entryBase)
             ? dirName : $"{entryBase}/{dirName}";
+        if (TryGetLinkTarget(info, out var linkTarget))
+        {
+          await DockerApiTarWriter.WriteSymlinkAsync(tarStream, newBase, linkTarget,
+              info.LastWriteTimeUtc, cancellationToken).ConfigureAwait(false);
+          continue;
+        }
         await DockerApiTarWriter.WriteDirectoryAsync(tarStream, newBase,
             info.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(info.FullName),
             cancellationToken).ConfigureAwait(false);
         await WriteDirectoryToTarAsync(tarStream, dir, newBase, cancellationToken)
             .ConfigureAwait(false);
       }
+    }
+
+    private static async Task WriteFileOrSymlinkAsync(
+        Stream tarStream, FileInfo file, string entryName, CancellationToken cancellationToken)
+    {
+      if (TryGetLinkTarget(file, out var linkTarget))
+      {
+        await DockerApiTarWriter.WriteSymlinkAsync(tarStream, entryName, linkTarget,
+            file.LastWriteTimeUtc, cancellationToken).ConfigureAwait(false);
+        return;
+      }
+
+      if ((file.Attributes & FileAttributes.ReparsePoint) != 0)
+        return;
+
+      await using var src = new FileStream(
+          file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
+          bufferSize: 81920, FileOptions.Asynchronous);
+      await DockerApiTarWriter.WriteFileAsync(tarStream, entryName, src,
+          file.LastWriteTimeUtc, DockerApiTarWriter.FileModeFor(file.FullName),
+          cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool TryGetLinkTarget(FileSystemInfo info, out string linkTarget)
+    {
+      linkTarget = string.Empty;
+      var target = info.LinkTarget;
+      if ((info.Attributes & FileAttributes.ReparsePoint) == 0 || string.IsNullOrEmpty(target))
+        return false;
+      linkTarget = target;
+      return true;
     }
 
     private static FileStream CreateTempTarStream()

@@ -72,7 +72,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <param name="cancellationToken">
     /// Optional token that bounds the total cleanup time.
-    /// When cancelled, remaining service disposals are abandoned.
+    /// When cancelled, the current disposal may continue unobserved and remaining
+    /// service disposals are not started.
     /// </param>
     public async Task DisposeAllAsync(CancellationToken cancellationToken = default)
     {
@@ -87,6 +88,12 @@ namespace FluentDocker.Kernel
 
       for (var i = results.Length - 1; i >= 0; i--)
       {
+        if (cancellationToken.IsCancellationRequested)
+        {
+          _logger.LogWarning("BuildScope async disposal cancelled; skipping remaining services");
+          break;
+        }
+
         var service = results[i];
         try
         {
@@ -94,6 +101,11 @@ namespace FluentDocker.Kernel
               ? asyncDisposable.DisposeAsync().AsTask()
               : Task.Run(() => service.Dispose(), CancellationToken.None);
           await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+          _logger.LogWarning(ex, "BuildScope async disposal cancelled; skipping remaining services");
+          break;
         }
         catch (Exception ex)
         {

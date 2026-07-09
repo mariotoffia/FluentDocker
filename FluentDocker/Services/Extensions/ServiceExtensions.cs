@@ -131,6 +131,11 @@ namespace FluentDocker.Services.Extensions
         {
           forceFreshEndpoint = true;
         }
+        catch (SocketException ex)
+        {
+          forceFreshEndpoint = true;
+          LogDebug(service, ex, "WaitForPortAsync", portAndProto);
+        }
 
         var delay = (int)Math.Min(pollIntervalMs, Math.Max(1, timeout - sw.ElapsedMilliseconds));
         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
@@ -349,76 +354,17 @@ namespace FluentDocker.Services.Extensions
         {
           forceFreshEndpoint = true;
         }
+        catch (SocketException ex)
+        {
+          forceFreshEndpoint = true;
+          LogDebug(service, ex, "WaitForHttpAsync", portAndProto);
+        }
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
 
       cancellationToken.ThrowIfCancellationRequested();
       return false;
-    }
-
-    /// <summary>
-    /// Waits for container logs to contain specific text.
-    /// </summary>
-    /// <param name="service">The container service.</param>
-    /// <param name="text">Text to search for in logs.</param>
-    /// <param name="timeout">Timeout in milliseconds.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the text was found, false if timeout.</returns>
-    /// <remarks>
-    /// Extension waits return false on timeout and throw cancellation or non-transient
-    /// driver errors. Builder waits throw <see cref="FluentDockerException"/>.
-    /// </remarks>
-    public static async Task<bool> WaitForLogMessageAsync(
-        this IContainerService service,
-        string text,
-        long timeout = 30000,
-        CancellationToken cancellationToken = default)
-    {
-      return await WaitForLogMessageAsync(service, text, timeout, 500, cancellationToken)
-          .ConfigureAwait(false);
-    }
-
-    public static async Task<bool> WaitForLogMessageAsync(
-        this IContainerService service,
-        string text,
-        long timeout,
-        int pollIntervalMs,
-        CancellationToken cancellationToken = default)
-    {
-      cancellationToken.ThrowIfCancellationRequested();
-      var sw = Stopwatch.StartNew();
-      var firstLogPoll = true;
-
-      while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
-      {
-        try
-        {
-          var logs = service is ContainerService containerService && !firstLogPoll
-              ? await containerService.GetLogsTailAsync(LogTailLines, cancellationToken).ConfigureAwait(false)
-              : await service.GetLogsAsync(false, cancellationToken).ConfigureAwait(false);
-          firstLogPoll = false;
-          if (logs?.Contains(text) == true)
-            return true;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-          throw;
-        }
-        catch (DriverException ex) when (ex.IsTransient)
-        {
-        }
-        catch (Exception ex) when (IsRetriableWaitException(ex))
-        {
-          LogDebug(service, ex, "WaitForLogMessageAsync", text);
-        }
-
-        await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
-      }
-
-      cancellationToken.ThrowIfCancellationRequested();
-      return service is ContainerService &&
-          await ContainsLogMessageAsync(service, text, cancellationToken).ConfigureAwait(false);
     }
 
     private static bool IsRetriableWaitException(Exception ex) =>

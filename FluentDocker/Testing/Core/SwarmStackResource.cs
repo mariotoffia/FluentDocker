@@ -6,6 +6,7 @@ using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Testing.Core
 {
@@ -16,6 +17,11 @@ namespace FluentDocker.Testing.Core
   public class SwarmStackResource : ResourceBase
   {
     private readonly StackDeployConfig _config;
+    private static readonly Action<ILogger, Exception> MissingSessionLabels =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, nameof(MissingSessionLabels)),
+            "Swarm stack resources cannot apply FluentDocker session labels automatically; use unique stack names and run stack-specific cleanup for leaks.");
 
     /// <summary>
     /// Creates a swarm stack resource.
@@ -93,6 +99,10 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
+      if (Options.EnableSessionLabels)
+        MissingSessionLabels(Logger, null);
+
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
 
@@ -103,11 +113,20 @@ namespace FluentDocker.Testing.Core
             $"Stack deploy failed for '{_config.StackName}': {result.Error}");
       }
 
-      DeployResult = result.Data
+      var deployResult = result.Data
           ?? throw new FluentDockerException(
               $"Stack deploy for '{_config.StackName}' returned Success " +
               "but no result payload.");
-      ResourceName = _config.StackName;
+      if (TryCommitProvision(generation, () =>
+      {
+        DeployResult = deployResult;
+        ResourceName = _config.StackName;
+      }))
+      {
+        return;
+      }
+
+      await RemoveStaleStackAsync(driver, context, generation).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -150,6 +169,28 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized)
         throw new InvalidOperationException(
             "SwarmStack resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleStackAsync(
+        IStackDriver driver,
+        DriverContext context,
+        int generation)
+    {
+      if (!ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = driver.RemoveAsync(context, [_config.StackName], cts.Token);
+        var result = await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && result.ErrorCode != ErrorCodes.Stack.NotFound)
+          OrphanCleanup.MarkAbandonedLateProvision(_config.StackName, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(_config.StackName, Options.SessionId);
+      }
     }
   }
 }

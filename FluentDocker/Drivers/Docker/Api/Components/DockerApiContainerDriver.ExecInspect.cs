@@ -11,10 +11,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         string execId, bool detach, CancellationToken cancellationToken)
     {
       ApiResult<ExecInspectResponse> inspectResult = null!;
+      var escapedExecId = Uri.EscapeDataString(execId);
       for (var attempt = 0; attempt < 5; attempt++)
       {
         inspectResult = await GetJsonAsync(
-            $"/exec/{execId}/json",
+            $"/exec/{escapedExecId}/json",
             DockerApiJsonContext.Default.ExecInspectResponse, cancellationToken)
             .ConfigureAwait(false);
         if (!inspectResult.Success || detach ||

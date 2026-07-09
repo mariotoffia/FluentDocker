@@ -10,6 +10,10 @@ using Microsoft.Extensions.Logging;
 namespace FluentDocker.Services.Impl
 {
   /// <inheritdoc />
+  /// <remarks>
+  /// Lifecycle transitions are individually atomic; a single scope instance is not designed
+  /// for concurrent lifecycle calls (UseLinux/UseWindows/Dispose) from multiple threads.
+  /// </remarks>
   public class EngineScope : IEngineScope
   {
     private readonly FluentDockerKernel _kernel;
@@ -240,7 +244,16 @@ namespace FluentDocker.Services.Impl
       var restoreTask = _originalScope == EngineScopeType.Linux
           ? UseLinuxCoreAsync(throwIfDisposed: false, cleanupCts.Token)
           : UseWindowsCoreAsync(throwIfDisposed: false, cleanupCts.Token);
-      await restoreTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+      var restored = await restoreTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+      if (!restored)
+      {
+        var details = string.IsNullOrWhiteSpace(_lastSwitchError)
+            ? string.Empty
+            : $": {_lastSwitchError}";
+        throw new DriverException(
+            $"Failed to restore driver '{_driverId}' engine scope to {_originalScope}{details}",
+            ErrorCodes.General.Unknown);
+      }
     }
 
     private void ThrowIfDisposed() =>

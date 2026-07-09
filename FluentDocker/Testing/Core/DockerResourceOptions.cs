@@ -99,9 +99,9 @@ namespace FluentDocker.Testing.Core
     /// Honored directly by <see cref="ContainerResource"/>,
     /// <see cref="NetworkResource"/>, <see cref="VolumeResource"/>, and
     /// <see cref="TopologyResource"/> child container/network/volume operations.
-    /// Other resource types may create labeled child containers, networks, or
-    /// volumes only when their compose/stack/kubernetes definitions include
-    /// labels themselves. Default: true.
+    /// Compose injects an overlay when possible. Swarm stack and Podman Kubernetes
+    /// resources cannot add labels automatically; use unique names and explicit
+    /// cleanup for those resource families. Default: true.
     /// </summary>
     public bool EnableSessionLabels { get; set; } = true;
 

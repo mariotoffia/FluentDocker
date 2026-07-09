@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
@@ -10,7 +11,13 @@ namespace FluentDocker.Kernel
   /// <summary>
   /// Registry for managing driver and driver pack instances.
   /// </summary>
-  public interface IDriverRegistry
+  /// <remarks>
+  /// Implementations own registered driver lifetimes and must make
+  /// <see cref="IAsyncDisposable.DisposeAsync"/> idempotent; the kernel may retry
+  /// disposal after a timeout. Prefer async disposal/unregistration. Any sync bridge
+  /// should document its sync-over-async trade-off and avoid single-threaded contexts.
+  /// </remarks>
+  public interface IDriverRegistry : IAsyncDisposable
   {
     #region Driver Registration
 

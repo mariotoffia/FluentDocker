@@ -61,8 +61,9 @@ namespace FluentDocker.Resources
       if (_namespace == null)
         throw new FluentDockerException("Namespace not set. Call Namespace(...) before querying resources.");
 
+      var namespacePrefix = _namespace + ".";
       foreach (var res in assembly.GetManifestResourceNames()
-                   .Where(x => x.StartsWith(_namespace, StringComparison.Ordinal)))
+                   .Where(x => x.StartsWith(namespacePrefix, StringComparison.Ordinal)))
       {
         var file = ExtractFile(res);
         var ns = res[..(res.Length - file.Length - 1)];

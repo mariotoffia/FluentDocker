@@ -6,10 +6,10 @@ namespace FluentDocker.Model.Stacks
   [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use IStackDriver list response models instead.")]
   public sealed class StackLsResponse
   {
-    public string Name { get; set; } = null!;
+    public string? Name { get; set; }
     public int Services { get; set; }
     public Orchestrator Orchestrator { get; set; }
-    public string Namespace { get; set; } = null!;
+    public string? Namespace { get; set; }
 
     public static Orchestrator ToOrchestrator(string value)
     {

@@ -24,6 +24,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
+      ThrowIfDisposed();
       var name = uniqueName ?? Guid.NewGuid().ToString();
       _hooks[name] = (state, hook);
       return this;
@@ -31,6 +32,7 @@ namespace FluentDocker.Services.Impl
 
     public IServiceAsync RemoveHook(string uniqueName)
     {
+      ThrowIfDisposed();
       _hooks.TryRemove(uniqueName, out _);
       return this;
     }
@@ -153,6 +155,7 @@ namespace FluentDocker.Services.Impl
         bool throwIfDisposed,
         CancellationToken cancellationToken)
     {
+      cancellationToken.ThrowIfCancellationRequested();
       if (throwIfDisposed)
         ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
@@ -161,58 +164,66 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      UpdateState(ServiceRunningState.Removing);
-      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
-      await ExecuteLifecycleHooksAsync(
-          ServiceRunningState.Removing,
-          cancellationToken,
-          LifecycleHookType.Execute,
-          includeOnly: false,
-          skipType: skipExecuteLifecycleHooks).ConfigureAwait(false);
-
-      IVolumeDriver namedVolumeDriver = null;
-      var namedVolumes = Array.Empty<string>();
-      if (_deleteNamedVolumeOnDispose)
+      try
       {
-        if (_kernel.TrySysCtl<IVolumeDriver>(_driverId, out namedVolumeDriver))
+        UpdateState(ServiceRunningState.Removing);
+        await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
+        await ExecuteLifecycleHooksAsync(
+            ServiceRunningState.Removing,
+            cancellationToken,
+            LifecycleHookType.Execute,
+            includeOnly: false,
+            skipType: skipExecuteLifecycleHooks).ConfigureAwait(false);
+
+        IVolumeDriver namedVolumeDriver = null;
+        var namedVolumes = Array.Empty<string>();
+        if (_deleteNamedVolumeOnDispose)
         {
-          namedVolumes = await InspectNamedVolumesAsync(driver, context, cancellationToken)
-              .ConfigureAwait(false);
+          if (_kernel.TrySysCtl<IVolumeDriver>(_driverId, out namedVolumeDriver))
+          {
+            namedVolumes = await InspectNamedVolumesAsync(driver, context, cancellationToken)
+                .ConfigureAwait(false);
+          }
+          else
+          {
+            _logger.LogWarning(
+                "ContainerService named volume cleanup skipped for '{Container}' because IVolumeDriver is unavailable",
+                _name);
+          }
         }
-        else
+
+        var removeVolumes = removeVolumesOverride ?? _deleteVolumeOnDispose;
+        var response = await driver.RemoveAsync(
+            context, _containerId, force, removeVolumes, cancellationToken).ConfigureAwait(false);
+
+        if (!response.Success)
         {
-          _logger.LogWarning(
-              "ContainerService named volume cleanup skipped for '{Container}' because IVolumeDriver is unavailable",
-              _name);
+          if (IsContainerAlreadyGone(response))
+          {
+            UpdateState(ServiceRunningState.Removed);
+            await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+            await RemoveNamedVolumesAsync(namedVolumeDriver, context, namedVolumes, cancellationToken)
+                .ConfigureAwait(false);
+            return;
+          }
+
+          UpdateState(ServiceRunningState.Unknown);
+          throw new DriverException(
+              $"Failed to remove container '{_name}': {response.Error}",
+              response.ErrorCode,
+              response.ErrorContext);
         }
+
+        UpdateState(ServiceRunningState.Removed);
+        await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+        await RemoveNamedVolumesAsync(namedVolumeDriver, context, namedVolumes, cancellationToken)
+            .ConfigureAwait(false);
       }
-
-      var removeVolumes = removeVolumesOverride ?? _deleteVolumeOnDispose;
-      var response = await driver.RemoveAsync(
-          context, _containerId, force, removeVolumes, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      catch
       {
-        if (IsContainerAlreadyGone(response))
-        {
-          UpdateState(ServiceRunningState.Removed);
-          await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
-          await RemoveNamedVolumesAsync(namedVolumeDriver, context, namedVolumes, cancellationToken)
-              .ConfigureAwait(false);
-          return;
-        }
-
         UpdateState(ServiceRunningState.Unknown);
-        throw new DriverException(
-            $"Failed to remove container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
+        throw;
       }
-
-      UpdateState(ServiceRunningState.Removed);
-      await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
-      await RemoveNamedVolumesAsync(namedVolumeDriver, context, namedVolumes, cancellationToken)
-          .ConfigureAwait(false);
     }
 
     private async Task<string[]> InspectNamedVolumesAsync(
@@ -305,8 +316,6 @@ namespace FluentDocker.Services.Impl
 
     private async Task RunDisposeHooksWithoutRemovalAsync(CancellationToken cancellationToken)
     {
-      UpdateState(ServiceRunningState.Removing);
-      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
       await ExecuteLifecycleHooksAsync(
           ServiceRunningState.Removing,
           cancellationToken,

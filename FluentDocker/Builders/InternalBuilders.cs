@@ -36,6 +36,7 @@ namespace FluentDocker.Builders
     private bool _removeOnDispose;
     private readonly Dictionary<string, string> _labels = [];
     private readonly Dictionary<string, string> _options = [];
+    private string _createdNetworkId;
 
     internal bool CreatedResource { get; private set; }
     internal string Name => _name;
@@ -87,12 +88,13 @@ namespace FluentDocker.Builders
                 _name);
           }
 
-          // A reused network is always borrowed and never removed on dispose. Unlike a volume,
-          // a Docker network name is NOT a unique identity — several networks can share a name,
-          // so a same-name network found on a retry may be a foreign one that replaced the one we
-          // created. Removing it could delete someone else's network, so we never re-own by name.
+          var reownPriorAttempt = priorAttemptCreated &&
+              string.Equals(existingNetwork.Id, _createdNetworkId, StringComparison.Ordinal);
+          CreatedResource = reownPriorAttempt;
+          // Re-own only by Docker's network ID. Names are ambiguous; IDs prove this is the
+          // same network this builder created before cleanup missed it.
           return new Services.Impl.NetworkService(
-              _kernel, _driverId, existingNetwork.Id, _name, removeOnDispose: CreatedResource);
+              _kernel, _driverId, existingNetwork.Id, _name, removeOnDispose: reownPriorAttempt && _removeOnDispose);
         }
       }
 
@@ -115,6 +117,7 @@ namespace FluentDocker.Builders
             response.ErrorCode, response.ErrorContext);
 
       CreatedResource = true;
+      _createdNetworkId = response.Data.Id;
       return new Services.Impl.NetworkService(
           _kernel, _driverId, response.Data.Id, _name, _removeOnDispose);
     }
@@ -218,10 +221,12 @@ namespace FluentDocker.Builders
 
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
-    private readonly List<string> _composeFiles = [];
-    private readonly List<string> _profiles = [];
-    private string _projectName;
-    private readonly Dictionary<string, string> _environment = [];
+#pragma warning disable IDE1006 // Same-assembly compose overlay needs the existing backing fields.
+    internal readonly List<string> _composeFiles = [];
+    internal readonly List<string> _profiles = [];
+    internal string _projectName;
+    internal readonly Dictionary<string, string> _environment = [];
+#pragma warning restore IDE1006
     private readonly HashSet<string> _explicitEnvironmentKeys = [];
     private readonly List<string> _envFiles = [];
     private readonly Dictionary<string, int> _scale = [];
@@ -236,7 +241,9 @@ namespace FluentDocker.Builders
     private bool _wait;
     private int? _timeout;
     private int? _waitTimeout;
-    private bool _attachToExisting;
+#pragma warning disable IDE1006 // Same-assembly compose overlay needs the existing backing field.
+    internal bool _attachToExisting;
+#pragma warning restore IDE1006
     private readonly List<string> _services = [];
     private ComposeModelBuilder _models;
     private string _renderedOverlay;
@@ -387,7 +394,7 @@ namespace FluentDocker.Builders
           initialState: _noStart ? ServiceRunningState.Stopped : ServiceRunningState.Running);
     }
 
-    private async Task LoadEnvFilesAsync(CancellationToken cancellationToken)
+    internal async Task LoadEnvFilesAsync(CancellationToken cancellationToken)
     {
       foreach (var path in _envFiles)
       {

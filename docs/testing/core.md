@@ -122,10 +122,10 @@ label.
 
 `EnableSessionLabels` is applied directly by `ContainerResource`, `NetworkResource`,
 `VolumeResource`, and the top-level `UseContainer`/`UseNetwork`/`UseVolume` resources
-of a `TopologyResource`. Containers that a Compose or pod operation spawns are **not**
-session-labeled — those builders are not label-capable — so for Compose, Swarm,
-Kubernetes, image pull, and model resources add labels in the underlying
-compose/YAML/build definition when you need orphan cleanup to see them.
+of a `TopologyResource`. `ComposeResource` adds a generated overlay when Compose
+can render the project config. Swarm stacks and Podman Kubernetes YAML still cannot
+be labeled automatically; use unique names and stack/kube-specific cleanup for
+those resources.
 
 `OrphanCleanupMinimumAge` (a `TimeSpan`, default 1 hour) bounds what cleanup may
 remove: only managed resources **older** than this age are deleted. With the
@@ -151,21 +151,19 @@ label, so a CI job can reap leftovers without going through the framework:
 docker ps -aq --filter label=fluentdocker.managed=true | xargs -r docker rm -f
 ```
 
-On a **shared** daemon this cuts both ways: `CleanupOrphansOnInit` with the
-default one-hour `OrphanCleanupMinimumAge` can reap a long-running,
-framework-labeled container from a parallel run once it crosses the age
-threshold. Give each CI job its own daemon, or raise `OrphanCleanupMinimumAge`
-above your longest job when several runs share one daemon.
+On a **shared** daemon this cuts both ways: the framework never removes running
+containers during orphan cleanup, regardless of age. Use the manual `docker rm -f`
+sweep only on daemons where that is safe.
 
 ### Cleaning up leaked containers in CI
 
 The testing core removes its containers when the fixture is disposed — that is,
 during normal test teardown. When a CI runner sends `SIGKILL` (`kill -9`) — job
 timeout, cancelled pipeline, agent teardown — the process dies before disposal runs,
-so session-labeled containers stay up. The next run won't reclaim them either: the
-default one-hour `OrphanCleanupMinimumAge` guard keeps `CleanupOrphansOnInit` from
-touching resources younger than an hour, so freshly leaked containers survive until
-they age past the threshold.
+so session-labeled containers stay up. The next run won't reclaim running
+containers at any age; that is deliberate fail-safe behavior. Enable
+`FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` for catchable exits, or run an explicit
+`docker rm -f`/`podman rm -f` sweep when CI owns the daemon.
 
 Reap them explicitly at the start (or end) of the job. Every managed resource carries
 the `fluentdocker.managed=true` label:

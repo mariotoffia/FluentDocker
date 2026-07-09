@@ -37,9 +37,10 @@ namespace FluentDocker.Testing.Xunit
   ///       =&gt; Assert.NotNull(_fixture.Container);
   /// }
   /// </code>
-  /// <para>xUnit v3 does not support converting class-fixture initialization
-  /// failures into skipped tests. Skip from the test body instead:
-  /// <c>Assert.SkipWhen(!await fixture.IsDockerAvailableAsync(), "Docker unavailable");</c>.</para>
+  /// <para>xUnit v3 does not convert class-fixture initialization failures into
+  /// skipped tests. Probe before creating the resource (for example with
+  /// <see cref="XunitConditionalContainerFixtureBase"/>) and then call
+  /// <c>Assert.SkipWhen(fixture.IsSkipped, fixture.SkipReason);</c> in the test body.</para>
   /// </remarks>
   public abstract class XunitContainerFixtureBase : IAsyncLifetime
   {
@@ -93,7 +94,7 @@ namespace FluentDocker.Testing.Xunit
     {
       var driver = GetOptions()?.Driver;
       var driverId = driver is not null && !driver.UseDefault ? driver.DriverId : null;
-      return DockerAvailability.IsAvailableAsync(KernelFactory!, driverId, cancellationToken);
+      return DockerAvailability.IsAvailableAsync(KernelFactory!, driverId!, cancellationToken);
     }
 
     /// <inheritdoc />

@@ -217,11 +217,12 @@ namespace FluentDocker.Testing.Core
       try
       {
         using var cts = new CancellationTokenSource(Options.TeardownTimeout);
-        await container.RemoveAsync(force: true, cancellationToken: cts.Token).ConfigureAwait(false);
+        var removeTask = container.RemoveAsync(force: true, cancellationToken: cts.Token);
+        await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
       }
       catch (Exception ex)
       {
-        OrphanCleanup.MarkAbandonedLateProvision(container.Name ?? container.Id);
+        OrphanCleanup.MarkAbandonedLateProvision(container.Name ?? container.Id, Options.SessionId);
         LateContainerProvisionCleanupFailed(Logger, ex);
       }
     }

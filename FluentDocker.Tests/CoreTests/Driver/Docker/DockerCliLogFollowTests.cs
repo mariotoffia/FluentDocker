@@ -26,6 +26,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
+    public async Task ContainerGetLogsAsync_WithFollow_ReturnsFailureWithoutExecuting()
+    {
+      var driver = new DockerCliContainerDriver(new TestBinaryResolver());
+
+      var response = await driver.GetLogsAsync(
+          new DriverContext("docker"),
+          "container",
+          follow: true,
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.False(response.Success);
+      Assert.Contains("follow=true", response.Error);
+    }
+
+    [Fact]
     public async Task ServiceGetLogsAsync_WithFollow_ReturnsFailureWithoutExecuting()
     {
       var driver = new DockerCliServiceDriver(new TestBinaryResolver());

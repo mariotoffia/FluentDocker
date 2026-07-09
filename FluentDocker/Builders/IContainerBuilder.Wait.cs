@@ -67,7 +67,7 @@ namespace FluentDocker.Builders
     /// <param name="continuation">
     /// A callback invoked after each HTTP response. Receives the <see cref="RequestResponse"/> and the
     /// current attempt count. Return a positive value in milliseconds to retry after that delay,
-    /// 0 to continue immediately, or -1 to indicate success.
+    /// 0 to poll again after the current poll interval, or -1 to indicate success.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WaitForHttpUrl(
@@ -104,9 +104,9 @@ namespace FluentDocker.Builders
     IContainerBuilder Wait(Func<IContainerService, int, int> condition, long timeoutMs = 60000);
 
     /// <summary>
-    /// Sets the poll interval for subsequent wait conditions.
+    /// Sets the poll interval captured by wait conditions declared after this call.
     /// </summary>
-    /// <param name="intervalMs">Delay in milliseconds between poll iterations (default 500).</param>
+    /// <param name="intervalMs">Delay in milliseconds between poll iterations for subsequent waits (default 500).</param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithWaitPollInterval(int intervalMs);
 

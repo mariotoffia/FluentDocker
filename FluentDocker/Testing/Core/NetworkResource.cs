@@ -65,9 +65,11 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var config = new NetworkCreateConfig();
       _configure(config);
 
+      var callerName = !string.IsNullOrEmpty(config.Name);
       if (string.IsNullOrEmpty(config.Name))
         config.Name = GenerateUniqueName("net");
 
@@ -77,8 +79,6 @@ namespace FluentDocker.Testing.Core
           config.Labels[label.Key] = label.Value;
       }
 
-      ResourceName = config.Name;
-
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
       var result = await driver.CreateAsync(
           new DriverContext(DriverId), config, cancellationToken).ConfigureAwait(false);
@@ -87,7 +87,17 @@ namespace FluentDocker.Testing.Core
         throw new FluentDockerException(
             $"Failed to create network '{config.Name}': {result.Error}");
 
-      NetworkId = result.Data.Id;
+      var networkId = result.Data.Id;
+      if (TryCommitProvision(generation, () =>
+      {
+        ResourceName = config.Name;
+        NetworkId = networkId;
+      }))
+      {
+        return;
+      }
+
+      await RemoveStaleNetworkAsync(driver, networkId, generation, callerName).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -143,6 +153,30 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized || string.IsNullOrEmpty(NetworkId))
         throw new InvalidOperationException(
             "Network resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleNetworkAsync(
+        INetworkDriver driver,
+        string networkId,
+        int generation,
+        bool callerName)
+    {
+      if (callerName && !ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = driver.RemoveAsync(
+            new DriverContext(DriverId), networkId, cts.Token);
+        var result = await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && result.ErrorCode != ErrorCodes.Network.NotFound)
+          OrphanCleanup.MarkAbandonedLateProvision(networkId, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(networkId, Options.SessionId);
+      }
     }
   }
 }

@@ -88,55 +88,25 @@ namespace FluentDocker.Services.Impl
     public async Task<string> ChatAsync(string prompt, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      ArgumentNullException.ThrowIfNull(prompt);
-      var request = new ChatCompletionRequest
-      {
-        Model = RequireModelId(),
-        Messages = new List<ChatMessage> { new() { Role = "user", Content = prompt } }
-      };
-
-      var response = await ChatCompletionAsync(request, cancellationToken).ConfigureAwait(false);
-      if (response.Choices is not { Count: > 0 })
-        throw new ModelRunnerException(
-            "Chat completion returned no choices.", ErrorCodes.ModelInference.RequestFailed);
-      return response.Choices[0].Message?.Content
-          ?? throw new ModelRunnerException(
-              "Chat completion choice carried no text content (e.g. tool_calls or a refusal); use ChatCompletionAsync to read the full message.",
-              ErrorCodes.ModelInference.RequestFailed);
+      return await ModelRunnerInferenceHelpers.ChatAsync(
+          this, _defaultInferenceId, prompt, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async IAsyncEnumerable<string> ChatStreamAsync(string prompt, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      ArgumentNullException.ThrowIfNull(prompt);
-      var request = new ChatCompletionRequest
-      {
-        Model = RequireModelId(),
-        Messages = new List<ChatMessage> { new() { Role = "user", Content = prompt } }
-      };
-
-      await foreach (var chunk in ChatCompletionStreamAsync(request, cancellationToken).ConfigureAwait(false))
-      {
-        var delta = chunk?.Choices is { Count: > 0 } ? chunk.Choices[0]?.Delta?.Content : null;
-        if (!string.IsNullOrEmpty(delta))
-          yield return delta;
-      }
+      await foreach (var delta in ModelRunnerInferenceHelpers.ChatStreamAsync(
+          this, _defaultInferenceId, prompt, cancellationToken).ConfigureAwait(false))
+        yield return delta;
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference model = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      ArgumentNullException.ThrowIfNull(text);
-      var request = new EmbeddingsRequest
-      {
-        Model = RequireModelId(model),
-        Input = new List<string> { text }
-      };
-
-      var response = await EmbeddingsAsync(request, cancellationToken).ConfigureAwait(false);
-      return response.Data is { Count: > 0 } ? ToReadOnly(response.Data[0].Embedding) : [];
+      return await ModelRunnerInferenceHelpers.EmbedAsync(
+          this, _defaultInferenceId, text, model, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -181,21 +151,6 @@ namespace FluentDocker.Services.Impl
         DefaultBackend = backend?.DefaultBackend,
         AvailableBackends = backend?.AvailableBackends ?? []
       };
-    }
-
-    private string RequireModelId(ModelReference model = null)
-    {
-      // The inference body carries the VERBATIM id (no auto ":latest"). A per-call
-      // Docker reference is reduced to its inference form; otherwise the bound default
-      // inference id is used (itself derived verbatim from the default model or a raw id).
-      var id = model != null
-          ? InferenceModelId.FromModelReference(model)?.Value
-          : _defaultInferenceId?.Value;
-
-      if (string.IsNullOrEmpty(id))
-        throw new ArgumentException(
-          "No model specified and no default model was configured. Pass a model or configure one via ForModel/WithModel.", nameof(model));
-      return id;
     }
 
     private void ThrowIfDisposed() =>

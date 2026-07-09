@@ -29,6 +29,8 @@ namespace FluentDocker.Testing.MsTest
   /// they share the same static container and cleanup state.
   /// Use <see cref="MsTestContainerFixtureBase"/> when each test method should get
   /// a fresh container.
+  /// Treat the cleanup method as mandatory boilerplate; omitting it is a test
+  /// infrastructure bug that keeps the container alive until process exit.
   /// </remarks>
   public abstract class MsTestClassContainerFixtureBase<TFixture>
       where TFixture : MsTestClassContainerFixtureBase<TFixture>

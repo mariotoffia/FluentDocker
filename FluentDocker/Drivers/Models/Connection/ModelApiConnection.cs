@@ -372,7 +372,11 @@ namespace FluentDocker.Drivers.Models.Connection
     private static (SocketsHttpHandler, Uri) CreateTcpHandler(
         Uri uri, ModelApiConnectionConfig config, List<X509Certificate2> ownedCertificates)
     {
-      var handler = new SocketsHttpHandler { ConnectTimeout = config.ConnectionTimeout };
+      var handler = new SocketsHttpHandler
+      {
+        ConnectTimeout = config.ConnectionTimeout,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+      };
       var hasCerts = !string.IsNullOrEmpty(config.CertificatePath);
       var useTls = string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase);
       if (hasCerts && !useTls)

@@ -15,7 +15,7 @@ namespace FluentDocker.Common
     public override List<string> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
       if (reader.TokenType == JsonTokenType.StartArray)
-        return JsonSerializer.Deserialize<List<string>>(ref reader, options) ?? [];
+        return ReadArray(ref reader);
 
       if (reader.TokenType == JsonTokenType.Null)
         return [];
@@ -30,9 +30,31 @@ namespace FluentDocker.Common
       return [.. value.Split(", ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)];
     }
 
+    private static List<string> ReadArray(ref Utf8JsonReader reader)
+    {
+      var result = new List<string>();
+      while (reader.Read())
+      {
+        if (reader.TokenType == JsonTokenType.EndArray)
+          return result;
+
+        result.Add(reader.TokenType switch
+        {
+          JsonTokenType.String => reader.GetString() ?? string.Empty,
+          JsonTokenType.Null => string.Empty,
+          _ => throw new JsonException($"Cannot convert JSON token '{reader.TokenType}' to System.String.")
+        });
+      }
+
+      throw new JsonException("Unexpected end of JSON array.");
+    }
+
     public override void Write(Utf8JsonWriter writer, List<string> value, JsonSerializerOptions options)
     {
-      JsonSerializer.Serialize(writer, value, options);
+      writer.WriteStartArray();
+      foreach (var item in value)
+        writer.WriteStringValue(item);
+      writer.WriteEndArray();
     }
   }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -46,7 +45,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var info = JsonSerializer.Deserialize<DockerSystemInfo>(result.Output, JsonHelper.CaseInsensitiveOptions) ?? new DockerSystemInfo();
+        if (!JsonHelper.TryDeserialize<DockerSystemInfo>(result.Output, out var info, out var parseError))
+        {
+          return CommandResponse<SystemInfo>.Fail(
+              $"System info JSON parsing failed: {parseError?.Message}",
+              ErrorCodes.General.Unknown);
+        }
+
+        info ??= new DockerSystemInfo();
         info.PopulateMeta();
         return CommandResponse<SystemInfo>.Ok(info);
       }
@@ -78,7 +84,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               result.ExitCode);
         }
 
-        var version = JsonSerializer.Deserialize<DockerVersionInfo>(result.Output, JsonHelper.CaseInsensitiveOptions) ?? new DockerVersionInfo();
+        if (!JsonHelper.TryDeserialize<DockerVersionInfo>(result.Output, out var version, out var parseError))
+        {
+          return CommandResponse<VersionInfo>.Fail(
+              $"Docker version JSON parsing failed: {parseError?.Message}",
+              ErrorCodes.General.Unknown);
+        }
+
+        version ??= new DockerVersionInfo();
         version.PopulateMeta();
         return CommandResponse<VersionInfo>.Ok(version);
       }
