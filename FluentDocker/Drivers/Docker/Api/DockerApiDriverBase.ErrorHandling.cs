@@ -16,7 +16,7 @@ namespace FluentDocker.Drivers.Docker.Api
   {
     #region Error Context
 
-    /// <inheritdoc />
+    /// <summary>Creates a driver error context with HTTP status metadata.</summary>
     protected ErrorContext CreateErrorContext(
         string operation, int statusCode, string responseBody = null)
     {
@@ -42,7 +42,7 @@ namespace FluentDocker.Drivers.Docker.Api
       return statusCode == 404 ? defaultErrorCode : MapHttpErrorCode(statusCode);
     }
 
-    /// <inheritdoc />
+    /// <summary>Maps an HTTP status code to the shared Docker API error taxonomy.</summary>
     protected static string MapHttpErrorCode(int statusCode)
     {
       return statusCode switch
@@ -59,14 +59,14 @@ namespace FluentDocker.Drivers.Docker.Api
       };
     }
 
-    /// <inheritdoc />
+    /// <summary>Converts a transport exception into a typed API result failure.</summary>
     protected ApiResult<T> TransportFailure<T>(Exception ex)
     {
       var (statusCode, message) = DescribeTransportFailure(ex);
       return ApiResult<T>.Failure(statusCode, message);
     }
 
-    /// <inheritdoc />
+    /// <summary>Converts a transport exception into an untyped API result failure.</summary>
     protected ApiResult TransportFailure(Exception ex)
     {
       var (statusCode, message) = DescribeTransportFailure(ex);
@@ -77,7 +77,7 @@ namespace FluentDocker.Drivers.Docker.Api
     // 408 (an internal HttpClient.Timeout — the caller's token did not fire) maps to
     // General.Timeout; 599 (daemon never reached) maps to Api.ConnectionFailed — both via
     // MapHttpErrorCode — so a daemon-down outage is distinguishable from a genuine daemon 5xx.
-    /// <inheritdoc />
+    /// <summary>Describes a pre-response transport failure as a synthetic status and message.</summary>
     protected (int StatusCode, string Message) DescribeTransportFailure(Exception ex)
     {
       if (ex is DockerApiTtfbTimeoutException ttfb)
@@ -96,7 +96,7 @@ namespace FluentDocker.Drivers.Docker.Api
     // (e.g. 404 from EnsureStreamSuccessAsync) maps directly; a pre-response transport
     // failure is described (599 connect / 408 timeout) so daemon-down streams surface as
     // Api.ConnectionFailed uniformly with the buffered paths.
-    /// <inheritdoc />
+    /// <summary>Classifies a streaming exception into a retry-aware error code.</summary>
     protected string ClassifyStreamException(Exception ex)
     {
       if (ex is HttpRequestException { StatusCode: not null } http)

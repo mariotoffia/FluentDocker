@@ -21,7 +21,9 @@ namespace FluentDocker.Common
     /// <summary>The HTTP response headers.</summary>
     public HttpResponseHeaders? Headers { get; }
 
-    /// <summary>The HTTP status code returned by the API.</summary>
+    /// <summary>
+    /// The HTTP status code returned by the API, or 0 when no HTTP response was received.
+    /// </summary>
     public HttpStatusCode Code { get; }
 
     /// <summary>The response body as a string.</summary>

@@ -19,6 +19,7 @@ namespace FluentDocker.Testing.Xunit
   /// </remarks>
   public abstract class XunitConditionalContainerFixtureBase : IAsyncLifetime
   {
+    private static readonly TimeSpan HealthProbeTimeout = TimeSpan.FromSeconds(10);
     private ContainerResource? _resource;
     private FluentDockerKernel? _kernel;
 
@@ -66,8 +67,30 @@ namespace FluentDocker.Testing.Xunit
             ? kernel.DefaultDriverId
             : options.Driver.DriverId;
         driverId ??= kernel.DefaultDriverId;
-        if (!await CapabilityChecks.IsHealthyAsync(kernel, driverId, CancellationToken.None)
-            .ConfigureAwait(false))
+        bool healthy;
+        using (var healthCts = new CancellationTokenSource())
+        {
+          var healthProbe = CapabilityChecks.IsHealthyAsync(kernel, driverId, healthCts.Token);
+          try
+          {
+            healthy = await healthProbe.WaitAsync(HealthProbeTimeout)
+                .ConfigureAwait(false);
+          }
+          catch (TimeoutException)
+          {
+            healthCts.Cancel();
+            Observe(healthProbe);
+            await SkipAsync(kernel, $"Docker driver '{driverId}' health probe timed out.").ConfigureAwait(false);
+            return;
+          }
+          catch (OperationCanceledException) when (healthCts.IsCancellationRequested)
+          {
+            Observe(healthProbe);
+            await SkipAsync(kernel, $"Docker driver '{driverId}' health probe timed out.").ConfigureAwait(false);
+            return;
+          }
+        }
+        if (!healthy)
         {
           await SkipAsync(kernel, $"Docker driver '{driverId}' is not reachable.").ConfigureAwait(false);
           return;
@@ -114,6 +137,15 @@ namespace FluentDocker.Testing.Xunit
       if (_resource == null)
         throw new InvalidOperationException(
             "Fixture has not been initialized. Check IsSkipped before accessing Resource.");
+    }
+
+    private static void Observe(Task task)
+    {
+      _ = task.ContinueWith(
+          t => _ = t.Exception,
+          CancellationToken.None,
+          TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+          TaskScheduler.Default);
     }
   }
 }

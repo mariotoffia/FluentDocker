@@ -107,7 +107,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "stop";
         if (timeout.HasValue)
-          args += $" -t {timeout.Value}";
+          args += $" -t {FormatInvariant(timeout.Value)}";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
@@ -144,7 +144,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "restart";
         if (timeout.HasValue)
-          args += $" -t {timeout.Value}";
+          args += $" -t {FormatInvariant(timeout.Value)}";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);

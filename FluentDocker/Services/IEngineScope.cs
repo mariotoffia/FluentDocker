@@ -25,6 +25,8 @@ namespace FluentDocker.Services
   /// </summary>
   /// <remarks>
   /// Implementations are not designed for concurrent lifecycle calls on the same scope instance.
+  /// Disposing a scope restores the daemon to the scope detected at creation time. If the initial
+  /// scope cannot be detected, restore is skipped and logged by the implementation.
   /// </remarks>
   public interface IEngineScope : IDisposable, IAsyncDisposable
   {

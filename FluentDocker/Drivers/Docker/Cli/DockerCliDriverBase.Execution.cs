@@ -266,7 +266,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         cancellationToken.ThrowIfCancellationRequested();
 
         throw new DriverException(
-            $"Docker CLI command timed out after {timeout.TotalSeconds:0}s.",
+            $"Docker CLI command timed out after {FormatInvariant(timeout.TotalSeconds, "0")}s.",
             ErrorCodes.General.Timeout);
       }
       catch (Exception ex) when (processStarted || ex is not DriverException)
@@ -352,13 +352,13 @@ namespace FluentDocker.Drivers.Docker.Cli
       // Drain stderr concurrently so a chatty child cannot deadlock by filling the
       // stderr pipe buffer while we only read stdout.
       var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, cancellationToken);
-      var reader = process.StandardOutput;
+      var lineReader = new BoundedLineReader(process.StandardOutput);
       string failure = null;
 
       try
       {
         string line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+        while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           yield return line;
 
         // Stdout reached EOF — wait for the process and surface a non-zero exit as a
@@ -370,7 +370,7 @@ namespace FluentDocker.Drivers.Docker.Cli
           var trimmed = (error ?? string.Empty).Trim();
           if (trimmed.Length > 2000)
             trimmed = trimmed[..2000] + "…";
-          failure = $"exit code {process.ExitCode}{(trimmed.Length == 0 ? string.Empty : $": {trimmed}")}";
+          failure = $"exit code {FormatInvariant(process.ExitCode)}{(trimmed.Length == 0 ? string.Empty : $": {trimmed}")}";
         }
       }
       finally
@@ -470,7 +470,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         if (process.ExitCode != 0)
         {
           failureExitCode = process.ExitCode;
-          failure = $"exit code {process.ExitCode}{FormatTail(tail)}";
+          failure = $"exit code {FormatInvariant(process.ExitCode)}{FormatTail(tail)}";
         }
       }
       finally

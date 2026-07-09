@@ -384,6 +384,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       // never weaken an explicit VerifyTls=true, so a stray env var can't silently open the
       // connection to a man-in-the-middle.
       var tlsVerify = Environment.GetEnvironmentVariable("DOCKER_TLS_VERIFY");
+      var explicitCertificatePath = !string.IsNullOrEmpty(config.CertificatePath);
       return new DockerApiConnectionConfig
       {
         Host = config.Host ?? DockerUri.GetDockerHostEnvironmentPathOrDefault(),
@@ -393,7 +394,8 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         RequestTimeout = config.RequestTimeout,
         StreamIdleTimeout = config.StreamIdleTimeout,
         ApiVersion = config.ApiVersion,
-        AllowTlsHostnameMismatch = config.AllowTlsHostnameMismatch
+        AllowTlsHostnameMismatch = config.AllowTlsHostnameMismatch,
+        UseTls = explicitCertificatePath || !string.IsNullOrEmpty(tlsVerify)
       };
     }
 
@@ -408,7 +410,8 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       {
         "unix" => CreateUnixSocketHandler(uri, config),
         "npipe" => CreateNamedPipeHandler(uri, config),
-        "tcp" or "http" => CreateTcpHandler(uri, config, useTls: false, ownedCertificates),
+        "tcp" => CreateTcpHandler(uri, config, useTls: config.UseTls, ownedCertificates),
+        "http" => CreateTcpHandler(uri, config, useTls: false, ownedCertificates),
         "https" => CreateTcpHandler(uri, config, useTls: true, ownedCertificates),
         _ => throw new ArgumentException($"Unsupported URI scheme: {uri.Scheme}. " +
             "Use unix://, npipe://, tcp://, or https://", nameof(host))

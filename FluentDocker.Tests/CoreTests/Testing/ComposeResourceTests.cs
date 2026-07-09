@@ -65,6 +65,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       {
         ProjectName = "test-project"
       });
+      MockPack.SetupComposeList();
       MockPack.SetupComposeStart();
       MockPack.SetupComposeStopFailure();
       MockPack.SetupComposeDown();
@@ -89,6 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       {
         ProjectName = "test-project"
       });
+      MockPack.SetupComposeList();
       MockPack.SetupComposeStart();
       MockPack.SetupComposeStopFailure("stop failed");
       MockPack.SetupComposeDownFailure("down failed");

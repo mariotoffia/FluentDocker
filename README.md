@@ -207,6 +207,21 @@ changes.
 3.2.0 tightens the core surface. If you consume the model/DTO types directly, check
 these:
 
+- **`IContainerBuilder.WithPort(hostPort, containerPort)`.** Parameter order flipped
+  from `(containerPort, hostPort)` in 3.0/3.1 to `(hostPort, containerPort)` in
+  3.2.0, matching Docker `-p host:container` and the rest of FluentDocker's port
+  APIs. Bare-number call sites recompile cleanly with swapped semantics — review
+  every `WithPort` call when upgrading. `ExposePort` and `IPodBuilder.WithPort`
+  were already host-first and are unchanged:
+
+  ```csharp
+  // 3.0/3.1
+  c.WithPort("80/tcp", "8080"); // container 80 -> host 8080
+
+  // 3.2
+  c.WithPort("8080", "80/tcp"); // host 8080 -> container 80
+  ```
+
 - **Nullable reference types.** The core `Model`, `Extensions`, and `Resources`
   namespaces (and almost all of `Common`) are now null-annotated (`#nullable
   enable`). Genuinely optional members are `T?`; the rest are non-null. Code

@@ -7,6 +7,13 @@ namespace FluentDocker.Drivers.Docker.Cli
 {
   public abstract partial class DockerCliDriverBase
   {
+    /// <summary>
+    /// Merges a per-operation context over the component context.
+    /// </summary>
+    /// <remarks>
+    /// Nullable values, including <see cref="DriverContext.VerifyTls"/>, inherit the
+    /// component value when the operation does not set them.
+    /// </remarks>
     protected DriverContext CreateEffectiveContext(DriverContext operationContext)
     {
       var component = Context;
@@ -18,9 +25,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         LoggerFactory = operationContext.LoggerFactory ?? component?.LoggerFactory ?? NullLoggerFactory.Instance,
         Host = string.IsNullOrEmpty(operationContext.Host) ? component?.Host : operationContext.Host,
         CertificatePath = string.IsNullOrEmpty(operationContext.CertificatePath) ? component?.CertificatePath : operationContext.CertificatePath,
-        VerifyTls = !string.IsNullOrEmpty(operationContext.Host) || !string.IsNullOrEmpty(operationContext.CertificatePath)
-            ? operationContext.VerifyTls
-            : component?.VerifyTls ?? operationContext.VerifyTls,
+        VerifyTls = operationContext.VerifyTls ?? component?.VerifyTls,
         OperationId = operationContext.OperationId ?? component?.OperationId,
         Metadata = operationContext.Metadata ?? component?.Metadata,
         Sudo = operationContext.Sudo != SudoMechanism.None ? operationContext.Sudo : component?.Sudo ?? SudoMechanism.None,

@@ -73,13 +73,16 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public async Task LoadAsync_Detach_CanBeDisabled()
+    public async Task LoadAsync_DetachFalse_ReturnsInvalidArgumentFailureAndDoesNotRun()
     {
       var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
-      await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"),
+      var result = await driver.LoadAsync(Ctx, ModelReference.Parse("ai/x"),
           new ModelRunOptions { Detach = false }, TestContext.Current.CancellationToken);
 
-      Assert.DoesNotContain(" -d", driver.Commands.Single());
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.General.InvalidArgument, result.ErrorCode);
+      Assert.Contains("Detach=false", result.Error);
+      Assert.Empty(driver.Commands);
     }
 
     [Fact]

@@ -147,39 +147,15 @@ namespace FluentDocker.Services.Impl
       cancellationToken.ThrowIfCancellationRequested();
       if (throwIfDisposed)
         ThrowIfDisposed();
-      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
-      var context = new DriverContext(_driverId);
-
-      // Create a temp file for export
-      var tempPath = Path.GetTempFileName();
+      var tempPath = await ExportToTempFileCoreAsync(throwIfDisposed: false, cancellationToken)
+          .ConfigureAwait(false);
       try
       {
-        var response = await driver.ExportAsync(context, _containerId, tempPath, cancellationToken).ConfigureAwait(false);
-
-        if (!response.Success)
-        {
-          throw new DriverException(
-              $"Failed to export container '{_name}': {response.Error}",
-              response.ErrorCode,
-              response.ErrorContext);
-        }
-
         return await File.ReadAllBytesAsync(tempPath, cancellationToken).ConfigureAwait(false);
       }
       finally
       {
-        try
-        {
-          // ponytail: cleanup is best-effort and must not mask export success/failure.
-          if (File.Exists(tempPath))
-            File.Delete(tempPath);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        DeleteFileBestEffort(tempPath);
       }
     }
 

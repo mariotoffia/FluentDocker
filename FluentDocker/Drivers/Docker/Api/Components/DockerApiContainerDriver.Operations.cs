@@ -245,7 +245,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // Phase 3: Inspect exec for exit code
       var inspectResult = await InspectExecExitCodeAsync(
-          execId, config.Detach, cancellationToken).ConfigureAwait(false);
+          execId, config.Detach, context, cancellationToken).ConfigureAwait(false);
       if (!inspectResult.Success)
         return CommandResponse<ExecResult>.Fail(inspectResult.ErrorMessage,
             ErrorCodes.Container.ExecFailed,
@@ -255,8 +255,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // A detached exec (docker exec -d) is fire-and-forget: the process is expected to be
       // still Running at inspect, so we do not wait for an exit code — matching the CLI.
-      // ponytail: attached exec uses a tiny bounded poll because Docker can report Running=true
-      // for a moment after the streams close; detached exec keeps the single-inspect fast path.
+      // Attached exec polls until the caller/config deadline because Docker can report Running=true
+      // for a while after the streams close; detached exec keeps the single-inspect fast path.
       if (!config.Detach && (inspectResult.Data?.Running == true || inspectResult.Data?.ExitCode == null))
         return CommandResponse<ExecResult>.Fail(
             "Exec exit code is not available yet",
@@ -278,7 +278,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <summary>
     /// Demultiplexes a Docker multiplexed stream into separate stdout and stderr.
     /// Frame format: [1B stream type][3B zero padding][4B big-endian size][payload].
-    /// Stream types: 1=stdout, 2=stderr.
+    /// Stream types: 1=stdout, 2=stderr, 3=systemerr.
     /// </summary>
     private static async Task<(string StdOut, string StdErr)> DemultiplexStreamAsync(
         Stream stream, CancellationToken ct)
@@ -300,7 +300,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               $"Docker exec stream truncated: partial {headerRead}-byte frame header",
               ErrorCodes.Api.ServerError);
 
-        if (header[0] > 2 || header[1] != 0 || header[2] != 0 || header[3] != 0)
+        if (header[0] > 3 || header[1] != 0 || header[2] != 0 || header[3] != 0)
           throw new DriverException(
               "Docker exec stream has an invalid multiplexed frame header",
               ErrorCodes.Api.ServerError);
@@ -325,7 +325,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         if (streamType == 1)
           AppendUtf8(stdoutDecoder, payload, payloadRead, stdoutBuf);
-        else if (streamType == 2)
+        else if (streamType is 2 or 3)
+          // Type 3 systemerr is routed to stderr and the stream continues by design.
           AppendUtf8(stderrDecoder, payload, payloadRead, stderrBuf);
       }
 
@@ -430,6 +431,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId, string newName,
         CancellationToken cancellationToken = default)
     {
+      if (string.IsNullOrWhiteSpace(containerId) || string.IsNullOrWhiteSpace(newName))
+        return CommandResponse<Unit>.Fail(
+            "Container ID and new name are required",
+            ErrorCodes.General.InvalidArgument,
+            CreateErrorContext("POST /containers/{id}/rename", 0));
+
       var path = $"/containers/{Uri.EscapeDataString(containerId)}" +
                  $"/rename?name={Uri.EscapeDataString(newName)}";
       var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);

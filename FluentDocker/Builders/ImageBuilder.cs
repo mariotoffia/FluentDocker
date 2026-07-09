@@ -22,21 +22,30 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Creates a Dockerfile builder from a base image.
     /// </summary>
+    /// <param name="imageAndTag">Base image reference, or null for an empty Dockerfile builder.</param>
+    /// <returns>The Dockerfile builder for defining image contents.</returns>
     DockerfileBuilder From(string imageAndTag);
 
     /// <summary>
     /// Creates a Dockerfile builder from a base image with alias.
     /// </summary>
+    /// <param name="imageAndTag">Base image reference.</param>
+    /// <param name="asName">Stage alias.</param>
+    /// <returns>The Dockerfile builder for defining image contents.</returns>
     DockerfileBuilder From(string imageAndTag, string asName);
 
     /// <summary>
     /// Uses an existing Dockerfile from a file.
     /// </summary>
+    /// <param name="dockerFile">Path to the Dockerfile.</param>
+    /// <returns>The Dockerfile builder for build-context configuration.</returns>
     DockerfileBuilder FromFile(string dockerFile);
 
     /// <summary>
     /// Uses a Dockerfile content string.
     /// </summary>
+    /// <param name="dockerfileString">Dockerfile contents.</param>
+    /// <returns>The Dockerfile builder for build-context configuration.</returns>
     DockerfileBuilder FromString(string dockerfileString);
 
     #endregion
@@ -46,51 +55,68 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Reuse existing image if it already exists with the same name/tag.
     /// </summary>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder ReuseIfAlreadyExists();
 
     /// <summary>
     /// Sets the image name.
     /// </summary>
+    /// <param name="name">Image repository name with optional tag.</param>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder AsImageName(string name);
 
     /// <summary>
     /// Adds tags to the image.
     /// </summary>
+    /// <param name="tags">Tag names without the image repository prefix.</param>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder ImageTag(params string[] tags);
 
     /// <summary>
-    /// Adds build arguments.
+    /// Adds build arguments in <c>KEY=VALUE</c> format; entries without <c>=</c> use an empty value.
     /// </summary>
+    /// <param name="args">Build arguments in <c>KEY=VALUE</c> format.</param>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder BuildArguments(params string[] args);
 
     /// <summary>
-    /// Adds labels to the image.
+    /// Adds labels in <c>KEY=VALUE</c> format; entries without <c>=</c> use an empty value.
     /// </summary>
+    /// <param name="labels">Labels in <c>KEY=VALUE</c> format.</param>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder Label(params string[] labels);
 
     /// <summary>
     /// Disables build cache.
     /// </summary>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder NoCache();
 
     /// <summary>
     /// Always pull base images.
     /// </summary>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder AlwaysPull();
 
     /// <summary>
     /// Removes intermediate containers after successful build.
     /// </summary>
+    /// <param name="force">Force removal of intermediate containers.</param>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder RemoveIntermediate(bool force = false);
 
     /// <summary>
     /// Sets the target platform.
     /// </summary>
+    /// <param name="platform">Target platform, for example <c>linux/amd64</c>.</param>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder Platform(string platform);
 
     /// <summary>
     /// Sets the target build stage for multi-stage builds.
     /// </summary>
+    /// <param name="target">Target stage name.</param>
+    /// <returns>The builder instance for method chaining.</returns>
     IImageBuilder Target(string target);
 
     #endregion
@@ -146,6 +172,7 @@ namespace FluentDocker.Builders
 
     #region IImageBuilder Implementation
 
+    /// <inheritdoc />
     public DockerfileBuilder From(string imageAndTag = null)
     {
       _dockerfileBuilder = string.IsNullOrEmpty(imageAndTag)
@@ -154,6 +181,7 @@ namespace FluentDocker.Builders
       return _dockerfileBuilder;
     }
 
+    /// <inheritdoc />
     public DockerfileBuilder From(string imageAndTag, string asName)
     {
       _dockerfileBuilder = string.IsNullOrEmpty(imageAndTag)
@@ -162,44 +190,54 @@ namespace FluentDocker.Builders
       return _dockerfileBuilder;
     }
 
+    /// <inheritdoc />
     public DockerfileBuilder FromFile(string dockerFile)
     {
       _dockerfileBuilder = new DockerfileBuilder(this).FromFile(dockerFile);
       return _dockerfileBuilder;
     }
 
+    /// <inheritdoc />
     public DockerfileBuilder FromString(string dockerfileString)
     {
       _dockerfileBuilder = new DockerfileBuilder(this).FromString(dockerfileString);
       return _dockerfileBuilder;
     }
 
+    /// <inheritdoc />
     public IImageBuilder ReuseIfAlreadyExists()
     {
       _reuseIfExists = true;
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder AsImageName(string name)
     {
       SetImageName(name);
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder ImageTag(params string[] tags)
     {
+      ArgumentNullException.ThrowIfNull(tags);
       foreach (var tag in tags)
       {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
         if (!_tags.Contains(tag))
           _tags.Add(tag);
       }
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder BuildArguments(params string[] args)
     {
+      ArgumentNullException.ThrowIfNull(args);
       foreach (var arg in args)
       {
+        ArgumentNullException.ThrowIfNull(arg);
         var parts = arg.Split(EqualsSeparator, 2);
         if (parts.Length == 2)
           _buildArgs[parts[0]] = parts[1];
@@ -209,10 +247,13 @@ namespace FluentDocker.Builders
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder Label(params string[] labels)
     {
+      ArgumentNullException.ThrowIfNull(labels);
       foreach (var label in labels)
       {
+        ArgumentNullException.ThrowIfNull(label);
         var parts = label.Split(EqualsSeparator, 2);
         if (parts.Length == 2)
           _labels[parts[0]] = parts[1];
@@ -222,18 +263,21 @@ namespace FluentDocker.Builders
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder NoCache()
     {
       _noCache = true;
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder AlwaysPull()
     {
       _alwaysPull = true;
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder RemoveIntermediate(bool force = false)
     {
       _removeIntermediate = true;
@@ -241,12 +285,14 @@ namespace FluentDocker.Builders
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder Platform(string platform)
     {
       _platform = platform;
       return this;
     }
 
+    /// <inheritdoc />
     public IImageBuilder Target(string target)
     {
       _target = target;

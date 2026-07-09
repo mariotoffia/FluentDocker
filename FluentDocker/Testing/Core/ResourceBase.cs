@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using Microsoft.Extensions.Logging;
-
 namespace FluentDocker.Testing.Core
 {
   /// <summary>
@@ -25,6 +24,7 @@ namespace FluentDocker.Testing.Core
     private int _provisionGeneration;
     private int _disposeProvisionGeneration;
     private int _disposeStarted;
+    private int _reaperRegistered;
     private Task _abandonedProvision;
     private static readonly Action<ILogger, Exception> GracefulAndForceRemoveFailed =
         LoggerMessage.Define(
@@ -62,37 +62,30 @@ namespace FluentDocker.Testing.Core
       // Logger uses the *concrete* derived type as its category so users can filter per-resource.
       Logger = kernel.LoggerFactory.CreateLogger(GetType());
     }
-
     /// <summary>
     /// Logger for this resource. Category equals the concrete derived type's FQN.
     /// </summary>
     protected ILogger Logger { get; }
-
     /// <summary>
     /// The kernel managing drivers for this resource.
     /// </summary>
     public FluentDockerKernel Kernel { get; }
-
     /// <summary>
     /// Resource configuration.
     /// </summary>
     public DockerResourceOptions Options { get; }
-
     /// <inheritdoc />
     public bool IsInitialized { get; private set; }
-
     /// <summary>
     /// The resolved driver ID for this resource.
     /// </summary>
     // Nullable annotation scoped to consumer-visible null-before-init properties.
     public string DriverId { get; private set; }
-
     /// <summary>
     /// Unique name generated for this resource. Set during initialization.
     /// </summary>
     // Keep signature; public contract documents availability after initialization.
     public string ResourceName { get; protected set; }
-
     /// <summary>
     /// Diagnostics collected on failure.
     /// </summary>
@@ -172,7 +165,8 @@ namespace FluentDocker.Testing.Core
         try
         {
           DriverId = ResolveDriverId();
-          ProcessExitReaper.Register(Kernel, DriverId, Options);
+          if (ProcessExitReaper.Register(Kernel, DriverId, Options))
+            Interlocked.Exchange(ref _reaperRegistered, 1);
           ValidateExpectedDriverType();
           await RunHooksAsync(_beforeInitHooks, cts.Token).ConfigureAwait(false);
           await EnsureRuntimeHealthyAsync(cts.Token).ConfigureAwait(false);
@@ -217,6 +211,7 @@ namespace FluentDocker.Testing.Core
             when (!cancellationToken.IsCancellationRequested && cts.IsCancellationRequested)
         {
           IsInitialized = false;
+          UnregisterReaper();
           var timeout = new TimeoutException(
               $"Resource initialization timed out after {Options.InitializationTimeout}.", ex);
           try
@@ -230,6 +225,7 @@ namespace FluentDocker.Testing.Core
         catch (Exception ex)
         {
           IsInitialized = false;
+          UnregisterReaper();
           if (IsExternalCancellation(ex, cancellationToken))
             throw;
 
@@ -367,7 +363,7 @@ namespace FluentDocker.Testing.Core
         if (teardownFailure != null)
           ExceptionDispatchInfo.Capture(teardownFailure).Throw();
 
-        ProcessExitReaper.Unregister(Kernel, DriverId, Options.SessionId);
+        UnregisterReaper();
         disposalCompleted = true;
       }
       finally
@@ -488,6 +484,12 @@ namespace FluentDocker.Testing.Core
 
       return string.Join('\n', lines.Take(Options.MaxDiagnosticLogLines))
            + $"\n... ({lines.Length - Options.MaxDiagnosticLogLines} lines truncated)";
+    }
+
+    private void UnregisterReaper()
+    {
+      if (Interlocked.Exchange(ref _reaperRegistered, 0) == 1)
+        ProcessExitReaper.Unregister(Kernel, DriverId, Options.SessionId);
     }
 
     #endregion

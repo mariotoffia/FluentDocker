@@ -43,8 +43,8 @@ await using var results = await new Builder()
         .WaitForPort("80/tcp", 30000))
     .BuildAsync();
 
-var endpoint = results.Containers.First()
-    .ToHostExposedEndpoint("80/tcp");
+var endpoint = await results.Containers.First()
+    .ToHostExposedEndpointAsync("80/tcp");
 Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 ```
 

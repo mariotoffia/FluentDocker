@@ -15,6 +15,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     /// <summary>
     /// Path to directory containing TLS client certificates (ca.pem, cert.pem, key.pem).
+    /// Setting this explicitly enables TLS and selects port 2376 for a bare tcp host.
     /// </summary>
     public string CertificatePath { get; set; }
 
@@ -49,5 +50,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// false (strict). Set true only for IP-based connections to a known host.
     /// </summary>
     public bool AllowTlsHostnameMismatch { get; set; }
+
+    internal bool UseTls { get; set; }
   }
 }

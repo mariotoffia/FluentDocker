@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task RegisterDriverPackAsync_WhenDriverIdDuplicate_DisposesSecondPackOnce()
+    public async Task RegisterDriverPackAsync_WhenDriverIdDuplicate_DoesNotDisposeSecondPackBeforeOwnership()
     {
       var registry = new DriverRegistry(NullLoggerFactory.Instance);
       var first = new TrackingPack();
@@ -64,8 +64,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
               TestContext.Current.CancellationToken));
 
       Assert.Equal(0, first.DisposeCount);
-      Assert.Equal(1, second.DisposeCount);
+      Assert.Equal(0, second.DisposeCount);
+      Assert.Same(first, registry.GetDriverPack("duplicate"));
       await registry.DisposeAsync();
+      Assert.Equal(1, first.DisposeCount);
+      Assert.Equal(0, second.DisposeCount);
     }
 
     [Fact]

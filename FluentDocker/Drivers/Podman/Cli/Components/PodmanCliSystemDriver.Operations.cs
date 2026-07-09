@@ -209,7 +209,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var p = prop.Value;
       if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var v))
         return v;
-      if (p.ValueKind == JsonValueKind.String && int.TryParse(p.GetString(), out v))
+      if (p.ValueKind == JsonValueKind.String &&
+          int.TryParse(p.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out v))
         return v;
       return 0;
     }

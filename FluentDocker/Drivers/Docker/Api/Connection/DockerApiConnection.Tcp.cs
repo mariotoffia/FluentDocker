@@ -86,11 +86,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         }
       };
 
-      var hasCerts = !string.IsNullOrEmpty(config.CertificatePath);
+      var hasCerts = useTls && !string.IsNullOrEmpty(config.CertificatePath);
       ConfigureTls(handler, config, useTls, hasCerts, ownedCertificates);
 
-      var scheme = (useTls || hasCerts) ? "https" : "http";
-      var port = ResolveDockerPort(uri, useTls || hasCerts);
+      var scheme = useTls ? "https" : "http";
+      var port = ResolveDockerPort(uri, useTls);
       var baseAddress = $"{scheme}://{uri.Host}:{port}";
 
       return (handler, baseAddress);

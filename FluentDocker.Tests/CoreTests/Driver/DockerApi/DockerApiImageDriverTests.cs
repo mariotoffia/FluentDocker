@@ -297,7 +297,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       conn.SetupStream("/images/create",
           "{\"status\":\"Pulling from library/nginx\",\"id\":\"latest\"}\n"
           + "{\"status\":\"Downloading\",\"progressDetail\":{\"current\":500,\"total\":1000},\"id\":\"abc123\"}\n"
-          + "{\"status\":\"Pull complete\",\"id\":\"abc123\"}\n");
+          + "{\"status\":\"Pull complete\",\"id\":\"abc123\"}\n"
+          + "{\"status\":\"Status: Downloaded newer image for nginx:latest\"}\n");
       var driver = CreateDriver(conn);
       var progress = new List<ImagePullProgress>();
       var reporter = new Progress<ImagePullProgress>(p => progress.Add(p));

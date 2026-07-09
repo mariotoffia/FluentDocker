@@ -9,9 +9,7 @@ nav_order: 8
 FluentDocker v3 provides a lambda-based API for building Docker images from Dockerfiles
 or inline definitions. All builder operations require a kernel and a driver scope.
 
-> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
-> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+{% include preview-banner.html %}
 
 ## Step by Step
 

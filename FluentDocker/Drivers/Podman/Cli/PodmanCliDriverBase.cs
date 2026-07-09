@@ -312,7 +312,7 @@ namespace FluentDocker.Drivers.Podman.Cli
 
         return new SimpleCommandResult
         {
-          Success = process.ExitCode == 0,
+          Success = process.ExitCode == 0 && stdinFailure == null,
           Output = output,
           Error = string.IsNullOrEmpty(error) && stdinFailure != null ? stdinFailure.Message : error,
           ExitCode = process.ExitCode
@@ -403,29 +403,6 @@ namespace FluentDocker.Drivers.Podman.Cli
       if (string.IsNullOrEmpty(error))
         return output;
       return output.EndsWith('\n') || error.StartsWith('\n') ? output + error : output + "\n" + error;
-    }
-
-    protected static string FailureCode(Exception ex, string fallbackCode)
-    {
-      if (ex is DriverException driverException && !string.IsNullOrEmpty(driverException.ErrorCode))
-        return driverException.ErrorCode;
-      return FailureCode(ex?.Message, fallbackCode);
-    }
-
-    protected static string FailureCode(string error, string fallbackCode)
-    {
-      return IsDaemonConnectionError(error) ? ErrorCodes.Api.ConnectionFailed : fallbackCode;
-    }
-
-    protected static bool IsDaemonConnectionError(string error)
-    {
-      if (string.IsNullOrEmpty(error))
-        return false;
-      return error.Contains("Cannot connect to Podman", StringComparison.OrdinalIgnoreCase)
-          || error.Contains("error during connect", StringComparison.OrdinalIgnoreCase)
-          || error.Contains("unable to connect to Podman socket", StringComparison.OrdinalIgnoreCase)
-          || (error.Contains("dial unix", StringComparison.OrdinalIgnoreCase)
-              && error.Contains("connect:", StringComparison.OrdinalIgnoreCase));
     }
 
     #endregion

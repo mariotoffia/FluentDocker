@@ -17,7 +17,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <summary>
     /// Reads Docker multiplexed stream format, tagging each line with its source stream.
     /// Header: [stream_type:1][0:3][size:4 big-endian] followed by payload.
-    /// stream_type: 0=stdin, 1=stdout, 2=stderr.
+    /// stream_type: 0=stdin, 1=stdout, 2=stderr, 3=systemerr.
     /// When <paramref name="tty"/> is true the stream is raw text (no headers), so
     /// demultiplexing is bypassed and every line is tagged as stdout.
     /// </summary>
@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               ErrorCodes.Api.ServerError);
         }
 
-        if (header[0] > 2 || header[1] != 0 || header[2] != 0 || header[3] != 0)
+        if (header[0] > 3 || header[1] != 0 || header[2] != 0 || header[3] != 0)
         {
           if (sniffOnInvalidHeader && !parsedFrame)
           {
@@ -137,7 +137,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         streamType switch
         {
           0 => stdin,
-          2 => stderr,
+          2 or 3 => stderr,
           _ => stdout,
         };
 
@@ -241,22 +241,22 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       private int _offset;
 
-      /// <inheritdoc />
+      /// <summary>Prefix streams are always readable.</summary>
       public override bool CanRead => true;
-      /// <inheritdoc />
+      /// <summary>Prefix streams cannot seek.</summary>
       public override bool CanSeek => false;
-      /// <inheritdoc />
+      /// <summary>Prefix streams are read-only.</summary>
       public override bool CanWrite => false;
-      /// <inheritdoc />
+      /// <summary>Prefix stream length is unknown.</summary>
       public override long Length => throw new NotSupportedException();
-      /// <inheritdoc />
+      /// <summary>Prefix stream position is not supported.</summary>
       public override long Position
       {
         get => throw new NotSupportedException();
         set => throw new NotSupportedException();
       }
 
-      /// <inheritdoc />
+      /// <summary>Reads buffered prefix bytes before continuing with the inner stream.</summary>
       public override async ValueTask<int> ReadAsync(
           Memory<byte> buffer, CancellationToken cancellationToken = default)
       {
@@ -270,17 +270,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
       }
 
-      /// <inheritdoc />
+      /// <summary>Synchronous reads are not supported.</summary>
       public override int Read(byte[] buffer, int offset, int count) =>
           throw new NotSupportedException("synchronous Read is not supported; use ReadAsync");
 
-      /// <inheritdoc />
+      /// <summary>Flush is a no-op for a read-only prefix stream.</summary>
       public override void Flush() { }
-      /// <inheritdoc />
+      /// <summary>Seeking is not supported.</summary>
       public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-      /// <inheritdoc />
+      /// <summary>Length changes are not supported.</summary>
       public override void SetLength(long value) => throw new NotSupportedException();
-      /// <inheritdoc />
+      /// <summary>Writes are not supported.</summary>
       public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 

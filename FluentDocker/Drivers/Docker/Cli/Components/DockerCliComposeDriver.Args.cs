@@ -68,14 +68,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Wait)
         args += " --wait";
       if (config.WaitTimeout.HasValue)
-        args += $" --wait-timeout {config.WaitTimeout.Value}";
+        args += $" --wait-timeout {FormatInvariant(config.WaitTimeout.Value)}";
       if (!string.IsNullOrEmpty(config.Pull))
         args += $" --pull {QuoteIfNeeded(config.Pull)}";
       if (config.Scale != null && config.Scale.Count > 0)
         foreach (var scale in config.Scale)
-          args += $" --scale {QuoteIfNeeded($"{scale.Key}={scale.Value}")}";
+          args += $" --scale {QuoteIfNeeded($"{scale.Key}={FormatInvariant(scale.Value)}")}";
       if (config.Timeout.HasValue)
-        args += $" --timeout {config.Timeout.Value}";
+        args += $" --timeout {FormatInvariant(config.Timeout.Value)}";
       return args;
     }
 
@@ -92,7 +92,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.RemoveOrphans)
         args += " --remove-orphans";
       if (config.Timeout.HasValue)
-        args += $" --timeout {config.Timeout.Value}";
+        args += $" --timeout {FormatInvariant(config.Timeout.Value)}";
       return args;
     }
 
@@ -103,7 +103,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       var args = "restart";
       if (config.Timeout.HasValue)
-        args += $" --timeout {config.Timeout.Value}";
+        args += $" --timeout {FormatInvariant(config.Timeout.Value)}";
       if (config.NoDeps)
         args += " --no-deps";
       return args;
@@ -118,7 +118,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Timestamps)
         args += " -t";
       if (config.Tail.HasValue)
-        args += $" --tail {config.Tail.Value}";
+        args += $" --tail {FormatInvariant(config.Tail.Value)}";
       if (!string.IsNullOrEmpty(config.Since))
         args += $" --since {QuoteIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
@@ -225,7 +225,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.NoDeps)
         args += " --no-deps";
       foreach (var scale in config.Scale)
-        args += $" --scale {QuoteIfNeeded($"{scale.Key}={scale.Value}")}";
+        args += $" --scale {QuoteIfNeeded($"{scale.Key}={FormatInvariant(scale.Value)}")}";
       return args;
     }
 

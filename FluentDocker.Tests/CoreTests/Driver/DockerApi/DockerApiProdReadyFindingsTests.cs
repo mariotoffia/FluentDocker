@@ -130,7 +130,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task CopyFromAsync_SkipsSymlinkEntryAndLogsWarning()
+    public async Task CopyFromAsync_AttemptsToPreserveSafeSymlinkEntryAndLogsWarning()
     {
       var outputRoot = Path.Combine(".out", "docker-api-copyfrom-symlink", Guid.NewGuid().ToString("N"));
       var destination = Path.Combine(outputRoot, "dest") + Path.DirectorySeparatorChar;
@@ -148,9 +148,45 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           TestContext.Current.CancellationToken);
 
       Assert.True(result.Success, result.Error);
-      Assert.False(File.Exists(Path.Combine(destination, "link.txt")));
+      var link = new FileInfo(Path.Combine(destination, "link.txt"));
+      if (link.LinkTarget == null)
+      {
+        Assert.Contains(logs, message => message.Contains(
+            "Could not preserve Docker archive symlink", StringComparison.Ordinal));
+      }
+      else
+      {
+        Assert.Equal("target.txt", link.LinkTarget);
+      }
       Assert.Contains(logs, message => message.Contains("link.txt", StringComparison.Ordinal) &&
-          message.Contains("Skipping Docker archive link entry", StringComparison.Ordinal));
+          message.Contains("preserving symlink", StringComparison.Ordinal));
+      Directory.Delete(outputRoot, recursive: true);
+    }
+
+    [Fact]
+    public async Task CopyFromAsync_DirectorySymlink_MergesIntoExistingDestination()
+    {
+      var outputRoot = Path.Combine(".out", "docker-api-copyfrom-dir-symlink", Guid.NewGuid().ToString("N"));
+      var destination = Path.Combine(outputRoot, "dest");
+      Directory.CreateDirectory(destination);
+      var tarBytes = await CreateDirectorySymlinkTarAsync();
+      var logs = new List<string>();
+      var loggerFactory = new CollectingLoggerFactory(logs);
+      var context = new DriverContext("docker-api-prod-ready-test") { LoggerFactory = loggerFactory };
+      var mock = new MockDockerApiConnection();
+      mock.SetupStreamBytes("/archive", tarBytes);
+      var driver = new DockerApiContainerDriver(mock);
+      driver.Initialize(context);
+
+      var result = await driver.CopyFromAsync(context, "ctr", "/src", destination,
+          TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.True(Directory.Exists(Path.Combine(destination, "realdir")));
+      var link = new DirectoryInfo(Path.Combine(destination, "linkdir"));
+      Assert.Equal("realdir", link.LinkTarget);
+      Assert.Contains(logs, message => message.Contains("linkdir", StringComparison.Ordinal) &&
+          message.Contains("preserving symlink", StringComparison.Ordinal));
       Directory.Delete(outputRoot, recursive: true);
     }
 
@@ -291,6 +327,23 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         await writer.WriteEntryAsync(new PaxTarEntry(TarEntryType.SymbolicLink, name)
         {
           LinkName = linkTarget
+        }, TestContext.Current.CancellationToken);
+      }
+      return ms.ToArray();
+    }
+
+    private static async Task<byte[]> CreateDirectorySymlinkTarAsync()
+    {
+      await using var ms = new MemoryStream();
+      await using (var writer = new TarWriter(ms, TarEntryFormat.Pax, leaveOpen: true))
+      {
+        await writer.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, "realdir/file.txt")
+        {
+          DataStream = new MemoryStream(Encoding.UTF8.GetBytes("content"))
+        }, TestContext.Current.CancellationToken);
+        await writer.WriteEntryAsync(new PaxTarEntry(TarEntryType.SymbolicLink, "linkdir")
+        {
+          LinkName = "realdir"
         }, TestContext.Current.CancellationToken);
       }
       return ms.ToArray();

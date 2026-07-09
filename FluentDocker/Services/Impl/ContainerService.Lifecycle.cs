@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Formats.Tar;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -119,6 +118,7 @@ namespace FluentDocker.Services.Impl
 
       if (_deleteOnDispose)
       {
+        Interlocked.Increment(ref _disposeRemoveVersion);
         using var removeCts = new CancellationTokenSource(removeBudget);
         var removeTask = RemoveCoreAsync(
             force: true, skipExecuteLifecycleHooks: true, removeVolumesOverride: null,
@@ -135,6 +135,13 @@ namespace FluentDocker.Services.Impl
       }
       else
       {
+        if (_deleteNamedVolumeOnDispose)
+        {
+          _logger.LogWarning(
+              "ContainerService named volume cleanup skipped for '{Container}' because deleteOnDispose is false",
+              _name);
+        }
+
         var hookTask = RunDisposeHooksWithoutRemovalAsync(cleanupCts.Token);
         try
         {
@@ -441,29 +448,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
-    private async Task ExecuteExportHookAsync(LifecycleHook hook, CancellationToken cancellationToken)
-    {
-      if (hook.Condition != null && !hook.Condition(this))
-        return;
-
-      var exportData = await ExportCoreAsync(throwIfDisposed: false, cancellationToken).ConfigureAwait(false);
-      var exportDir = Path.GetDirectoryName(hook.HostPath);
-      if (!string.IsNullOrEmpty(exportDir) && !Directory.Exists(exportDir))
-        Directory.CreateDirectory(exportDir);
-
-      if (hook.Explode)
-      {
-        Directory.CreateDirectory(hook.HostPath);
-        using var stream = new MemoryStream(exportData);
-        TarFile.ExtractToDirectory(stream, hook.HostPath, overwriteFiles: true);
-      }
-      else
-      {
-        await File.WriteAllBytesAsync(hook.HostPath, exportData, cancellationToken).ConfigureAwait(false);
-      }
-    }
-
-    private static ServiceRunningState ParseState(string state)
+    internal static ServiceRunningState ParseState(string state)
     {
       return state?.ToLowerInvariant() switch
       {

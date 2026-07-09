@@ -125,6 +125,7 @@ namespace FluentDocker.Drivers.Docker.Api
     public Task<DriverCapabilities> GetCapabilitiesAsync(
         CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       return Task.FromResult(new DriverCapabilities
       {
         SupportsContainers = true,
@@ -146,6 +147,7 @@ namespace FluentDocker.Drivers.Docker.Api
     /// <inheritdoc />
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       if (!_initialized || _connection == null)
         return false;
 
@@ -285,6 +287,7 @@ namespace FluentDocker.Drivers.Docker.Api
         await connection.DisposeAsync().ConfigureAwait(false);
       }
 
+      _initializeLock.Dispose();
       GC.SuppressFinalize(this);
     }
 

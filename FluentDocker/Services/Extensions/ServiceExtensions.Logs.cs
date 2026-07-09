@@ -33,6 +33,15 @@ namespace FluentDocker.Services.Extensions
           .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Waits for container logs to contain text, polling at the specified interval.
+    /// </summary>
+    /// <param name="service">The container service.</param>
+    /// <param name="text">Text to search for in logs.</param>
+    /// <param name="timeout">Timeout in milliseconds.</param>
+    /// <param name="pollIntervalMs">Milliseconds to wait between log polls.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the text was found, false if timeout.</returns>
     public static async Task<bool> WaitForLogMessageAsync(
         this IContainerService service,
         string text,

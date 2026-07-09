@@ -35,6 +35,14 @@ namespace FluentDocker.Services.Impl
     private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
+    /// <summary>
+    /// Creates an image service for an existing image artifact.
+    /// </summary>
+    /// <param name="kernel">Kernel used to resolve image driver ports.</param>
+    /// <param name="driverId">Driver id registered in the kernel.</param>
+    /// <param name="imageId">Image id used for inspect, tag, save, and remove operations.</param>
+    /// <param name="repository">Repository name used for push/tag display.</param>
+    /// <param name="tag">Image tag; defaults to <c>latest</c> when null.</param>
     public ImageService(
         FluentDockerKernel kernel,
         string driverId,
@@ -59,7 +67,14 @@ namespace FluentDocker.Services.Impl
     public string DriverId => _driverId;
     public string Id => _imageId;
     public string Tag => _tag;
-    public string FullName => string.IsNullOrEmpty(_repository) ? _imageId : $"{_repository}:{_tag}";
+    public string FullName => string.IsNullOrEmpty(_repository)
+        ? _imageId
+        : IsDigestTag(_tag) ? $"{_repository}@{_tag}" : $"{_repository}:{_tag}";
+
+    private static bool IsDigestTag(string tag)
+    {
+      return tag?.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase) == true;
+    }
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     public event ServiceDelegates.StateChange StateChange;

@@ -32,6 +32,22 @@ namespace FluentDocker.Services.Impl
     private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Stopped;
 
+    /// <summary>
+    /// Creates a compose service bound to a driver and project.
+    /// </summary>
+    /// <param name="kernel">Kernel used to resolve compose driver ports.</param>
+    /// <param name="driverId">Driver id registered in the kernel.</param>
+    /// <param name="composeFiles">Compose files identifying the project.</param>
+    /// <param name="projectName">Compose project name, or null when compose derives it.</param>
+    /// <param name="removeVolumes">Whether owned volumes are removed during <c>compose down</c>.</param>
+    /// <param name="removeImages">Whether owned images are removed during <c>compose down</c>.</param>
+    /// <param name="ownedTempFiles">Temp compose files deleted when this service is disposed.</param>
+    /// <param name="disposeCleanupTimeout">Maximum best-effort cleanup time during dispose.</param>
+    /// <param name="downOnDispose">
+    /// True when this service owns the project and may run <c>compose down</c>; false for borrowed
+    /// handles from <c>ConnectToExisting</c>, which only release local resources.
+    /// </param>
+    /// <param name="initialState">Initial client-side lifecycle state.</param>
     public ComposeService(
         FluentDockerKernel kernel,
         string driverId,
@@ -78,6 +94,12 @@ namespace FluentDocker.Services.Impl
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CA1710
 
+    /// <summary>
+    /// Lists services in this compose project.
+    /// </summary>
+    /// <remarks>
+    /// Includes stopped and exited services so a fully stopped project is still observable.
+    /// </remarks>
     public async Task<IList<ComposeServiceInfo>> ListServicesAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -88,7 +110,8 @@ namespace FluentDocker.Services.Impl
       var config = new ComposeListConfig
       {
         ComposeFiles = _composeFiles,
-        ProjectName = _projectName
+        ProjectName = _projectName,
+        All = true
       };
 
       var response = await driver.ListAsync(context, config, cancellationToken).ConfigureAwait(false);
@@ -229,6 +252,9 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        throw new InvalidOperationException("Cannot start a removed compose project.");
+
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -267,6 +293,9 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        throw new InvalidOperationException("Cannot pause a removed compose project.");
+
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -302,6 +331,9 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -343,6 +375,9 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        throw new InvalidOperationException("Cannot restart a removed compose project.");
+
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 

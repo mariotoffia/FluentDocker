@@ -93,7 +93,7 @@ namespace FluentDocker.Builders
 
     #region Basic Configuration
 
-    public IContainerBuilder UseImage(string image) { _image = image; return this; }
+    public IContainerBuilder UseImage(string image) { _ = ParseImageReference(image); _image = image; return this; }
     public IContainerBuilder WithName(string name) { _name = name; return this; }
 
     public IContainerBuilder WithEnvironment(string key, string value)
@@ -232,6 +232,8 @@ namespace FluentDocker.Builders
       if (string.IsNullOrEmpty(_image))
         throw new FluentDockerException(
             "Container image is required. Call UseImage() before building.");
+      if (_existsBehavior != ContainerExistsBehavior.Default && string.IsNullOrWhiteSpace(_name))
+        throw new FluentDockerException("ReuseIfExists()/DestroyIfExists() requires WithName() to identify the container.");
 
       if (_autoRemove && _keepContainer)
         throw new FluentDockerException(

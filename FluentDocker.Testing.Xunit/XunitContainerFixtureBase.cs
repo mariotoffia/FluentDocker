@@ -44,8 +44,11 @@ namespace FluentDocker.Testing.Xunit
   /// </remarks>
   public abstract class XunitContainerFixtureBase : IAsyncLifetime
   {
+    private static readonly TimeSpan AvailabilityProbeTimeout = TimeSpan.FromSeconds(10);
+    private readonly object _availabilityLock = new();
     private ContainerResource? _resource;
     private FluentDockerKernel? _kernel;
+    private Task<bool>? _dockerAvailable;
 
     /// <summary>
     /// The underlying container resource, available after initialization.
@@ -92,9 +95,33 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public Task<bool> IsDockerAvailableAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      Task<bool> probe;
+      lock (_availabilityLock)
+      {
+        if (_dockerAvailable == null ||
+            _dockerAvailable.IsFaulted ||
+            _dockerAvailable.IsCanceled)
+          _dockerAvailable = ProbeDockerAvailableAsync();
+        probe = _dockerAvailable;
+      }
+      return cancellationToken.CanBeCanceled ? probe.WaitAsync(cancellationToken) : probe;
+    }
+
+    private async Task<bool> ProbeDockerAvailableAsync()
+    {
       var driver = GetOptions()?.Driver;
       var driverId = driver is not null && !driver.UseDefault ? driver.DriverId : null;
-      return DockerAvailability.IsAvailableAsync(KernelFactory!, driverId!, cancellationToken);
+      using var cts = new CancellationTokenSource(AvailabilityProbeTimeout);
+      try
+      {
+        return await DockerAvailability.IsAvailableAsync(
+            KernelFactory!, driverId!, cts.Token).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (cts.IsCancellationRequested)
+      {
+        return false;
+      }
     }
 
     /// <inheritdoc />

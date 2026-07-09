@@ -248,8 +248,8 @@ namespace FluentDocker.Builders
     private ComposeModelBuilder _models;
     private string _renderedOverlay;
 
-    public IComposeBuilder WithComposeFile(string path) { _composeFiles.Add(path); return this; }
-    public IComposeBuilder WithComposeFiles(params string[] paths) { _composeFiles.AddRange(paths); return this; }
+    public IComposeBuilder WithComposeFile(string path) { ArgumentException.ThrowIfNullOrWhiteSpace(path); _composeFiles.Add(path); return this; }
+    public IComposeBuilder WithComposeFiles(params string[] paths) { ArgumentNullException.ThrowIfNull(paths); foreach (var path in paths) WithComposeFile(path); return this; }
 
     internal IComposeBuilder WithModelsInternal(Action<IComposeModelBuilder> configure)
     {
@@ -358,12 +358,13 @@ namespace FluentDocker.Builders
         Profiles = _profiles
       };
 
-      var borrowedProject = await ComposeProjectExistsAsync(driver, context, config, cancellationToken)
-          .ConfigureAwait(false);
-      BorrowedProject = borrowedProject;
       CommandResponse<Drivers.ComposeUpResult> response;
+      var borrowedProject = true;
       try
       {
+        borrowedProject = await ComposeProjectExistsAsync(driver, context, config, cancellationToken)
+            .ConfigureAwait(false);
+        BorrowedProject = borrowedProject;
         response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
       }
       catch

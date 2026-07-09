@@ -22,6 +22,24 @@ namespace FluentDocker.Services.Impl
       if (_state == ServiceRunningState.Removed)
         return;
 
+      if (!_downOnDispose)
+      {
+        try
+        {
+          UpdateState(ServiceRunningState.Removing);
+          await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
+          DeleteOwnedTempFiles();
+          UpdateState(ServiceRunningState.Removed);
+          await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
+          return;
+        }
+        catch
+        {
+          UpdateState(ServiceRunningState.Unknown);
+          throw;
+        }
+      }
+
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 

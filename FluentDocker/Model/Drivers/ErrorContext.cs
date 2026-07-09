@@ -1,6 +1,8 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 
 namespace FluentDocker.Model.Drivers
 {
@@ -9,6 +11,7 @@ namespace FluentDocker.Model.Drivers
   /// </summary>
   public class ErrorContext
   {
+    private const int MaxDiagnosticTextChars = 512;
     private string? _operationId;
     private string? _driverId;
     private string? _host;
@@ -101,12 +104,28 @@ namespace FluentDocker.Model.Drivers
         parts.Add($"Host: {Host}");
 
       if (ExitCode.HasValue)
-        parts.Add($"ExitCode: {ExitCode.Value}");
+        parts.Add("ExitCode: " + ExitCode.Value.ToString(CultureInfo.InvariantCulture));
 
       if (!string.IsNullOrEmpty(OperationId))
         parts.Add($"OperationId: {OperationId}");
 
+      if (Metadata.Count > 0)
+        parts.Add("Metadata: " + string.Join("; ", Metadata.Select(item => item.Key + "=" + item.Value)));
+
+      if (!string.IsNullOrEmpty(StdOut))
+        parts.Add("StdOut: " + Truncate(StdOut));
+
+      if (!string.IsNullOrEmpty(StdErr))
+        parts.Add("StdErr: " + Truncate(StdErr));
+
       return string.Join(", ", parts);
+    }
+
+    private static string Truncate(string value)
+    {
+      return value.Length <= MaxDiagnosticTextChars
+          ? value
+          : "..." + value[^MaxDiagnosticTextChars..];
     }
   }
 }

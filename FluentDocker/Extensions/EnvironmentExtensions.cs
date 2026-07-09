@@ -6,10 +6,13 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Extensions
 {
+  /// <summary>
+  /// Helpers for rendering Dockerfile ENV and LABEL name/value pairs.
+  /// </summary>
   public static class EnvironmentExtensions
   {
     /// <summary>
-    /// This function will extract the name value and verify that is is valid. It will then
+    /// Extracts the name/value text and verifies that it is valid. It then
     /// make sure that the value is wrapped inside double quotes if not yet wrapped.
     /// </summary>
     /// <param name="nameValue">The name=value strings</param>
@@ -34,18 +37,38 @@ namespace FluentDocker.Extensions
           throw new FluentDockerException(
               $"Expected format name=value, empty name in the name value string: '{s}'"
             );
+        ValidateName(name);
         var rawValue = s[(index + 1)..];
         var unwrapped = rawValue.Length >= 2 && rawValue.StartsWith('"') && IsBalancedWrap(rawValue)
             ? rawValue[1..^1]
             : rawValue;
-        if (unwrapped.Contains('\n') || unwrapped.Contains('\r'))
-          throw new FluentDockerException("Dockerfile ENV/LABEL values cannot contain newline or carriage return characters.");
+        ValidateValue(unwrapped);
         var value = $"\"{unwrapped.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
 
         list.Add($"{name}={value}");
       }
 
       return list;
+    }
+
+    private static void ValidateName(string name)
+    {
+      foreach (var c in name)
+      {
+        if (char.IsControl(c) || char.IsWhiteSpace(c) || c == '"' || c == '\'')
+          throw new FluentDockerException(
+              "Dockerfile ENV/LABEL names cannot contain whitespace, quotes, control characters, or newlines.");
+      }
+    }
+
+    private static void ValidateValue(string value)
+    {
+      foreach (var c in value)
+      {
+        if ((char.IsControl(c) && c != '\t') || c == '\u2028' || c == '\u2029')
+          throw new FluentDockerException(
+              "Dockerfile ENV/LABEL values cannot contain control or Unicode line separator characters except tab.");
+      }
     }
 
     private static bool IsBalancedWrap(string value)

@@ -9,9 +9,7 @@ nav_order: 2
 
 Package: `FluentDocker.Testing.Xunit`
 
-> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
-> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+{% include preview-banner.html %}
 
 > **xUnit v3 only.** This package depends on `xunit.v3.extensibility.core` and
 > targets xUnit v3. It is not compatible with xUnit v2 (`xunit` 2.x) projects.
@@ -62,10 +60,12 @@ Minimal consumer `.csproj` (target `net8.0` or `net10.0`):
 ```
 
 > **Warning:** On a shared Docker or Podman daemon, the default
-> `CleanupOrphansOnInit = true` lets a test run force-remove **another** session's managed
-> resources once they pass the one-hour `OrphanCleanupMinimumAge` — on shared CI agents
-> that can delete a parallel job's live containers. Opt out with
-> `CleanupOrphansOnInit = false` from `GetOptions()`; see [Orphan Cleanup](core.md#orphan-cleanup).
+> `CleanupOrphansOnInit = true` can remove another session's eligible resources
+> once they pass the one-hour `OrphanCleanupMinimumAge`: managed stopped
+> containers and unused networks/volumes. Running containers and networks/volumes
+> still in use are preserved. Set `FLUENTDOCKER_TEST_SESSION` for sibling
+> processes, or opt out with `CleanupOrphansOnInit = false` from `GetOptions()`;
+> see [Orphan Cleanup](core.md#orphan-cleanup).
 
 ## Test Bases (Per-Test Lifecycle)
 

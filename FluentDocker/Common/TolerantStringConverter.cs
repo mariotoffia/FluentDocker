@@ -8,20 +8,22 @@ using System.Text.Json.Serialization;
 namespace FluentDocker.Common
 {
   /// <summary>
-  /// A <see cref="JsonConverter{T}"/> for <see cref="string"/> that tolerates JSON
-  /// values which are not string tokens. Docker and Podman <c>inspect</c> output is
-  /// inconsistent: several fields that FluentDocker models as <see cref="string"/>
-  /// (for example <c>NetworkSettings.LinkLocalIPv6PrefixLen</c>, <c>GlobalIPv6PrefixLen</c>
-  /// and <c>IPPrefixLen</c>) are emitted by the Docker engine as JSON <em>numbers</em>.
+  /// A <see cref="JsonConverter{T}"/> for specific <see cref="string"/> properties that
+  /// tolerate JSON values which are not string tokens. Docker and Podman <c>inspect</c>
+  /// output is inconsistent: <c>NetworkSettings.LinkLocalIPv6PrefixLen</c>,
+  /// <c>GlobalIPv6PrefixLen</c>, and <c>IPPrefixLen</c> are emitted by some engines as
+  /// JSON <em>numbers</em>.
   /// </summary>
   /// <remarks>
   /// System.Text.Json throws when a JSON number (or boolean) is deserialized into a
   /// <see cref="string"/> property. Newtonsoft.Json (used in FluentDocker v2) silently
   /// coerced these, so the v3 switch to System.Text.Json regressed inspect parsing for
-  /// those containers. This converter restores the lenient behavior by reading the raw
-  /// literal text of <c>Number</c>, <c>True</c> and <c>False</c> tokens into the string,
-  /// preserving the exact representation (e.g. <c>0</c> stays <c>"0"</c>). Genuine string
-  /// and null tokens are passed through unchanged.
+  /// those containers. <see cref="JsonHelper"/> applies this converter only to the known
+  /// drifting network-prefix properties; other string properties still surface schema
+  /// drift as <see cref="JsonException"/>. The converter reads the raw literal text of
+  /// <c>Number</c>, <c>True</c> and <c>False</c> tokens into the string, preserving the
+  /// exact representation (e.g. <c>0</c> stays <c>"0"</c>). Genuine string and null
+  /// tokens are passed through unchanged.
   /// </remarks>
   public sealed class TolerantStringConverter : JsonConverter<string?>
   {
@@ -38,10 +40,9 @@ namespace FluentDocker.Common
         case JsonTokenType.False:
           // Read the raw literal bytes of the token and decode as UTF-8 so the
           // exact representation is preserved (e.g. "0", "16", "true").
-          var bytes = reader.HasValueSequence
-              ? reader.ValueSequence.ToArray()
-              : reader.ValueSpan.ToArray();
-          return Encoding.UTF8.GetString(bytes);
+          return reader.HasValueSequence
+              ? Encoding.UTF8.GetString(reader.ValueSequence.ToArray())
+              : Encoding.UTF8.GetString(reader.ValueSpan);
         default:
           throw new JsonException(
               $"Cannot convert JSON token '{reader.TokenType}' to System.String.");

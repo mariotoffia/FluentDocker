@@ -30,7 +30,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (!string.IsNullOrEmpty(config.StopSignal))
         args.Add($"--stop-signal {QuoteArgumentIfNeeded(config.StopSignal)}");
       if (config.StopTimeout.HasValue)
-        args.Add($"--stop-timeout {config.StopTimeout.Value}");
+        args.Add($"--stop-timeout {FormatInvariant(config.StopTimeout.Value)}");
       if (config.Privileged)
         args.Add("--privileged");
       if (config.AutoRemove)
@@ -40,11 +40,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Interactive)
         args.Add("-i");
       if (config.MemoryLimit.HasValue && config.MemoryLimit.Value > 0)
-        args.Add($"--memory {config.MemoryLimit.Value}");
+        args.Add($"--memory {FormatInvariant(config.MemoryLimit.Value)}");
       if (config.CpuShares.HasValue && config.CpuShares.Value > 0)
-        args.Add($"--cpu-shares {config.CpuShares.Value}");
+        args.Add($"--cpu-shares {FormatInvariant(config.CpuShares.Value)}");
       if (config.CpuQuota.HasValue && config.CpuQuota.Value > 0)
-        args.Add($"--cpu-quota {config.CpuQuota.Value}");
+        args.Add($"--cpu-quota {FormatInvariant(config.CpuQuota.Value)}");
       if (!string.IsNullOrEmpty(config.Ipv4Address))
         args.Add($"--ip {QuoteArgumentIfNeeded(config.Ipv4Address)}");
       if (!string.IsNullOrEmpty(config.Ipv6Address))
@@ -52,7 +52,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.ReadonlyRootfs)
         args.Add("--read-only");
       if (config.ShmSize.HasValue && config.ShmSize.Value > 0)
-        args.Add($"--shm-size {config.ShmSize.Value}");
+        args.Add($"--shm-size {FormatInvariant(config.ShmSize.Value)}");
       if (!string.IsNullOrEmpty(config.Platform))
         args.Add($"--platform {QuoteArgumentIfNeeded(config.Platform)}");
       if (!string.IsNullOrEmpty(config.Runtime))
@@ -130,7 +130,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (!string.IsNullOrEmpty(healthCheck.Timeout))
         args.Add($"--health-timeout {QuoteArgumentIfNeeded(healthCheck.Timeout)}");
       if (healthCheck.Retries > 0)
-        args.Add($"--health-retries {healthCheck.Retries}");
+        args.Add($"--health-retries {FormatInvariant(healthCheck.Retries)}");
       if (!string.IsNullOrEmpty(healthCheck.StartPeriod))
         args.Add($"--health-start-period {QuoteArgumentIfNeeded(healthCheck.StartPeriod)}");
     }

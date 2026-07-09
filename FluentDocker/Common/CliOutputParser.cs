@@ -77,14 +77,25 @@ namespace FluentDocker.Common
         var numStr = s[..^suffix.Length].Trim();
         if (double.TryParse(numStr, NumberStyles.Float,
                 CultureInfo.InvariantCulture, out var num))
-          return (long)(num * multiplier);
+          return ToInt64Saturated(num * multiplier);
         return 0;
       }
 
       // No suffix — try parsing as raw bytes
       if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var raw))
-        return (long)raw;
+        return ToInt64Saturated(raw);
       return 0;
+    }
+
+    private static long ToInt64Saturated(double value)
+    {
+      if (double.IsNaN(value))
+        return 0;
+      if (value >= long.MaxValue)
+        return long.MaxValue;
+      if (value <= long.MinValue)
+        return long.MinValue;
+      return (long)value;
     }
   }
 }

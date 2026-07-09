@@ -36,7 +36,7 @@ namespace Simple
       await using var results = await new Builder()
         .WithinDriver(DriverId, kernel)
         .UseContainer(c => c
-          .UseImage("postgres:9.6-alpine")
+          .UseImage("postgres:16-alpine")
           .ExposePort("5432/tcp")
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .WaitForPort("5432/tcp", 30000))
@@ -95,7 +95,7 @@ namespace Simple
       await using var results = await new Builder()
         .WithinDriver(DriverId, kernel)
         .UseContainer(c => c
-          .UseImage("postgres:9.6-alpine")
+          .UseImage("postgres:16-alpine")
           .ExposePort("5432/tcp")
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .WaitForPort("5432/tcp", 30000))

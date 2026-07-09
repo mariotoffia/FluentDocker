@@ -40,7 +40,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Timestamps)
         args += " -t";
       if (config.Tail.HasValue)
-        args += $" --tail {config.Tail.Value}";
+        args += $" --tail {FormatInvariant(config.Tail.Value)}";
       if (!string.IsNullOrEmpty(config.Since))
         args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))

@@ -64,21 +64,26 @@ namespace FluentDocker.Services.Impl
       ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
+      var pullImage = image;
+      var pullTag = tag;
+      if (tag == "latest" && HasExplicitImageTag(image))
+        (pullImage, pullTag) = ParseImagePullReference(image);
 
-      var response = await driver.PullAsync(context, image, tag, progress, cancellationToken).ConfigureAwait(false);
+      var response = await driver.PullAsync(context, pullImage, pullTag, progress, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
         throw new DriverException(
-            $"Failed to pull image '{image}:{tag}': {response.Error}",
+            $"Failed to pull image '{pullImage}:{pullTag}': {response.Error}",
             response.ErrorCode,
             response.ErrorContext);
       }
 
       // A digest reference ("repo@sha256:...") must be inspected by the digest ref itself, not
       // "repo@sha256:...:latest" (which is malformed and fails to inspect).
-      var isDigest = image.Contains('@');
-      var inspectRef = isDigest ? image : $"{image}:{tag}";
+      var digestSeparator = image.IndexOf('@');
+      var isDigest = digestSeparator >= 0;
+      var inspectRef = isDigest ? image : $"{pullImage}:{pullTag}";
 
       var inspectResponse = await driver.InspectAsync(context, inspectRef, cancellationToken).ConfigureAwait(false);
 
@@ -94,8 +99,8 @@ namespace FluentDocker.Services.Impl
           _kernel,
           _driverId,
           inspectResponse.Data.Id,
-          image,
-          isDigest ? image[(image.IndexOf('@') + 1)..] : tag);
+          isDigest ? image[..digestSeparator] : pullImage,
+          isDigest ? image[(digestSeparator + 1)..] : pullTag);
     }
 
     public async Task<IImageService> BuildImageAsync(
@@ -172,15 +177,15 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      config ??= new NetworkCreateConfig();
-      config.Name = name;
+      var createConfig = CloneNetworkCreateConfig(config);
+      createConfig.Name = name ?? createConfig.Name;
 
-      var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
+      var response = await driver.CreateAsync(context, createConfig, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
         throw new DriverException(
-            $"Failed to create network '{name}': {response.Error}",
+            $"Failed to create network '{createConfig.Name}': {response.Error}",
             response.ErrorCode,
             response.ErrorContext);
       }
@@ -189,7 +194,7 @@ namespace FluentDocker.Services.Impl
           _kernel,
           _driverId,
           response.Data.Id,
-          name);
+          createConfig.Name);
     }
 
     #endregion
@@ -290,5 +295,34 @@ namespace FluentDocker.Services.Impl
     }
 
     #endregion
+
+    private static bool HasExplicitImageTag(string image)
+    {
+      if (string.IsNullOrEmpty(image) || image.Contains('@'))
+        return false;
+
+      var slash = image.LastIndexOf('/');
+      var colon = image.LastIndexOf(':');
+      return colon > slash && colon < image.Length - 1;
+    }
+
+    private static NetworkCreateConfig CloneNetworkCreateConfig(NetworkCreateConfig config)
+    {
+      if (config == null)
+        return new NetworkCreateConfig();
+
+      return new NetworkCreateConfig
+      {
+        Name = config.Name,
+        Driver = config.Driver,
+        Options = config.Options == null ? [] : new Dictionary<string, string>(config.Options),
+        Subnet = config.Subnet,
+        Gateway = config.Gateway,
+        IpRange = config.IpRange,
+        EnableIPv6 = config.EnableIPv6,
+        Internal = config.Internal,
+        Labels = config.Labels == null ? [] : new Dictionary<string, string>(config.Labels)
+      };
+    }
   }
 }

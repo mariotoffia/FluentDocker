@@ -13,9 +13,7 @@ initialize loads the model, dispose unloads it (unless you opt into
 `KeepRunning()`). You drive inference through `resource.Runner` (chat,
 streaming chat, embeddings) and the lifecycle through `resource.Service`.
 
-> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
-> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+{% include preview-banner.html %}
 
 There is intentionally **no model-specific fixture family**. `ModelResource`
 is created through the same generic resource path as every other resource —

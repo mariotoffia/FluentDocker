@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Containers;
@@ -101,7 +102,8 @@ namespace FluentDocker.Services.Extensions
     private static async Task<IPAddress> ResolveHostAsync(string host, CancellationToken cancellationToken)
     {
       var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
-      return addresses.FirstOrDefault() ??
+      return addresses.FirstOrDefault(address => address.AddressFamily == AddressFamily.InterNetwork) ??
+          addresses.FirstOrDefault() ??
           throw new InvalidOperationException($"Docker host '{host}' resolved without addresses.");
     }
   }

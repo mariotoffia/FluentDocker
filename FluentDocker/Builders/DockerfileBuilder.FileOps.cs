@@ -45,16 +45,54 @@ namespace FluentDocker.Builders
     private static async Task DownloadFileAsync(
         Uri url, string destinationPath, CancellationToken cancellationToken)
     {
-      using var response = await Common.SharedHttpClient.Instance.GetAsync(
-          url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-      response.EnsureSuccessStatusCode();
+      using var downloadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+      downloadCts.CancelAfter(TimeSpan.FromSeconds(100));
+      var downloadToken = downloadCts.Token;
+      try
+      {
+        using var response = await Common.SharedHttpClient.Instance.GetAsync(
+            url, HttpCompletionOption.ResponseHeadersRead, downloadToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
 
-      await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-      await using var destination = File.Create(destinationPath);
-      await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+        await using var source = await response.Content.ReadAsStreamAsync(downloadToken).ConfigureAwait(false);
+        await using var destination = File.Create(destinationPath);
+        await source.CopyToAsync(destination, downloadToken).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException ex) when (
+          !cancellationToken.IsCancellationRequested && downloadCts.IsCancellationRequested)
+      {
+        DeletePartialDownload(destinationPath);
+        throw new FluentDockerException($"Download of '{url}' exceeded 100s", ex);
+      }
+      catch
+      {
+        DeletePartialDownload(destinationPath);
+        throw;
+      }
+    }
+
+    private static void DeletePartialDownload(string path)
+    {
+      try
+      {
+        if (File.Exists(path))
+          File.Delete(path);
+      }
+      catch
+      {
+      }
     }
 
     #region Private Methods
+
+    private void EnsureNoMixedDockerfileSources()
+    {
+      var hasSource = !string.IsNullOrEmpty(_config.UseFile?.Rendered) ||
+          !string.IsNullOrWhiteSpace(_config.DockerFileString);
+      if (hasSource && _config.Commands.Count > 0)
+        throw new FluentDockerException(
+            "FromFile()/FromString() cannot be combined with fluent Dockerfile commands; choose one Dockerfile source.");
+    }
 
     private async Task CopyToWorkDirAsync(
         string workingFolder, bool strictCopySources, CancellationToken cancellationToken)
@@ -63,7 +101,7 @@ namespace FluentDocker.Builders
         Directory.CreateDirectory(workingFolder);
 
       // Copy all files from copy arguments
-      var rootedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      var rootedNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
       foreach (var cp in _config.Commands.Where(x => x is CopyCommand).Cast<CopyCommand>())
       {
         if (cp is CopyURLCommand urlCmd)
@@ -88,9 +126,11 @@ namespace FluentDocker.Builders
             throw new NotSupportedException(
                 "Directory sources are not supported by DockerfileBuilder; add files individually.");
           var name = Path.GetFileName(from);
-          if (!rootedNames.Add(name))
+          if (rootedNames.TryGetValue(name, out var prior) &&
+              !string.Equals(prior, from, StringComparison.Ordinal))
             throw new NotSupportedException(
                 $"Multiple rooted COPY sources share the file name '{name}'; rename the sources.");
+          rootedNames[name] = from;
           if (!File.Exists(from))
           {
             if (!strictCopySources)
@@ -123,11 +163,24 @@ namespace FluentDocker.Builders
       foreach (var command in _config.Commands.Where(x => x is AddCommand).Cast<AddCommand>())
       {
         var source = command.Source.Rendered;
+        if (Path.IsPathRooted(source))
+        {
+          var name = Path.GetFileName(source);
+          if (rootedNames.TryGetValue(name, out var prior) &&
+              !string.Equals(prior, source, StringComparison.Ordinal))
+            throw new NotSupportedException(
+                $"Multiple rooted COPY/ADD sources share the file name '{name}'; rename the sources.");
+          rootedNames[name] = source;
+        }
         var wff = Path.IsPathRooted(source)
             ? Path.Combine(workingFolder, Path.GetFileName(source))
             : Path.Combine(workingFolder, source);
         if (File.Exists(wff) || Directory.Exists(wff))
+        {
+          if (Path.IsPathRooted(source))
+            _addSourceOverrides[command] = Path.GetFileName(source);
           continue;
+        }
         if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
             source.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
           continue;

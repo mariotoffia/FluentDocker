@@ -152,7 +152,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = new DockerApiContainerDriver(conn);
       driver.Initialize(Ctx);
 
-      var result = await driver.ExecAsync(Ctx, "ctr",
+      // The exec never reports an exit code (Running stays true), so the attached-exec poll
+      // must give up at the caller deadline. Bound it with a short RequestTimeout instead of
+      // the 5-minute default so the test asserts the give-up path without spinning for minutes.
+      var ctx = new DriverContext("docker-api-ch6-test") { RequestTimeout = TimeSpan.FromMilliseconds(200) };
+      var result = await driver.ExecAsync(ctx, "ctr",
           new ExecConfig { Command = ["true"] }, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
@@ -197,7 +201,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var conn = new MockDockerApiConnection();
       conn.SetupPost("/auth", 200, "{}");
-      conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
+      conn.SetupStream("/images/create", "{\"status\":\"Status: Downloaded newer image for app:v1\"}\n");
       var auth = new DockerApiAuthDriver(conn);
       var driver = new DockerApiImageDriver(conn);
       driver.Initialize(Ctx);

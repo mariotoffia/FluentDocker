@@ -36,6 +36,15 @@ namespace FluentDocker.Services.Impl
     private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
+    /// <summary>
+    /// Creates a network service for an existing or newly-created network.
+    /// </summary>
+    /// <param name="kernel">Kernel used to resolve network driver ports.</param>
+    /// <param name="driverId">Driver id registered in the kernel.</param>
+    /// <param name="networkId">Network id used for driver operations.</param>
+    /// <param name="networkName">Network display/name reference.</param>
+    /// <param name="removeOnDispose">When true, dispose removes the owned network.</param>
+    /// <param name="disposeCleanupTimeout">Maximum best-effort remove time during dispose.</param>
     public NetworkService(
         FluentDockerKernel kernel,
         string driverId,

@@ -199,7 +199,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         var args = BuildComposeArgs(config) +
-            $" port --protocol {QuoteArgumentIfNeeded(config.Protocol)} {QuotePositionalArgument(config.Service, nameof(config.Service))} {config.PrivatePort}";
+            $" port --protocol {QuoteArgumentIfNeeded(config.Protocol)} {QuotePositionalArgument(config.Service, nameof(config.Service))} {FormatInvariant(config.PrivatePort)}";
         var result = await ExecuteCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<string>.Ok(result.Output.Trim())
@@ -328,7 +328,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!string.IsNullOrEmpty(config.WorkDir))
           args += $" -w {QuoteArgumentIfNeeded(config.WorkDir)}";
         if (config.Index.HasValue)
-          args += $" --index {config.Index.Value}";
+          args += $" --index {FormatInvariant(config.Index.Value)}";
         args += $" {QuotePositionalArgument(config.Service, nameof(config.Service))}";
         if (config.Command is { Length: > 0 })
           args += " " + string.Join(" ", config.Command.Select(QuoteArgumentIfNeeded));
@@ -431,7 +431,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config.FollowLinks)
           args += " -L";
         if (config.Index.HasValue)
-          args += $" --index {config.Index.Value}";
+          args += $" --index {FormatInvariant(config.Index.Value)}";
         args += $" {QuotePositionalArgument(config.Source, nameof(config.Source))} {QuotePositionalArgument(config.Destination, nameof(config.Destination))}";
 
         var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);

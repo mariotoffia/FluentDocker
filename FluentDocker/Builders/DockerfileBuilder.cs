@@ -72,6 +72,7 @@ namespace FluentDocker.Builders
     internal async Task<string> PrepareBuildAsync(
         bool strictCopySources = false, CancellationToken cancellationToken = default)
     {
+      EnsureNoMixedDockerfileSources();
       if (IsInPlaceBuild)
         return await PrepareInPlaceBuildAsync(cancellationToken).ConfigureAwait(false);
 

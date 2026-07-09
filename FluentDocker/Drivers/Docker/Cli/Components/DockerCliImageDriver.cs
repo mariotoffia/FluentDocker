@@ -215,8 +215,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
         finally
         {
-          if (File.Exists(iidFile))
-            File.Delete(iidFile);
+          try
+          {
+            if (File.Exists(iidFile))
+              File.Delete(iidFile);
+          }
+          catch (IOException)
+          {
+          }
+          catch (UnauthorizedAccessException)
+          {
+          }
         }
       }
       catch (OperationCanceledException)
@@ -373,7 +382,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           return CommandResponse<Image>.Fail(
               ErrorOrDefault(result, "Image inspect failed"),
-              FailureCode(result.Error, ErrorCodes.Image.InspectFailed));
+              result.Error?.Contains("No such image", StringComparison.OrdinalIgnoreCase) == true
+                  ? ErrorCodes.Image.NotFound
+                  : FailureCode(result.Error, ErrorCodes.Image.InspectFailed));
         }
 
         var images = JsonHelper.TryDeserialize<List<Image>>(result.Output);

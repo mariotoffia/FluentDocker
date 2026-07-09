@@ -193,8 +193,8 @@ namespace FluentDocker.Drivers.Docker.Api
       if (bytes.Length < 8)
         return Encoding.UTF8.GetString(bytes);
 
-      // Check if first byte is a valid Docker stream header (0=stdin, 1=stdout, 2=stderr)
-      if (bytes[0] > 2 || bytes[1] != 0 || bytes[2] != 0 || bytes[3] != 0)
+      // Check if first byte is a valid Docker stream header (0=stdin, 1=stdout, 2=stderr, 3=systemerr)
+      if (bytes[0] > 3 || bytes[1] != 0 || bytes[2] != 0 || bytes[3] != 0)
         return Encoding.UTF8.GetString(bytes);
 
       // First pass: compute total payload size to allocate once
@@ -202,7 +202,7 @@ namespace FluentDocker.Drivers.Docker.Api
       var offset = 0;
       while (offset + 8 <= bytes.Length)
       {
-        if (bytes[offset] > 2 || bytes[offset + 1] != 0 ||
+        if (bytes[offset] > 3 || bytes[offset + 1] != 0 ||
             bytes[offset + 2] != 0 || bytes[offset + 3] != 0)
           throw new DriverException(
               "Docker stream has an invalid multiplexed frame header",

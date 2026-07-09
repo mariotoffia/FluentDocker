@@ -51,6 +51,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder ExposePort(string containerPort)
     {
+      ArgumentException.ThrowIfNullOrWhiteSpace(containerPort);
       var normalized = NormalizeContainerPort(containerPort);
       if (_ports.TryGetValue(normalized, out var existing) &&
           !string.Equals(existing, string.Empty, StringComparison.Ordinal))
@@ -93,18 +94,34 @@ namespace FluentDocker.Builders
             "Do not append :ro/:rw to the container path; pass isReadOnly instead.",
             nameof(containerPath));
       }
+      if (HasAmbiguousVolumeSource(hostPath))
+        throw new ArgumentException(
+            "Host path contains ':' and cannot be represented by WithVolume(hostPath, containerPath). Use a named volume without ':' or a --mount-style API when available.",
+            nameof(hostPath));
 
       _volumes.Add($"{hostPath}:{containerPath}{(isReadOnly ? ":ro" : string.Empty)}");
       return this;
     }
 
+    private static bool HasAmbiguousVolumeSource(string source)
+    {
+      var startIndex = HasWindowsDrivePrefix(source) ? 2 : 0;
+      return source.IndexOf(':', startIndex) >= 0;
+    }
+
     private static string GetVolumeSource(string volume)
     {
-      var separator = volume.Length > 1 && volume[1] == ':'
+      var separator = HasWindowsDrivePrefix(volume)
           ? volume.IndexOf(':', 2)
           : volume.IndexOf(':');
       return separator < 0 ? volume : volume[..separator];
     }
+
+    private static bool HasWindowsDrivePrefix(string source) =>
+        source.Length >= 3 &&
+        char.IsAsciiLetter(source[0]) &&
+        source[1] == ':' &&
+        (source[2] == '\\' || source[2] == '/');
 
     private static bool IsNamedVolumeSource(string source) =>
         !string.IsNullOrWhiteSpace(source) &&

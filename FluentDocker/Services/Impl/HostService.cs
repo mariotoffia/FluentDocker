@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -15,7 +14,7 @@ namespace FluentDocker.Services.Impl
   public partial class HostService : IHostService, IServiceCapabilities
   {
     // IServiceCapabilities
-    bool IServiceCapabilities.CanStart => true;
+    bool IServiceCapabilities.CanStart => false;
     bool IServiceCapabilities.CanStop => false;
     bool IServiceCapabilities.CanPause => false;
     bool IServiceCapabilities.CanRemove => false;
@@ -28,6 +27,14 @@ namespace FluentDocker.Services.Impl
     private readonly bool _requireTls;
     private readonly ServiceRunningState _state = ServiceRunningState.Running;
 
+    /// <summary>
+    /// Creates a host service facade for system, image, network, volume, and container operations.
+    /// </summary>
+    /// <param name="kernel">Kernel used to resolve driver ports.</param>
+    /// <param name="driverId">Driver id registered in the kernel.</param>
+    /// <param name="hostName">Host name or URI; null means the native local host.</param>
+    /// <param name="isNative">True when the host is the local native engine.</param>
+    /// <param name="requireTls">True when callers require TLS for remote host access.</param>
     public HostService(
         FluentDockerKernel kernel,
         string driverId,
@@ -277,7 +284,8 @@ namespace FluentDocker.Services.Impl
           config.StopOnDispose,
           config.DeleteOnDispose,
           config.DeleteVolumeOnDispose,
-          config.DeleteNamedVolumeOnDispose);
+          config.DeleteNamedVolumeOnDispose,
+          initialState: ContainerService.ParseState("created"));
     }
 
     #endregion
@@ -413,19 +421,7 @@ namespace FluentDocker.Services.Impl
       if (container?.State?.Running == true)
         return ServiceRunningState.Running;
 
-      return container?.State?.Status?.ToLowerInvariant() switch
-      {
-        "running" => ServiceRunningState.Running,
-        "paused" => ServiceRunningState.Paused,
-        "exited" => ServiceRunningState.Stopped,
-        "stopped" => ServiceRunningState.Stopped,
-        "created" => ServiceRunningState.Starting,
-        "restarting" => ServiceRunningState.Starting,
-        "stopping" => ServiceRunningState.Stopping,
-        "removing" => ServiceRunningState.Removing,
-        "dead" => ServiceRunningState.Stopped,
-        _ => ServiceRunningState.Unknown
-      };
+      return ContainerService.ParseState(container?.State?.Status);
     }
 
     private void ThrowIfDisposed() =>

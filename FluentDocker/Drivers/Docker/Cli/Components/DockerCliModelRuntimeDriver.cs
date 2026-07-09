@@ -231,9 +231,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     /// <remarks>
     /// Honors the full <see cref="ModelRunOptions"/> contract. Run-supported fields
-    /// (<see cref="ModelRunOptions.Detach"/>, <see cref="ModelRunOptions.Debug"/>,
-    /// <see cref="ModelRunOptions.OpenAiUrl"/>, <see cref="ModelRunOptions.WebSearch"/>) map
-    /// onto <c>docker model run</c>. Configure-only fields
+    /// (<see cref="ModelRunOptions.Debug"/>, <see cref="ModelRunOptions.OpenAiUrl"/>,
+    /// <see cref="ModelRunOptions.WebSearch"/>) map onto <c>docker model run</c>;
+    /// explicit <c>Detach=false</c> is rejected because it starts an interactive chat session.
+    /// Configure-only fields
     /// (<see cref="ModelRunOptions.ContextSize"/>, <see cref="ModelRunOptions.RuntimeFlags"/>)
     /// have no <c>run</c> flag in DMR v1.2.1, so they are applied via
     /// <see cref="ConfigureAsync"/> just BEFORE the run rather than silently dropped; if that
@@ -243,6 +244,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> LoadAsync(DriverContext context,
         ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
     {
+      if (options is { Detach: false })
+        return CommandResponse<Unit>.Fail(
+            "ModelRunOptions.Detach=false would start an interactive 'docker model run' chat session that FluentDocker cannot consume. Use Detach=true (the default) to load the model for inference.",
+            ErrorCodes.General.InvalidArgument);
+
       // Apply configure-only settings (no `run` flag exists for them) before the run so the
       // documented WithRunOptions contract is honored. Skip when nothing is configure-bound.
       if (options is not null && (options.ContextSize.HasValue ||

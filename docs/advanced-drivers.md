@@ -21,7 +21,7 @@ pass a `DriverContext(driverId)` to each call. The result is a
 `CommandResponse<T>` with `Success`, `Data`, `Error`, `ErrorCode`, and `ExitCode`.
 
 Not every driver implements every port. Availability matches the capability table
-in the [README](../README.md): stacks are Docker CLI, services are Docker CLI and
+in the [README](https://github.com/mariotoffia/FluentDocker/blob/master/README.md): stacks are Docker CLI, services are Docker CLI and
 Docker API, pods/manifests/machines are Podman, and system/streaming ports exist
 on all three. Resolving a port a driver does not implement throws
 `InterfaceNotSupportedException` (use `kernel.TrySysCtl<T>(id, out var port)` to

@@ -89,31 +89,52 @@ namespace FluentDocker.Kernel
 
       var kernel = new FluentDockerKernel(new DriverRegistry(_loggerFactory), _loggerFactory);
       var configIndex = 0;
+      object currentInstance = null;
+      var currentRegistered = false;
+      var registeredInstances = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
       try
       {
         for (; configIndex < _driverConfigurations.Count; configIndex++)
         {
           var config = _driverConfigurations[configIndex];
+          currentInstance = null;
+          currentRegistered = false;
           var driverPack = config.DriverPackFactory?.Invoke() ?? config.DriverPack;
           if (driverPack != null)
           {
+            currentInstance = driverPack;
             await kernel.RegisterDriverPackAsync(
                 config.DriverId, driverPack, config.Context, cancellationToken).ConfigureAwait(false);
+            currentRegistered = true;
+            registeredInstances.Add(driverPack);
           }
           else if (config.Driver != null)
           {
+            currentInstance = config.Driver;
             await kernel.RegisterDriverAsync(
                 config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
+            currentRegistered = true;
+            registeredInstances.Add(config.Driver);
           }
 
           if (config.IsDefault)
             kernel.SetDefaultDriver(config.DriverId);
         }
       }
-      catch
+      catch (Exception ex)
       {
-        await DisposeUnregisteredConfigurationsAsync(configIndex + 1).ConfigureAwait(false);
+        if (!currentRegistered &&
+            currentInstance != null &&
+            !registeredInstances.Contains(currentInstance) &&
+            !DriverRegistry.RegistrationFailureDisposedInstance(ex))
+        {
+          var logger = _loggerFactory.CreateLogger<KernelBuilder>();
+          await DisposeOwnedInstanceAsync(
+              currentInstance, logger, _driverConfigurations[configIndex].DriverId).ConfigureAwait(false);
+        }
+        await DisposeUnregisteredConfigurationsAsync(
+            configIndex + 1, registeredInstances).ConfigureAwait(false);
         await kernel.DisposeAsync().ConfigureAwait(false);
         throw;
       }
@@ -135,15 +156,16 @@ namespace FluentDocker.Kernel
         throw new InvalidOperationException("KernelBuilder is single-use; create a new builder for another kernel.");
     }
 
-    private async Task DisposeUnregisteredConfigurationsAsync(int startIndex)
+    private async Task DisposeUnregisteredConfigurationsAsync(
+        int startIndex, HashSet<object> registeredInstances)
     {
       var logger = _loggerFactory.CreateLogger<KernelBuilder>();
       for (var i = startIndex; i < _driverConfigurations.Count; i++)
       {
         var config = _driverConfigurations[i];
-        if (config.DriverPack != null)
+        if (config.DriverPack != null && !registeredInstances.Contains(config.DriverPack))
           await DisposeOwnedInstanceAsync(config.DriverPack, logger, config.DriverId).ConfigureAwait(false);
-        if (config.Driver != null)
+        if (config.Driver != null && !registeredInstances.Contains(config.Driver))
           await DisposeOwnedInstanceAsync(config.Driver, logger, config.DriverId).ConfigureAwait(false);
       }
     }

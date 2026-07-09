@@ -26,6 +26,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         IProgress<ImagePullProgress> progress,
         CancellationToken cancellationToken)
     {
+      if (string.IsNullOrWhiteSpace(image))
+        return CommandResponse<Unit>.Fail(
+            "Image is required",
+            ErrorCodes.General.InvalidArgument,
+            CreateErrorContext("POST /images/create (pull)", 0));
+
       // A digest reference (repo@sha256:...) must be passed through on fromImage with no
       // tag param. Forcing tag=latest or appending a separate &tag= would fight the digest.
       var fromImage = image;
@@ -95,6 +101,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       string lastError = null;
       var receivedProgress = false;
+      var receivedTerminalStatus = false;
 
       // ResponseOwningStream owns the underlying HttpResponseMessage; dispose it so the
       // connection is returned to the pool instead of leaking once the stream is drained.
@@ -107,6 +114,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               .ConfigureAwait(false))
           {
             receivedProgress = true;
+            if (IsTerminalPullStatus(parsed.Status))
+              receivedTerminalStatus = true;
 
             if (!string.IsNullOrWhiteSpace(parsed.Error))
             {
@@ -155,6 +164,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             ErrorCodes.Image.PullFailed,
             CreateErrorContext("POST /images/create (pull)", 0));
 
+      // ponytail: existence probe can false-positive on a stale local tag after an interrupted
+      // pull; a digest check would close that gap if this becomes observable in production.
+      if (!receivedTerminalStatus &&
+          !await ImageExistsAsync(displayRef, cancellationToken).ConfigureAwait(false))
+        return CommandResponse<Unit>.Fail(
+            $"Docker pull for '{displayRef}' ended without terminal success and the image is not present",
+            ErrorCodes.Image.PullFailed,
+            CreateErrorContext("GET /images/{name}/json", 0));
+
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
@@ -171,6 +189,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         IProgress<ImagePushProgress> progress,
         CancellationToken cancellationToken)
     {
+      if (string.IsNullOrWhiteSpace(image))
+        return CommandResponse<Unit>.Fail(
+            "Image is required",
+            ErrorCodes.General.InvalidArgument,
+            CreateErrorContext("POST /images/{name}/push", 0));
+
       var path = $"/images/{Uri.EscapeDataString(image)}/push";
 
       Stream stream;
@@ -265,6 +289,23 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             CreateErrorContext("POST /images/{name}/push", 0));
 
       return CommandResponse<Unit>.Ok(Unit.Default);
+    }
+
+    private async Task<bool> ImageExistsAsync(string image, CancellationToken cancellationToken)
+    {
+      var path = $"/images/{Uri.EscapeDataString(image)}/json";
+      var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
+      return result.Success;
+    }
+
+    private static bool IsTerminalPullStatus(string status)
+    {
+      if (string.IsNullOrWhiteSpace(status))
+        return false;
+      var value = status.Trim();
+      return value.StartsWith("Status:", StringComparison.OrdinalIgnoreCase) ||
+          value.StartsWith("Downloaded newer image for ", StringComparison.OrdinalIgnoreCase) ||
+          value.StartsWith("Image is up to date for ", StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion

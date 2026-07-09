@@ -89,7 +89,7 @@ version.
   is single-use.
 - **Fix:** add at least one `UseContainer`/`UseNetwork`/`UseVolume`/`UseCompose` call,
   and create a fresh `FluentDockerKernel.Create()` builder for each kernel. See the
-  [3.2 changelog](../CHANGELOG.md).
+  [3.2 changelog](https://github.com/mariotoffia/FluentDocker/blob/master/CHANGELOG.md).
 
 ## Podman machine not running
 

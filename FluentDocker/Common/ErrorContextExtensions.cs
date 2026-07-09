@@ -263,22 +263,24 @@ namespace FluentDocker.Common
         var error = response.Error ?? "Operation failed";
         var errorCode = response.ErrorCode ?? ErrorCodes.General.Unknown;
         return response.ErrorContext == null
-            ? CommandResponse<TResult>.Fail(error, errorCode, response.ExitCode)
-            : CommandResponse<TResult>.Fail(error, errorCode, response.ErrorContext, response.ExitCode);
+            ? CommandResponse<TResult>.Fail(error, errorCode, response.ExitCode, output: response.Output)
+            : CommandResponse<TResult>.Fail(error, errorCode, response.ErrorContext, response.ExitCode, output: response.Output);
       }
 
       if (response.Data is null)
         return CommandResponse<TResult>.Fail(
             "Cannot map a successful response with no data payload; the driver violated the success/data contract.",
             ErrorCodes.General.InvalidOperation,
-            response.ExitCode);
+            response.ExitCode,
+            output: response.Output);
 
       var mapped = mapper(response.Data);
       if (mapped is null)
         return CommandResponse<TResult>.Fail(
             "Map produced a null result for a successful response; mapper must return a non-null value.",
             ErrorCodes.General.Unknown,
-            response.ExitCode);
+            response.ExitCode,
+            output: response.Output);
 
       return CommandResponse<TResult>.Ok(mapped, response.Output, response.ExitCode);
     }

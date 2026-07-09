@@ -18,7 +18,9 @@ namespace FluentDocker.Builders
     private readonly FluentDockerKernel _kernel = kernel;
     private readonly string _driverId = driverId;
 
+    /// <inheritdoc />
     FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
+    /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
 
     private string _name;
@@ -31,8 +33,10 @@ namespace FluentDocker.Builders
     internal bool CreatedResource { get; private set; }
     internal string PodName => _name;
 
+    /// <inheritdoc />
     public IPodBuilder WithName(string name) { _name = name; return this; }
 
+    /// <inheritdoc />
     public IPodBuilder WithPort(string hostPort, string containerPort)
     {
       ArgumentException.ThrowIfNullOrWhiteSpace(hostPort);
@@ -41,6 +45,7 @@ namespace FluentDocker.Builders
       return this;
     }
 
+    /// <inheritdoc />
     public IPodBuilder ExposePort(string containerPort)
     {
       ArgumentException.ThrowIfNullOrWhiteSpace(containerPort);
@@ -48,9 +53,13 @@ namespace FluentDocker.Builders
       return this;
     }
 
+    /// <inheritdoc />
     public IPodBuilder WithNetwork(string networkName) { _network = networkName; return this; }
+    /// <inheritdoc />
     public IPodBuilder WithLabel(string key, string value) { _labels[key] = value; return this; }
+    /// <inheritdoc />
     public IPodBuilder WithHostname(string hostname) { _hostname = hostname; return this; }
+    /// <inheritdoc />
     public IPodBuilder RemoveOnDispose() { _removeOnDispose = true; return this; }
 
     internal void ResetForRetry()

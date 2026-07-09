@@ -56,9 +56,21 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               ErrorOrDefault(result, "Network create failed"), FailureCode(result.Error, ErrorCodes.Network.CreateFailed),
               CreateErrorContext(context, "CreateNetwork", result), result.ExitCode);
 
+        var created = result.Output?.Trim();
+        if (string.IsNullOrEmpty(created))
+          return CommandResponse<NetworkCreateResult>.Fail(
+              "Network create succeeded but Podman returned no network name",
+              ErrorCodes.Network.CreateFailed,
+              CreateErrorContext(context, "CreateNetwork", result),
+              result.ExitCode);
+
+        var inspect = await InspectAsync(context, created, cancellationToken).ConfigureAwait(false);
+        if (!inspect.Success)
+          return CommandResponse<NetworkCreateResult>.Ok(new NetworkCreateResult { Id = created });
+
         return CommandResponse<NetworkCreateResult>.Ok(new NetworkCreateResult
         {
-          Id = result.Output?.Trim()
+          Id = string.IsNullOrEmpty(inspect.Data?.Id) ? created : inspect.Data.Id
         });
       }
       catch (OperationCanceledException)

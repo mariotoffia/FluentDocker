@@ -65,7 +65,7 @@ namespace FluentDocker.Drivers
     /// </summary>
     public string Email { get; set; }
 
-    /// <inheritdoc />
+    /// <summary>Returns a redacted representation of the registry login configuration.</summary>
     public override string ToString()
     {
       var password = string.IsNullOrEmpty(Password) ? "<null>" : "***";

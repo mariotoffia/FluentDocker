@@ -22,7 +22,7 @@ namespace FluentDocker.Services
     string Tag { get; }
 
     /// <summary>
-    /// Full image name (repository:tag).
+    /// Full image name (<c>repository:tag</c> or <c>repository@digest</c>).
     /// </summary>
     string FullName { get; }
 
@@ -59,4 +59,3 @@ namespace FluentDocker.Services
     Task SaveAsync(string outputPath, CancellationToken cancellationToken = default);
   }
 }
-

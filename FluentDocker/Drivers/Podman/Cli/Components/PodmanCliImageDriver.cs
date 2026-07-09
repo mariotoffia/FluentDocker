@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,6 +150,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     }
 
     /// <inheritdoc />
+    /// <remarks>Captured stdout and stderr retain only the final 256 KiB tail for long-running builds.</remarks>
     public async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context, ImageBuildConfig config,
         IProgress<ImageBuildProgress> progress = null,
@@ -223,11 +226,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var args = "images --format json";
-        if (filter?.All == true)
-          args += " -a";
-        if (!string.IsNullOrEmpty(filter?.Reference))
-          args += $" --filter {QuoteArgumentIfNeeded($"reference={filter.Reference}")}";
+        var args = BuildImageListArgs(filter);
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -246,6 +245,32 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         return CommandResponse<IList<Image>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
+    }
+
+    public static string BuildImageListArgs(ImageListFilter filter)
+    {
+      var args = new StringBuilder("images --format json");
+      if (filter?.All == true)
+        args.Append(" -a");
+      if (filter == null)
+        return args.ToString();
+
+      if (!string.IsNullOrEmpty(filter.Reference))
+        args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"reference={filter.Reference}")}");
+      if (filter.Dangling.HasValue)
+        args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"dangling={(filter.Dangling.Value ? "true" : "false")}")}");
+      if (!string.IsNullOrEmpty(filter.Before))
+        args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"before={filter.Before}")}");
+      if (!string.IsNullOrEmpty(filter.Since))
+        args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"since={filter.Since}")}");
+      if (filter.Labels != null)
+        foreach (var label in filter.Labels)
+        {
+          var labelValue = string.IsNullOrEmpty(label.Value) ? label.Key : $"{label.Key}={label.Value}";
+          args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"label={labelValue}")}");
+        }
+
+      return args.ToString();
     }
 
     /// <inheritdoc />

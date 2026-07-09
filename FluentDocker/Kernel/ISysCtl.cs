@@ -18,6 +18,7 @@ namespace FluentDocker.Kernel
     /// <exception cref="FluentDocker.Common.DriverNotFoundException">If driver not found</exception>
     /// <exception cref="FluentDocker.Common.InterfaceNotSupportedException">If interface not supported</exception>
     /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
+    /// <exception cref="ObjectDisposedException">If the kernel or driver pack has been disposed</exception>
     T SysCtl<T>(string driverId) where T : class;
 
     /// <summary>
@@ -30,6 +31,7 @@ namespace FluentDocker.Kernel
     /// <exception cref="FluentDocker.Common.DriverNotFoundException">If driver not found</exception>
     /// <exception cref="FluentDocker.Common.InterfaceNotSupportedException">If interface not supported</exception>
     /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
+    /// <exception cref="ObjectDisposedException">If the kernel or driver pack has been disposed</exception>
     object SysCtl(string driverId, Type interfaceType);
 
     /// <summary>
@@ -43,6 +45,7 @@ namespace FluentDocker.Kernel
     /// <returns>True if the interface was resolved</returns>
     /// <exception cref="FluentDocker.Common.DriverNotFoundException">If driver not found</exception>
     /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
+    /// <exception cref="ObjectDisposedException">If the kernel or driver pack has been disposed</exception>
     bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class;
   }
 }

@@ -139,7 +139,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = BuildComposeArgs(config) + " stop";
         if (config.Timeout.HasValue)
-          args += $" --timeout {config.Timeout.Value}";
+          args += $" --timeout {FormatInvariant(config.Timeout.Value)}";
         if (config.Services.Count > 0)
           args += " " + QuoteServices(config.Services);
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,6 +10,9 @@ namespace FluentDocker.Drivers.Docker.Cli
 {
   public abstract partial class DockerCliDriverBase
   {
+    private const int MaxStreamingLineChars = 1024 * 1024;
+    private const string StreamingLineTruncatedMarker = "…[line truncated at 1,048,576 chars]";
+
     private static void AddTail(Queue<string> tail, string line)
     {
       if (tail.Count == 10)
@@ -32,8 +36,9 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       async Task PumpAsync(TextReader reader)
       {
+        var lineReader = new BoundedLineReader(reader);
         string line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+        while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           await writer.WriteAsync(line, cancellationToken).ConfigureAwait(false);
       }
 
@@ -57,6 +62,65 @@ namespace FluentDocker.Drivers.Docker.Cli
       catch (Exception)
       {
         // The stream is ending; the drain result is irrelevant.
+      }
+    }
+
+    private sealed class BoundedLineReader
+    {
+      private readonly TextReader _reader;
+      private readonly char[] _buffer = new char[8192];
+      private readonly StringBuilder _line = new();
+      private int _index;
+      private int _count;
+      private bool _skipLeadingLf;
+
+      public BoundedLineReader(TextReader reader) => _reader = reader;
+
+      public async Task<string> ReadLineAsync(CancellationToken cancellationToken)
+      {
+        _line.Clear();
+        var sawAny = false;
+        var truncated = false;
+
+        while (true)
+        {
+          if (_index >= _count)
+          {
+            _count = await _reader.ReadAsync(_buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+            _index = 0;
+            if (_count == 0)
+              return sawAny ? Finish(truncated) : null;
+          }
+
+          var ch = _buffer[_index++];
+          if (_skipLeadingLf)
+          {
+            _skipLeadingLf = false;
+            if (ch == '\n')
+              continue;
+          }
+
+          sawAny = true;
+          if (ch == '\r')
+          {
+            _skipLeadingLf = true;
+            return Finish(truncated);
+          }
+          if (ch == '\n')
+            return Finish(truncated);
+
+          if (_line.Length < MaxStreamingLineChars)
+            _line.Append(ch);
+          else
+            truncated = true;
+        }
+      }
+
+      private string Finish(bool truncated)
+      {
+        if (truncated)
+          _line.Append(StreamingLineTruncatedMarker);
+        return _line.ToString();
       }
     }
   }

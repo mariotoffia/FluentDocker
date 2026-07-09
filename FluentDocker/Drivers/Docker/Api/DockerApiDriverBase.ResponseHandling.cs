@@ -45,8 +45,8 @@ namespace FluentDocker.Drivers.Docker.Api
     }
 
     /// <summary>
-    /// Stream-based response handler that deserializes directly from the HTTP stream
-    /// using source-generated <see cref="JsonTypeInfo{T}"/>, skipping the intermediate string.
+    /// Response handler that deserializes from the buffered content stream using
+    /// source-generated <see cref="JsonTypeInfo{T}"/>, skipping the intermediate string.
     /// Error paths still read as string for error message extraction.
     /// </summary>
     private static async Task<ApiResult<T>> HandleResponseFromStreamAsync<T>(
@@ -85,8 +85,8 @@ namespace FluentDocker.Drivers.Docker.Api
     }
 
     /// <summary>
-    /// Stream-based response handler for <see cref="JsonElement"/> results.
-    /// Parses the JSON document directly from the HTTP stream.
+    /// Response handler for <see cref="JsonElement"/> results.
+    /// Parses the JSON document from the buffered content stream.
     /// </summary>
     private static async Task<ApiResult<JsonElement>> HandleJsonElementResponseAsync(
         HttpResponseMessage response, CancellationToken ct)

@@ -6,6 +6,10 @@ namespace FluentDocker.Common
   /// <summary>
   /// Thrown when a driver context carries a different driver ID than the registration ID.
   /// </summary>
+  /// <remarks>
+  /// This remains an <see cref="ArgumentException"/> so callers can inspect
+  /// <see cref="ArgumentException.ParamName"/> for the invalid registration argument.
+  /// </remarks>
   public sealed class DriverContextIdMismatchException : ArgumentException
   {
     /// <summary>

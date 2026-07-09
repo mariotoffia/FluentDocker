@@ -81,8 +81,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (cidFile != null && File.Exists(cidFile))
         {
           try
-          { File.Delete(cidFile); }
-          catch { /* best effort cleanup */ }
+          {
+            File.Delete(cidFile);
+          }
+          catch (IOException)
+          {
+          }
+          catch (UnauthorizedAccessException)
+          {
+          }
         }
       }
     }

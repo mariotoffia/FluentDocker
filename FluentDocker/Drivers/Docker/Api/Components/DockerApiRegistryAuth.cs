@@ -13,14 +13,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private const string DockerHubServer = "https://index.docker.io/v1/";
     private static readonly ConditionalWeakTable<IDockerApiConnection, AuthCache> Caches = new();
 
-    /// <inheritdoc />
+    /// <summary>Stores a successful registry login for later pull, push, and build requests.</summary>
     public static void Store(IDockerApiConnection connection, RegistryLoginConfig config)
     {
       var cache = Caches.GetValue(connection, _ => new AuthCache());
       cache.Store(Normalize(config.Server ?? DockerHubServer), config);
     }
 
-    /// <inheritdoc />
+    /// <summary>Removes cached credentials for one registry, or all credentials when server is null.</summary>
     public static void Remove(IDockerApiConnection connection, string server)
     {
       if (!Caches.TryGetValue(connection, out var cache))
@@ -31,13 +31,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         cache.Remove(Normalize(server));
     }
 
-    /// <inheritdoc />
+    /// <summary>Clears all cached registry credentials for the connection.</summary>
     public static void Clear(IDockerApiConnection connection)
     {
       Caches.Remove(connection);
     }
 
-    /// <inheritdoc />
+    /// <summary>Builds the single-image Docker auth header for pull and push requests.</summary>
     public static IReadOnlyDictionary<string, string> HeaderFor(
         IDockerApiConnection connection, string image)
     {
@@ -49,20 +49,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config == null)
         return null;
 
-      var json = JsonHelper.Serialize(new
-      {
-        username = config.Username,
-        password = config.Password,
-        email = config.Email,
-        serveraddress = config.Server ?? DockerHubServer
-      });
+      var json = JsonHelper.Serialize(AuthConfig(config, server));
       return new Dictionary<string, string>
       {
         ["X-Registry-Auth"] = ToBase64Url(json)
       };
     }
 
-    /// <inheritdoc />
+    /// <summary>Builds Docker's registry auth-config map for image build requests.</summary>
     public static IReadOnlyDictionary<string, string> RegistryConfigHeaderFor(
         IDockerApiConnection connection)
     {
@@ -101,12 +95,31 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         value = value["https://".Length..];
       else if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
         value = value["http://".Length..];
-      return value.Equals("index.docker.io/v1", StringComparison.OrdinalIgnoreCase) ||
-          value.Equals("index.docker.io", StringComparison.OrdinalIgnoreCase) ||
-          value.Equals("registry-1.docker.io", StringComparison.OrdinalIgnoreCase)
-          ? "docker.io"
+      return IsDockerHub(value)
+          ? DockerHubServer
           : value.ToLowerInvariant();
     }
+
+    private static bool IsDockerHub(string value)
+    {
+      var server = value.Trim().TrimEnd('/');
+      if (server.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        server = server["https://".Length..];
+      else if (server.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        server = server["http://".Length..];
+      return server.Equals("index.docker.io/v1", StringComparison.OrdinalIgnoreCase) ||
+          server.Equals("index.docker.io", StringComparison.OrdinalIgnoreCase) ||
+          server.Equals("registry-1.docker.io", StringComparison.OrdinalIgnoreCase) ||
+          server.Equals("docker.io", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static object AuthConfig(RegistryLoginConfig config, string server) => new
+    {
+      username = config.Username,
+      password = config.Password,
+      email = config.Email,
+      serveraddress = IsDockerHub(server) ? DockerHubServer : config.Server ?? server
+    };
 
     private static string ToBase64Url(string value)
     {
@@ -118,21 +131,21 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       private readonly Dictionary<string, RegistryLoginConfig> _configs = [];
 
-      /// <inheritdoc />
+      /// <summary>Stores credentials under a normalized registry lookup key.</summary>
       public void Store(string server, RegistryLoginConfig config)
       {
         lock (_configs)
           _configs[server] = config;
       }
 
-      /// <inheritdoc />
+      /// <summary>Gets credentials for a normalized registry lookup key.</summary>
       public RegistryLoginConfig Get(string server)
       {
         lock (_configs)
           return _configs.TryGetValue(server, out var config) ? config : null;
       }
 
-      /// <inheritdoc />
+      /// <summary>Returns Docker auth-config JSON objects keyed by daemon registry address.</summary>
       public Dictionary<string, object> Snapshot()
       {
         lock (_configs)
@@ -140,26 +153,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           var result = new Dictionary<string, object>();
           foreach (var kv in _configs)
           {
-            result[kv.Key] = new
-            {
-              username = kv.Value.Username,
-              password = kv.Value.Password,
-              email = kv.Value.Email,
-              serveraddress = kv.Value.Server ?? DockerHubServer
-            };
+            result[kv.Key] = AuthConfig(kv.Value, kv.Key);
           }
           return result;
         }
       }
 
-      /// <inheritdoc />
+      /// <summary>Removes credentials for a normalized registry lookup key.</summary>
       public void Remove(string server)
       {
         lock (_configs)
           _configs.Remove(server);
       }
 
-      /// <inheritdoc />
+      /// <summary>Clears every cached registry login.</summary>
       public void Clear()
       {
         lock (_configs)

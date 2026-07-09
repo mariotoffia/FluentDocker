@@ -10,9 +10,7 @@ nav_order: 1
 The testing core lives inside the main `FluentDocker` assembly under the namespace
 `FluentDocker.Testing.Core`. No separate NuGet package is needed.
 
-> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
-> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+{% include preview-banner.html %}
 
 **Packaging decision:** testing support ships in the production assembly so the
 framework adapter packages stay thin and no fourth core package is needed. The
@@ -128,9 +126,11 @@ be labeled automatically; use unique names and stack/kube-specific cleanup for
 those resources.
 
 `OrphanCleanupMinimumAge` (a `TimeSpan`, default 1 hour) bounds what cleanup may
-remove: only managed resources **older** than this age are deleted. With the
-default, enabling `CleanupOrphansOnInit` in parallel CI cannot delete a sibling
-test run's live resources, because those are younger than the threshold:
+remove: only managed resources **older** than this age are eligible. Keep the
+default on shared daemons. Once older than `OrphanCleanupMinimumAge`, orphan
+cleanup removes managed **stopped containers** and **unused** networks/volumes
+from other sessions. Running containers, and networks/volumes still in use, are
+preserved.
 
 ```csharp
 var options = new DockerResourceOptions
@@ -142,6 +142,22 @@ var options = new DockerResourceOptions
 
 Keep the default unless you run cleanup outside of parallel test execution.
 
+### Session isolation
+
+Every managed resource is labeled with `fluentdocker.session`. By default each
+test process gets its own session id; set `FLUENTDOCKER_TEST_SESSION=<shared-id>`
+to group sibling test processes into one live session:
+
+```bash
+export FLUENTDOCKER_TEST_SESSION="${CI_PIPELINE_ID:-local-dev}"
+```
+
+Use the same value for all processes in one CI job and a different value for
+unrelated jobs. Orphan cleanup preserves the current session, so this prevents a
+parallel process from treating a sibling's resources as abandoned. If
+`FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` is also set, shared-session processes skip
+exit reaping so one process cannot delete a sibling process's live fixtures.
+
 ### Cleaning up managed containers by hand
 
 Every resource the testing core creates carries the `fluentdocker.managed=true`
@@ -151,9 +167,10 @@ label, so a CI job can reap leftovers without going through the framework:
 docker ps -aq --filter label=fluentdocker.managed=true | xargs -r docker rm -f
 ```
 
-On a **shared** daemon this cuts both ways: the framework never removes running
-containers during orphan cleanup, regardless of age. Use the manual `docker rm -f`
-sweep only on daemons where that is safe.
+On a **shared** daemon this cuts both ways: orphan cleanup removes managed
+stopped containers and unused networks/volumes once they are eligible, while
+running containers and networks/volumes still in use are preserved. Use the
+manual `docker rm -f` sweep only on daemons where that is safe.
 
 ### Cleaning up leaked containers in CI
 

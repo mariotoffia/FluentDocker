@@ -191,7 +191,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           return CommandResponse<Network>.Fail(
               ErrorOrDefault(result, "Network inspect failed"),
-              FailureCode(result.Error, ErrorCodes.Network.InspectFailed),
+              result.Error?.Contains("No such network", StringComparison.OrdinalIgnoreCase) == true
+                  ? ErrorCodes.Network.NotFound
+                  : FailureCode(result.Error, ErrorCodes.Network.InspectFailed),
               CreateErrorContext(context, "InspectNetwork", result),
               result.ExitCode);
         }

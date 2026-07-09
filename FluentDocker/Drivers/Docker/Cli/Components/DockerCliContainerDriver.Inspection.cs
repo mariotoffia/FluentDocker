@@ -35,7 +35,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           return CommandResponse<Container>.Fail(
               ErrorOrDefault(result, "Container inspect failed"),
-              FailureCode(result.Error, ErrorCodes.Container.InspectFailed),
+              result.Error?.Contains("No such container", StringComparison.OrdinalIgnoreCase) == true
+                  ? ErrorCodes.Container.NotFound
+                  : FailureCode(result.Error, ErrorCodes.Container.InspectFailed),
               CreateErrorContext(context, "InspectContainer", result),
               result.ExitCode);
         }
@@ -190,7 +192,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         var args = "logs";
         if (tail.HasValue)
-          args += $" --tail {tail.Value}";
+          args += $" --tail {FormatInvariant(tail.Value)}";
         if (timestamps)
           args += " -t";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";

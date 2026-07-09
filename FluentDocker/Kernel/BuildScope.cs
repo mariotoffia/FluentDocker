@@ -71,45 +71,54 @@ namespace FluentDocker.Kernel
     /// Disposes all services in this scope asynchronously.
     /// </summary>
     /// <param name="cancellationToken">
-    /// Optional token that bounds the total cleanup time.
-    /// When cancelled, the current disposal may continue unobserved and remaining
-    /// service disposals are not started.
+    /// Optional token that bounds cleanup. Services are removed from this scope only
+    /// after disposal completes; cancelled, timed-out, or failed disposals remain
+    /// observable in <see cref="Results"/> so callers can retry cleanup.
     /// </param>
-    public async Task DisposeAllAsync(CancellationToken cancellationToken = default)
+    public Task DisposeAllAsync(CancellationToken cancellationToken = default)
+    {
+      return DisposeAllAsyncCore(null, cancellationToken);
+    }
+
+    internal Task DisposeAllAsync(TimeSpan perServiceTimeout, CancellationToken cancellationToken = default)
+    {
+      return DisposeAllAsyncCore(perServiceTimeout, cancellationToken);
+    }
+
+    private async Task DisposeAllAsyncCore(
+        TimeSpan? perServiceTimeout, CancellationToken cancellationToken)
     {
       // Reverse creation order: dependents (e.g. containers) before their dependencies
       // (e.g. the networks/volumes they are attached to).
-      IServiceAsync[] results;
-      lock (_resultsLock)
-      {
-        results = [.. _results];
-        _results.Clear();
-      }
+      var results = SnapshotResults();
 
       for (var i = results.Length - 1; i >= 0; i--)
       {
         if (cancellationToken.IsCancellationRequested)
         {
-          _logger.LogWarning("BuildScope async disposal cancelled; skipping remaining services");
+          _logger.LogWarning("BuildScope async disposal cancelled; retaining remaining services");
           break;
         }
 
         var service = results[i];
         try
         {
-          var task = service is IAsyncDisposable asyncDisposable
-              ? asyncDisposable.DisposeAsync().AsTask()
-              : Task.Run(() => service.Dispose(), CancellationToken.None);
-          await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+          await DisposeServiceAsync(service, perServiceTimeout, cancellationToken)
+              .ConfigureAwait(false);
+          RemoveResult(service);
         }
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
-          _logger.LogWarning(ex, "BuildScope async disposal cancelled; skipping remaining services");
+          _logger.LogWarning(ex, "BuildScope async disposal cancelled; retaining remaining services");
           break;
+        }
+        catch (TimeoutException ex)
+        {
+          _logger.LogWarning(ex, "BuildScope async disposal timed out; service retained for retry");
         }
         catch (Exception ex)
         {
-          _logger.LogWarning(ex, "BuildScope async disposal failed");
+          _logger.LogWarning(ex, "BuildScope async disposal failed; service retained for retry");
         }
       }
     }
@@ -120,23 +129,84 @@ namespace FluentDocker.Kernel
     public void DisposeAll()
     {
       // Reverse creation order: dependents before their dependencies.
-      IServiceAsync[] results;
-      lock (_resultsLock)
-      {
-        results = [.. _results];
-        _results.Clear();
-      }
+      var results = SnapshotResults();
 
       for (var i = results.Length - 1; i >= 0; i--)
       {
         try
         {
           results[i].Dispose();
+          RemoveResult(results[i]);
         }
         catch (Exception ex)
         {
-          _logger.LogWarning(ex, "BuildScope sync disposal failed");
+          _logger.LogWarning(ex, "BuildScope sync disposal failed; service retained for retry");
         }
+      }
+    }
+
+    private IServiceAsync[] SnapshotResults()
+    {
+      lock (_resultsLock)
+      {
+        return [.. _results];
+      }
+    }
+
+    private void RemoveResult(IServiceAsync service)
+    {
+      lock (_resultsLock)
+      {
+        for (var i = _results.Count - 1; i >= 0; i--)
+        {
+          if (ReferenceEquals(_results[i], service))
+          {
+            _results.RemoveAt(i);
+            return;
+          }
+        }
+      }
+    }
+
+    private static async Task DisposeServiceAsync(
+        IServiceAsync service, TimeSpan? perServiceTimeout, CancellationToken cancellationToken)
+    {
+      var task = service is IAsyncDisposable asyncDisposable
+          ? asyncDisposable.DisposeAsync().AsTask()
+          : Task.Run(() => service.Dispose(), CancellationToken.None);
+      if (perServiceTimeout == null)
+      {
+        await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return;
+      }
+
+      using var timeoutCts = new CancellationTokenSource(perServiceTimeout.Value);
+      if (cancellationToken.CanBeCanceled)
+      {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, timeoutCts.Token);
+        await WaitWithTimeoutAsync(task, timeoutCts, linkedCts.Token, cancellationToken)
+            .ConfigureAwait(false);
+        return;
+      }
+
+      await WaitWithTimeoutAsync(task, timeoutCts, timeoutCts.Token, cancellationToken)
+          .ConfigureAwait(false);
+    }
+
+    private static async Task WaitWithTimeoutAsync(
+        Task task,
+        CancellationTokenSource timeoutCts,
+        CancellationToken waitToken,
+        CancellationToken cancellationToken)
+    {
+      try
+      {
+        await task.WaitAsync(waitToken).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+      {
+        throw new TimeoutException("Timed out disposing build service.");
       }
     }
   }

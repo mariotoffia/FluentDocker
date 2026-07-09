@@ -300,7 +300,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var ex = Assert.Throws<FluentDockerException>(() =>
           new[] { new TemplateString("LABEL=line1\nRUN injected") }.WrapValue());
 
-      Assert.Contains("newline or carriage return", ex.Message);
+      Assert.Contains("control", ex.Message);
     }
 
     [Theory]

@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -10,10 +11,20 @@ namespace FluentDocker.Common
   /// <summary>
   /// Shared System.Text.Json configuration for FluentDocker.
   /// Provides thread-safe, reusable serializer options that match
-  /// Docker/Podman JSON conventions (camelCase, lenient parsing).
+  /// Docker/Podman JSON conventions (camelCase, targeted lenient parsing).
   /// </summary>
   public static class JsonHelper
   {
+    private const string ContainerNetworkSettingsTypeName = "FluentDocker.Model.Containers.ContainerNetworkSettings";
+    private static readonly JsonConverter<string?> TolerantNetworkPrefixConverter = new TolerantStringConverter();
+    private static readonly HashSet<string> TolerantNetworkPrefixProperties =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+          "LinkLocalIPv6PrefixLen",
+          "GlobalIPv6PrefixLen",
+          "IPPrefixLen"
+        };
+
     /// <summary>
     /// Default serializer options matching Docker/Podman JSON conventions.
     /// Thread-safe and reusable.
@@ -198,10 +209,10 @@ namespace FluentDocker.Common
         WriteIndented = false,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
-        PropertyNameCaseInsensitive = false
+        PropertyNameCaseInsensitive = false,
+        TypeInfoResolver = CreateTypeInfoResolver()
       };
       options.Converters.Add(new JsonStringEnumConverter());
-      options.Converters.Add(new TolerantStringConverter());
       options.MakeReadOnly(true);
       return options;
     }
@@ -214,10 +225,10 @@ namespace FluentDocker.Common
         WriteIndented = false,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        TypeInfoResolver = CreateTypeInfoResolver()
       };
       options.Converters.Add(new JsonStringEnumConverter());
-      options.Converters.Add(new TolerantStringConverter());
       options.MakeReadOnly(true);
       return options;
     }
@@ -230,12 +241,31 @@ namespace FluentDocker.Common
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        TypeInfoResolver = CreateTypeInfoResolver()
       };
       options.Converters.Add(new JsonStringEnumConverter());
-      options.Converters.Add(new TolerantStringConverter());
       options.MakeReadOnly(true);
       return options;
+    }
+
+    private static IJsonTypeInfoResolver CreateTypeInfoResolver()
+    {
+      var resolver = new DefaultJsonTypeInfoResolver();
+      resolver.Modifiers.Add(ApplyTolerantNetworkPrefixConverters);
+      return resolver;
+    }
+
+    private static void ApplyTolerantNetworkPrefixConverters(JsonTypeInfo typeInfo)
+    {
+      if (!string.Equals(typeInfo.Type.FullName, ContainerNetworkSettingsTypeName, StringComparison.Ordinal))
+        return;
+
+      foreach (var property in typeInfo.Properties)
+      {
+        if (TolerantNetworkPrefixProperties.Contains(property.Name))
+          property.CustomConverter = TolerantNetworkPrefixConverter;
+      }
     }
   }
 }

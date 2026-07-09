@@ -22,6 +22,7 @@ namespace FluentDocker.Testing.Core
   {
     private readonly Action<IComposeBuilder> _configure;
     private string _sessionLabelOverlayPath;
+    private bool _borrowedProject;
     private static readonly Action<ILogger, Exception> DiagnosticsLogCollectionFailed =
         LoggerMessage.Define(
             LogLevel.Warning,
@@ -85,6 +86,7 @@ namespace FluentDocker.Testing.Core
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
       var generation = ProvisionGeneration;
+      _borrowedProject = false;
       var builder = new ComposeBuilder(Kernel, DriverId);
       _configure(builder);
       var callerProjectName = !string.IsNullOrWhiteSpace(builder._projectName);
@@ -120,6 +122,7 @@ namespace FluentDocker.Testing.Core
           Service = compose;
           ResourceName = compose.ProjectName ?? compose.Name;
           _sessionLabelOverlayPath = sessionLabelOverlayPath;
+          _borrowedProject = attachToExisting || builder.BorrowedProject;
         }))
         {
           return;
@@ -143,9 +146,16 @@ namespace FluentDocker.Testing.Core
       if (Service == null)
         return;
 
-      await Service.StopAsync(cancellationToken).ConfigureAwait(false);
-      await Service.RemoveAsync(force: false, cancellationToken).ConfigureAwait(false);
+      if (_borrowedProject)
+        await Service.DisposeAsync().ConfigureAwait(false);
+      else
+      {
+        await Service.StopAsync(cancellationToken).ConfigureAwait(false);
+        await Service.RemoveAsync(force: false, cancellationToken).ConfigureAwait(false);
+      }
+
       Service = null;
+      _borrowedProject = false;
       DeleteSessionLabelOverlay();
     }
 
@@ -158,13 +168,18 @@ namespace FluentDocker.Testing.Core
 
       try
       {
-        await s.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false);
+        if (_borrowedProject)
+          await s.DisposeAsync().ConfigureAwait(false);
+        else
+          await s.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false);
         Service = null;
+        _borrowedProject = false;
         DeleteSessionLabelOverlay();
       }
       catch (DriverException ex) when (IsNotFound(ex))
       {
         Service = null;
+        _borrowedProject = false;
         DeleteSessionLabelOverlay();
       }
     }
@@ -253,8 +268,7 @@ namespace FluentDocker.Testing.Core
           return null;
 
         var path = Path.Combine(
-            Environment.CurrentDirectory,
-            ".out",
+            Path.GetTempPath(),
             "fluentdocker",
             $"compose-labels-{Guid.NewGuid():N}.json");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);

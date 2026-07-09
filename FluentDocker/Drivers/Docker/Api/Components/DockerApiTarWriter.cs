@@ -13,7 +13,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private const int ExecutableFallbackMode = 493; // 0755
     private const int SymlinkFallbackMode = 511;    // 0777
 
-    /// <inheritdoc />
+    /// <summary>Writes a regular file entry and its content to the tar stream.</summary>
     public static async Task WriteFileAsync(
         Stream tar, string entryName, Stream content, DateTimeOffset modified, int mode,
         CancellationToken cancellationToken)
@@ -25,7 +25,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       await PadAsync(tar, length, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <inheritdoc />
+    /// <summary>Writes a directory entry to the tar stream.</summary>
     public static async Task WriteDirectoryAsync(
         Stream tar, string entryName, DateTimeOffset modified, int mode,
         CancellationToken cancellationToken)
@@ -35,28 +35,26 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           cancellationToken).ConfigureAwait(false);
     }
 
-    /// <inheritdoc />
+    /// <summary>Writes a symbolic-link entry to the tar stream.</summary>
     public static async Task WriteSymlinkAsync(
         Stream tar, string entryName, string linkTarget, DateTimeOffset modified,
         CancellationToken cancellationToken)
     {
       if (string.IsNullOrEmpty(linkTarget))
         throw new ArgumentException("Tar symlink target is required.", nameof(linkTarget));
-      if (Encoding.UTF8.GetByteCount(linkTarget) > 100)
-        throw new InvalidOperationException($"Tar symlink target is too long: {linkTarget}");
       await WriteHeaderWithLongNameAsync(tar, entryName, 0, modified, (byte)'2',
           SymlinkFallbackMode, cancellationToken, linkTarget.Replace('\\', '/'))
           .ConfigureAwait(false);
     }
 
-    /// <inheritdoc />
+    /// <summary>Writes the two zero blocks that terminate a tar archive.</summary>
     public static async Task FinishAsync(Stream tar, CancellationToken cancellationToken)
     {
       await tar.WriteAsync(new byte[BlockSize], cancellationToken).ConfigureAwait(false);
       await tar.WriteAsync(new byte[BlockSize], cancellationToken).ConfigureAwait(false);
     }
 
-    /// <inheritdoc />
+    /// <summary>Returns a tar file mode from filesystem metadata or a conservative fallback.</summary>
     public static int FileModeFor(string path)
     {
       if (!OperatingSystem.IsWindows())
@@ -73,7 +71,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return IsExecutableName(path) ? ExecutableFallbackMode : FileFallbackMode;
     }
 
-    /// <inheritdoc />
+    /// <summary>Returns a tar directory mode from filesystem metadata or a fallback.</summary>
     public static int DirectoryModeFor(string path)
     {
       if (!OperatingSystem.IsWindows())
@@ -159,6 +157,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         await tar.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
         await PadAsync(tar, bytes.Length, cancellationToken).ConfigureAwait(false);
         name = TruncateUtf8(name, 100);
+      }
+
+      if (!string.IsNullOrEmpty(linkTarget) && Encoding.UTF8.GetByteCount(linkTarget) > 100)
+      {
+        var bytes = Encoding.UTF8.GetBytes(linkTarget);
+        await WriteHeaderAsync(tar, "././@LongLink", bytes.Length, modified, (byte)'K',
+            FileFallbackMode, cancellationToken).ConfigureAwait(false);
+        await tar.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+        await PadAsync(tar, bytes.Length, cancellationToken).ConfigureAwait(false);
+        linkTarget = TruncateUtf8(linkTarget, 100);
       }
 
       await WriteHeaderAsync(tar, name, size, modified, type, mode, cancellationToken, linkTarget)

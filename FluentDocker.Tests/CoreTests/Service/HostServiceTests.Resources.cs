@@ -349,7 +349,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         var service = new HostService(kernel, "docker", "test-host");
         var caps = (IServiceCapabilities)service;
 
-        Assert.True(caps.CanStart);
+        Assert.False(caps.CanStart);
         Assert.False(caps.CanStop);
         Assert.False(caps.CanPause);
         Assert.False(caps.CanRemove);

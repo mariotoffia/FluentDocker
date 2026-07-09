@@ -147,7 +147,7 @@ namespace FluentDocker.Testing.Core
 
     private sealed class Registration
     {
-      private readonly FluentDockerKernel _kernel;
+      private readonly WeakReference<FluentDockerKernel> _kernel;
       private int _count = 1;
 
       public Registration(
@@ -156,7 +156,7 @@ namespace FluentDocker.Testing.Core
           string sessionId,
           TimeSpan timeout)
       {
-        _kernel = kernel;
+        _kernel = new WeakReference<FluentDockerKernel>(kernel);
         DriverId = driverId;
         SessionId = sessionId;
         Timeout = timeout;
@@ -174,8 +174,7 @@ namespace FluentDocker.Testing.Core
 
       public bool TryGetKernel(out FluentDockerKernel kernel)
       {
-        kernel = _kernel;
-        return kernel != null;
+        return _kernel.TryGetTarget(out kernel);
       }
     }
   }
@@ -187,13 +186,15 @@ namespace FluentDocker.Testing.Core
     private static PosixSignalRegistration _sigIntRegistration;
     private static PosixSignalRegistration _sigTermRegistration;
 
-    internal static void Register(
+    internal static bool Register(
         FluentDockerKernel kernel,
         string driverId,
         DockerResourceOptions options)
     {
-      if (Core.Register(kernel, driverId, options))
+      var registered = Core.Register(kernel, driverId, options);
+      if (registered)
         EnsureHooksRegistered();
+      return registered;
     }
 
     internal static void Unregister(FluentDockerKernel kernel, string driverId, string sessionId)
@@ -220,9 +221,7 @@ namespace FluentDocker.Testing.Core
 
     private static void OnPosixSignal(PosixSignalContext context)
     {
-      context.Cancel = true;
       Core.RunCleanup();
-      Environment.Exit(context.Signal == PosixSignal.SIGINT ? 130 : 143);
     }
   }
 }

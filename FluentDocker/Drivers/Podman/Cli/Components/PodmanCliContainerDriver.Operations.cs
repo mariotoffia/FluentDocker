@@ -163,12 +163,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <summary>Executes a command inside a container using <c>podman exec</c>.</summary>
     /// <remarks>
+    /// Captured stdout and stderr retain only the final 256 KiB tail for long-running execs.
     /// Podman uses exit code <c>125</c> when the exec operation itself fails. This driver
-    /// treats <c>125</c> with empty stdout as infrastructure failure; a genuine in-container
-    /// command that exits <c>125</c> and writes no stdout is indistinguishable from that CLI
-    /// failure and is reported as <see cref="CommandResponse{T}.Success"/> = <c>false</c>.
-    /// Commands that produced stdout are treated as in-container results and preserve their
-    /// exit code in <see cref="ExecResult.ExitCode"/>.
+    /// treats <c>125</c> with empty stdout and a Podman error marker as infrastructure failure.
+    /// Other non-zero exits are preserved in <see cref="ExecResult.ExitCode"/>.
     /// </remarks>
     public async Task<CommandResponse<ExecResult>> ExecAsync(
         DriverContext context, string containerId, ExecConfig config,
@@ -238,8 +236,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// could not run the exec) versus the in-container command merely exiting non-zero.
     /// <para>
     /// Returns <c>true</c> when the process-couldn't-start sentinel exit code (<c>-1</c>) is
-    /// seen, when podman's "exec failure" convention exit code <c>125</c> is returned, or when
-    /// there is no stdout and stderr carries a podman/daemon error marker. Bare phrases like
+    /// seen, when podman's exec-failed exit code <c>125</c> has no stdout, or when there is no
+    /// stdout and stderr carries a podman/daemon error marker. Bare phrases like
     /// "is not running" are deliberately NOT matched: they also appear in legitimate
     /// in-container tool output (systemctl/supervisord/health probes). Otherwise returns
     /// <c>false</c> so a real command's non-zero exit is preserved. Exit codes <c>126</c>
@@ -267,22 +265,22 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (!string.IsNullOrEmpty(stdOut))
         return false;
 
-      // Podman returns 125 when the exec operation itself fails (e.g. no such container,
-      // container not running) — this is podman's own failure code, not the command's.
       if (exitCode == 125)
         return true;
 
-      // Backup heuristic for the rare non-125 infra failure with empty stdout. Markers are kept
+      // Infra heuristic for failures with empty stdout. Markers are kept
       // specific to podman's own phrasing ("container is not running", "Cannot connect to Podman")
       // so an in-container app emitting a generic "Error: cannot connect to redis" is
-      // not misclassified. ponytail: these are still substrings, so exit code 125 above remains
-      // the primary, unambiguous signal — extend with podman's exact error catalog if needed.
+      // not misclassified. ponytail: these are still substrings; extend with podman's exact
+      // error catalog if needed.
       var err = stdErr ?? string.Empty;
-      return err.Contains("Error: ", StringComparison.OrdinalIgnoreCase)
+      var hasPodmanMarker = err.Contains("Error: ", StringComparison.OrdinalIgnoreCase)
           && (err.Contains("no such container", StringComparison.OrdinalIgnoreCase)
+              || err.Contains("no container with name", StringComparison.OrdinalIgnoreCase)
               || err.Contains("container is not running", StringComparison.OrdinalIgnoreCase)
               || err.Contains("unable to exec", StringComparison.OrdinalIgnoreCase)
               || err.Contains("Cannot connect to Podman", StringComparison.Ordinal));
+      return hasPodmanMarker;
     }
 
     #endregion

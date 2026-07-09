@@ -245,8 +245,33 @@ namespace FluentDocker.Services.Extensions
     /// <summary>
     /// Gets the Docker socket path for the current platform.
     /// </summary>
+    /// <remarks>
+    /// Resolution order: an explicit <c>DOCKER_HOST</c> unix/npipe endpoint wins; otherwise a
+    /// rootless <c>XDG_RUNTIME_DIR/docker.sock</c> is used when present; otherwise the platform
+    /// default (named pipe on Windows, <c>/var/run/docker.sock</c> elsewhere).
+    /// </remarks>
     public static string GetDockerSocketPath()
     {
+      var dockerHost = Environment.GetEnvironmentVariable("DOCKER_HOST");
+      if (!string.IsNullOrEmpty(dockerHost))
+      {
+        if (dockerHost.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
+          return dockerHost.Substring("unix://".Length);
+        if (dockerHost.StartsWith("npipe://", StringComparison.OrdinalIgnoreCase))
+          return dockerHost.Substring("npipe://".Length);
+      }
+
+      if (!FdOs.IsWindows())
+      {
+        var xdgRuntime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+        if (!string.IsNullOrEmpty(xdgRuntime))
+        {
+          var rootlessSocket = System.IO.Path.Combine(xdgRuntime, "docker.sock");
+          if (System.IO.File.Exists(rootlessSocket))
+            return rootlessSocket;
+        }
+      }
+
       if (FdOs.IsWindows())
         return @"//./pipe/docker_engine";
 

@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Builders
 {
@@ -15,12 +17,12 @@ namespace FluentDocker.Builders
     {
       var removed = new List<BuildFailureResource>();
       var kept = new List<BuildFailureResource>();
-      using var cleanupCts = new CancellationTokenSource(cleanupTimeout);
 
       // Reverse creation order: dependents before dependencies on failure too.
       for (var i = completedOperations.Count - 1; i >= 0; i--)
       {
         var (operation, service) = completedOperations[i];
+        using var cleanupCts = new CancellationTokenSource(cleanupTimeout);
         try
         {
           if (operation.ForceRemoveOnFailure?.Invoke(service) == true)
@@ -46,7 +48,9 @@ namespace FluentDocker.Builders
         }
         catch (Exception ex)
         {
-          kept.Add(ToResource(service, $"cleanup failed: {ex.Message}"));
+          var resource = ToResource(service, $"cleanup failed: {ex.Message}", ex);
+          LogCleanupFailure(service, resource, ex);
+          kept.Add(resource);
         }
       }
 
@@ -62,7 +66,8 @@ namespace FluentDocker.Builders
       await task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static BuildFailureResource ToResource(IServiceAsync service, string reason)
+    private static BuildFailureResource ToResource(
+        IServiceAsync service, string reason, Exception? exception = null)
     {
       var kind = service switch
       {
@@ -83,7 +88,19 @@ namespace FluentDocker.Builders
         _ => service.Name
       };
 
-      return new BuildFailureResource(kind, service.Name, id, reason);
+      return new BuildFailureResource(kind, service.Name, id, reason, exception);
+    }
+
+    private static void LogCleanupFailure(
+        IServiceAsync service, BuildFailureResource resource, Exception exception)
+    {
+      var logger = (service.Kernel?.LoggerFactory ?? NullLoggerFactory.Instance)
+          .CreateLogger<Builder>();
+      logger.LogWarning(
+          exception,
+          "Build failure cleanup failed for {ResourceKind} {ResourceName}",
+          resource.Kind,
+          resource.Name ?? resource.Id ?? "<unnamed>");
     }
   }
 }

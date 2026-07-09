@@ -55,16 +55,29 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         name = names.Value.GetStringValue();
       }
 
+      var state = token.GetStringOrDefault("State");
+      var status = state ?? token.GetStringOrDefault("Status");
       return new Container
       {
         Id = token.GetStringOrDefault("Id") ?? token.GetStringOrDefault("ID"),
         Image = token.GetStringOrDefault("Image"),
         Name = name,
+        Created = ParseDateTime(token.Prop("Created") ?? token.Prop("CreatedAt")),
         State = new ContainerState
         {
-          Status = token.GetStringOrDefault("State") ?? token.GetStringOrDefault("Status")
+          Status = status,
+          Running = IsRunningState(state, status, token.GetBoolOrDefault("Exited")),
+          StartedAt = ParseDateTime(token.Prop("StartedAt") ?? token.Prop("Started"))
         }
       };
+    }
+
+    private static bool IsRunningState(string state, string status, bool exited)
+    {
+      if (!string.IsNullOrEmpty(state))
+        return string.Equals(state, "running", StringComparison.OrdinalIgnoreCase);
+      return !exited && !string.IsNullOrEmpty(status)
+        && status.StartsWith("Up", StringComparison.OrdinalIgnoreCase);
     }
 
     public static Container ParseContainerInspect(string json)
@@ -185,7 +198,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         StdinOnce = el.GetBoolOrDefault("StdinOnce"),
         Image = el.GetStringOrDefault("Image"),
         WorkingDir = el.GetStringOrDefault("WorkingDir"),
-        StopSignal = el.GetStringOrDefault("StopSignal"),
+        StopSignal = ReadStringOrNumber(el.Prop("StopSignal")),
         Env = ParseStringArray(el.Prop("Env")),
         Cmd = ParseStringOrArray(el.Prop("Cmd")),
         EntryPoint = ParseStringOrArray(
@@ -392,14 +405,32 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (token == null || token.Value.IsNullOrUndefined())
         return DateTimeOffset.MinValue;
 
+      if (token.Value.ValueKind == JsonValueKind.Number && token.Value.TryGetInt64(out var seconds))
+        return DateTimeOffset.FromUnixTimeSeconds(seconds);
+
       var str = token.Value.GetStringValue();
       if (string.IsNullOrEmpty(str))
         return DateTimeOffset.MinValue;
 
-      return DateTimeOffset.TryParse(str, CultureInfo.InvariantCulture,
-          DateTimeStyles.AssumeUniversal, out var dto)
-          ? dto
-          : DateTimeOffset.MinValue;
+      if (DateTimeOffset.TryParse(str, CultureInfo.InvariantCulture,
+          DateTimeStyles.AssumeUniversal, out var dto))
+        return dto;
+
+      var lastSpace = str.LastIndexOf(' ');
+      if (lastSpace > 0 && DateTimeOffset.TryParse(str[..lastSpace], CultureInfo.InvariantCulture,
+          DateTimeStyles.AssumeUniversal, out dto))
+        return dto;
+
+      return DateTimeOffset.MinValue;
+    }
+
+    private static string ReadStringOrNumber(JsonElement? token)
+    {
+      if (token == null || token.Value.IsNullOrUndefined())
+        return null;
+      if (token.Value.ValueKind == JsonValueKind.Number)
+        return token.Value.ToString();
+      return token.Value.GetStringValue();
     }
 
     #endregion

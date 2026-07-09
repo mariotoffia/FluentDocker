@@ -96,6 +96,15 @@ namespace FluentDocker.Services.Extensions
           .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Waits for a container port, polling at the specified interval.
+    /// </summary>
+    /// <param name="service">The container service.</param>
+    /// <param name="portAndProto">Port and protocol, e.g., "5432/tcp".</param>
+    /// <param name="timeout">Timeout in milliseconds.</param>
+    /// <param name="pollIntervalMs">Milliseconds to wait between readiness probes.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the port is available, false if timeout.</returns>
     public static async Task<bool> WaitForPortAsync(
         this IContainerService service,
         string portAndProto,
@@ -163,6 +172,15 @@ namespace FluentDocker.Services.Extensions
           .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Waits for a host port, polling at the specified interval.
+    /// </summary>
+    /// <param name="host">Host address.</param>
+    /// <param name="port">Port number.</param>
+    /// <param name="timeout">Timeout in milliseconds.</param>
+    /// <param name="pollIntervalMs">Milliseconds to wait between TCP connect attempts.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the port is available, false if timeout.</returns>
     public static async Task<bool> WaitForPortAsync(
         string host,
         int port,
@@ -232,6 +250,15 @@ namespace FluentDocker.Services.Extensions
           .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Waits for a process in the container, polling at the specified interval.
+    /// </summary>
+    /// <param name="service">The container service.</param>
+    /// <param name="processName">Name of the process to wait for.</param>
+    /// <param name="timeout">Timeout in milliseconds.</param>
+    /// <param name="pollIntervalMs">Milliseconds to wait between process checks.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the process is running, false if timeout.</returns>
     public static async Task<bool> WaitForProcessAsync(
         this IContainerService service,
         string processName,
@@ -300,6 +327,17 @@ namespace FluentDocker.Services.Extensions
           .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Waits for an HTTP or HTTPS endpoint, polling at the specified interval.
+    /// </summary>
+    /// <param name="service">The container service.</param>
+    /// <param name="portAndProto">Port and protocol, e.g., "8080/tcp".</param>
+    /// <param name="path">URL path, e.g., "/health".</param>
+    /// <param name="timeout">Timeout in milliseconds.</param>
+    /// <param name="pollIntervalMs">Milliseconds to wait between HTTP probes.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="useHttps">True to probe with HTTPS and readiness-only certificate bypass.</param>
+    /// <returns>True if the endpoint responds successfully, false if timeout.</returns>
     [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last",
         Justification = "Keeps existing positional CancellationToken calls source-compatible.")]
     public static async Task<bool> WaitForHttpAsync(
@@ -314,6 +352,7 @@ namespace FluentDocker.Services.Extensions
       cancellationToken.ThrowIfCancellationRequested();
       var sw = Stopwatch.StartNew();
       var forceFreshEndpoint = true;
+      Exception lastException = null;
 
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
@@ -336,26 +375,33 @@ namespace FluentDocker.Services.Extensions
           var remainingMs = Math.Max(100, timeout - sw.ElapsedMilliseconds);
           requestCts.CancelAfter(TimeSpan.FromMilliseconds(remainingMs));
 
-          using var response = await Common.SharedHttpClient.Instance.GetAsync(url, requestCts.Token).ConfigureAwait(false);
+          var client = useHttps
+              ? SharedHttpClient.InsecureHttpsProbe
+              : SharedHttpClient.Instance;
+          using var response = await client.GetAsync(url, requestCts.Token).ConfigureAwait(false);
           if (response.IsSuccessStatusCode)
             return true;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+          lastException = ex;
           // Not ready yet
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException ex)
         {
           if (cancellationToken.IsCancellationRequested)
             throw;
+          lastException = ex;
           // Timeout on request
         }
         catch (DriverException ex) when (ex.IsTransient)
         {
+          lastException = ex;
           forceFreshEndpoint = true;
         }
         catch (SocketException ex)
         {
+          lastException = ex;
           forceFreshEndpoint = true;
           LogDebug(service, ex, "WaitForHttpAsync", portAndProto);
         }
@@ -364,6 +410,7 @@ namespace FluentDocker.Services.Extensions
       }
 
       cancellationToken.ThrowIfCancellationRequested();
+      LogWaitFailure(service, lastException, "WaitForHttpAsync", portAndProto);
       return false;
     }
 
@@ -390,6 +437,19 @@ namespace FluentDocker.Services.Extensions
             operation,
             value);
       }
+    }
+
+    private static void LogWaitFailure(IContainerService service, Exception exception, string operation, string value)
+    {
+      if (exception == null || service is not ContainerService containerService)
+        return;
+
+      containerService.Kernel.LoggerFactory.CreateLogger(typeof(ServiceExtensions).FullName!)
+          .LogWarning(
+              exception,
+              "Container wait helper timed out during {Operation} for {Value}; last failure is attached",
+              operation,
+              value);
     }
 
     #endregion

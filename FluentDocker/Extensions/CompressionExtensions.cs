@@ -6,6 +6,9 @@ using SharpCompress.Readers;
 
 namespace FluentDocker.Extensions
 {
+  /// <summary>
+  /// Legacy archive extraction helpers.
+  /// </summary>
   public static class CompressionExtensions
   {
     /// <summary>

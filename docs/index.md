@@ -35,20 +35,9 @@ The 3.2 release line adds preview Docker Model Runner support for local LLM work
   same `Builder → WithinDriver → UseModelRunner()` pattern: chat, streaming chat, and
   embeddings. See [Model Runner](model-runner.md) *(preview)*.
 
-## What's New in v3.0.0
+## Release History
 
-- **Namespace renamed**: `Ductus.FluentDocker` → `FluentDocker`
-- **Full async/await support** with CancellationToken
-- **Driver Layer architecture** replacing Commands namespace
-- **Kernel + WithinDriver() scoping** for multi-driver support
-- **Lambda-based builder API** — `UseContainer(Action<IContainerBuilder>)`
-- **Container Stats** — CPU, memory, network monitoring
-- **Label-based filtering** — faster leaked-container cleanup
-- **Static IPv4/IPv6** assignment for containers
-- **Directory copy** support (recursive)
-- **Docker Compose V2** — uses `docker compose`
-
-See the [Migration Guide](migration.md) for upgrading from v2.x.
+See the [CHANGELOG](https://github.com/mariotoffia/FluentDocker/blob/master/CHANGELOG.md) for current release notes and migration-impacting changes.
 
 ## Quick Start (Beginner)
 

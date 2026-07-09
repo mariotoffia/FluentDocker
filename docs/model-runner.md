@@ -13,8 +13,7 @@ LM Studio, or a hosted endpoint). It mirrors the existing
 `Builder → WithinDriver → UseXxx` pattern, so a model handle lives in the *same*
 kernel and lifecycle as your containers, networks and volumes.
 
-> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build from
-> [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package is **3.1.0** — don't run these samples against it.
+{% include preview-banner.html %}
 
 ## Two surfaces, one façade
 

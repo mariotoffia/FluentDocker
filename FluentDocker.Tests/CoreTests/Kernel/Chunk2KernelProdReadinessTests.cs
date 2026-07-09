@@ -197,7 +197,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       private readonly bool _failInitialize;
       private readonly DriverCapabilities _capabilities;
 
-      public TestDriver(bool failInitialize = false, DriverCapabilities capabilities = null)
+      public TestDriver(bool failInitialize = false, DriverCapabilities? capabilities = null)
       {
         _failInitialize = failInitialize;
         _capabilities = capabilities ?? DriverCapabilities.Default();
@@ -272,7 +272,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     {
       private readonly Exception _disposeException;
 
-      public TrackingStream(Exception disposeException = null) =>
+      public TrackingStream(Exception? disposeException = null) =>
           _disposeException = disposeException;
 
       public bool Disposed { get; private set; }

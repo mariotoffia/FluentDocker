@@ -77,7 +77,17 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task NetworkCreateAsync_NullOptionAndLabelCollections_DoNotFailBeforeProcessStarts()
     {
       RequirePosixShellFixture();
-      var driver = CreateNetworkDriver(ReturnStdout("net123"));
+      var driver = CreateNetworkDriver("""
+          #!/bin/sh
+          if [ "$1" = "network" ] && [ "$2" = "inspect" ]; then
+            cat <<'EOF'
+          [{"id":"net123","name":"net1"}]
+          EOF
+          else
+            echo net123
+          fi
+          exit 0
+          """);
 
       var result = await driver.CreateAsync(
           new DriverContext("podman"),
@@ -91,6 +101,29 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       Assert.True(result.Success, result.Error);
       Assert.NotNull(result.Data);
+      Assert.Equal("net123", result.Data.Id);
+    }
+
+    [Fact]
+    public async Task NetworkCreateAsync_WhenPostCreateInspectFails_ReturnsCreatedName()
+    {
+      RequirePosixShellFixture();
+      var driver = CreateNetworkDriver("""
+          #!/bin/sh
+          if [ "$1" = "network" ] && [ "$2" = "inspect" ]; then
+            echo 'inspect failed' >&2
+            exit 1
+          fi
+          echo net123
+          exit 0
+          """);
+
+      var result = await driver.CreateAsync(
+          new DriverContext("podman"),
+          new NetworkCreateConfig { Name = "net1" },
+          TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
       Assert.Equal("net123", result.Data.Id);
     }
 

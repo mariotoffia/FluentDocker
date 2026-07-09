@@ -27,6 +27,7 @@ namespace FluentDocker.Drivers.Docker.Cli
   public class DockerCliDriverPack : IDriverPack, IAsyncDisposable
   {
     private readonly Dictionary<Type, object> _drivers = [];
+    private readonly SemaphoreSlim _initializeLock = new(1, 1);
     private DriverContext _context;
     private IBinaryResolver _binaryResolver;
     private ILogger<DockerCliDriverPack> _logger = NullLogger<DockerCliDriverPack>.Instance;
@@ -74,75 +75,85 @@ namespace FluentDocker.Drivers.Docker.Cli
     public async Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
-      ThrowIfDisposed();
-      ArgumentNullException.ThrowIfNull(context);
-      _context = context;
-      _logger = context.LoggerFactory.CreateLogger<DockerCliDriverPack>();
-
-      // Initialize the binary resolver with context configuration
-      var binaryConfig = new BinaryConfiguration
+      await _initializeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      try
       {
-        Sudo = context.Sudo,
-        SudoPassword = context.SudoPassword,
-        DefaultShell = context.DefaultShell,
-        BinaryName = string.IsNullOrWhiteSpace(context.BinaryName) ? "docker" : context.BinaryName,
-        SearchPaths = context.SearchPaths
-      };
-      _binaryResolver = new DockerBinariesResolver(binaryConfig, context.LoggerFactory);
-      cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(context);
+        if (_initialized)
+          throw new InvalidOperationException("DockerCliDriverPack is already initialized.");
+        _context = context;
+        _logger = context.LoggerFactory.CreateLogger<DockerCliDriverPack>();
 
-      // Create and initialize all driver components with binary resolver
-      _containerDriver = new DockerCliContainerDriver(_binaryResolver);
-      _imageDriver = new DockerCliImageDriver(_binaryResolver);
-      _networkDriver = new DockerCliNetworkDriver(_binaryResolver);
-      _volumeDriver = new DockerCliVolumeDriver(_binaryResolver);
-      _systemDriver = new DockerCliSystemDriver(_binaryResolver);
-      _composeDriver = new DockerCliComposeDriver(_binaryResolver);
-      _authDriver = new DockerCliAuthDriver(_binaryResolver);
-      _streamDriver = new DockerCliStreamDriver(_binaryResolver);
-      _stackDriver = new DockerCliStackDriver(_binaryResolver);
-      _serviceDriver = new DockerCliServiceDriver(_binaryResolver);
-      _modelManagementDriver = new Components.DockerCliModelManagementDriver(_binaryResolver);
-      _modelRuntimeDriver = new Components.DockerCliModelRuntimeDriver(_binaryResolver);
-      // Inference endpoint is pack-owned: bind a configured endpoint (a non-default
-      // port/engine) once at registration, else the resolved default
-      // (DOCKER_MODEL_RUNNER_URL, else host TCP). The connection is built lazily.
-      _modelEndpoint = context.ModelRunnerEndpoint ?? ResolveDefaultModelEndpoint(_logger);
+        // Initialize the binary resolver with context configuration
+        var binaryConfig = new BinaryConfiguration
+        {
+          Sudo = context.Sudo,
+          SudoPassword = context.SudoPassword,
+          DefaultShell = context.DefaultShell,
+          BinaryName = string.IsNullOrWhiteSpace(context.BinaryName) ? "docker" : context.BinaryName,
+          SearchPaths = context.SearchPaths
+        };
+        _binaryResolver = new DockerBinariesResolver(binaryConfig, context.LoggerFactory);
+        cancellationToken.ThrowIfCancellationRequested();
 
-      // Initialize all components with context
-      _containerDriver.Initialize(context);
-      _imageDriver.Initialize(context);
-      _networkDriver.Initialize(context);
-      _volumeDriver.Initialize(context);
-      _systemDriver.Initialize(context);
-      _composeDriver.Initialize(context);
-      _authDriver.Initialize(context);
-      _streamDriver.Initialize(context);
-      _stackDriver.Initialize(context);
-      _serviceDriver.Initialize(context);
-      _modelManagementDriver.Initialize(context);
-      _modelRuntimeDriver.Initialize(context);
+        // Create and initialize all driver components with binary resolver
+        _containerDriver = new DockerCliContainerDriver(_binaryResolver);
+        _imageDriver = new DockerCliImageDriver(_binaryResolver);
+        _networkDriver = new DockerCliNetworkDriver(_binaryResolver);
+        _volumeDriver = new DockerCliVolumeDriver(_binaryResolver);
+        _systemDriver = new DockerCliSystemDriver(_binaryResolver);
+        _composeDriver = new DockerCliComposeDriver(_binaryResolver);
+        _authDriver = new DockerCliAuthDriver(_binaryResolver);
+        _streamDriver = new DockerCliStreamDriver(_binaryResolver);
+        _stackDriver = new DockerCliStackDriver(_binaryResolver);
+        _serviceDriver = new DockerCliServiceDriver(_binaryResolver);
+        _modelManagementDriver = new Components.DockerCliModelManagementDriver(_binaryResolver);
+        _modelRuntimeDriver = new Components.DockerCliModelRuntimeDriver(_binaryResolver);
+        // Inference endpoint is pack-owned: bind a configured endpoint (a non-default
+        // port/engine) once at registration, else the resolved default
+        // (DOCKER_MODEL_RUNNER_URL, else host TCP). The connection is built lazily.
+        _modelEndpoint = context.ModelRunnerEndpoint ?? ResolveDefaultModelEndpoint(_logger);
 
-      // Register all drivers by interface type
-      _drivers[typeof(IContainerDriver)] = _containerDriver;
-      _drivers[typeof(IImageDriver)] = _imageDriver;
-      _drivers[typeof(INetworkDriver)] = _networkDriver;
-      _drivers[typeof(IVolumeDriver)] = _volumeDriver;
-      _drivers[typeof(ISystemDriver)] = _systemDriver;
-      _drivers[typeof(IComposeDriver)] = _composeDriver;
-      _drivers[typeof(IAuthDriver)] = _authDriver;
-      _drivers[typeof(IStreamDriver)] = _streamDriver;
-      _drivers[typeof(IStackDriver)] = _stackDriver;
-      _drivers[typeof(IServiceDriver)] = _serviceDriver;
-      // Docker Model Runner ports: management + runtime via the docker CLI;
-      // inference via the OpenAI-compatible HTTP data plane (lazily built on first
-      // resolve — see EnsureInferenceDriver — so a pure-container pack pays nothing).
-      _drivers[typeof(IModelManagementDriver)] = _modelManagementDriver;
-      _drivers[typeof(IModelRuntimeDriver)] = _modelRuntimeDriver;
+        // Initialize all components with context
+        _containerDriver.Initialize(context);
+        _imageDriver.Initialize(context);
+        _networkDriver.Initialize(context);
+        _volumeDriver.Initialize(context);
+        _systemDriver.Initialize(context);
+        _composeDriver.Initialize(context);
+        _authDriver.Initialize(context);
+        _streamDriver.Initialize(context);
+        _stackDriver.Initialize(context);
+        _serviceDriver.Initialize(context);
+        _modelManagementDriver.Initialize(context);
+        _modelRuntimeDriver.Initialize(context);
 
-      _supportedInterfaces = BuildSupportedInterfaces();
-      _initialized = true;
-      await Task.CompletedTask;
+        // Register all drivers by interface type
+        _drivers[typeof(IContainerDriver)] = _containerDriver;
+        _drivers[typeof(IImageDriver)] = _imageDriver;
+        _drivers[typeof(INetworkDriver)] = _networkDriver;
+        _drivers[typeof(IVolumeDriver)] = _volumeDriver;
+        _drivers[typeof(ISystemDriver)] = _systemDriver;
+        _drivers[typeof(IComposeDriver)] = _composeDriver;
+        _drivers[typeof(IAuthDriver)] = _authDriver;
+        _drivers[typeof(IStreamDriver)] = _streamDriver;
+        _drivers[typeof(IStackDriver)] = _stackDriver;
+        _drivers[typeof(IServiceDriver)] = _serviceDriver;
+        // Docker Model Runner ports: management + runtime via the docker CLI;
+        // inference via the OpenAI-compatible HTTP data plane (lazily built on first
+        // resolve — see EnsureInferenceDriver — so a pure-container pack pays nothing).
+        _drivers[typeof(IModelManagementDriver)] = _modelManagementDriver;
+        _drivers[typeof(IModelRuntimeDriver)] = _modelRuntimeDriver;
+
+        _supportedInterfaces = BuildSupportedInterfaces();
+        _initialized = true;
+        await Task.CompletedTask;
+      }
+      finally
+      {
+        _initializeLock.Release();
+      }
     }
 
     private static ModelRunnerEndpoint ResolveDefaultModelEndpoint(ILogger logger)
@@ -165,6 +176,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <inheritdoc />
     public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       return Task.FromResult(new DriverCapabilities
       {
         SupportsContainers = true,
@@ -186,6 +198,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <inheritdoc />
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       if (!_initialized || _systemDriver == null)
         return false;
 
@@ -445,6 +458,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (connection != null)
         await connection.DisposeAsync().ConfigureAwait(false);
       _initialized = false;
+      _initializeLock.Dispose();
       GC.SuppressFinalize(this);
     }
 

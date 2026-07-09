@@ -75,12 +75,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         // subtree exclusion is handled uniformly by the regex suffix below.
         if (line.Length == 0)
           continue;
-        var directoryOnly = line[^1] == '/';
         line = line.Trim('/');
         if (line.Length == 0)
           continue;
 
-        rules.Add(new Rule(BuildRegex(line, directoryOnly), negated));
+        rules.Add(new Rule(BuildRegex(line), negated));
       }
 
       return new DockerIgnoreFilter(rules, dockerfileName);
@@ -116,10 +115,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <summary>
     /// Translates a single <c>.dockerignore</c> glob into an anchored regex. The trailing
-    /// <c>(?:/.*)?</c> makes any match also cover the subtree beneath it (directory
-    /// semantics), which is harmless for plain file patterns.
+    /// <c>(?:/.*)?</c> makes any match also cover the subtree beneath it.
     /// </summary>
-    private static Regex BuildRegex(string pattern, bool directoryOnly)
+    private static Regex BuildRegex(string pattern)
     {
       var sb = new StringBuilder("^");
       var i = 0;
@@ -205,7 +203,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         }
       }
 
-      sb.Append(directoryOnly ? "(?:/.*)?$" : "(?:/.*)?$");
+      sb.Append("(?:/.*)?$");
       return new Regex(sb.ToString(),
           RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
     }

@@ -340,6 +340,11 @@ namespace FluentDocker.Drivers
   /// <summary>
   /// Result of attach operation.
   /// </summary>
+  /// <remarks>
+  /// Callers must drain both <see cref="OutputStream"/> and <see cref="ErrorStream"/>
+  /// when they are non-null; leaving either pipe unread can block the attached process
+  /// once the OS pipe buffer fills.
+  /// </remarks>
   public class AttachResult : IAsyncDisposable
   {
     // ponytail: CLI attach owns a Process while API attach only owns streams; move this split in a future release.

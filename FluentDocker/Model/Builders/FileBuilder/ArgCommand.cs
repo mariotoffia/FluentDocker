@@ -1,7 +1,4 @@
 #nullable enable
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using FluentDocker.Common;
 using FluentDocker.Extensions;
 using FluentDocker.Model.Common;
@@ -36,7 +33,10 @@ namespace FluentDocker.Model.Builders.FileBuilder
         return $"ARG {Name}";
       }
 
-      return $"ARG {Name}={DefaultValue}";
+      return $"ARG {Name}={QuoteDefaultValue(DefaultValue)}";
     }
+
+    private static string QuoteDefaultValue(string value) =>
+        new[] { (TemplateString)$"ARG={value}" }.WrapValue()[0]["ARG=".Length..];
   }
 }

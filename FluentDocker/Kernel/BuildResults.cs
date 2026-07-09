@@ -17,20 +17,21 @@ namespace FluentDocker.Kernel
   public class BuildResults(List<BuildScope> scopes) : IAsyncDisposable, IDisposable
   {
     /// <summary>
-    /// Total wall-clock budget (milliseconds) bounding the <b>asynchronous</b> disposal of ALL
-    /// services across all scopes (containers, pods, networks, volumes, compose), so a single hung
-    /// daemon cannot block <see cref="DisposeAsync"/> indefinitely. The synchronous
+    /// Per-service wall-clock budget (milliseconds) bounding <b>asynchronous</b> disposal
+    /// of each service (containers, pods, networks, volumes, compose), so one hung
+    /// daemon call cannot consume cleanup time for later resources. The synchronous
     /// <see cref="Dispose"/> path does not apply this budget.
     /// </summary>
     public const int DefaultDisposeBudgetMs = 60_000;
 
-    private readonly List<BuildScope> _scopes = scopes ?? [];
-    private int _disposed;
+    private readonly List<BuildScope> _scopes = scopes == null ? [] : [.. scopes];
+    private int _disposed; // 0=not disposed/incomplete, 1=disposing, 2=complete
 
     /// <summary>
     /// Gets all services across all scopes.
     /// </summary>
-    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
+    /// <remarks>After complete disposal this returns empty; if cleanup was incomplete,
+    /// undisposed services remain observable here for retry.</remarks>
     public IReadOnlyList<IServiceAsync> All =>
         [.. _scopes.SelectMany(s => s.Results)];
 
@@ -39,7 +40,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <param name="driverId">Driver identifier</param>
     /// <returns>Services for the specified driver</returns>
-    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
+    /// <remarks>After complete disposal this returns empty; if cleanup was incomplete,
+    /// undisposed services remain observable here for retry.</remarks>
     public IReadOnlyList<IServiceAsync> ForDriver(string driverId) =>
         [.. _scopes
             .Where(s => s.DriverId == driverId)
@@ -48,34 +50,39 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Gets all scopes.
     /// </summary>
-    /// <remarks>After disposal, scope result collections are empty snapshots.</remarks>
+    /// <remarks>After complete disposal, scope result collections are empty snapshots;
+    /// if cleanup was incomplete, scopes retain undisposed services.</remarks>
     public IReadOnlyList<BuildScope> Scopes => _scopes;
 
     /// <summary>
     /// Gets all container services across all scopes.
     /// </summary>
-    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
+    /// <remarks>After complete disposal this returns empty; if cleanup was incomplete,
+    /// undisposed services remain observable here for retry.</remarks>
     public IReadOnlyList<IContainerService> Containers =>
         [.. All.OfType<IContainerService>()];
 
     /// <summary>
     /// Gets all network services across all scopes.
     /// </summary>
-    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
+    /// <remarks>After complete disposal this returns empty; if cleanup was incomplete,
+    /// undisposed services remain observable here for retry.</remarks>
     public IReadOnlyList<INetworkService> Networks =>
         [.. All.OfType<INetworkService>()];
 
     /// <summary>
     /// Gets all volume services across all scopes.
     /// </summary>
-    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
+    /// <remarks>After complete disposal this returns empty; if cleanup was incomplete,
+    /// undisposed services remain observable here for retry.</remarks>
     public IReadOnlyList<IVolumeService> Volumes =>
         [.. All.OfType<IVolumeService>()];
 
     /// <summary>
     /// Gets all compose services across all scopes.
     /// </summary>
-    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
+    /// <remarks>After complete disposal this returns empty; if cleanup was incomplete,
+    /// undisposed services remain observable here for retry.</remarks>
     public IReadOnlyList<IComposeService> ComposeServices =>
         [.. All.OfType<IComposeService>()];
 
@@ -112,7 +119,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <typeparam name="T">Service type</typeparam>
     /// <returns>Services of the specified type</returns>
-    /// <remarks>After disposal this returns an empty snapshot because scopes clear their results.</remarks>
+    /// <remarks>After complete disposal this returns empty; if cleanup was incomplete,
+    /// undisposed services remain observable here for retry.</remarks>
     public IReadOnlyList<T> OfType<T>() where T : IServiceAsync =>
         [.. All.OfType<T>()];
 
@@ -124,25 +132,35 @@ namespace FluentDocker.Kernel
     /// dependents (e.g. containers) are torn down before their dependencies (e.g. the networks
     /// and volumes they are attached to). This is a best-effort heuristic — reverse creation
     /// order (idiomatic declare-before-use), not a topological dependency sort. Disposal is
-    /// best-effort and never throws: each <see cref="BuildScope"/> logs its own failures, and a
-    /// single <see cref="DefaultDisposeBudgetMs"/> budget bounds the total time so a hung daemon
-    /// cannot block teardown forever.
+    /// best-effort and never throws: each <see cref="BuildScope"/> logs its own failures, and
+    /// each service receives its own <see cref="DefaultDisposeBudgetMs"/> budget so a hung daemon
+    /// call cannot starve later resources. Services are removed only after disposal completes;
+    /// failed or timed-out resources remain observable in <see cref="All"/>, and a later disposal
+    /// call retries them.
     /// </remarks>
     public async ValueTask DisposeAsync()
     {
-      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+      if (Volatile.Read(ref _disposed) == 2 ||
+          Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
       {
         return;
       }
 
-      using var cts = new CancellationTokenSource(DefaultDisposeBudgetMs);
-
-      for (var i = _scopes.Count - 1; i >= 0; i--)
+      try
       {
-        await _scopes[i].DisposeAllAsync(cts.Token).ConfigureAwait(false);
-      }
+        var perServiceTimeout = TimeSpan.FromMilliseconds(DefaultDisposeBudgetMs);
+        for (var i = _scopes.Count - 1; i >= 0; i--)
+        {
+          await _scopes[i].DisposeAllAsync(perServiceTimeout).ConfigureAwait(false);
+        }
 
-      GC.SuppressFinalize(this);
+        CompleteOrAllowRetry();
+      }
+      catch
+      {
+        Interlocked.Exchange(ref _disposed, 0);
+        throw;
+      }
     }
 
     /// <summary>
@@ -158,17 +176,26 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void Dispose()
     {
-      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+      if (Volatile.Read(ref _disposed) == 2 ||
+          Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
       {
         return;
       }
 
-      for (var i = _scopes.Count - 1; i >= 0; i--)
+      try
       {
-        _scopes[i].DisposeAll();
-      }
+        for (var i = _scopes.Count - 1; i >= 0; i--)
+        {
+          _scopes[i].DisposeAll();
+        }
 
-      GC.SuppressFinalize(this);
+        CompleteOrAllowRetry();
+      }
+      catch
+      {
+        Interlocked.Exchange(ref _disposed, 0);
+        throw;
+      }
     }
 
     /// <summary>
@@ -177,6 +204,18 @@ namespace FluentDocker.Kernel
     public void DisposeAll()
     {
       Dispose();
+    }
+
+    private void CompleteOrAllowRetry()
+    {
+      if (_scopes.All(scope => scope.Results.Count == 0))
+      {
+        Interlocked.Exchange(ref _disposed, 2);
+        GC.SuppressFinalize(this);
+        return;
+      }
+
+      Interlocked.Exchange(ref _disposed, 0);
     }
   }
 }

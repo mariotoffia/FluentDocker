@@ -10,7 +10,7 @@ namespace FluentDocker.Drivers.Docker.Api
 {
   public abstract partial class DockerApiDriverBase
   {
-    /// <inheritdoc />
+    /// <summary>Sends a POST with custom headers and maps the response to an API result.</summary>
     protected async Task<ApiResult> PostAsync(
         string path, object body, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
     {
@@ -28,7 +28,7 @@ namespace FluentDocker.Drivers.Docker.Api
       }
     }
 
-    /// <inheritdoc />
+    /// <summary>Sends a POST with custom headers and returns a JSON element response.</summary>
     protected async Task<ApiResult<System.Text.Json.JsonElement>> PostJsonElementAsync(
         string path, object body, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
     {

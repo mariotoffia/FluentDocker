@@ -34,6 +34,9 @@ namespace FluentDocker.Kernel
     /// Disposal order follows the registry dictionaries' enumeration order and is not ordered.
     /// Throws <see cref="TimeoutException"/> if the registration lock cannot be acquired within
     /// <see cref="DisposeBudget"/>; the instance stays disposable and a later call retries.
+    /// If the lock is acquired but an individual driver or pack exhausts the remaining disposal
+    /// budget, that instance is abandoned, <see cref="DriverRegistry.AbandonedDriverCount"/> is
+    /// incremented, and disposal can still complete so callers can detect partial cleanup.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
@@ -56,12 +59,18 @@ namespace FluentDocker.Kernel
           return;
 
         foreach (var kvp in _driverPacks)
-          await DisposeDriverPackWithinBudgetAsync(
-              kvp.Value.DriverPack, _logger, kvp.Key, Remaining(deadline)).ConfigureAwait(false);
+        {
+          if (!await DisposeDriverPackWithinBudgetAsync(
+              kvp.Value.DriverPack, _logger, kvp.Key, Remaining(deadline)).ConfigureAwait(false))
+            Interlocked.Increment(ref _abandonedDriverCount);
+        }
 
         foreach (var kvp in _drivers)
-          await DisposeDriverWithinBudgetAsync(
-              kvp.Value.Driver, _logger, kvp.Key, Remaining(deadline)).ConfigureAwait(false);
+        {
+          if (!await DisposeDriverWithinBudgetAsync(
+              kvp.Value.Driver, _logger, kvp.Key, Remaining(deadline)).ConfigureAwait(false))
+            Interlocked.Increment(ref _abandonedDriverCount);
+        }
 
         _driverPacks.Clear();
         _drivers.Clear();
@@ -103,13 +112,13 @@ namespace FluentDocker.Kernel
     /// </summary>
     public const int DefaultDisposeBudgetMs = 60_000;
 
-    private static async Task DisposeDriverWithinBudgetAsync(
+    private static async Task<bool> DisposeDriverWithinBudgetAsync(
         IDriver driver, ILogger logger, string driverId, TimeSpan disposeBudget)
     {
       if (disposeBudget <= TimeSpan.Zero)
       {
         logger.LogWarning("Timed out before disposing driver {DriverId}", driverId);
-        return;
+        return false;
       }
 
       using var cts = new CancellationTokenSource(disposeBudget);
@@ -117,22 +126,24 @@ namespace FluentDocker.Kernel
       {
         await DisposeDriverSafelyAsync(driver, logger, driverId)
             .WaitAsync(cts.Token).ConfigureAwait(false);
+        return true;
       }
       catch (OperationCanceledException) when (cts.IsCancellationRequested)
       {
         logger.LogWarning(
             "Timed out disposing driver {DriverId} after {TimeoutMs} ms",
             driverId, disposeBudget.TotalMilliseconds);
+        return false;
       }
     }
 
-    private static async Task DisposeDriverPackWithinBudgetAsync(
+    private static async Task<bool> DisposeDriverPackWithinBudgetAsync(
         IDriverPack driverPack, ILogger logger, string driverId, TimeSpan disposeBudget)
     {
       if (disposeBudget <= TimeSpan.Zero)
       {
         logger.LogWarning("Timed out before disposing driver pack {DriverId}", driverId);
-        return;
+        return false;
       }
 
       using var cts = new CancellationTokenSource(disposeBudget);
@@ -140,12 +151,14 @@ namespace FluentDocker.Kernel
       {
         await DisposeDriverPackSafelyAsync(driverPack, logger, driverId)
             .WaitAsync(cts.Token).ConfigureAwait(false);
+        return true;
       }
       catch (OperationCanceledException) when (cts.IsCancellationRequested)
       {
         logger.LogWarning(
             "Timed out disposing driver pack {DriverId} after {TimeoutMs} ms",
             driverId, disposeBudget.TotalMilliseconds);
+        return false;
       }
     }
 

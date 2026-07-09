@@ -38,6 +38,7 @@ namespace FluentDocker.Services.Impl
     public async Task LoadAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(model);
       await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
       await LoadCoreAsync(model, options, cancellationToken).ConfigureAwait(false);
     }
@@ -64,6 +65,11 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Intentionally does not acquire <see cref="ModelOperationGate"/>: this is an all-model
+    /// operation with no stable single model key. It may race with per-model load/unload work;
+    /// callers that need a quiet store must coordinate those operations externally.
+    /// </remarks>
     public async Task UnloadAllAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
@@ -75,6 +81,7 @@ namespace FluentDocker.Services.Impl
     public async Task ConfigureAsync(ModelReference model, ModelConfigureOptions options, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(model);
       await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
       await ConfigureCoreAsync(model, options, cancellationToken).ConfigureAwait(false);
     }

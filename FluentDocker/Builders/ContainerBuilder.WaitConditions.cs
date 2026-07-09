@@ -337,7 +337,7 @@ namespace FluentDocker.Builders
             }
             if (delay > 0)
             {
-              await Task.Delay((int)delay, cancellationToken).ConfigureAwait(false);
+              await Task.Delay((int)Math.Min(delay, int.MaxValue), cancellationToken).ConfigureAwait(false);
               continue;
             }
           }

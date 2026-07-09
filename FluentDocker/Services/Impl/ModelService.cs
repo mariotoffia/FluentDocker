@@ -45,6 +45,7 @@ namespace FluentDocker.Services.Impl
     private int _disposed;
     private int _loadCancellationSignaled;
     private Task _loadTask;
+    private Task _activeLoadTask;
 
     /// <summary>Initializes the model service.</summary>
     /// <param name="kernel">The kernel.</param>
@@ -146,43 +147,46 @@ namespace FluentDocker.Services.Impl
           _loadInitiated = 1;
           completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
           _loadTask = completion.Task;
+          ObserveFault(_loadTask);
           loadTask = _loadTask;
         }
       }
 
       if (completion != null)
-        _ = DriveSharedLoadAsync(completion);
+        ObserveFault(DriveSharedLoadAsync(completion));
 
       // Winner and losers alike observe the SINGLE shared load to completion/failure. Individual
       // caller cancellation abandons only that caller's wait; the shared load has its own generous
       // timeout/dispose token so the gate can self-heal if the driver never returns.
       await loadTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+      cancellationToken.ThrowIfCancellationRequested();
     }
 
     // Drives the one elected load to completion and publishes its outcome to every waiter.
     private async Task DriveSharedLoadAsync(TaskCompletionSource<bool> completion)
     {
-      var loadCts = CancellationTokenSource.CreateLinkedTokenSource(_loadCancellation.Token);
-      loadCts.CancelAfter(_loadTimeout);
-      var loadTask = StartCoreAsync(loadCts.Token);
+      CancellationTokenSource loadCts = null;
+      Task loadTask = null;
       try
       {
+        loadCts = CancellationTokenSource.CreateLinkedTokenSource(_loadCancellation.Token);
+        loadCts.CancelAfter(_loadTimeout);
+        loadTask = _activeLoadTask = StartCoreAsync(loadCts.Token);
         await loadTask.WaitAsync(_loadTimeout, _loadCancellation.Token).ConfigureAwait(false);
         completion.TrySetResult(true);
       }
       catch (OperationCanceledException) when (Volatile.Read(ref _loadCancellationSignaled) != 0)
       {
-        loadCts.Cancel();
-        Volatile.Write(ref _loadInitiated, 0);
-        completion.TrySetResult(true);
+        loadCts?.Cancel();
+        FaultSharedLoad(completion, new ObjectDisposedException(nameof(ModelService)));
       }
-      catch (OperationCanceledException ex) when (!_loadCancellation.IsCancellationRequested && loadCts.IsCancellationRequested)
+      catch (OperationCanceledException ex) when (!_loadCancellation.IsCancellationRequested && loadCts?.IsCancellationRequested == true)
       {
         FaultSharedLoad(completion, LoadTimedOut(ex));
       }
       catch (TimeoutException ex)
       {
-        loadCts.Cancel();
+        loadCts?.Cancel();
         FaultSharedLoad(completion, LoadTimedOut(ex));
       }
       catch (Exception ex)
@@ -191,10 +195,13 @@ namespace FluentDocker.Services.Impl
       }
       finally
       {
-        if (loadTask.IsCompleted)
-          loadCts.Dispose();
-        else
-          _ = DisposeWhenLoadCompletesAsync(loadTask, loadCts);
+        if (loadCts != null)
+        {
+          if (loadTask == null || loadTask.IsCompleted)
+            loadCts.Dispose();
+          else
+            _ = DisposeWhenLoadCompletesAsync(loadTask, loadCts);
+        }
       }
     }
 
@@ -207,6 +214,10 @@ namespace FluentDocker.Services.Impl
       UpdateState(ServiceRunningState.Unknown);
     }
 
+    private static void ObserveFault(Task task) =>
+        _ = task.ContinueWith(static faulted => _ = faulted.Exception, CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+
     private TimeoutException LoadTimedOut(Exception inner) =>
         new($"The model load exceeded the configured model load timeout of {_loadTimeout}.", inner);
 
@@ -214,11 +225,11 @@ namespace FluentDocker.Services.Impl
     {
       try
       {
-        await loadTask.ConfigureAwait(false);
+        await loadTask.WaitAsync(_loadTimeout).ConfigureAwait(false);
       }
       catch (Exception ex)
       {
-        _logger.LogDebug(ex, "Model load completed after timeout/cancellation");
+        _logger.LogDebug(ex, "Model load did not complete before timeout/cancellation");
       }
       finally
       {
@@ -228,8 +239,7 @@ namespace FluentDocker.Services.Impl
 
     private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
-      if (Volatile.Read(ref _disposed) != 0)
-        return;
+      ThrowIfDisposed();
 
       UpdateState(ServiceRunningState.Starting);
       await ExecuteHooksAsync(ServiceRunningState.Starting, cancellationToken).ConfigureAwait(false);
@@ -246,8 +256,8 @@ namespace FluentDocker.Services.Impl
         throw;
       }
 
-      if (cancellationToken.IsCancellationRequested || Volatile.Read(ref _disposed) != 0)
-        return;
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
 
       UpdateState(ServiceRunningState.Running);
       await ExecuteHooksAsync(ServiceRunningState.Running, cancellationToken).ConfigureAwait(false);
@@ -411,6 +421,16 @@ namespace FluentDocker.Services.Impl
       }
       finally
       {
+        try
+        {
+          if (_activeLoadTask is { } lt)
+            await lt.WaitAsync(_disposeCleanupTimeout).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogDebug(ex, "Model load did not settle before runner disposal");
+        }
+
         try
         {
           await _runner.DisposeAsync().ConfigureAwait(false);

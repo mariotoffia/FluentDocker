@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -112,14 +111,11 @@ namespace FluentDocker.Model.Common
       if (!str.Contains("${E_", StringComparison.Ordinal))
         return str;
 
-      foreach (DictionaryEntry env in Environment.GetEnvironmentVariables())
+      return EnvironmentTokenRegex().Replace(str, match =>
       {
-        var tmpEnv = "${E_" + env.Key + "}";
-        if (str.Contains(tmpEnv, StringComparison.Ordinal))
-          str = str.Replace(tmpEnv, (string?)env.Value);
-      }
-
-      return str;
+        var value = Environment.GetEnvironmentVariable(match.Groups["name"].Value);
+        return value ?? match.Value;
+      });
     }
 
     public static implicit operator TemplateString?(string? str) => null == str ? null : new TemplateString(str);
@@ -145,5 +141,8 @@ namespace FluentDocker.Model.Common
 
     [GeneratedRegex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled)]
     private static partial Regex MyRegex();
+
+    [GeneratedRegex(@"\$\{E_(?<name>[^}]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    private static partial Regex EnvironmentTokenRegex();
   }
 }

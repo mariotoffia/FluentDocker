@@ -75,6 +75,8 @@ namespace FluentDocker.Drivers.Podman.Cli
       var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, cancellationToken);
       var reader = process.StandardOutput;
       string failure = null;
+      var failureExitCode = 0;
+      string failureError = null;
 
       try
       {
@@ -88,9 +90,11 @@ namespace FluentDocker.Drivers.Podman.Cli
         var error = await errorTask.ConfigureAwait(false);
         if (process.ExitCode != 0)
         {
+          failureExitCode = process.ExitCode;
           var trimmed = (error ?? string.Empty).Trim();
           if (trimmed.Length > 2000)
             trimmed = trimmed[..2000] + "…";
+          failureError = trimmed;
           failure = $"exit code {process.ExitCode}{(trimmed.Length == 0 ? string.Empty : $": {trimmed}")}";
         }
       }
@@ -101,7 +105,17 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
 
       if (failure != null)
-        throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
+        throw CreateCommandFailureException(
+            effectiveContext,
+            $"Streaming command failed ({failure}).",
+            ErrorCodes.Driver.CommandExecutionFailed,
+            new ErrorContext("StreamingCommand")
+            {
+              DriverId = effectiveContext.DriverId,
+              Host = effectiveContext.Host,
+              ExitCode = failureExitCode,
+              StdErr = failureError
+            });
     }
 
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
@@ -185,10 +199,17 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
 
       if (failure != null)
-        throw new DriverException(
+        throw CreateCommandFailureException(
+            effectiveContext,
             $"Streaming command failed ({failure}).",
             ErrorCodes.Driver.CommandExecutionFailed,
-            new ErrorContext("StreamingCommand") { ExitCode = failureExitCode, StdErr = FormatTail(tail) });
+            new ErrorContext("StreamingCommand")
+            {
+              DriverId = effectiveContext.DriverId,
+              Host = effectiveContext.Host,
+              ExitCode = failureExitCode,
+              StdErr = FormatTail(tail)
+            });
     }
 
     protected async IAsyncEnumerable<LogEntry> ExecuteStreamingCommandWithSourcesAsync(
@@ -239,6 +260,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       var tail = new Queue<string>();
       var pump = PumpSourceStreamsAsync(process, channel.Writer, stdout, stderr, tail, cancellationToken);
       string failure = null;
+      var failureExitCode = 0;
 
       try
       {
@@ -247,7 +269,10 @@ namespace FluentDocker.Drivers.Podman.Cli
 
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
         if (process.ExitCode != 0)
+        {
+          failureExitCode = process.ExitCode;
           failure = $"exit code {process.ExitCode}{FormatTail(tail)}";
+        }
       }
       finally
       {
@@ -257,7 +282,17 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
 
       if (failure != null)
-        throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
+        throw CreateCommandFailureException(
+            effectiveContext,
+            $"Streaming command failed ({failure}).",
+            ErrorCodes.Driver.CommandExecutionFailed,
+            new ErrorContext("StreamingCommand")
+            {
+              DriverId = effectiveContext.DriverId,
+              Host = effectiveContext.Host,
+              ExitCode = failureExitCode,
+              StdErr = FormatTail(tail)
+            });
     }
 
     private static void AddTail(Queue<string> tail, string line)

@@ -48,6 +48,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               .Replace('\\', '/');
           if (filter.IsIgnored(relativePath + "/"))
             continue;
+          if ((dir.Attributes & FileAttributes.ReparsePoint) != 0)
+          {
+            var linkTarget = GetContainedSymlinkTarget(dir, contextRoot);
+            if (linkTarget != null)
+              await DockerApiTarWriter.WriteSymlinkAsync(fileStream, relativePath, linkTarget,
+                  dir.LastWriteTimeUtc, cancellationToken).ConfigureAwait(false);
+            continue;
+          }
           await DockerApiTarWriter.WriteDirectoryAsync(fileStream, relativePath,
               dir.LastWriteTimeUtc, DockerApiTarWriter.DirectoryModeFor(dir.FullName),
               cancellationToken).ConfigureAwait(false);
@@ -156,12 +164,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <summary>
     /// Depth-first enumeration of files under the build context that mirrors Docker's
-    /// security posture: directory symlinks are not traversed (avoids infinite loops and
-    /// paths that escape the context) and file symlinks whose target resolves outside the
-    /// context are skipped (avoids exfiltrating host files such as <c>/etc/passwd</c>).
-    /// File symlinks that stay inside the context and use relative targets are emitted as
-    /// symlink entries. Because no directory symlink is followed, content under an
-    /// in-context directory symlink is included only via its real path.
+    /// security posture: directory symlinks are emitted as links but not traversed (avoids
+    /// infinite loops and paths that escape the context) and symlinks whose target resolves
+    /// outside the context are skipped (avoids exfiltrating host files such as
+    /// <c>/etc/passwd</c>). Symlinks that stay inside the context and use relative targets
+    /// are emitted as symlink entries.
     /// </summary>
     private static IEnumerable<FileInfo> EnumerateContextFilesSafe(string contextRoot)
     {
@@ -194,10 +201,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         foreach (var entry in stack.Pop().EnumerateFileSystemInfos())
         {
           var isSymlink = (entry.Attributes & FileAttributes.ReparsePoint) != 0;
-          if (entry is DirectoryInfo dir && !isSymlink)
+          if (entry is DirectoryInfo dir)
           {
             yield return dir;
-            stack.Push(dir);
+            if (!isSymlink)
+              stack.Push(dir);
           }
         }
       }
@@ -220,7 +228,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
-    private static string? GetContainedSymlinkTarget(FileInfo file, string contextRoot)
+    private static string? GetContainedSymlinkTarget(FileSystemInfo file, string contextRoot)
     {
       var linkTarget = file.LinkTarget;
       if (string.IsNullOrEmpty(linkTarget) || Path.IsPathRooted(linkTarget))

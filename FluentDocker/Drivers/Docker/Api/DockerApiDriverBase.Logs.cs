@@ -88,7 +88,7 @@ namespace FluentDocker.Drivers.Docker.Api
     }
 
     private static bool IsValidStdCopyHeader(byte[] header) =>
-        header[0] <= 2 && header[1] == 0 && header[2] == 0 && header[3] == 0;
+        header[0] <= 3 && header[1] == 0 && header[2] == 0 && header[3] == 0;
 
     private static async Task CopyTailAsync(Stream stream, TailBytes tail, CancellationToken ct)
     {
@@ -123,7 +123,7 @@ namespace FluentDocker.Drivers.Docker.Api
       private int _count;
       private bool _truncated;
 
-      /// <inheritdoc />
+      /// <summary>Appends bytes while retaining only the configured tail window.</summary>
       public void Append(ReadOnlySpan<byte> bytes)
       {
         if (bytes.Length > _buffer.Length)
@@ -151,7 +151,7 @@ namespace FluentDocker.Drivers.Docker.Api
         }
       }
 
-      /// <inheritdoc />
+      /// <summary>Decodes the retained tail bytes, prefixing a truncation marker when needed.</summary>
       public string ToText()
       {
         var bytes = new byte[_count];

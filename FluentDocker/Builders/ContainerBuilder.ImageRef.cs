@@ -58,7 +58,13 @@ namespace FluentDocker.Builders
       // A ':' denotes a tag only when no '/' follows it; otherwise it is a registry host:port.
       var lastColon = reference.LastIndexOf(':');
       if (lastColon > 0 && reference.IndexOf('/', lastColon) < 0)
-        return (reference[..lastColon], reference[(lastColon + 1)..]);
+      {
+        var tag = reference[(lastColon + 1)..];
+        if (string.IsNullOrWhiteSpace(tag))
+          throw new FluentDockerException(
+              $"Image reference '{reference}' has an empty tag. Specify a tag after ':' or omit the colon.");
+        return (reference[..lastColon], tag);
+      }
 
       return (reference, "latest");
     }

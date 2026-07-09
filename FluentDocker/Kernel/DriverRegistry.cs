@@ -21,6 +21,7 @@ namespace FluentDocker.Kernel
     private readonly ConcurrentDictionary<string, DriverRegistration> _drivers = new();
     private readonly ConcurrentDictionary<string, DriverPackRegistration> _driverPacks = new();
     private readonly HashSet<string> _reservedDriverIds = [];
+    private readonly HashSet<object> _reservedDriverInstances = new(ReferenceEqualityComparer.Instance);
     private readonly List<string> _registrationOrder = [];
     private readonly SemaphoreSlim _registrationLock = new(1, 1);
     private readonly ILoggerFactory _loggerFactory;
@@ -28,6 +29,7 @@ namespace FluentDocker.Kernel
     private string _defaultDriverId;
     private readonly object _defaultDriverLock = new object();
     private int _disposed;
+    private int _abandonedDriverCount;
 
     /// <summary>
     /// Creates a new driver registry with the consumer-supplied logger factory.
@@ -46,6 +48,12 @@ namespace FluentDocker.Kernel
     /// constructed by the registry can create their own typed loggers.
     /// </summary>
     public ILoggerFactory LoggerFactory => _loggerFactory;
+
+    /// <summary>
+    /// Gets how many drivers or driver packs were abandoned because disposal
+    /// exhausted the configured budget before their dispose operation completed.
+    /// </summary>
+    public int AbandonedDriverCount => Volatile.Read(ref _abandonedDriverCount);
 
     internal bool IsDisposeComplete => Volatile.Read(ref _disposed) == 2;
 
@@ -67,6 +75,7 @@ namespace FluentDocker.Kernel
 
       DriverContext preparedContext = null;
       var reserved = false;
+      var initStarted = false;
       try
       {
         await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -76,7 +85,9 @@ namespace FluentDocker.Kernel
 
           preparedContext = PrepareContext(driverId, context);
           ThrowIfDriverIdUnavailable(driverId, "Driver");
+          ThrowIfDriverInstanceUnavailable(driver, "Driver");
           _reservedDriverIds.Add(driverId);
+          _reservedDriverInstances.Add(driver);
           reserved = true;
         }
         finally
@@ -84,12 +95,14 @@ namespace FluentDocker.Kernel
           _registrationLock.Release();
         }
 
+        initStarted = true;
         await driver.InitializeAsync(preparedContext, cancellationToken).ConfigureAwait(false);
 
         await _registrationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
           _reservedDriverIds.Remove(driverId);
+          _reservedDriverInstances.Remove(driver);
           reserved = false;
           ThrowIfDisposed();
 
@@ -112,11 +125,15 @@ namespace FluentDocker.Kernel
           _registrationLock.Release();
         }
       }
-      catch
+      catch (Exception ex)
       {
         if (reserved)
-          await RollbackReservationAsync(driverId).ConfigureAwait(false);
-        await DisposeDriverSafelyAsync(driver, _logger).ConfigureAwait(false);
+          await RollbackReservationAsync(driverId, driver).ConfigureAwait(false);
+        if (initStarted)
+        {
+          await DisposeDriverSafelyAsync(driver, _logger).ConfigureAwait(false);
+          MarkFailureDisposedInstance(ex);
+        }
         throw;
       }
     }
@@ -126,6 +143,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void Unregister(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       Task.Run(() => UnregisterAsync(driverId)).GetAwaiter().GetResult();
     }
@@ -133,6 +151,7 @@ namespace FluentDocker.Kernel
     /// <inheritdoc />
     public async Task UnregisterAsync(string driverId, CancellationToken cancellationToken = default)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       DriverRegistration driver = null;
       DriverPackRegistration pack = null;
@@ -170,6 +189,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IDriver GetDriver(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       if (!_drivers.TryGetValue(driverId, out var registration))
       {
@@ -184,6 +204,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool TryGetDriver(string driverId, [NotNullWhen(true)] out IDriver? driver)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       if (_drivers.TryGetValue(driverId, out var registration))
       {
@@ -215,6 +236,7 @@ namespace FluentDocker.Kernel
 
       DriverContext preparedContext = null;
       var reserved = false;
+      var initStarted = false;
       try
       {
         await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -224,7 +246,9 @@ namespace FluentDocker.Kernel
 
           preparedContext = PrepareContext(driverId, context);
           ThrowIfDriverIdUnavailable(driverId, "Driver pack");
+          ThrowIfDriverInstanceUnavailable(driverPack, "Driver pack");
           _reservedDriverIds.Add(driverId);
+          _reservedDriverInstances.Add(driverPack);
           reserved = true;
         }
         finally
@@ -232,12 +256,14 @@ namespace FluentDocker.Kernel
           _registrationLock.Release();
         }
 
+        initStarted = true;
         await driverPack.InitializeAsync(preparedContext, cancellationToken).ConfigureAwait(false);
 
         await _registrationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
           _reservedDriverIds.Remove(driverId);
+          _reservedDriverInstances.Remove(driverPack);
           reserved = false;
           ThrowIfDisposed();
 
@@ -260,11 +286,15 @@ namespace FluentDocker.Kernel
           _registrationLock.Release();
         }
       }
-      catch
+      catch (Exception ex)
       {
         if (reserved)
-          await RollbackReservationAsync(driverId).ConfigureAwait(false);
-        await DisposeDriverPackSafelyAsync(driverPack, _logger).ConfigureAwait(false);
+          await RollbackReservationAsync(driverId, driverPack).ConfigureAwait(false);
+        if (initStarted)
+        {
+          await DisposeDriverPackSafelyAsync(driverPack, _logger).ConfigureAwait(false);
+          MarkFailureDisposedInstance(ex);
+        }
         throw;
       }
     }
@@ -274,6 +304,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IDriverPack GetDriverPack(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       if (!_driverPacks.TryGetValue(driverId, out var registration))
       {
@@ -288,6 +319,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool TryGetDriverPack(string driverId, [NotNullWhen(true)] out IDriverPack? driverPack)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       if (_driverPacks.TryGetValue(driverId, out var registration))
       {
@@ -304,6 +336,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool IsDriverPack(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       return _driverPacks.ContainsKey(driverId);
     }
@@ -317,6 +350,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public DriverContext GetContext(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       if (_drivers.TryGetValue(driverId, out var driverReg))
       {
@@ -336,6 +370,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool IsRegistered(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       return _drivers.ContainsKey(driverId) || _driverPacks.ContainsKey(driverId);
     }
@@ -409,6 +444,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void SetDefaultDriver(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
       lock (_defaultDriverLock)
       {

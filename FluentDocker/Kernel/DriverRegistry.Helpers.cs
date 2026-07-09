@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -11,6 +12,11 @@ namespace FluentDocker.Kernel
 {
   public partial class DriverRegistry
   {
+    private const string RegistrationFailureDisposedInstanceKey =
+        "FluentDocker.DriverRegistry.RegistrationFailureDisposedInstance";
+    private static readonly ConditionalWeakTable<Exception, RegistrationFailureMarker>
+        RegistrationFailureDisposedInstances = new();
+
     private void SetDefaultIfFirst(string driverId)
     {
       lock (_defaultDriverLock)
@@ -45,20 +51,70 @@ namespace FluentDocker.Kernel
         throw new DriverException($"{kind} '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
     }
 
+    private void ThrowIfDriverInstanceUnavailable(object driver, string kind)
+    {
+      if (_reservedDriverInstances.Contains(driver) ||
+          _drivers.Values.Any(registration => ReferenceEquals(registration.Driver, driver)) ||
+          _driverPacks.Values.Any(registration => ReferenceEquals(registration.DriverPack, driver)))
+        throw new DriverException($"{kind} instance is already registered", ErrorCodes.Driver.AlreadyRegistered);
+    }
+
+    private static void ThrowIfDriverIdInvalid(string driverId)
+    {
+      if (string.IsNullOrWhiteSpace(driverId))
+        throw new ArgumentException("Driver ID cannot be null or empty", nameof(driverId));
+    }
+
     private DriverNotFoundException CreateDriverNotFoundException(string driverId) =>
         new(driverId, GetAllDriverIds());
 
-    private async Task RollbackReservationAsync(string driverId)
+    private async Task RollbackReservationAsync(string driverId, object driver)
     {
       await _registrationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
       try
       {
         _reservedDriverIds.Remove(driverId);
+        _reservedDriverInstances.Remove(driver);
       }
       finally
       {
         _registrationLock.Release();
       }
+    }
+
+    internal static bool RegistrationFailureDisposedInstance(Exception exception) =>
+        TryReadRegistrationFailureDisposedInstance(exception);
+
+    private static void MarkFailureDisposedInstance(Exception exception)
+    {
+      RegistrationFailureDisposedInstances.GetValue(
+          exception, static _ => new RegistrationFailureMarker());
+      try
+      {
+        exception.Data[RegistrationFailureDisposedInstanceKey] = true;
+      }
+      catch
+      {
+      }
+    }
+
+    private static bool TryReadRegistrationFailureDisposedInstance(Exception exception)
+    {
+      if (RegistrationFailureDisposedInstances.TryGetValue(exception, out _))
+        return true;
+
+      try
+      {
+        return exception.Data[RegistrationFailureDisposedInstanceKey] is true;
+      }
+      catch
+      {
+        return false;
+      }
+    }
+
+    private sealed class RegistrationFailureMarker
+    {
     }
 
     private static bool IsNullLoggerFactory(ILoggerFactory loggerFactory)

@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 
 namespace FluentDocker.Kernel
@@ -10,6 +11,9 @@ namespace FluentDocker.Kernel
       IEnumerable<BuildFailureResource> removedResources,
       IEnumerable<BuildFailureResource> keptResources)
   {
+    /// <summary>Typed key used when storing a manifest in <see cref="Exception.Data"/>.</summary>
+    public const string BuildFailureManifestKey = "BuildFailureManifest";
+
     /// <summary>Resources cleanup removed after the build failed.</summary>
     public IReadOnlyList<BuildFailureResource> RemovedResources { get; } =
         [.. removedResources ?? []];
@@ -26,5 +30,6 @@ namespace FluentDocker.Kernel
       string Kind,
       string? Name,
       string? Id,
-      string Reason);
+      string Reason,
+      Exception? Exception = null);
 }

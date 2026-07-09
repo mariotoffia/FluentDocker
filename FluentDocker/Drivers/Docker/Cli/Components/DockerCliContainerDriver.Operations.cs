@@ -282,23 +282,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = new List<string> { "update" };
 
         if (config.MemoryLimit.HasValue)
-          args.Add($"--memory {config.MemoryLimit.Value}");
+          args.Add($"--memory {FormatInvariant(config.MemoryLimit.Value)}");
         if (config.MemorySwap.HasValue)
-          args.Add($"--memory-swap {config.MemorySwap.Value}");
+          args.Add($"--memory-swap {FormatInvariant(config.MemorySwap.Value)}");
         if (config.MemoryReservation.HasValue)
-          args.Add($"--memory-reservation {config.MemoryReservation.Value}");
+          args.Add($"--memory-reservation {FormatInvariant(config.MemoryReservation.Value)}");
         if (config.CpuShares.HasValue)
-          args.Add($"--cpu-shares {config.CpuShares.Value}");
+          args.Add($"--cpu-shares {FormatInvariant(config.CpuShares.Value)}");
         if (config.CpuPeriod.HasValue)
-          args.Add($"--cpu-period {config.CpuPeriod.Value}");
+          args.Add($"--cpu-period {FormatInvariant(config.CpuPeriod.Value)}");
         if (config.CpuQuota.HasValue)
-          args.Add($"--cpu-quota {config.CpuQuota.Value}");
+          args.Add($"--cpu-quota {FormatInvariant(config.CpuQuota.Value)}");
         if (!string.IsNullOrEmpty(config.CpusetCpus))
           args.Add($"--cpuset-cpus {QuoteArgumentIfNeeded(config.CpusetCpus)}");
         if (!string.IsNullOrEmpty(config.RestartPolicy))
           args.Add($"--restart {QuoteArgumentIfNeeded(config.RestartPolicy)}");
         if (config.PidsLimit.HasValue)
-          args.Add($"--pids-limit {config.PidsLimit.Value}");
+          args.Add($"--pids-limit {FormatInvariant(config.PidsLimit.Value)}");
 
         args.Add(QuotePositionalArgument(containerId, nameof(containerId)));
 

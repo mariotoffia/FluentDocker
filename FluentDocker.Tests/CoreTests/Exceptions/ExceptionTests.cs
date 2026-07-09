@@ -138,10 +138,28 @@ namespace FluentDocker.Tests.CoreTests.Exceptions
     public void ImagePullException_IsTransient()
     {
       // Act
-      var ex = new ImagePullException("nginx:latest", "network timeout");
+      var ex = new ImagePullException(
+          "nginx:latest",
+          "network timeout",
+          isTransient: ImagePullException.IsTransientReason("network timeout"));
 
       // Assert
       Assert.True(ex.IsTransient);
+      Assert.Equal("nginx:latest", ex.ImageName);
+      Assert.Equal(ErrorCodes.Image.PullFailed, ex.ErrorCode);
+    }
+
+    [Fact]
+    public void ImagePullException_CanBeMarkedNonTransient()
+    {
+      // Act
+      var ex = new ImagePullException(
+          "nginx:latest",
+          "manifest unknown",
+          isTransient: ImagePullException.IsTransientReason("manifest unknown"));
+
+      // Assert
+      Assert.False(ex.IsTransient);
       Assert.Equal("nginx:latest", ex.ImageName);
       Assert.Equal(ErrorCodes.Image.PullFailed, ex.ErrorCode);
     }

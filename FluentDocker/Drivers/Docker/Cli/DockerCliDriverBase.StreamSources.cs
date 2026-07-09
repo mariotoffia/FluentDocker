@@ -65,7 +65,7 @@ namespace FluentDocker.Drivers.Docker.Cli
 
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
         if (process.ExitCode != 0)
-          failure = $"exit code {process.ExitCode}{FormatTail(tail)}";
+          failure = $"exit code {FormatInvariant(process.ExitCode)}{FormatTail(tail)}";
       }
       finally
       {
@@ -88,8 +88,9 @@ namespace FluentDocker.Drivers.Docker.Cli
     {
       async Task PumpAsync(TextReader reader, LogStreamSource source, bool emit)
       {
+        var lineReader = new BoundedLineReader(reader);
         string line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+        while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         {
           lock (tail)
             AddTail(tail, line);

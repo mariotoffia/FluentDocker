@@ -6,8 +6,16 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Extensions
 {
+  /// <summary>
+  /// File and path helpers used by the legacy builder extension surface.
+  /// </summary>
   public static class FileExtensions
   {
+    /// <summary>
+    /// Wraps a path in quotes when it contains spaces.
+    /// </summary>
+    /// <param name="path">The path to wrap.</param>
+    /// <returns>The original path, or a quoted path when it contains spaces.</returns>
     [Obsolete("Use FluentDocker.Common.CommandLineQuoting for command arguments; this legacy helper only wraps paths containing spaces.")]
     public static string EscapePath(this string path)
     {
@@ -17,6 +25,11 @@ namespace FluentDocker.Extensions
       return path.StartsWith('"') ? path : $"\"{path}\"";
     }
 
+    /// <summary>
+    /// Wraps a rendered template path in quotes when it contains spaces.
+    /// </summary>
+    /// <param name="path">The template path to wrap.</param>
+    /// <returns>The original template, or a quoted template when it contains spaces.</returns>
     [Obsolete("Use FluentDocker.Common.CommandLineQuoting for command arguments; this legacy helper only wraps paths containing spaces.")]
     public static TemplateString EscapePath(this TemplateString path)
     {
@@ -30,6 +43,11 @@ namespace FluentDocker.Extensions
       return p.StartsWith('"') ? path : new TemplateString($"\"{p}\"");
     }
 
+    /// <summary>
+    /// Writes text to a file, creating the parent directory when needed.
+    /// </summary>
+    /// <param name="contents">The text to write.</param>
+    /// <param name="fqPath">The destination file path.</param>
     public static void ToFile(this string contents, TemplateString fqPath)
     {
       var folder = Path.GetDirectoryName(fqPath.Rendered);
@@ -41,6 +59,12 @@ namespace FluentDocker.Extensions
       File.WriteAllText(fqPath.Rendered, contents);
     }
 
+    /// <summary>
+    /// Reads all text from a file.
+    /// </summary>
+    /// <param name="fqPath">The file path to read.</param>
+    /// <param name="encoding">The encoding to use, or UTF-8 when omitted.</param>
+    /// <returns>The file contents.</returns>
     public static string FromFile(this TemplateString fqPath, Encoding? encoding = null)
     {
       if (null == encoding)
@@ -52,8 +76,8 @@ namespace FluentDocker.Extensions
     }
 
     /// <summary>
-    ///   Copies file or directories (recursively) to the <paramref name="workdir" /> and returns a relative
-    ///   linux compatible¨path string to be used in e.g. a Dockerfile.
+    ///   Copies file or directories recursively to the <paramref name="workdir" /> and returns a relative
+    ///   Linux-compatible path string to use in e.g. a Dockerfile.
     /// </summary>
     /// <param name="fileOrDirectory">The file or directory to copy to <paramref name="workdir" />.</param>
     /// <param name="workdir">The working directory to copy the file or directory to.</param>
@@ -91,6 +115,11 @@ namespace FluentDocker.Extensions
       return Path.GetFileName(Path.GetFullPath(fd).TrimEnd(Path.DirectorySeparatorChar));
     }
 
+    /// <summary>
+    /// Copies a directory recursively to another directory.
+    /// </summary>
+    /// <param name="sourceDirectory">The source directory.</param>
+    /// <param name="targetDirectory">The target directory.</param>
     public static void CopyTo(this TemplateString sourceDirectory, TemplateString targetDirectory)
     {
       var sd = sourceDirectory.Rendered;

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using FluentDocker.Common;
@@ -163,6 +164,14 @@ namespace FluentDocker.Drivers.Docker.Cli
       return string.IsNullOrEmpty(result?.Error) ? fallback : result.Error;
     }
 
+    protected static string FormatInvariant<T>(T value)
+        where T : IFormattable
+        => value.ToString(null, CultureInfo.InvariantCulture);
+
+    protected static string FormatInvariant<T>(T value, string format)
+        where T : IFormattable
+        => value.ToString(format, CultureInfo.InvariantCulture);
+
     protected static string MergeOutputAndError(string output, string error)
     {
       if (string.IsNullOrEmpty(output))
@@ -261,8 +270,12 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
       catch (Exception ex)
       {
+        var processFileName = process.StartInfo.FileName;
+        var binarySuffix = string.Equals(processFileName, binaryPath, StringComparison.Ordinal)
+            ? string.Empty
+            : $" for Docker CLI binary '{binaryPath}'";
         throw new DriverException(
-            $"Failed to start Docker CLI binary '{binaryPath}'.",
+            $"Failed to start process '{processFileName}'{binarySuffix}.",
             ErrorCodes.Driver.CommandExecutionFailed,
             ex);
       }

@@ -47,6 +47,10 @@ namespace FluentDocker.Services.Impl
     /// <summary>
     /// Creates an engine scope and immediately switches to the target scope.
     /// </summary>
+    /// <remarks>
+    /// Dispose/DisposeAsync restores the daemon to the initially detected scope. If detection
+    /// returns <see cref="EngineScopeType.Unknown"/>, restore is skipped and logged.
+    /// </remarks>
     public static async Task<EngineScope> CreateAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -186,6 +190,10 @@ namespace FluentDocker.Services.Impl
           _logger.LogError(ex, "Engine scope restore failed");
         }
       }
+      else if (_currentScope != _originalScope)
+      {
+        _logger.LogWarning("Engine scope restore skipped because original scope could not be detected");
+      }
 
       GC.SuppressFinalize(this);
     }
@@ -205,6 +213,10 @@ namespace FluentDocker.Services.Impl
         {
           _logger.LogError(ex, "Engine scope async restore failed");
         }
+      }
+      else if (_currentScope != _originalScope)
+      {
+        _logger.LogWarning("Engine scope async restore skipped because original scope could not be detected");
       }
 
       GC.SuppressFinalize(this);

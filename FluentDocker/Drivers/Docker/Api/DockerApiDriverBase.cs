@@ -67,7 +67,7 @@ namespace FluentDocker.Drivers.Docker.Api
     }
 
     /// <summary>
-    /// Source-gen-aware GET that deserializes the response directly from the HTTP stream.
+    /// Source-gen-aware GET that deserializes buffered HTTP content without an intermediate string.
     /// </summary>
     protected async Task<ApiResult<T>> GetJsonAsync<T>(
         string path, JsonTypeInfo<T> responseTypeInfo, CancellationToken ct)
@@ -105,8 +105,8 @@ namespace FluentDocker.Drivers.Docker.Api
     }
 
     /// <summary>
-    /// Source-gen-aware POST that serializes the body and deserializes the response
-    /// directly from the HTTP stream, skipping intermediate string allocations.
+    /// Source-gen-aware POST that serializes the body and deserializes buffered HTTP content
+    /// without intermediate string allocations.
     /// </summary>
     protected async Task<ApiResult<TResponse>> PostJsonAsync<TBody, TResponse>(
         string path, TBody body,

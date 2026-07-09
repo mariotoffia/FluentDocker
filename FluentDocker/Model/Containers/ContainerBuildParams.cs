@@ -176,6 +176,10 @@ namespace FluentDocker.Model.Containers
     /// </remarks>
     public bool NoCache { get; set; }
 
+    /// <summary>
+    /// Renders legacy Docker build command-line options.
+    /// </summary>
+    /// <returns>The rendered command-line option string.</returns>
     public override string ToString()
     {
       var sb = new StringBuilder();

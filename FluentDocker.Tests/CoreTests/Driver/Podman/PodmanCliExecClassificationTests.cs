@@ -22,9 +22,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void PodmanExecFailureExitCode125_IsInfraFailure()
     {
-      // Podman returns 125 when the exec operation itself fails (no such container, not
-      // running, etc.) — podman's own failure code, not the in-container command's.
       Assert.True(PodmanCliContainerDriver.IsExecInfrastructureFailure(125, "", "Error: no container with name"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Error: can only create exec sessions on running containers: container state improper")]
+    public void ExitCode125_WithEmptyStdout_IsInfraFailure(string stderr)
+    {
+      Assert.True(PodmanCliContainerDriver.IsExecInfrastructureFailure(125, "", stderr));
     }
 
     [Fact]

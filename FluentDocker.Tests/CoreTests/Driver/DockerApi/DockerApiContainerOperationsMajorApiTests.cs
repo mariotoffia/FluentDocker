@@ -49,9 +49,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           (200, @"{""Running"":true}"),
           (200, @"{""Running"":true}"));
       var driver = CreateDriver(mock);
+      var context = new DriverContext("docker-api-ops-test")
+      {
+        RequestTimeout = TimeSpan.FromMilliseconds(250)
+      };
       var sw = Stopwatch.StartNew();
 
-      var result = await driver.ExecAsync(Ctx, "ctr1",
+      var result = await driver.ExecAsync(context, "ctr1",
           new ExecConfig { Command = ["sh", "-c", "echo"], Tty = false },
           cancellationToken: TestContext.Current.CancellationToken);
 

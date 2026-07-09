@@ -2,8 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Formats.Tar;
-using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,6 +46,7 @@ namespace FluentDocker.Services.Impl
     // while an InspectAsync is in-flight, the result is discarded rather than cached.
     private volatile InspectCacheEntry _inspectCacheEntry;
     private volatile int _cacheVersion;
+    private int _disposeRemoveVersion;
     private int _inspectSequence;
     private int _lastAppliedInspectSequence;
 
@@ -75,6 +74,19 @@ namespace FluentDocker.Services.Impl
     /// <summary>
     /// Creates a new container service.
     /// </summary>
+    /// <param name="kernel">Kernel used to resolve container and volume driver ports.</param>
+    /// <param name="driverId">Driver id registered in the kernel.</param>
+    /// <param name="containerId">Container id used for driver operations.</param>
+    /// <param name="image">Image reference used to create or discover the container.</param>
+    /// <param name="name">Container display/name reference.</param>
+    /// <param name="stopOnDispose">When true, dispose tries to stop the owned container before removal.</param>
+    /// <param name="deleteOnDispose">When true, dispose removes the owned container.</param>
+    /// <param name="deleteVolumeOnDispose">When true, remove also deletes anonymous volumes.</param>
+    /// <param name="deleteNamedVolumeOnDispose">When true, dispose removes named volume mounts after container removal.</param>
+    /// <param name="customResolver">Optional host endpoint resolver for published ports.</param>
+    /// <param name="lifecycleHooks">Lifecycle hooks owned by this service instance.</param>
+    /// <param name="disposeCleanupTimeout">Maximum best-effort stop/remove cleanup time during dispose.</param>
+    /// <param name="initialState">Initial client-side lifecycle state.</param>
     public ContainerService(
         FluentDockerKernel kernel,
         string driverId,
@@ -236,32 +248,40 @@ namespace FluentDocker.Services.Impl
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.UnpauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        if (!IsAlreadyNotPaused(response))
+        var response = await driver.UnpauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+
+        if (!response.Success)
         {
-          throw new DriverException(
-              $"Failed to unpause container '{_name}': {response.Error}",
-              response.ErrorCode,
-              response.ErrorContext);
+          if (!IsAlreadyNotPaused(response))
+          {
+            throw new DriverException(
+                $"Failed to unpause container '{_name}': {response.Error}",
+                response.ErrorCode,
+                response.ErrorContext);
+          }
+
+          // "not paused" also covers stopped/exited containers — inspect for the real state.
+          var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+          var actual = inspect?.Success == true
+              ? (inspect.Data?.State?.Running == true
+                  ? ServiceRunningState.Running
+                  : ParseState(inspect.Data?.State?.Status))
+              : ServiceRunningState.Unknown;
+          UpdateState(actual);
+          await ExecuteHooksAsync(actual).ConfigureAwait(false);
+          return;
         }
 
-        // "not paused" also covers stopped/exited containers — inspect for the real state.
-        var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
-        var actual = inspect?.Success == true
-            ? (inspect.Data?.State?.Running == true
-                ? ServiceRunningState.Running
-                : ParseState(inspect.Data?.State?.Status))
-            : ServiceRunningState.Unknown;
-        UpdateState(actual);
-        await ExecuteHooksAsync(actual).ConfigureAwait(false);
-        return;
+        UpdateState(ServiceRunningState.Running);
+        await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
       }
-
-      UpdateState(ServiceRunningState.Running);
-      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      catch
+      {
+        UpdateState(ServiceRunningState.Unknown);
+        throw;
+      }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -277,6 +297,7 @@ namespace FluentDocker.Services.Impl
       // State is this client's view; call InspectAsync first when daemon-authoritative state matters.
       if (_state is ServiceRunningState.Stopped or ServiceRunningState.Removed)
         return;
+      var removeVersion = Volatile.Read(ref _disposeRemoveVersion);
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
@@ -297,12 +318,16 @@ namespace FluentDocker.Services.Impl
               response.ErrorContext);
         }
 
+        if (removeVersion != Volatile.Read(ref _disposeRemoveVersion))
+          return;
+
         UpdateState(ServiceRunningState.Stopped);
         await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
       }
       catch
       {
-        UpdateState(ServiceRunningState.Unknown);
+        if (removeVersion == Volatile.Read(ref _disposeRemoveVersion))
+          UpdateState(ServiceRunningState.Unknown);
         throw;
       }
     }

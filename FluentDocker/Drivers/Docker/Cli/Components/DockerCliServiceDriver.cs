@@ -37,7 +37,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!string.IsNullOrEmpty(config.Name))
           args.Add($"--name {QuotePositionalArgument(config.Name, nameof(config.Name))}");
         if (config.Replicas.HasValue)
-          args.Add($"--replicas {config.Replicas.Value}");
+          args.Add($"--replicas {FormatInvariant(config.Replicas.Value)}");
         if (!string.IsNullOrEmpty(config.Mode))
           args.Add($"--mode {QuoteArgumentIfNeeded(config.Mode)}");
         foreach (var env in config.Environment)
@@ -45,7 +45,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         foreach (var label in config.Labels)
           args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
         foreach (var port in config.Ports)
-          args.Add($"-p {QuoteArgumentIfNeeded($"{port.PublishedPort}:{port.TargetPort}/{port.Protocol}")}");
+          args.Add($"-p {QuoteArgumentIfNeeded($"{FormatInvariant(port.PublishedPort)}:{FormatInvariant(port.TargetPort)}/{port.Protocol}")}");
         foreach (var network in config.Networks)
           args.Add($"--network {QuoteArgumentIfNeeded(network)}");
         if (config.Detach)
@@ -118,7 +118,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!string.IsNullOrEmpty(config.Image))
           args.Add($"--image {QuotePositionalArgument(config.Image, nameof(config.Image))}");
         if (config.Replicas.HasValue)
-          args.Add($"--replicas {config.Replicas.Value}");
+          args.Add($"--replicas {FormatInvariant(config.Replicas.Value)}");
         foreach (var env in config.EnvAdd)
           args.Add($"--env-add {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
         foreach (var env in config.EnvRm)
@@ -246,7 +246,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (!result.Success)
         {
           return CommandResponse<ServiceDetails>.Fail(
-              ErrorOrDefault(result, "Service inspect failed"), FailureCode(result.Error, ErrorCodes.Service.InspectFailed));
+              ErrorOrDefault(result, "Service inspect failed"),
+              result.Error?.Contains("no such service", StringComparison.OrdinalIgnoreCase) == true
+                  ? ErrorCodes.Service.NotFound
+                  : FailureCode(result.Error, ErrorCodes.Service.InspectFailed));
         }
 
         var details = ParseServiceInspect(result.Output);
@@ -335,7 +338,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config?.Timestamps == true)
           args += " -t";
         if (config?.Tail.HasValue == true)
-          args += $" --tail {config.Tail.Value}";
+          args += $" --tail {FormatInvariant(config.Tail.Value)}";
         args += $" {QuotePositionalArgument(serviceId, nameof(serviceId))}";
 
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
@@ -362,7 +365,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var scaleArgs = string.Join(" ", serviceReplicas.Select(sr => QuotePositionalArgument($"{sr.Key}={sr.Value}", nameof(serviceReplicas))));
+        var scaleArgs = string.Join(" ", serviceReplicas.Select(sr => QuotePositionalArgument($"{sr.Key}={FormatInvariant(sr.Value)}", nameof(serviceReplicas))));
         var args = detach ? $"service scale -d {scaleArgs}" : $"service scale {scaleArgs}";
 
         var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);

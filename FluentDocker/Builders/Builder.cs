@@ -412,7 +412,7 @@ namespace FluentDocker.Builders
         // Clean up all services created so far to prevent resource leaks.
         // Use a bounded timeout so cleanup cannot hang indefinitely when the daemon is unhealthy.
         var manifest = await CleanupFailedBuildAsync(completedOperations, effectiveCleanupTimeout).ConfigureAwait(false);
-        ex.Data["BuildFailureManifest"] = manifest;
+        ex.Data[BuildFailureManifest.BuildFailureManifestKey] = manifest;
         throw;
       }
       finally

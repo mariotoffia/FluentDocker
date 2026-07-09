@@ -8,6 +8,10 @@ namespace FluentDocker.Kernel
   /// <summary>
   /// Fluent builder for creating and configuring a FluentDockerKernel.
   /// </summary>
+  /// <remarks>
+  /// Configuration and build methods are not thread-safe; mutate and build each
+  /// builder from one thread, and create a new builder for concurrent kernels.
+  /// </remarks>
   public interface IKernelBuilder
   {
     /// <summary>

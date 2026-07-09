@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -12,6 +13,9 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        throw new InvalidOperationException("Cannot unpause a removed compose project.");
+
       var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
       var context = new DriverContext(_driverId);
       var config = new ComposeFileConfig

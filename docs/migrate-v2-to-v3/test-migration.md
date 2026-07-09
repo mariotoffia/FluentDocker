@@ -12,9 +12,7 @@ For migrating the legacy test **adapter packages** (`Ductus.FluentDocker.XUnit` 
 `.MsTest`) to `FluentDocker.Testing.*`, see
 [Legacy Test Adapter Migration](../testing/migration-from-legacy.md).
 
-> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to use it. The latest published package
-> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+{% include preview-banner.html %}
 
 > **Note:** The legacy `Ductus.FluentDocker.MsTest` / `.XUnit` packages have been removed; use
 > the new `FluentDocker.Testing.*` packages. The examples below show the builder-level API changes.

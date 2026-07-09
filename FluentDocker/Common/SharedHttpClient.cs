@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Net.Http;
+using System.Net.Security;
 using System.Threading;
 
 namespace FluentDocker.Common
@@ -21,6 +22,20 @@ namespace FluentDocker.Common
       return new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
     });
 
+    private static readonly Lazy<HttpClient> s_insecureHttpsProbe = new(() =>
+    {
+      var handler = new SocketsHttpHandler
+      {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        SslOptions = new SslClientAuthenticationOptions
+        {
+          // Readiness probing only: containers often serve self-signed certs on host IPs.
+          RemoteCertificateValidationCallback = static (_, _, _, _) => true
+        }
+      };
+      return new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+    });
+
     /// <summary>
     /// Gets the shared <see cref="HttpClient"/> instance.
     /// Do not dispose this client. It has no global timeout; callers must
@@ -28,5 +43,11 @@ namespace FluentDocker.Common
     /// <see cref="System.Threading.CancellationToken"/>.
     /// </summary>
     public static HttpClient Instance => s_instance.Value;
+
+    /// <summary>
+    /// Gets an HTTPS readiness-probe client that accepts self-signed and host-mismatched
+    /// certificates. Do not use for authenticated application traffic.
+    /// </summary>
+    internal static HttpClient InsecureHttpsProbe => s_insecureHttpsProbe.Value;
   }
 }

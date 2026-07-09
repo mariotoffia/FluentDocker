@@ -214,7 +214,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task DisposeAsync_CancelsInFlightSharedLoadToken()
+    public async Task DisposeAsync_CancelsInFlightSharedLoadTokenAndFaultsStart()
     {
       await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
@@ -247,7 +247,8 @@ namespace FluentDocker.Tests.CoreTests.Service
       await service.DisposeAsync();
 
       await loadCanceled.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
-      await start.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+      await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+          start.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
       Assert.True(observed.HasValue);
       Assert.True(observed.Value.CanBeCanceled);
       Assert.True(observed.Value.IsCancellationRequested);
@@ -349,12 +350,13 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task DisposeAsync_WhenLoadCompletesAfterDispose_DoesNotFireRunning()
+    public async Task DisposeAsync_WhenLoadCompletesAfterDispose_FaultsStartAndDoesNotFireRunning()
     {
       await using var kernel = new FluentDocker.Kernel.FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var releaseLoad = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var loadReturned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var runner = new Mock<IModelRunner>();
       runner.Setup(r => r.LoadAsync(
               It.IsAny<ModelReference>(), It.IsAny<ModelRunOptions>(), It.IsAny<CancellationToken>()))
@@ -362,6 +364,7 @@ namespace FluentDocker.Tests.CoreTests.Service
           {
             loadStarted.SetResult();
             await releaseLoad.Task.ConfigureAwait(false);
+            loadReturned.SetResult();
           });
       runner.Setup(r => r.UnloadAsync(It.IsAny<ModelReference>(), It.IsAny<CancellationToken>()))
           .Returns(Task.CompletedTask);
@@ -394,7 +397,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       await service.DisposeAsync();
       Volatile.Write(ref disposeCompleted, 1);
       releaseLoad.SetResult();
-      await start.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+      await loadReturned.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+      await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+          start.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
 
       Assert.Equal(0, Volatile.Read(ref runningStateChangesAfterDispose));
       Assert.Equal(0, Volatile.Read(ref runningHooksAfterDispose));

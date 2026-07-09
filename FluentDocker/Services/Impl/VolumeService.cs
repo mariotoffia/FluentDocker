@@ -37,6 +37,15 @@ namespace FluentDocker.Services.Impl
     private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Running;
 
+    /// <summary>
+    /// Creates a volume service for an existing or newly-created volume.
+    /// </summary>
+    /// <param name="kernel">Kernel used to resolve volume driver ports.</param>
+    /// <param name="driverId">Driver id registered in the kernel.</param>
+    /// <param name="volumeName">Volume name used for driver operations.</param>
+    /// <param name="driver">Volume driver name; defaults to <c>local</c> when null.</param>
+    /// <param name="removeOnDispose">When true, dispose removes the owned volume.</param>
+    /// <param name="disposeCleanupTimeout">Maximum best-effort remove time during dispose.</param>
     public VolumeService(
         FluentDockerKernel kernel,
         string driverId,

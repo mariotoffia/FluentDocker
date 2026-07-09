@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Common;
+using SharpCompress.Common.Tar;
 using SharpCompress.Readers;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
@@ -101,29 +103,32 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         using var reader = ReaderFactory.OpenReader(readFs);
         while (reader.MoveToNextEntry())
         {
+          var target = GetSafeArchiveTarget(root, rootWithSeparator, reader.Entry.Key);
           if (!string.IsNullOrEmpty(reader.Entry.LinkTarget))
           {
             logger.LogWarning(
-                "Skipping Docker archive link entry '{Entry}' with target '{Target}' during CopyFrom extraction",
+                "Skipping Docker archive link entry dereference; preserving symlink '{Entry}' with target '{Target}' during CopyFrom extraction",
                 reader.Entry.Key, reader.Entry.LinkTarget);
+            PreserveSymlink(target, reader.Entry.LinkTarget, root, rootWithSeparator, logger);
             continue;
           }
           if (reader.Entry.IsDirectory)
             continue;
-          var target = Path.GetFullPath(Path.Combine(rootWithSeparator, reader.Entry.Key));
-          if (!string.Equals(target, root, StringComparison.Ordinal) &&
-              !target.StartsWith(rootWithSeparator, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Docker archive entry escapes destination: {reader.Entry.Key}");
           Directory.CreateDirectory(Path.GetDirectoryName(target)!);
           await using var entry = reader.OpenEntryStream();
-          await using var output = new FileStream(
+          await using (var output = new FileStream(
               target, FileMode.Create, FileAccess.Write, FileShare.None,
-              bufferSize: 81920, FileOptions.Asynchronous);
-          await entry.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+              bufferSize: 81920, FileOptions.Asynchronous))
+          {
+            await entry.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+          }
+          ApplyUnixFileMode(target, reader.Entry);
         }
 
-        Directory.CreateDirectory(destination);
-        MoveDirectoryContents(staging, destination);
+        if (Directory.Exists(destination))
+          MoveDirectoryContents(staging, destination);
+        else
+          Directory.Move(staging, destination);
       }
       finally
       {
@@ -145,23 +150,126 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
+    private static string GetSafeArchiveTarget(string root, string rootWithSeparator, string key)
+    {
+      var target = Path.GetFullPath(Path.Combine(rootWithSeparator, key));
+      if (!string.Equals(target, root, StringComparison.Ordinal) &&
+          !target.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+        throw new InvalidOperationException($"Docker archive entry escapes destination: {key}");
+      return target;
+    }
+
+    private static void PreserveSymlink(
+        string target, string linkTarget, string root, string rootWithSeparator, ILogger logger)
+    {
+      if (Path.IsPathRooted(linkTarget))
+        throw new InvalidOperationException($"Docker archive link target escapes destination: {linkTarget}");
+      var parent = Path.GetDirectoryName(target)!;
+      var resolved = Path.GetFullPath(Path.Combine(parent, linkTarget));
+      if (!string.Equals(resolved, root, StringComparison.Ordinal) &&
+          !resolved.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+        throw new InvalidOperationException($"Docker archive link target escapes destination: {linkTarget}");
+      Directory.CreateDirectory(parent);
+      try
+      {
+        if (Directory.Exists(resolved))
+          Directory.CreateSymbolicLink(target, linkTarget);
+        else
+          File.CreateSymbolicLink(target, linkTarget);
+      }
+      catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+      {
+        logger.LogWarning(ex,
+            "Could not preserve Docker archive symlink '{Entry}' with target '{Target}'",
+            target, linkTarget);
+      }
+    }
+
+    private static void ApplyUnixFileMode(string target, IEntry entry)
+    {
+      if (OperatingSystem.IsWindows() || entry is not TarEntry tarEntry)
+        return;
+      var mode = (int)tarEntry.Mode & 511;
+      if (mode == 0)
+        return;
+      try
+      {
+        File.SetUnixFileMode(target, (UnixFileMode)mode);
+      }
+      catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+      {
+      }
+    }
+
     private static void MoveDirectoryContents(string source, string destination)
     {
       // ponytail: extraction is atomic (destination is only touched after a full, successful
       // extract into the sibling staging dir), but this same-filesystem rename merge is best-effort
       // per file — a failure mid-move can leave the destination partially updated. Stage-and-swap the
       // whole directory if all-or-nothing on the merge phase ever matters.
-      foreach (var dir in Directory.EnumerateDirectories(source))
+      foreach (var entry in Directory.EnumerateFileSystemEntries(source))
       {
-        var target = Path.Combine(destination, Path.GetFileName(dir));
-        Directory.CreateDirectory(target);
-        MoveDirectoryContents(dir, target);
+        var target = Path.Combine(destination, Path.GetFileName(entry));
+        var attributes = File.GetAttributes(entry);
+        if ((attributes & FileAttributes.ReparsePoint) != 0)
+        {
+          MoveReparsePoint(entry, target, attributes);
+          continue;
+        }
+        if ((attributes & FileAttributes.Directory) != 0)
+        {
+          Directory.CreateDirectory(target);
+          MoveDirectoryContents(entry, target);
+          continue;
+        }
+        File.Move(entry, target, overwrite: true);
+      }
+    }
+
+    private static void MoveReparsePoint(string entry, string target, FileAttributes attributes)
+    {
+      if ((attributes & FileAttributes.Directory) != 0)
+      {
+        Directory.Move(entry, target);
+        return;
       }
 
-      foreach (var file in Directory.EnumerateFiles(source))
+      var linkTarget = new FileInfo(entry).LinkTarget ?? new DirectoryInfo(entry).LinkTarget;
+      if (linkTarget == null)
       {
-        var target = Path.Combine(destination, Path.GetFileName(file));
-        File.Move(file, target, overwrite: true);
+        File.Move(entry, target, overwrite: true);
+        return;
+      }
+
+      DeleteExistingFileOrSymlink(target);
+      File.CreateSymbolicLink(target, linkTarget);
+      File.Delete(entry);
+    }
+
+    private static void DeleteExistingFileOrSymlink(string target)
+    {
+      if (!TryGetFileAttributes(target, out var attributes))
+        return;
+      if ((attributes & FileAttributes.Directory) != 0 &&
+          (attributes & FileAttributes.ReparsePoint) == 0)
+        return;
+      if ((attributes & FileAttributes.Directory) != 0)
+        Directory.Delete(target);
+      else
+        File.Delete(target);
+    }
+
+    private static bool TryGetFileAttributes(string target, out FileAttributes attributes)
+    {
+      try
+      {
+        attributes = File.GetAttributes(target);
+        return true;
+      }
+      catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+      {
+        attributes = default;
+        return false;
       }
     }
 

@@ -33,7 +33,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         if (sb.Length + read > maxBytes)
           throw new DriverException(
-              $"Command output exceeded the {maxBytes}-byte limit.",
+              $"Command output exceeded the {FormatInvariant(maxBytes)}-byte limit.",
               ErrorCodes.Driver.CommandExecutionFailed);
 
         sb.Append(buffer, 0, read);

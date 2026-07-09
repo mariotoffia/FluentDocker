@@ -35,7 +35,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var conn = new MockDockerApiConnection();
       conn.SetupPost("/auth", 200, "{}");
-      conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
+      conn.SetupStream("/images/create", "{\"status\":\"Status: Downloaded newer image for registry.example.com/team/app:latest\"}\n");
       var auth = new DockerApiAuthDriver(conn);
       var driver = CreateDriver(conn);
 
@@ -324,7 +324,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PullAsync_DisposesResponseStream()
     {
       var conn = new MockDockerApiConnection();
-      conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
+      conn.SetupStream("/images/create", "{\"status\":\"Status: Downloaded newer image for repo:latest\"}\n");
 
       var driver = CreateDriver(conn);
       var result = await driver.PullAsync(Ctx, "repo", "latest", null!, TestContext.Current.CancellationToken);

@@ -15,6 +15,7 @@ namespace FluentDocker.Services.Impl
         CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(model);
       await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
       return await PullCoreAsync(model, progress, cancellationToken).ConfigureAwait(false);
     }
@@ -38,6 +39,7 @@ namespace FluentDocker.Services.Impl
     public async Task<ModelInfo> InspectAsync(ModelReference model, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(model);
       var response = await Management().InspectAsync(Context(), model, cancellationToken).ConfigureAwait(false);
       return Unwrap(response, $"Inspect model '{model}'");
     }
@@ -46,6 +48,7 @@ namespace FluentDocker.Services.Impl
     public async Task RemoveAsync(ModelReference model, bool force = false, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(model);
       await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
       var response = await Management().RemoveAsync(Context(), model, force, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Remove model '{model}'");
@@ -55,6 +58,8 @@ namespace FluentDocker.Services.Impl
     public async Task TagAsync(ModelReference source, ModelReference target, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(source);
+      ArgumentNullException.ThrowIfNull(target);
       // ponytail: gate on `source` only. `target` is also written, so a concurrent op on
       // `target` (rm/pull/tag-into-target) is not serialized against this tag. Acquiring both
       // gates would need canonical key ordering + same-key dedupe to avoid A->B / B->A
@@ -70,6 +75,7 @@ namespace FluentDocker.Services.Impl
     public async Task PushAsync(ModelReference model, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(model);
       await using var gate = await ModelOperationGate.AcquireAsync(model, cancellationToken).ConfigureAwait(false);
       var response = await Management().PushAsync(Context(), model, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Push model '{model}'");
@@ -84,6 +90,11 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <summary>Removes ALL locally-stored models (irreversible) — maps to <c>docker model purge --force</c>.</summary>
+    /// <remarks>
+    /// Intentionally does not acquire <see cref="ModelOperationGate"/>: this is an all-store
+    /// operation with no stable single model key. It may delete a model while a per-model pull
+    /// or tag is in progress; callers that need a quiet store must coordinate externally.
+    /// </remarks>
     public async Task<ModelPruneResult> PurgeAllAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();

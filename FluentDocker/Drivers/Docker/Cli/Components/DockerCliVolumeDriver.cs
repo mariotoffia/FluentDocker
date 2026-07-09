@@ -183,7 +183,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           return CommandResponse<Volume>.Fail(
               ErrorOrDefault(result, "Volume inspect failed"),
-              FailureCode(result.Error, ErrorCodes.Volume.InspectFailed),
+              result.Error?.Contains("No such volume", StringComparison.OrdinalIgnoreCase) == true
+                  ? ErrorCodes.Volume.NotFound
+                  : FailureCode(result.Error, ErrorCodes.Volume.InspectFailed),
               CreateErrorContext(context, "InspectVolume", result),
               result.ExitCode);
         }

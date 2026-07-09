@@ -372,6 +372,11 @@ namespace FluentDocker.Kernel
     /// those implementing only <see cref="IDisposable"/> are disposed synchronously.
     /// Regular drivers follow the same pattern.
     /// </summary>
+    /// <remarks>
+    /// Concurrent dispose calls may both enter registry disposal; the second caller can wait
+    /// behind the registry's disposal budget. Serialize disposal when a strict caller timeout is
+    /// required.
+    /// </remarks>
     public virtual async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)

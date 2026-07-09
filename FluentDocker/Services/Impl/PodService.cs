@@ -36,6 +36,15 @@ namespace FluentDocker.Services.Impl
     private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Stopped;
 
+    /// <summary>
+    /// Creates a Podman pod service.
+    /// </summary>
+    /// <param name="kernel">Kernel used to resolve Podman pod driver ports.</param>
+    /// <param name="driverId">Driver id registered in the kernel.</param>
+    /// <param name="podId">Pod id used for driver operations.</param>
+    /// <param name="podName">Pod name used for driver operations; null falls back to <paramref name="podId"/>.</param>
+    /// <param name="removeOnDispose">When true, dispose removes the owned pod.</param>
+    /// <param name="disposeCleanupTimeout">Maximum best-effort remove time during dispose.</param>
     public PodService(
         FluentDockerKernel kernel, string driverId,
         string podId, string podName, bool removeOnDispose = false,
@@ -97,8 +106,22 @@ namespace FluentDocker.Services.Impl
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+      await StopAsync(timeoutSeconds: 10, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Stops the pod and lets Podman wait up to <paramref name="timeoutSeconds"/> seconds.
+    /// The inherited overload uses the 10-second default.
+    /// </summary>
+    /// <param name="timeoutSeconds">Seconds to wait before Podman kills pod containers.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task StopAsync(int timeoutSeconds, CancellationToken cancellationToken = default)
+    {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      if (timeoutSeconds < 0)
+        throw new ArgumentOutOfRangeException(
+            nameof(timeoutSeconds), timeoutSeconds, "Pod stop timeout must be non-negative.");
       // A fresh pod starts in Stopped, so only Removed is a terminal state to guard here — mirrors
       // RemoveAsync's guard so a stop can't resurrect a removed pod (Removed -> Stopping -> Stopped).
       if (State is ServiceRunningState.Removed)
@@ -111,7 +134,7 @@ namespace FluentDocker.Services.Impl
         UpdateState(ServiceRunningState.Stopping);
         await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
-        var response = await driver.StopPodAsync(context, _podName, 10, cancellationToken).ConfigureAwait(false);
+        var response = await driver.StopPodAsync(context, _podName, timeoutSeconds, cancellationToken).ConfigureAwait(false);
         if (!response.Success && !IsPodAlreadyStopped(response))
         {
           throw new DriverException(
