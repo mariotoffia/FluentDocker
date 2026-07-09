@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>annotations</Nullable>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <AssemblyTitle>FluentDocker</AssemblyTitle>
@@ -29,6 +29,5 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <PackageReference Include="SharpCompress" />
-    <PackageReference Include="System.IO.Pipelines" Condition="'$(TargetFramework)' == 'net8.0'" />
   </ItemGroup>
 </Project>

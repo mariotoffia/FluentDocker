@@ -35,11 +35,7 @@ namespace FluentDocker.Drivers.Models.Connection
       var pfx = cert.Export(X509ContentType.Pfx);
       try
       {
-#if NET9_0_OR_GREATER
         return X509CertificateLoader.LoadPkcs12(pfx, null, X509KeyStorageFlags.DefaultKeySet);
-#else
-        return new X509Certificate2(pfx, (string)null, X509KeyStorageFlags.DefaultKeySet);
-#endif
       }
       finally
       {

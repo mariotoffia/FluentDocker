@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -432,11 +431,7 @@ namespace FluentDocker.Drivers.Models.Connection
         }
         else if (caPath != null)
         {
-#if NET9_0_OR_GREATER
           var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
-#else
-          var caCert = X509Certificate2.CreateFromPem(File.ReadAllText(caPath));
-#endif
           ownedCertificates.Add(caCert);
           // Pin: the custom CA is the exclusive trust root for chain validation; hostname
           // mismatch and a missing certificate are still rejected by default (see

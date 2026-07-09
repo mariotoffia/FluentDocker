@@ -14,7 +14,7 @@
                 "test",
                 "${workspaceFolder}/Ductus.FluentDocker.Tests/Ductus.FluentDocker.Tests.csproj",
                 "-f",
-                "net8.0",
+                "net10.0",
                 "--filter",
                 "FullyQualifiedName=${command:dotnet-test-explorer.pickMSTestClass}",
                 "--settings",

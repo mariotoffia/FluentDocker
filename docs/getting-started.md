@@ -48,7 +48,7 @@ dotnet add package FluentDocker.Testing.NUnit --prerelease   # NUnit adapter
 ## Prerequisites
 
 - **Docker** — Docker Engine API **1.24+** (Docker Engine 1.12+) or current Docker Desktop; Compose samples require Compose V2
-- **.NET runtime** — FluentDocker targets **net8.0** and **net10.0**, so you can consume it from either
+- **.NET runtime** — FluentDocker targets **net10.0**, so consume it from a net10.0 project
 - **Building this repository** requires the **.NET 10 SDK** (`global.json` pins `10.0.100`) — distinct from the runtime targets above
 
 ### Verify Docker

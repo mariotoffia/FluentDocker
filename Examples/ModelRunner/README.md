@@ -27,8 +27,7 @@ run stays quick. If the runner is not enabled the program prints guidance and ex
 
 ## Run
 
-From the repository root (the project multi-targets `net8.0` and `net10.0`, so pick a
-framework):
+From the repository root:
 
 ```bash
 dotnet run --project Examples/ModelRunner -f net10.0

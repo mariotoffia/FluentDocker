@@ -1,6 +1,6 @@
 # AGENTS.md — FluentDocker (.NET)
 
-Strong-named, async-first C# library (`net8.0;net10.0`, v3.2.0-preview.2) that drives Docker / Podman / Docker-Model-Runner through a fluent API. Clean + Hexagonal: a Ports-and-Adapters driver subsystem resolved at runtime through a kernel. Value objects exist (`ModelReference`, `ModelRunnerEndpoint` — immutable, `IEquatable`, validated); aggregates are minimal — Services orchestrate commands over driver ports. The Makefile is the command surface — analyse, build, and verify through it. **Follow YAGNI; prefer one-liners.**
+Strong-named, async-first C# library (`net10.0`, v3.2.0-preview.2) that drives Docker / Podman / Docker-Model-Runner through a fluent API. Clean + Hexagonal: a Ports-and-Adapters driver subsystem resolved at runtime through a kernel. Value objects exist (`ModelReference`, `ModelRunnerEndpoint` — immutable, `IEquatable`, validated); aggregates are minimal — Services orchestrate commands over driver ports. The Makefile is the command surface — analyse, build, and verify through it. **Follow YAGNI; prefer one-liners.**
 
 ## Principles
 Follow YAGNI principles, and one-liner solutions.
@@ -46,7 +46,7 @@ Follow YAGNI principles, and one-liner solutions.
 
 ## Verify (all via Makefile)
 - `make check` (= `lint` + `test` + `test-runners` + `coverage-check`) before done; coverage floor is line 78 / branch 71 (measured on `Category=Unit`).
-- `make test` — unit, net10.0 (`Category=Unit`); `make test-net8` for net8.0 (CI runs both).
+- `make test` — unit, net10.0 (`Category=Unit`).
 - `make lint` — `dotnet format whitespace|style --verify-no-changes`; `make format` to fix.
 - `make test-integration` (`Category=Integration`, needs Docker/Podman); `make test-dmr` (`Category=Integration&Requires=Dmr`, `FLUENTDOCKER_REQUIRE_DMR=1`).
 - `make benchmark` (BenchmarkDotNet) for perf-sensitive changes.

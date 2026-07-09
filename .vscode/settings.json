@@ -10,7 +10,7 @@
     "omnisharp.useEditorFormattingSettings": true,
     "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles",
     "dotnet-test-explorer.testProjectPath": "**/*Tests.csproj",
-    "dotnet-test-explorer.testArguments": "-f net8.0 --logger \"console;verbosity=detailed\"",
+    "dotnet-test-explorer.testArguments": "-f net10.0 --logger \"console;verbosity=detailed\"",
     "dotnet-test-explorer.autoWatch": false,
     "dotnet-test-explorer.autoExpandTree": true,
     "dotnet-test-explorer.showCodeLens": true,

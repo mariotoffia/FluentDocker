@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ensure-dotnet-sdks.sh
-# Installs .NET SDK 6.x and 8.x side-by-side on macOS (Apple silicon) via Homebrew.
-# Re-run any time—if both SDKs are already present it exits without changes.
+# Installs the .NET SDK 10.x on macOS (Apple silicon) via Homebrew.
+# Re-run any time—if the SDK is already present it exits without changes.
 
 set -euo pipefail
 
-REQUIRED_SDKS=(6 8)
+REQUIRED_SDKS=(10)
 
 # 1 – Verify Homebrew is available
 if ! command -v brew >/dev/null 2>&1; then

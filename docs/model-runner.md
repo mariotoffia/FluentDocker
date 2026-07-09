@@ -548,16 +548,15 @@ dedicated guide: **[Compose models integration](model-runner-compose.md)**.
 | **or Docker Engine (CE)** | **26.0+** with the `docker-model-plugin`; TCP is on by default. `runner.InstallRunnerAsync(...)` drives `docker model install-runner`. |
 | **`docker model` plugin (DMR)** | The subsystem is verified against **DMR v1.2.1**; it tolerates that version's CLI quirks (e.g. `inspect`/`df` have no `--json`, `purge` not `prune`). |
 | **Inference endpoint** | OpenAI-compatible HTTP on `:12434` (or whatever `DOCKER_MODEL_RUNNER_URL` / `WithEndpoint(...)` points at). Required for chat/completion/embeddings; management/runtime work over the CLI without it. |
-| **.NET (consuming the library)** | FluentDocker targets **net8.0** and **net10.0** — reference it from either. |
-| **.NET SDK (building *this repo*)** | The **.NET 10 SDK** is required to build the solution (`global.json` pins `10.0.100`). This is distinct from the library's runtime targets above: you can *consume* FluentDocker on .NET 8, but *building the repo* needs the .NET 10 SDK. |
+| **.NET (consuming the library)** | FluentDocker targets **net10.0** — reference it from a net10.0 project. |
+| **.NET SDK (building *this repo*)** | The **.NET 10 SDK** is required to build the solution (`global.json` pins `10.0.100`). |
 | **OS / platform** | Windows, macOS and Linux (DMR availability follows Docker Desktop / Engine; the runner subsystem was verified on macOS arm64). |
 
 The library detects but does **not** install DMR. `runner.StatusAsync()` reports whether
 the runner is running.
 
 > **Running the sample.** [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)
-> multi-targets `net8.0;net10.0`, so a bare `dotnet run` fails ("specify which framework").
-> Run it with an explicit framework: `dotnet run -f net10.0` (or `-f net8.0`).
+> targets `net10.0`: run it with `dotnet run` (or `dotnet run -f net10.0`).
 
 ## Testing
 

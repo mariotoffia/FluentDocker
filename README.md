@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/mariotoffia/FluentDocker/branch/master/graph/badge.svg)](https://codecov.io/gh/mariotoffia/FluentDocker)
 [![Release](https://img.shields.io/github/v/release/mariotoffia/FluentDocker?sort=semver&display_name=tag&color=brightgreen)](https://github.com/mariotoffia/FluentDocker/releases/latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![.NET](https://img.shields.io/badge/.NET-net8.0%20%7C%20net10.0-blueviolet)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-net10.0-blueviolet)](https://dotnet.microsoft.com/)
 
 | Package | NuGet | Downloads |
 |---------|:-----:|:---------:|
@@ -13,7 +13,7 @@
 | Testing.MsTest | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest) |
 | Testing.NUnit | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit) |
 
-> **CI badge scope:** the green CI badge proves **build + unit tests** across `net8.0`/`net10.0`.
+> **CI badge scope:** the green CI badge proves **build + unit tests** on `net10.0`.
 > Docker, Podman, and Docker Model Runner integration suites run **on demand** (PR label,
 > schedule, or manual dispatch) and when Docker is available — they are **not** part of every
 > CI run. See the [release-verification table](docs/testing/test-categories.md#release-verification)
@@ -23,7 +23,7 @@
 
 FluentDocker is a strong-named, **async-first** .NET library that drives Docker, Podman,
 and (preview) Docker Model Runner behind one fluent `Builder → WithinDriver → UseXxx`
-API. It targets `net8.0` and `net10.0` and is designed for development, testing, and
+API. It targets `net10.0` and is designed for development, testing, and
 CI/CD.
 
 ## Install

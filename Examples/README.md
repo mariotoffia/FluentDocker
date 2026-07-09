@@ -55,7 +55,6 @@ Requires Docker Model Runner enabled (Docker Desktop → Settings → AI), with 
 
 ```bash
 dotnet run --project Examples/ModelRunner -f net10.0
-# -f net8.0 also works
 ```
 
 ### TestingExample

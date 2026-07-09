@@ -43,7 +43,7 @@ but consumers also need the v3 framework, VSTest runner, and test host. Requires
 | `xunit.v3` | `[Fact]`/`[Theory]`, asserts, v3 framework | No — add explicitly |
 | `xunit.runner.visualstudio` | Discovers/runs v3 tests under VSTest | No — add explicitly |
 
-Minimal consumer `.csproj` (target `net8.0` or `net10.0`):
+Minimal consumer `.csproj` (target `net10.0`):
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">

@@ -28,6 +28,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task WaitForHttpUrl_PositiveContinuationDelay_DoesNotAlsoWaitPollInterval()
     {
+      const int targetAttempts = 20;
       var attempts = 0;
       using var listener = StartHttpListener(out var url);
       var server = RespondUntilStoppedAsync(listener, TestContext.Current.CancellationToken);
@@ -38,22 +39,27 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .SetupContainerRemove()
           .SetupContainerGetLogs("");
 
-      var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new Builder()
+      // Poll interval is a full 5 s; the continuation asks for a 1 ms delay each poll and
+      // succeeds (-1) only once 20 polls have happened. If a positive continuation delay
+      // ALSO waited the poll interval, the second poll alone would blow past the 10 s
+      // budget and the build would time out at ~2 attempts. Correct behaviour runs all 20
+      // rapidly. This is decoupled from HTTP round-trip latency, so it is load-independent.
+      var sw = Stopwatch.StartNew();
+      await using var results = await new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c
               .UseImage("nginx")
               .WithWaitPollInterval(5000)
-              .WaitForHttpUrl(url, timeoutMs: 400, continuation: (_, _) =>
-              {
-                attempts++;
-                return 1;
-              }))
-          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+              .WaitForHttpUrl(url, timeoutMs: 10000, continuation: (_, _) =>
+                  ++attempts >= targetAttempts ? -1 : 1))
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+      sw.Stop();
       listener.Stop();
       await server.ConfigureAwait(false);
 
-      Assert.Contains("Timeout waiting for HTTP", ex.Message);
-      Assert.True(attempts > 10, $"Expected >10 continuation attempts, got {attempts}.");
+      Assert.Equal(targetAttempts, attempts);
+      Assert.True(sw.ElapsedMilliseconds < 4000,
+          $"{targetAttempts} one-ms-delay polls took {sw.ElapsedMilliseconds} ms; the 5 s poll interval must not be waited between them.");
     }
 
     [Fact]

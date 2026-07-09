@@ -104,7 +104,7 @@ what changed — each is a distinct gate with its own infrastructure:
 
 | Gate | Command | Infrastructure | When to run |
 |---|---|---|---|
-| Build + unit | `make test` (net10.0) + `make test-net8` | None | Every change (CI runs this) |
+| Build + unit | `make test` (net10.0) | None | Every change (CI runs this) |
 | Lint / format | `make lint` | None | Every change |
 | Pre-push gate | `make check` | None | Runs lint, unit, adapter runners, coverage |
 | Docker + Podman integration | `make test-integration` | Docker daemon; Podman machine for `PodmanIntegration` | Any driver/service/lifecycle change |

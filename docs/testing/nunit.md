@@ -32,7 +32,7 @@ NUnit still needs the VSTest test host and adapter. A consumer test project need
 | `NUnit` | Attributes + asserts | Yes (via `FluentDocker.Testing.NUnit`); add explicitly only to pin the version |
 
 Supported NUnit version: **4.3.2** (what `FluentDocker.Testing.NUnit` references). Minimal
-consumer `.csproj` (target `net8.0` or `net10.0`):
+consumer `.csproj` (target `net10.0`):
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">

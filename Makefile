@@ -35,11 +35,6 @@ clean:
 test:
 	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Unit" --framework net10.0 --configuration Debug --verbosity normal
 
-# Runs the unit suite on net8.0 too (requires the .NET 8 runtime installed). CI runs both.
-.PHONY: test-net8
-test-net8:
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Unit" --framework net8.0 --configuration Debug --verbosity normal
-
 # Runs the REAL MSTest runner against the lifecycle/ModelResource [TestClass]es, proving
 # async [ClassInitialize]/[ClassCleanup]/[TestInitialize]/[TestCleanup] actually fire in order.
 .PHONY: test-mstest

@@ -144,11 +144,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       // Re-import via PFX so the cert carries an exportable private key the SslStream server
       // side can use to complete the handshake on all platforms.
       var pfx = ephemeral.Export(X509ContentType.Pfx);
-#if NET9_0_OR_GREATER
       return X509CertificateLoader.LoadPkcs12(pfx, password: null);
-#else
-      return new X509Certificate2(pfx);
-#endif
     }
 
     private static string WriteCaPem(X509Certificate2 cert)
