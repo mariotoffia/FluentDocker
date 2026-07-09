@@ -12,27 +12,36 @@ namespace FluentDocker.Kernel
   /// Represents a build scope (kernel + driver).
   /// All operations within a scope use the same kernel and driver.
   /// </summary>
-  /// <remarks>
-  /// Creates a new build scope.
-  /// </remarks>
-  /// <param name="kernel">The kernel instance</param>
-  /// <param name="driverId">The driver identifier</param>
-  public class BuildScope(global::FluentDocker.Kernel.FluentDockerKernel kernel, string driverId)
+  public class BuildScope
   {
     private readonly List<IServiceAsync> _results = [];
     private readonly object _resultsLock = new object();
-    private readonly ILogger<BuildScope> _logger = kernel.LoggerFactory.CreateLogger<BuildScope>();
+    private readonly ILogger<BuildScope> _logger;
+
+    /// <summary>
+    /// Creates a new build scope.
+    /// </summary>
+    /// <param name="kernel">The kernel instance.</param>
+    /// <param name="driverId">The driver identifier.</param>
+    public BuildScope(global::FluentDocker.Kernel.FluentDockerKernel kernel, string driverId)
+    {
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentException.ThrowIfNullOrWhiteSpace(driverId);
+      Kernel = kernel;
+      DriverId = driverId;
+      _logger = kernel.LoggerFactory.CreateLogger<BuildScope>();
+    }
 
     /// <summary>
     /// Gets the kernel for this scope.
     /// </summary>
     // ponytail: ISysCtl still lives in FluentDocker.Kernel; moving it in v3 would ripple through the public API.
-    public ISysCtl Kernel { get; } = kernel;
+    public ISysCtl Kernel { get; }
 
     /// <summary>
     /// Gets the driver ID for this scope.
     /// </summary>
-    public string DriverId { get; } = driverId;
+    public string DriverId { get; }
 
     /// <summary>
     /// Gets a snapshot of the results (services) for this scope.

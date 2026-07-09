@@ -4,6 +4,7 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
+  /// <summary>Represents a Dockerfile <c>FROM</c> instruction.</summary>
   public sealed class FromCommand : ICommand
   {
     /// <summary>
@@ -32,10 +33,14 @@ namespace FluentDocker.Model.Builders.FileBuilder
       }
     }
 
+    /// <summary>Gets the base image reference.</summary>
     public string ImageAndTag { get; }
+    /// <summary>Gets the optional platform.</summary>
     public string? Platform { get; }
+    /// <summary>Gets the optional stage alias.</summary>
     public string? Alias { get; }
 
+    /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
       var s = "FROM";

@@ -12,7 +12,7 @@ FluentDocker provides several utility classes and extension methods to simplify 
 
 ## Step by Step
 
-Basics: [TemplateString](#templatestring), [HTTP Health Checks](#http-health-checks); intermediate: [Resource Extensions](#resource-extensions), [Logging](#logging), [Model Extensions](#model-extensions); advanced: [SudoMechanism](#sudomechanism), [Endpoint Resolution](#endpoint-resolution), [Command Response Handling](#command-response-handling), [Container Stats Parsing](#container-stats-parsing).
+Basics: [TemplateString](#templatestring), [HTTP Health Checks](#http-health-checks); intermediate: [Resource Extensions](#resource-extensions), [Logging](#logging), [Model Extensions](#model-extensions); advanced: [SudoMechanism](#sudomechanism), [Endpoint Resolution](#endpoint-resolution), [Command Response Handling](#command-response-handling), [Container Stats Parsing](#container-stats-parsing), [JsonHelper](#jsonhelper).
 
 ## TemplateString
 
@@ -504,6 +504,29 @@ string FormatBytes(long bytes)
     }
     return $"{len:0.##} {sizes[order]}";
 }
+```
+
+## JsonHelper
+
+`JsonHelper` (in `FluentDocker.Common`) is the shared, thread-safe `System.Text.Json` config
+the drivers use — camelCase, string enums, numbers from strings, nulls omitted on write. Use
+it to parse or emit Docker-shaped JSON so your code matches the library; `DefaultOptions`,
+`CaseInsensitiveOptions`, and `IndentedOptions` are also exposed for direct use.
+
+```csharp
+using FluentDocker.Common;
+
+string json = JsonHelper.Serialize(value); // also SerializeIndented, SerializeToUtf8Bytes
+// Never-throw deserialize: false (or default) on invalid JSON / unsupported type.
+// Case-insensitive; UTF-8 span and source-generated JsonTypeInfo<T> overloads also exist.
+if (JsonHelper.TryDeserialize<Container>(json, out var container, out var error))
+    Use(container!);
+else
+    Log(error); // the parse failure, or null when the input was blank
+// Pull one field without materializing the whole object (handy for NDJSON):
+string? id = JsonHelper.TryGetProperty(json, "Id");         // null if absent/not a string
+int? code = JsonHelper.TryGetIntProperty(json, "ExitCode"); // null if absent/not an int
+JsonElement root = JsonHelper.ParseElement(json); // throws JsonException on invalid JSON
 ```
 
 ## Utility Examples

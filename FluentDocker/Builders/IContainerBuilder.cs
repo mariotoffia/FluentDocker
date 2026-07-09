@@ -38,7 +38,9 @@ namespace FluentDocker.Builders
 
     /// <summary>Sets the container name.</summary>
     /// <param name="name">
-    /// A unique name for the container. Must match the pattern [a-zA-Z0-9][a-zA-Z0-9_.-].
+    /// A unique name for the container. Must match the pattern <c>^[a-zA-Z0-9][a-zA-Z0-9_.-]+$</c>
+    /// (at least two characters, matching the Docker daemon rule). This is the cross-runtime-safe
+    /// rule: names accepted here are valid on both Docker and Podman.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithName(string name);

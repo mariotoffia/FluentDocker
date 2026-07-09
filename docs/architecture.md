@@ -64,7 +64,7 @@ FluentDocker uses a **pluggable driver architecture** that supports multiple con
 
 Docker CLI adapters build one command line and execute the configured binary directly; no shell is inserted. Every user-supplied argument is quoted with the shared CLI quoting helper before it reaches `ProcessStartInfo.Arguments`.
 
-Buffered commands have a default five-minute timeout and cap captured stdout/stderr to protect callers from hung or noisy CLI processes. Inherently long operations (`pull`, `build`, foreground `run`/`exec`, `create` with auto-pull, compose `up`/`run`/`exec`) skip that timeout and keep a rolling output tail instead of failing at the 4 MiB cap; truncated output starts with `[FluentDocker: output truncated, showing last N chars]`.
+Buffered commands have a default five-minute timeout and cap captured stdout/stderr to protect callers from hung or noisy CLI processes. The Docker CLI adapter bounds buffered stdout at 64 MiB and stderr at 4 MiB (the Podman adapter caps both at 4 MiB). Inherently long operations (`pull`, `build`, foreground `run`/`exec`, `create` with auto-pull, compose `up`/`run`/`exec`) skip that timeout and keep a rolling output tail instead of failing at the cap; truncated output starts with `[FluentDocker: output truncated, showing last N chars]`.
 
 Per-call `DriverContext` values override the component context for that call. Use this for one-off hosts, TLS settings, sudo settings, or request timeouts; omitted per-call values fall back to the component context.
 

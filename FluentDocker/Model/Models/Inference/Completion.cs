@@ -41,6 +41,7 @@ namespace FluentDocker.Model.Models.Inference
     [JsonPropertyName("model")] public string? Model { get; set; }
 
     /// <summary>The prompt text.</summary>
+    /// <remarks>Only OpenAI's single string prompt form is modeled; string-array batch prompts are not.</remarks>
     [JsonPropertyName("prompt")] public string? Prompt { get; set; }
 
     /// <summary>The maximum number of tokens to generate.</summary>
@@ -59,7 +60,7 @@ namespace FluentDocker.Model.Models.Inference
     [JsonPropertyName("stop")] public IList<string>? Stop { get; set; }
 
     /// <summary>Sampling seed.</summary>
-    [JsonPropertyName("seed")] public int? Seed { get; set; }
+    [JsonPropertyName("seed")] public long? Seed { get; set; }
 
     /// <summary>
     /// Pass-through for any OpenAI-compatible request field not modeled above (e.g.

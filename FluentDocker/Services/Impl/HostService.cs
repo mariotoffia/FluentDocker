@@ -418,10 +418,30 @@ namespace FluentDocker.Services.Impl
 
     private static ServiceRunningState ParseContainerState(Container container)
     {
-      if (container?.State?.Running == true)
+      if (container?.State?.Running == true && container.State.Paused != true)
         return ServiceRunningState.Running;
 
-      return ContainerService.ParseState(container?.State?.Status);
+      return ParseContainerListState(container?.State?.Status);
+    }
+
+    private static ServiceRunningState ParseContainerListState(string state)
+    {
+      var parsed = ContainerService.ParseState(state);
+      if (parsed != ServiceRunningState.Unknown || string.IsNullOrWhiteSpace(state))
+        return parsed;
+
+      if (state.Contains("paused", StringComparison.OrdinalIgnoreCase))
+        return ServiceRunningState.Paused;
+      if (state.StartsWith("exited", StringComparison.OrdinalIgnoreCase) ||
+          state.StartsWith("dead", StringComparison.OrdinalIgnoreCase))
+        return ServiceRunningState.Stopped;
+      if (state.StartsWith("created", StringComparison.OrdinalIgnoreCase) ||
+          state.StartsWith("restarting", StringComparison.OrdinalIgnoreCase))
+        return ServiceRunningState.Starting;
+      if (state.StartsWith("up", StringComparison.OrdinalIgnoreCase))
+        return ServiceRunningState.Running;
+
+      return ServiceRunningState.Unknown;
     }
 
     private void ThrowIfDisposed() =>

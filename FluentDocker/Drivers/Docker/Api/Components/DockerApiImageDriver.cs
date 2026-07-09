@@ -113,6 +113,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <summary>Removes an image via DELETE /images/{name}.</summary>
+    /// <remarks>Large remove/prune operations use the 5-minute buffered client and may synthesize 408 while daemon work continues; use WithRequestTimeout.</remarks>
     public async Task<CommandResponse<ImageRemoveResult>> RemoveAsync(
         DriverContext context, string imageId, bool force = false, bool noPrune = false,
         CancellationToken cancellationToken = default)
@@ -173,6 +174,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <summary>Prunes unused images via POST /images/prune.</summary>
+    /// <remarks>Large remove/prune operations use the 5-minute buffered client and may synthesize 408 while daemon work continues; use WithRequestTimeout.</remarks>
     public async Task<CommandResponse<ImagePruneResult>> PruneAsync(
         DriverContext context, bool all = false, Dictionary<string, string> filter = null,
         CancellationToken cancellationToken = default)

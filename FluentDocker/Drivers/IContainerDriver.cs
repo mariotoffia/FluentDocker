@@ -155,7 +155,12 @@ namespace FluentDocker.Drivers
     /// <param name="context">Driver context</param>
     /// <param name="filter">Optional filter parameters</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of containers</returns>
+    /// <returns>
+    /// List of sparse container records. Docker CLI list results populate only
+    /// <see cref="Container.Id"/>, <see cref="Container.Image"/>, <see cref="Container.Name"/>,
+    /// <see cref="Container.Created"/>, and <see cref="Container.State"/> status/running fields;
+    /// ports, labels, mounts, networks, and other details require <see cref="InspectAsync"/>.
+    /// </returns>
     Task<Model.Drivers.CommandResponse<IList<Container>>> ListAsync(
         DriverContext context,
         ContainerListFilter filter = null,

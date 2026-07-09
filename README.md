@@ -35,7 +35,12 @@ dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter (optional)
 dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter (optional)
 ```
 
-For 3.2 previews, add `--prerelease` to the package commands.
+For 3.2 previews, add `--prerelease` to the package commands. **Caveat:** 3.2.0-preview.2
+is not on NuGet yet, so `--prerelease` currently resolves the latest published package,
+**3.1.0** — whose `WithPort` is container-first while every doc here teaches the host-first
+3.2 semantics. Until the preview ships, build from the feature branch or pin the version
+explicitly (see [Getting Started](docs/getting-started.md#installation)); don't run these
+samples against 3.1.0.
 
 ## Quick Start
 
@@ -207,6 +212,10 @@ changes.
 3.2.0 tightens the core surface. If you consume the model/DTO types directly, check
 these:
 
+- **Dropped `net8.0` — the library now single-targets `net10.0`.** net8.0 (and every
+  earlier TFM) is no longer built or published. A net8.0 project referencing 3.2.0 fails
+  to restore with a bare `NU1202` (package incompatible with `net8.0`); retarget consumers
+  to `net10.0` before upgrading.
 - **`IContainerBuilder.WithPort(hostPort, containerPort)`.** Parameter order flipped
   from `(containerPort, hostPort)` in 3.0/3.1 to `(hostPort, containerPort)` in
   3.2.0, matching Docker `-p host:container` and the rest of FluentDocker's port

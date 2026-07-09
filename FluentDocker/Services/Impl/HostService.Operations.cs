@@ -62,6 +62,13 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      if (tag != null && tag != "latest" && HasExplicitImageTag(image))
+      {
+        throw new ArgumentException(
+            $"Image '{image}' already includes a tag; remove it or omit {nameof(tag)}.",
+            nameof(tag));
+      }
+
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
       var pullImage = image;

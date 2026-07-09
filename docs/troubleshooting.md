@@ -145,3 +145,29 @@ catch (PodmanMachineNotRunningException ex) when (ex.IsTransient)
   at `ca.pem` (and client `cert.pem`/`key.pem` for mTLS). Use
   `.WithAllowTlsHostnameMismatch()` only for hostname mismatch; avoid disabling TLS
   verification except for local throwaway environments.
+
+## Docker API stream interrupted mid-read
+
+- **Symptom:** an event/log/stats stream on the Docker API driver fails part-way with a
+  `DriverException` carrying `ErrorCodes.Api.StreamInterrupted` (`API_STREAM_INTERRUPTED`,
+  transient).
+- **Cause:** an already-established stream lost its transport — a connection reset, a daemon
+  restart, or a proxy dropping the long-lived connection. This is distinct from
+  `ErrorCodes.Api.ConnectionFailed` (never connected) and `ErrorCodes.Api.StreamEnded` (a
+  boundless stream the daemon closed cleanly, an EOF — not retryable).
+- **Fix:** re-open the stream. `StreamInterrupted` is transient (`ex.IsTransient == true`),
+  so a retry loop resumes after the reset.
+
+```csharp
+using System;
+using FluentDocker.Common;
+
+try
+{
+  // Consume an event / log / stats stream from the Docker API driver.
+}
+catch (DriverException ex) when (ex.IsTransient)
+{
+  Console.WriteLine($"Stream dropped ({ex.ErrorCode}); re-opening.");
+}
+```

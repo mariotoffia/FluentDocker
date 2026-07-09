@@ -24,7 +24,7 @@ namespace FluentDocker.Drivers.Docker.Cli
   /// Initialize once before resolving drivers; registrations are immutable after
   /// <see cref="InitializeAsync"/> completes.
   /// </remarks>
-  public class DockerCliDriverPack : IDriverPack, IAsyncDisposable
+  public partial class DockerCliDriverPack : IDriverPack, IAsyncDisposable
   {
     private readonly Dictionary<Type, object> _drivers = [];
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
@@ -158,16 +158,20 @@ namespace FluentDocker.Drivers.Docker.Cli
 
     private static ModelRunnerEndpoint ResolveDefaultModelEndpoint(ILogger logger)
     {
-      var raw = Environment.GetEnvironmentVariable(ModelRunnerEndpoint.UrlEnvironmentVariable);
-      if (ModelRunnerEndpoint.TryFromEnvironment(out var endpoint))
-        return endpoint;
-
-      if (!string.IsNullOrWhiteSpace(raw))
+      try
       {
-        // ponytail: warn-and-fallback so a typo isn't fully swallowed; Try contract stays no-throw.
+        if (ModelRunnerEndpoint.TryFromEnvironment(out var endpoint))
+          return endpoint;
+      }
+      catch (ArgumentException ex)
+      {
+        // A malformed inference-only env var must not break a pure-container pack init. Warn and fall
+        // back to host TCP so the failure surfaces only if inference is actually used (Default()/inference
+        // callers still fail fast via TryFromEnvironment).
         logger?.LogWarning(
-            "{Variable}='{Value}' is not a valid absolute http(s) URL; falling back to host TCP :12434.",
-            ModelRunnerEndpoint.UrlEnvironmentVariable, raw);
+            ex,
+            "{Variable} is not a valid absolute http(s) URL; falling back to host TCP :12434.",
+            ModelRunnerEndpoint.UrlEnvironmentVariable);
       }
 
       return ModelRunnerEndpoint.HostTcp();
@@ -435,51 +439,5 @@ namespace FluentDocker.Drivers.Docker.Cli
 
     #endregion
 
-    #region IAsyncDisposable
-
-    /// <summary>
-    /// Disposes pack-owned resources — currently the inference connection's
-    /// <see cref="System.Net.Http.HttpClient"/>. Invoked by the kernel's driver
-    /// registry when the kernel is disposed.
-    /// </summary>
-    public async ValueTask DisposeAsync()
-    {
-      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
-        return;
-
-      ModelApiConnection connection;
-      lock (_inferenceLock)
-      {
-        connection = _modelInferenceConnection;
-        _modelInferenceConnection = null;
-        _modelInferenceDriver = null;
-      }
-
-      if (connection != null)
-        await connection.DisposeAsync().ConfigureAwait(false);
-      _initialized = false;
-      _initializeLock.Dispose();
-      GC.SuppressFinalize(this);
-    }
-
-    #endregion
-
-    #region Private Helpers
-
-    private void ThrowIfNotInitialized()
-    {
-      ThrowIfDisposed();
-      if (!_initialized)
-      {
-        throw new InvalidOperationException("DockerCliDriverPack has not been initialized. Call InitializeAsync first.");
-      }
-    }
-
-    private void ThrowIfDisposed()
-    {
-      ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-    }
-
-    #endregion
   }
 }

@@ -57,7 +57,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostJsonElementAsync("/networks/create", body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<NetworkCreateResult>.Fail(result.ErrorMessage,
-            ErrorCodes.Network.CreateFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Network.CreateFailed,
             CreateErrorContext("POST /networks/create", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
@@ -173,7 +175,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostJsonElementAsync("/networks/prune", null, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<NetworkPruneResult>.Fail(result.ErrorMessage,
-            ErrorCodes.Network.PruneFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Network.PruneFailed,
             CreateErrorContext("POST /networks/prune", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 

@@ -31,14 +31,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     protected virtual TimeSpan BackendProbeTimeout => TimeSpan.FromSeconds(5);
 
-    // Cached probe of whether `docker model configure` advertises `--backend`. Only
-    // consulted when an explicit (non-auto) backend is requested. The probe runs with its
-    // OWN internal-timeout token (never a caller's token) so no single caller can cancel
-    // the shared task; callers observe it via WaitAsync(callerToken) so a caller cancelling
-    // its own request never poisons the shared task. A task that ends Canceled/Faulted (or
-    // times out) is evicted (re-probed next time) instead of poisoning later callers.
+    // Cached per context host probe of whether `docker model configure` advertises
+    // `--backend`. Only consulted when an explicit (non-auto) backend is requested. The probe
+    // runs with its OWN internal-timeout token (never a caller's token) so no single caller can
+    // cancel the shared task; callers observe it via WaitAsync(callerToken) so a caller
+    // cancelling its own request never poisons the shared task. A task that ends
+    // Canceled/Faulted (or times out) is evicted (re-probed next time).
     private readonly object _backendProbeGate = new();
-    private Task<bool> _configureBackendSupported;
+    private readonly Dictionary<string, Task<bool>> _configureBackendSupported = new(StringComparer.Ordinal);
 
     /// <summary>Initializes the driver with a binary resolver.</summary>
     /// <param name="binaryResolver">The binary resolver.</param>
@@ -69,21 +69,25 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// caller's wait (surfacing <see cref="OperationCanceledException"/>) without cancelling
     /// the shared probe task — so one caller can never poison the cache for others.</param>
     /// <remarks>
-    /// The shared probe runs on its OWN <see cref="BackendProbeTimeout"/>-bounded token,
-    /// never a caller's token, so no single caller can cancel (and thereby poison) the
-    /// cached task. Each caller observes the shared task via
-    /// <see cref="Task{TResult}.WaitAsync(CancellationToken)"/> bound to ITS token. As a
-    /// second safety net, a cached task that ended Canceled/Faulted (e.g. a probe timeout)
-    /// is evicted so the next caller re-probes rather than inheriting a dead task.
+    /// The per-context-host shared probe runs on its OWN
+    /// <see cref="BackendProbeTimeout"/>-bounded token, never a caller's token, so no single
+    /// caller can cancel (and thereby poison) the cached task. Each caller observes the
+    /// shared task via <see cref="Task{TResult}.WaitAsync(CancellationToken)"/> bound to ITS
+    /// token. As a second safety net, a cached task that ended Canceled/Faulted (e.g. a probe
+    /// timeout) is evicted so the next caller re-probes rather than inheriting a dead task.
     /// </remarks>
     private async Task<bool> SupportsConfigureBackendAsync(DriverContext context, CancellationToken cancellationToken)
     {
+      var key = BackendProbeCacheKey(context);
       Task<bool> probe;
       lock (_backendProbeGate)
       {
-        var cached = _configureBackendSupported;
-        if (cached is null || (cached.IsCompleted && (cached.IsCanceled || cached.IsFaulted)))
-          cached = _configureBackendSupported = ProbeConfigureBackendAsync(context);
+        if (!_configureBackendSupported.TryGetValue(key, out var cached) ||
+            (cached.IsCompleted && (cached.IsCanceled || cached.IsFaulted)))
+        {
+          cached = ProbeConfigureBackendAsync(context);
+          _configureBackendSupported[key] = cached;
+        }
 
         probe = cached;
       }
@@ -100,7 +104,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // The PROBE itself ended Canceled/Faulted (a seam fault, or its internal timeout
         // firing) — NOT merely this caller's wait. Evict it so a later call re-probes
         // rather than inheriting the dead task, then rethrow as a clear cancellation.
-        EvictBackendProbe(probe);
+        EvictBackendProbe(key, probe);
         throw;
       }
     }
@@ -125,12 +129,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
     }
 
-    private void EvictBackendProbe(Task<bool> faulted)
+    private static string BackendProbeCacheKey(DriverContext context) => context?.Host ?? string.Empty;
+
+    private void EvictBackendProbe(string key, Task<bool> faulted)
     {
       lock (_backendProbeGate)
       {
-        if (ReferenceEquals(_configureBackendSupported, faulted))
-          _configureBackendSupported = null;
+        if (_configureBackendSupported.TryGetValue(key, out var cached) && ReferenceEquals(cached, faulted))
+          _configureBackendSupported.Remove(key);
       }
     }
 

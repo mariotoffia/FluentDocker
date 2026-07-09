@@ -149,6 +149,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithLinks(params string[] containerNames)
     {
+      ArgumentNullException.ThrowIfNull(containerNames);
       foreach (var name in containerNames)
         _links.Add(new ContainerLink { ContainerName = name, Alias = name });
       return this;
@@ -172,6 +173,11 @@ namespace FluentDocker.Builders
       return this;
     }
 
+    /// <summary>Adds a container health check.</summary>
+    /// <remarks>
+    /// <paramref name="retries"/> defaults to <c>0</c>, which leaves the daemon/runtime default
+    /// in effect for container creation.
+    /// </remarks>
     public IContainerBuilder WithHealthCheck(
         string cmd, string interval = null, string timeout = null,
         int retries = 0, string startPeriod = null)

@@ -254,9 +254,13 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceKind = "compose",
+        ResourceName = builder.ProjectName,
         ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct),
-        ForceRemoveOnFailure = _ => !builder.BorrowedProject,
-        FailureKeepReason = _ => builder.BorrowedProject ? "borrowed" : null
+        GetFailedService = () => builder.PendingService,
+        ResetForRetry = builder.ResetForRetry,
+        ForceRemoveOnFailure = builder.ForceRemoveOnFailure,
+        FailureKeepReason = builder.FailureKeepReason
       });
       return this;
     }

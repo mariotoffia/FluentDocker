@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -81,8 +82,8 @@ namespace FluentDocker.Kernel
 
     /// <summary>
     /// Tries to get a driver component interface. Returns false when the interface is
-    /// unsupported. Missing drivers, disposal/cancellation, and unexpected fallback
-    /// faults still throw.
+    /// unsupported. Missing drivers, disposal/cancellation, I/O failures, and
+    /// unexpected resolver faults still throw.
     /// </summary>
     public bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
@@ -90,6 +91,8 @@ namespace FluentDocker.Kernel
       instance = null;
       driverId = ResolveDriverIdOrDefault(driverId);
 
+      // A genuinely unsupported interface makes TryResolveCore return false (→ false here);
+      // real faults (broken resolver, fallback fault, missing driver, I/O, cancellation) throw.
       if (TryResolveCore(driverId, typeof(T), out var resolved, out _))
       {
         instance = (T)resolved;
@@ -268,11 +271,19 @@ namespace FluentDocker.Kernel
       unsupportedCause = null;
       if (_registry.TryGetDriverPack(driverId, out var driverPack))
       {
-        if (driverPack.TryResolve(interfaceType, out resolved))
+        try
         {
-          if (interfaceType.IsInstanceOfType(resolved))
-            return true;
-          LogTypeMismatch(driverPack, interfaceType, resolved);
+          if (driverPack.TryResolve(interfaceType, out resolved))
+          {
+            if (interfaceType.IsInstanceOfType(resolved))
+              return true;
+            LogTypeMismatch(driverPack, interfaceType, resolved);
+          }
+        }
+        catch (Exception ex) when (!IsResolutionContractException(ex))
+        {
+          LogPackFallbackFailure(driverPack, interfaceType, ex);
+          throw CreateResolutionFailureException(driverId, interfaceType, ex);
         }
 
         try
@@ -284,12 +295,13 @@ namespace FluentDocker.Kernel
         }
         catch (Exception ex)
         {
-          if (ex is OperationCanceledException || ex is ObjectDisposedException)
-            throw;
-
           if (ex is InterfaceNotSupportedException)
           {
             unsupportedCause = ex;
+          }
+          else if (IsResolutionContractException(ex))
+          {
+            throw;
           }
           else
           {
@@ -305,10 +317,19 @@ namespace FluentDocker.Kernel
 
       if (_registry.TryGetDriver(driverId, out var driver))
       {
-        if (driver is IDriverInterfaceResolver driverResolver
-            && driverResolver.TryResolve(interfaceType, out resolved)
-            && interfaceType.IsInstanceOfType(resolved))
-          return true;
+        if (driver is IDriverInterfaceResolver driverResolver)
+        {
+          try
+          {
+            if (driverResolver.TryResolve(interfaceType, out resolved)
+                && interfaceType.IsInstanceOfType(resolved))
+              return true;
+          }
+          catch (Exception ex) when (!IsResolutionContractException(ex))
+          {
+            throw CreateResolutionFailureException(driverId, interfaceType, ex);
+          }
+        }
 
         if (interfaceType.IsInstanceOfType(driver))
         {
@@ -321,6 +342,20 @@ namespace FluentDocker.Kernel
       }
 
       throw new DriverNotFoundException(driverId, _registry.GetAllDriverIds());
+    }
+
+    private static bool IsResolutionContractException(Exception ex) =>
+        ex is DriverException
+        or IOException
+        or ObjectDisposedException
+        or OperationCanceledException;
+
+    private static DriverException CreateResolutionFailureException(
+        string driverId, Type interfaceType, Exception ex)
+    {
+      return new DriverException(
+          $"Driver '{driverId}' failed while resolving interface '{TypeNameFormatter.Format(interfaceType)}'.",
+          ex);
     }
 
     private string ResolveDriverIdOrDefault(string driverId)

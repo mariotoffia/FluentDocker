@@ -12,6 +12,7 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
     [JsonPropertyName("id")] public string Id { get; set; }
     [JsonPropertyName("progressDetail")] public ProgressDetail ProgressDetail { get; set; }
     [JsonPropertyName("error")] public string Error { get; set; }
+    [JsonPropertyName("aux")] public BuildAux Aux { get; set; }
   }
 
   /// <summary>
@@ -24,6 +25,7 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
     [JsonPropertyName("id")] public string Id { get; set; }
     [JsonPropertyName("progressDetail")] public ProgressDetail ProgressDetail { get; set; }
     [JsonPropertyName("error")] public string Error { get; set; }
+    [JsonPropertyName("aux")] public BuildAux Aux { get; set; }
   }
 
   /// <summary>
@@ -40,6 +42,7 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   internal sealed class BuildAux
   {
     [JsonPropertyName("ID")] public string Id { get; set; }
+    [JsonPropertyName("Digest")] public string Digest { get; set; }
   }
 
   internal sealed class ProgressDetail

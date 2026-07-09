@@ -84,15 +84,17 @@ namespace FluentDocker.Model.Drivers
     public string? DefaultShell { get; set; }
 
     /// <summary>
-    /// Name of the CLI binary the Docker CLI driver should invoke. Defaults to
-    /// <c>docker</c>. Set to a docker-compatible CLI (e.g. <c>finch</c> or <c>nerdctl</c>)
-    /// to drive that engine without aliasing it to <c>docker</c>.
+    /// Name of the CLI binary used when registering a CLI driver pack. Per-operation
+    /// values are carried for context merging but do not re-resolve an already-registered
+    /// Docker CLI driver; pass this at driver registration time to use alternatives such
+    /// as <c>finch</c> or <c>nerdctl</c>.
     /// </summary>
     public string? BinaryName { get; set; }
 
     /// <summary>
-    /// Custom directories to search for the CLI binary. When null or empty, the
-    /// <c>PATH</c> environment variable is used.
+    /// Custom directories searched when registering a CLI driver pack. Per-operation
+    /// values are carried for context merging but do not re-resolve an already-registered
+    /// Docker CLI driver. When null or empty at registration, <c>PATH</c> is used.
     /// </summary>
     public string[]? SearchPaths { get; set; }
 

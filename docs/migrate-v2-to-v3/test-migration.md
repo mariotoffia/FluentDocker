@@ -396,11 +396,10 @@ public class NginxFixture : XunitContainerFixture
 {
     public NginxFixture()
     {
-        InitializeAsync(builder => builder
+        Configure(builder => builder
             .UseImage("nginx:alpine")
             .ExposePort("80")
-            .WaitForPort("80/tcp", 30000)
-        ).GetAwaiter().GetResult();
+            .WaitForPort("80/tcp", 30000));
     }
 }
 
@@ -431,10 +430,14 @@ public class NginxTests : IClassFixture<NginxFixture>
 
 - Fixture inherits `XunitContainerFixture` instead of `FluentDockerTestBase`.
 - Namespace: `Ductus.FluentDocker.XUnit` to `FluentDocker.Testing.Xunit`.
-- Container configuration via lambda in `InitializeAsync` instead of `Build()` override.
+- Container configuration via `Configure(...)` in the constructor; xUnit then drives
+  `IAsyncLifetime` — no sync-over-async in the constructor.
 - Extension methods like `ToHostExposedEndpoint` require `using FluentDocker.Services.Extensions`.
 
-> **Tip:** For new code, prefer the `Configure(...)` pattern shown in [docs/testing/xunit.md](../testing/xunit.md) — avoids deadlock risk vs. sync-over-async in constructors.
+> **Tip:** Prefer `XunitContainerFixtureBase` with a `ConfigureContainer` override — xUnit
+> runs the async lifecycle for you (see [docs/testing/xunit.md](../testing/xunit.md)). With the
+> concrete `XunitContainerFixture`, use `Configure(...)` as shown; never call
+> `InitializeAsync(...).GetAwaiter().GetResult()` in the constructor — it is deadlock-prone.
 
 ---
 

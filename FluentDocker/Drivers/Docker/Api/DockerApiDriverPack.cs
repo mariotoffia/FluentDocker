@@ -277,9 +277,21 @@ namespace FluentDocker.Drivers.Docker.Api
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
 
-      var connection = _connection;
-      _connection = null;
-      _initialized = false;
+      IDockerApiConnection connection = null;
+      await _initializeLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+      try
+      {
+        connection = _connection;
+        _connection = null;
+        _drivers.Clear();
+        _initialized = false;
+        _context = null;
+      }
+      finally
+      {
+        _initializeLock.Release();
+        _initializeLock.Dispose();
+      }
 
       if (connection != null)
       {
@@ -287,7 +299,6 @@ namespace FluentDocker.Drivers.Docker.Api
         await connection.DisposeAsync().ConfigureAwait(false);
       }
 
-      _initializeLock.Dispose();
       GC.SuppressFinalize(this);
     }
 

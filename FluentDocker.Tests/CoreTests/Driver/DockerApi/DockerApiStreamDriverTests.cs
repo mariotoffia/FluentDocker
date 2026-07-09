@@ -140,7 +140,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         }
       });
 
-      Assert.Equal(ErrorCodes.Api.ConnectionFailed, error.ErrorCode);
+      Assert.Equal(ErrorCodes.Api.StreamInterrupted, error.ErrorCode);
     }
 
     #endregion

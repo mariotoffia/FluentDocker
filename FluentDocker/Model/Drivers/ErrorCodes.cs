@@ -12,9 +12,11 @@ namespace FluentDocker.Model.Drivers
     /// </summary>
     public static bool IsTransientCode(string errorCode)
     {
+      // API 500 is intentionally excluded: daemon server errors can be deterministic, not retryable hiccups.
       return errorCode is General.Timeout
           or Network.Timeout
           or Api.ConnectionFailed
+          or Api.StreamInterrupted
           or ModelInference.EndpointUnreachable
           or ModelInference.Timeout
           or ModelInference.ServiceUnavailable;
@@ -230,7 +232,19 @@ namespace FluentDocker.Model.Drivers
       public const string Conflict = "API_409";
       public const string ServerError = "API_500";
       public const string ConnectionFailed = "API_CONN";
+      /// <summary>
+      /// A boundless streaming response (e.g. <c>/events</c> without an <c>until</c> bound)
+      /// ended cleanly because the daemon closed the connection — an unexpected EOF, not a
+      /// transport error.
+      /// </summary>
       public const string StreamEnded = "API_STREAM_ENDED";
+      /// <summary>
+      /// A streaming response was interrupted mid-stream by a transport read failure (for
+      /// example a connection reset) after the connection had already been established.
+      /// Distinct from <see cref="ConnectionFailed"/> (never connected) and
+      /// <see cref="StreamEnded"/> (clean EOF) so on-call diagnosis is unambiguous.
+      /// </summary>
+      public const string StreamInterrupted = "API_STREAM_INTERRUPTED";
     }
 
     /// <summary>

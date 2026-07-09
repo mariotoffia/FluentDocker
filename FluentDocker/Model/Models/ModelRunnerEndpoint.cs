@@ -26,8 +26,10 @@ namespace FluentDocker.Model.Models
 
     private ModelRunnerEndpoint(Uri baseAddress, string engine, string? unixSocketPath, bool includeEngineInPath, string? basePath = null, string? query = null)
     {
+      ArgumentNullException.ThrowIfNull(baseAddress);
       ArgumentException.ThrowIfNullOrWhiteSpace(engine);
-      BaseAddress = baseAddress;
+      ValidateEngine(engine);
+      BaseAddress = SanitizeBaseAddress(baseAddress);
       Engine = engine;
       UnixSocketPath = unixSocketPath;
       IncludeEngineInPath = includeEngineInPath;
@@ -38,7 +40,10 @@ namespace FluentDocker.Model.Models
     /// <summary>The base address (host root, e.g. <c>http://localhost:12434</c>).</summary>
     public Uri BaseAddress { get; }
 
-    /// <summary>The engine path segment (e.g. <c>llama.cpp</c>).</summary>
+    /// <summary>
+    /// The engine path segment (letters, digits, <c>.</c>, <c>_</c>, <c>-</c>;
+    /// e.g. <c>llama.cpp</c>).
+    /// </summary>
     public string Engine { get; }
 
     /// <summary>When non-null, the connection is made over this unix socket.</summary>
@@ -166,8 +171,8 @@ namespace FluentDocker.Model.Models
     /// <summary>
     /// The default endpoint, following the documented resolution order: the
     /// <c>DOCKER_MODEL_RUNNER_URL</c> environment variable when set, otherwise host
-    /// TCP on port 12434. This is the single source of truth for "where is the
-    /// runner when the caller did not say".
+    /// TCP on port 12434. A set-but-invalid environment value throws instead of
+    /// silently falling back to localhost.
     /// </summary>
     /// <returns>The default endpoint.</returns>
     public static ModelRunnerEndpoint Default() =>
@@ -180,6 +185,26 @@ namespace FluentDocker.Model.Models
       return port;
     }
 
+    private static void ValidateEngine(string engine)
+    {
+      foreach (var ch in engine)
+      {
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+            (ch >= '0' && ch <= '9') || ch is '.' or '_' or '-')
+          continue;
+        throw new ArgumentException(
+            "Model runner engine must contain only letters, digits, '.', '_' or '-'.",
+            nameof(engine));
+      }
+    }
+
+    private static Uri SanitizeBaseAddress(Uri uri) => new UriBuilder
+    {
+      Scheme = uri.Scheme,
+      Host = uri.Host,
+      Port = uri.Port
+    }.Uri;
+
     /// <summary>
     /// Attempts to construct an endpoint from the <c>DOCKER_MODEL_RUNNER_URL</c>
     /// environment variable (the highest-priority resolution step). Authority-only URLs
@@ -188,7 +213,8 @@ namespace FluentDocker.Model.Models
     /// </summary>
     /// <param name="endpoint">The resolved endpoint, or <c>null</c> when the variable is unset.</param>
     /// <returns><c>true</c> when the variable is set to a valid absolute http(s) URL; <c>false</c>
-    /// when it is unset or invalid.</returns>
+    /// when it is unset.</returns>
+    /// <exception cref="ArgumentException">The variable is set but is not a valid absolute http(s) URL.</exception>
     public static bool TryFromEnvironment([NotNullWhen(true)] out ModelRunnerEndpoint? endpoint)
     {
       var value = Environment.GetEnvironmentVariable(UrlEnvironmentVariable);
@@ -199,6 +225,18 @@ namespace FluentDocker.Model.Models
         return false;
       }
 
+      if (!TryParseEnvironmentValue(value, out endpoint))
+        throw InvalidEnvironmentValue(value);
+
+      return true;
+    }
+
+    private static ArgumentException InvalidEnvironmentValue(string value) =>
+        new($"{UrlEnvironmentVariable} is set to an invalid model runner endpoint URL '{value}'. " +
+            "Use an absolute http(s) URL with a host, or unset the variable to use http://localhost:12434.");
+
+    private static bool TryParseEnvironmentValue(string value, [NotNullWhen(true)] out ModelRunnerEndpoint? endpoint)
+    {
       if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || !IsSupportedUrl(uri))
       {
         endpoint = null;

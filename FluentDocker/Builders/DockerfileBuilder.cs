@@ -73,12 +73,20 @@ namespace FluentDocker.Builders
         bool strictCopySources = false, CancellationToken cancellationToken = default)
     {
       EnsureNoMixedDockerfileSources();
+      EnsureBuildContextCanBeUsed();
       if (IsInPlaceBuild)
         return await PrepareInPlaceBuildAsync(cancellationToken).ConfigureAwait(false);
 
       await CopyToWorkDirAsync(_workingFolder, strictCopySources, cancellationToken).ConfigureAwait(false);
       await RenderDockerfileAsync(_workingFolder, cancellationToken).ConfigureAwait(false);
       return _workingFolder;
+    }
+
+    private void EnsureBuildContextCanBeUsed()
+    {
+      if (_buildContext != null && !IsInPlaceBuild)
+        throw new FluentDockerException(
+            "WithBuildContext requires FromFile(); fluent Dockerfile commands and FromString() use the generated build context.");
     }
 
     /// <summary>
@@ -394,6 +402,10 @@ namespace FluentDocker.Builders
     /// <param name="timeout">Check timeout (e.g., "30s")</param>
     /// <param name="startPeriod">Start period before checks begin</param>
     /// <param name="retries">Number of retries before marking unhealthy</param>
+    /// <remarks>
+    /// Dockerfile health checks emit <c>--retries</c> only when the value differs from
+    /// Docker's explicit default of 3.
+    /// </remarks>
     public DockerfileBuilder WithHealthCheck(string cmd, string interval = null,
         string timeout = null, string startPeriod = null, int retries = 3)
     {

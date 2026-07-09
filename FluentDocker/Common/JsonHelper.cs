@@ -147,6 +147,9 @@ namespace FluentDocker.Common
     /// Parses a JSON string and returns a cloned <see cref="JsonElement"/>.
     /// The returned element is detached from the <see cref="JsonDocument"/> and safe to store.
     /// </summary>
+    /// <exception cref="System.Text.Json.JsonException">
+    /// Thrown when <paramref name="json"/> is invalid JSON.
+    /// </exception>
     public static JsonElement ParseElement(string json)
     {
       using var doc = JsonDocument.Parse(json);
@@ -165,7 +168,11 @@ namespace FluentDocker.Common
       try
       {
         using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.TryGetProperty(propertyName, out var prop)
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+          return null;
+
+        return root.TryGetProperty(propertyName, out var prop)
             ? prop.ValueKind == JsonValueKind.String ? prop.GetString() : null
             : null;
       }
@@ -186,7 +193,11 @@ namespace FluentDocker.Common
       try
       {
         using var doc = JsonDocument.Parse(json);
-        if (!doc.RootElement.TryGetProperty(propertyName, out var prop))
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+          return null;
+
+        if (!root.TryGetProperty(propertyName, out var prop))
           return null;
         if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var value))
           return value;

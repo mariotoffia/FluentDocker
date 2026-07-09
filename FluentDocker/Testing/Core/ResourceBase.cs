@@ -211,7 +211,8 @@ namespace FluentDocker.Testing.Core
             when (!cancellationToken.IsCancellationRequested && cts.IsCancellationRequested)
         {
           IsInitialized = false;
-          UnregisterReaper();
+          if (!_provisioned)
+            UnregisterReaper();
           var timeout = new TimeoutException(
               $"Resource initialization timed out after {Options.InitializationTimeout}.", ex);
           try
@@ -225,7 +226,8 @@ namespace FluentDocker.Testing.Core
         catch (Exception ex)
         {
           IsInitialized = false;
-          UnregisterReaper();
+          if (!_provisioned)
+            UnregisterReaper();
           if (IsExternalCancellation(ex, cancellationToken))
             throw;
 
@@ -249,8 +251,8 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     /// <remarks>
     /// Only the first caller runs teardown. A concurrent call made while that teardown
-    /// is still in flight returns immediately without waiting for it or observing its
-    /// result or exception. After a successful dispose the resource is terminal and
+    /// is still in flight returns immediately; it does not await teardown or observe
+    /// its result or exception. After a successful dispose the resource is terminal and
     /// further calls are no-ops; after a failed teardown the guard is released so a
     /// later call retries disposal. Await the first (or the retrying)
     /// <see cref="DisposeAsync"/> for the authoritative outcome, including

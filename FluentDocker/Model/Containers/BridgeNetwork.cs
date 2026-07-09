@@ -22,6 +22,7 @@ namespace FluentDocker.Model.Containers
 
     public string? IPv6Gateway { get; set; }
     public string? GlobalIPv6Address { get; set; }
+    [JsonConverter(typeof(LenientInt32Converter))]
     public int GlobalIPv6PrefixLen { get; set; }
     public string? MacAddress { get; set; }
   }

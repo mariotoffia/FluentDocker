@@ -6,7 +6,7 @@ using FluentDocker.Extensions;
 namespace FluentDocker.Model.Builders.FileBuilder
 {
   /// <summary>
-  /// Creates an instance.
+  /// Represents a Dockerfile <c>HEALTHCHECK</c> instruction.
   /// </summary>
   /// <param name="cmd">The command with it's argument to do when performing the health check.</param>
   /// <param name="interval">Optional (default is 30s) interval when to invoke the <paramref name="cmd"/>.</param>
@@ -19,16 +19,22 @@ namespace FluentDocker.Model.Builders.FileBuilder
   /// </remarks>
   public sealed class HealthCheckCommand(string cmd, string? interval = null, string? timeout = null, string? startPeriod = null, int retries = 3) : ICommand
   {
+    /// <summary>Gets the health check command.</summary>
     public string Cmd { get; } = DockerfileInstructionGuard.Require(
         cmd, "HEALTHCHECK", "command", "HEALTHCHECK requires a command.");
+    /// <summary>Gets the check interval.</summary>
     public string Interval { get; } = DockerfileInstructionGuard.Optional(
         interval, "HEALTHCHECK", "interval", "30s");
+    /// <summary>Gets the check timeout.</summary>
     public string Timeout { get; } = DockerfileInstructionGuard.Optional(
         timeout, "HEALTHCHECK", "timeout", "30s");
+    /// <summary>Gets the start period.</summary>
     public string StartPeriod { get; } = DockerfileInstructionGuard.Optional(
         startPeriod, "HEALTHCHECK", "start period", "0s");
+    /// <summary>Gets the unhealthy retry count.</summary>
     public int Retries { get; } = retries;
 
+    /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
       var sb = new StringBuilder();

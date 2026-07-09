@@ -40,7 +40,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
           return CommandResponse<string>.Fail(
               ErrorOrDefault(result, "Manifest create failed"),
-              ErrorCodes.Manifest.CreateFailed,
+              FailureCode(result.Error, ErrorCodes.Manifest.CreateFailed),
               CreateErrorContext(context, "CreateManifest", result), result.ExitCode);
 
         return CommandResponse<string>.Ok(result.Output?.TrimEnd());
@@ -74,7 +74,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Manifest remove failed"),
-              ErrorCodes.Manifest.RemoveFailed,
+              FailureCode(result.Error, ErrorCodes.Manifest.RemoveFailed),
               CreateErrorContext(context, "RemoveManifest", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -114,7 +114,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
           return CommandResponse<string>.Fail(
               ErrorOrDefault(result, "Manifest add failed"),
-              ErrorCodes.Manifest.AddFailed,
+              FailureCode(result.Error, ErrorCodes.Manifest.AddFailed),
               CreateErrorContext(context, "AddManifest", result), result.ExitCode);
 
         return CommandResponse<string>.Ok(result.Output?.TrimEnd());
@@ -150,7 +150,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Manifest annotate failed"),
-              ErrorCodes.Manifest.AnnotateFailed,
+              FailureCode(result.Error, ErrorCodes.Manifest.AnnotateFailed),
               CreateErrorContext(context, "AnnotateManifest", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -190,7 +190,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Manifest push failed"),
-              ErrorCodes.Manifest.PushFailed,
+              FailureCode(result.Error, ErrorCodes.Manifest.PushFailed),
               CreateErrorContext(context, "PushManifest", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
@@ -228,7 +228,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
           return CommandResponse<ManifestInspectResult>.Fail(
               ErrorOrDefault(result, "Manifest inspect failed"),
-              ErrorCodes.Manifest.InspectFailed,
+              FailureCode(result.Error, ErrorCodes.Manifest.InspectFailed),
               CreateErrorContext(context, "InspectManifest", result), result.ExitCode);
 
         var parsed = ParseManifestInspect(result.Output);
@@ -270,7 +270,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         return CommandResponse<bool>.Fail(
             ErrorOrDefault(result, "Manifest exists check failed"),
-            ErrorCodes.Manifest.InspectFailed,
+            FailureCode(result.Error, ErrorCodes.Manifest.InspectFailed),
             CreateErrorContext(context, "ManifestExists", result), result.ExitCode);
       }
       catch (OperationCanceledException)

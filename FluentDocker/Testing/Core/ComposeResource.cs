@@ -232,6 +232,8 @@ namespace FluentDocker.Testing.Core
 
       try
       {
+        var directory = Path.Combine(Path.GetTempPath(), "fluentdocker");
+        SweepStaleSessionLabelOverlays(directory);
         await builder.LoadEnvFilesAsync(cancellationToken).ConfigureAwait(false);
         var environment = ComposeEnvironmentWithProfiles(builder);
 
@@ -267,11 +269,8 @@ namespace FluentDocker.Testing.Core
         if (overlay.Count == 0)
           return null;
 
-        var path = Path.Combine(
-            Path.GetTempPath(),
-            "fluentdocker",
-            $"compose-labels-{Guid.NewGuid():N}.json");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var path = Path.Combine(directory, $"compose-labels-{Guid.NewGuid():N}.json");
+        Directory.CreateDirectory(directory);
         await File.WriteAllTextAsync(path, JsonHelper.SerializeIndented(overlay), cancellationToken)
             .ConfigureAwait(false);
         return path;
@@ -280,6 +279,32 @@ namespace FluentDocker.Testing.Core
       {
         ComposeLabelOverlaySkipped(Logger, ex.Message, ex);
         return null;
+      }
+    }
+
+    private static void SweepStaleSessionLabelOverlays(string directory)
+    {
+      try
+      {
+        // ponytail: 24h cutoff, not a liveness check. Live resources delete their own overlay at
+        // teardown (DeleteSessionLabelOverlay), so the only files that survive are crash-orphans.
+        // The file mtime is frozen at creation, so age == time-since-creation; 24h stays clear of any
+        // realistic test-fixture lifetime. Add a per-file heartbeat/refresh if fixtures ever run longer.
+        var cutoff = DateTime.UtcNow - TimeSpan.FromHours(24);
+        foreach (var path in Directory.EnumerateFiles(directory, "compose-labels-*.json"))
+        {
+          try
+          {
+            if (File.GetLastWriteTimeUtc(path) <= cutoff)
+              File.Delete(path);
+          }
+          catch
+          {
+          }
+        }
+      }
+      catch
+      {
       }
     }
 

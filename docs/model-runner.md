@@ -363,8 +363,10 @@ await using var runner = ModelRunnerEnvironment.CreateInferenceRunner(
 management / runtime), expose them from a custom `IDriverPack` (registering only what you
 serve), and register it with `WithDriver(id, d => d.UseCustomDriverPack(pack))`. Callers
 then use the same `UseModelRunner()` surface; a store/engine call your pack does not serve
-surfaces as a clear `NotSupportedException`. Implement the optional `IModelBackendInfo` to
-advertise your engine through `Capabilities.DefaultBackend` instead of reporting none.
+surfaces as a clear `FluentDockerNotSupportedException` (FluentDocker's own type, deriving
+from `FluentDockerException` — not `System.NotSupportedException`). Implement the optional
+`IModelBackendInfo` to advertise your engine through `Capabilities.DefaultBackend` instead
+of reporting none.
 
 Full walkthrough with a worked pack: **[Writing a runner plugin](model-runner-plugins.md)**.
 

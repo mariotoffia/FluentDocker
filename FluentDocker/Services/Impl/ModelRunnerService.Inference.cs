@@ -120,7 +120,11 @@ namespace FluentDocker.Services.Impl
         Input = new List<string> { text }
       }, cancellationToken).ConfigureAwait(false);
 
-      return response.Data is { Count: > 0 } ? ToReadOnly(response.Data[0].Embedding) : [];
+      if (response.Data is not { Count: > 0 } || response.Data[0].Embedding is not { Count: > 0 })
+        throw new ModelRunnerException(
+            "Embeddings response contained no embedding data.", ErrorCodes.ModelInference.RequestFailed);
+
+      return ToReadOnly(response.Data[0].Embedding);
     }
 
     private static string RequireModelId(InferenceModelId? defaultInferenceId, ModelReference model = null)

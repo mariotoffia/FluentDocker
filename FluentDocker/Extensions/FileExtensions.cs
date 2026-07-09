@@ -109,10 +109,10 @@ namespace FluentDocker.Extensions
         return null;
       }
 
-      CopyTo(new TemplateString(fd), workdir);
+      var name = Path.GetFileName(Path.GetFullPath(fd).TrimEnd(Path.DirectorySeparatorChar));
+      CopyTo(new TemplateString(fd), new TemplateString(Path.Combine(workdir.Rendered, name)));
 
-      // Return the relative path of workdir
-      return Path.GetFileName(Path.GetFullPath(fd).TrimEnd(Path.DirectorySeparatorChar));
+      return name;
     }
 
     /// <summary>

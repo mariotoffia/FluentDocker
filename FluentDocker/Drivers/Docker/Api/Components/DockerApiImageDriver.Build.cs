@@ -227,6 +227,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       string lastError = null;
       var receivedProgress = false;
+      var receivedTerminalStatus = false;
 
       // ResponseOwningStream owns the HttpResponseMessage; dispose it after draining.
       try
@@ -238,6 +239,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               .ConfigureAwait(false))
           {
             receivedProgress = true;
+            if (IsTerminalPushStatus(parsed.Status) ||
+                !string.IsNullOrWhiteSpace(parsed.Aux?.Digest))
+              receivedTerminalStatus = true;
 
             if (!string.IsNullOrWhiteSpace(parsed.Error))
             {
@@ -288,6 +292,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             ErrorCodes.Image.PushFailed,
             CreateErrorContext("POST /images/{name}/push", 0));
 
+      if (!receivedTerminalStatus)
+        return CommandResponse<Unit>.Fail(
+            $"Docker push for '{image}' ended without terminal digest (possible truncated stream)",
+            ErrorCodes.Image.PushFailed,
+            CreateErrorContext("POST /images/{name}/push", 0));
+
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
@@ -306,6 +316,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return value.StartsWith("Status:", StringComparison.OrdinalIgnoreCase) ||
           value.StartsWith("Downloaded newer image for ", StringComparison.OrdinalIgnoreCase) ||
           value.StartsWith("Image is up to date for ", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTerminalPushStatus(string status)
+    {
+      if (string.IsNullOrWhiteSpace(status))
+        return false;
+      var value = status.Trim();
+      var digest = value.IndexOf("digest:", StringComparison.OrdinalIgnoreCase);
+      return digest >= 0 &&
+          value.IndexOf("sha256:", digest, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     #endregion

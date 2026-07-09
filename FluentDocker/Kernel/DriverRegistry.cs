@@ -178,10 +178,20 @@ namespace FluentDocker.Kernel
         _registrationLock.Release();
       }
 
-      if (driver != null)
-        await DisposeDriverSafelyAsync(driver.Driver, _logger).ConfigureAwait(false);
-      if (pack != null)
-        await DisposeDriverPackSafelyAsync(pack.DriverPack, _logger).ConfigureAwait(false);
+      // Removal has committed under the lock, so we now own disposing these instances. Dispose within
+      // the budget only: honoring the caller token here would let external cancellation abandon a
+      // removed driver both undisposed and uncounted. Matches DisposeAsync.
+      var deadline = DateTimeOffset.UtcNow + DisposeBudget;
+      if (driver != null &&
+          !await DisposeDriverWithinBudgetAsync(
+              driver.Driver, _logger, driverId, Remaining(deadline))
+              .ConfigureAwait(false))
+        Interlocked.Increment(ref _abandonedDriverCount);
+      if (pack != null &&
+          !await DisposeDriverPackWithinBudgetAsync(
+              pack.DriverPack, _logger, driverId, Remaining(deadline))
+              .ConfigureAwait(false))
+        Interlocked.Increment(ref _abandonedDriverCount);
     }
 
     /// <summary>

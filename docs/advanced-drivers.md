@@ -242,6 +242,24 @@ if (prune.Success)
 `ISystemDriver` also exposes `GetInfoAsync`, `GetVersionAsync`, `GetDiskUsageAsync`,
 and the daemon-switch calls (`FluentDocker/Drivers/ISystemDriver.cs`).
 
+## Docker-compatible CLIs (finch, nerdctl)
+
+The Docker CLI driver drives any docker-compatible client, not just `docker`. Pass the
+binary name to `WithBinary(...)` on the `WithDockerCli` builder — the driver invokes that
+client directly instead of aliasing it to `docker`:
+
+```csharp
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("finch", d => d.WithBinary("finch").AsDefault())
+    .BuildAsync();
+```
+
+`WithBinary(string binaryName, params string[] searchPaths)` also takes optional directories
+to search when the client is not on `PATH`; it sets the `BinaryName` carried on
+`DriverContext`, so a per-call `DriverContext { BinaryName = "nerdctl" }` overrides it for one
+call. Support is best-effort: some engines differ on a few global flags (for example
+`-H` / `--tlsverify`).
+
 ## Where to next
 
 - [Driver Extensibility](extensibility.md) — add your own port and driver pack.

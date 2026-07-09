@@ -98,7 +98,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             result.StatusCode);
       }
 
-      return CommandResponse<Unit>.Ok(Unit.Default);
+      return CommandResponse<Unit>.Fail(
+          "Service update exhausted conflict retries",
+          ErrorCodes.Service.UpdateFailed,
+          CreateErrorContext($"POST /services/{serviceId}/update", 409),
+          409);
     }
 
     private static bool IsVersionConflict(ApiResult result) =>
@@ -414,12 +418,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var spec = token.Prop("Spec");
       var containerSpec = spec?.Prop("TaskTemplate")?.Prop("ContainerSpec");
+      var mode = spec?.Prop("Mode");
+      var replicas = ParseServiceReplicas(mode);
       return new ServiceInfo
       {
         Id = token.GetStringOrDefault("ID"),
         Name = spec?.GetStringOrDefault("Name"),
         Image = containerSpec?.GetStringOrDefault("Image"),
-        Mode = spec?.Prop("Mode")?.Prop("Replicated") != null ? "replicated" : "global"
+        Mode = ParseServiceMode(mode),
+        Replicas = replicas > 0
+            ? replicas.ToString(CultureInfo.InvariantCulture)
+            : null
       };
     }
 
@@ -431,7 +440,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var containerSpec = spec?.Prop("TaskTemplate")?.Prop("ContainerSpec");
       var version = json.Prop("Version");
 
-      var replicatedEl = spec?.Prop("Mode")?.Prop("Replicated");
+      var mode = spec?.Prop("Mode");
 
       return new ServiceDetails
       {
@@ -439,12 +448,34 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Version = version?.GetInt64OrDefault("Index") ?? 0,
         Name = spec?.GetStringOrDefault("Name"),
         Image = containerSpec?.GetStringOrDefault("Image"),
-        Mode = replicatedEl != null ? "replicated" : "global",
-        Replicas = (int)(replicatedEl?.GetInt64OrDefault("Replicas") ?? 0),
+        Mode = ParseServiceMode(mode),
+        Replicas = ParseServiceReplicas(mode),
         CreatedAt = json.GetDateTimeOrDefault("CreatedAt"),
         UpdatedAt = json.GetDateTimeOrDefault("UpdatedAt"),
         RawJson = JsonSerializer.Serialize(json, JsonHelper.IndentedOptions)
       };
+    }
+
+    private static string ParseServiceMode(JsonElement? mode)
+    {
+      if (mode?.Prop("Replicated") != null)
+        return "replicated";
+      if (mode?.Prop("Global") != null)
+        return "global";
+      if (mode?.Prop("ReplicatedJob") != null)
+        return "replicated-job";
+      if (mode?.Prop("GlobalJob") != null)
+        return "global-job";
+      return "global";
+    }
+
+    private static int ParseServiceReplicas(JsonElement? mode)
+    {
+      var replicated = mode?.Prop("Replicated");
+      if (replicated != null)
+        return (int)replicated.Value.GetInt64OrDefault("Replicas");
+      var replicatedJob = mode?.Prop("ReplicatedJob");
+      return (int)(replicatedJob?.GetInt64OrDefault("TotalCompletions") ?? 0);
     }
 
     private static ServiceTask ParseServiceTask(JsonElement token)

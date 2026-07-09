@@ -50,7 +50,8 @@ namespace FluentDocker.Drivers.Docker.Api
           catch (Exception ex)
           {
             throw new DriverException(
-                $"NDJSON stream read failed: {ex.Message}", ErrorCodes.Api.ServerError, ex);
+                $"NDJSON stream interrupted mid-stream: {ex.Message}",
+                ClassifyStreamReadException(ex), ex);
           }
 
           var buffer = result.Buffer;

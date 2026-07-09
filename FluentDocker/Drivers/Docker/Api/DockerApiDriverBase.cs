@@ -280,8 +280,8 @@ namespace FluentDocker.Drivers.Docker.Api
         {
           Logger.LogDebug(ex, "NDJSON stream read failed");
           throw new DriverException(
-              $"Failed to read NDJSON stream for '{path}': {ex.Message}",
-              ClassifyStreamException(ex), ex);
+              $"Docker API stream interrupted mid-stream for '{path}': {ex.Message}",
+              ClassifyStreamReadException(ex), ex);
         }
 
         if (line == null)
@@ -333,8 +333,8 @@ namespace FluentDocker.Drivers.Docker.Api
         {
           Logger.LogDebug(ex, "NDJSON POST stream read failed");
           throw new DriverException(
-              $"Failed to read NDJSON POST stream for '{path}': {ex.Message}",
-              ClassifyStreamException(ex), ex);
+              $"Docker API POST stream interrupted mid-stream for '{path}': {ex.Message}",
+              ClassifyStreamReadException(ex), ex);
         }
 
         if (line == null)

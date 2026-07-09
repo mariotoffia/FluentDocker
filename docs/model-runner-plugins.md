@@ -96,8 +96,10 @@ var reply = await runner.ChatAsync("Hi");
 
 `UseModelRunner()` is gated by capability detection that accepts **any** of the three
 ports, so an inference-only pack passes. If a caller then invokes a store/engine
-operation your pack does not serve, the runner throws a clear `NotSupportedException`
-naming the missing capability — feature-detect via `runner.Capabilities` first.
+operation your pack does not serve, the runner throws a clear `FluentDockerNotSupportedException`
+naming the missing capability — feature-detect via `runner.Capabilities` first. (This is
+FluentDocker's own exception type deriving from `FluentDockerException`, not
+`System.NotSupportedException`.)
 
 ## Advertising your backend
 

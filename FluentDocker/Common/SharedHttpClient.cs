@@ -30,7 +30,11 @@ namespace FluentDocker.Common
         SslOptions = new SslClientAuthenticationOptions
         {
           // Readiness probing only: containers often serve self-signed certs on host IPs.
+          // Intentionally accepts any certificate; this client is never used for data-plane
+          // traffic, only to detect whether a local model runner is listening.
+#pragma warning disable CA5359
           RemoteCertificateValidationCallback = static (_, _, _, _) => true
+#pragma warning restore CA5359
         }
       };
       return new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };

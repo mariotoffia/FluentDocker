@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
@@ -141,10 +142,17 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (config.HealthCheck.Test != null && config.HealthCheck.Test.Length > 0)
         {
           var test = config.HealthCheck.Test;
-          var healthCommand = test[0] == "CMD-SHELL"
-              ? string.Join(" ", test[1..])
-              : string.Join(" ", (test[0] == "CMD" ? test[1..] : test).Select(ShellQuoteHealthToken));
-          args += $" --health-cmd {QuoteArgumentIfNeeded(healthCommand)}";
+          if (test.Length == 1 && string.Equals(test[0], "NONE", StringComparison.OrdinalIgnoreCase))
+          {
+            args += " --no-healthcheck";
+          }
+          else
+          {
+            var healthCommand = test[0] == "CMD-SHELL"
+                ? string.Join(" ", test[1..])
+                : string.Join(" ", (test[0] == "CMD" ? test[1..] : test).Select(ShellQuoteHealthToken));
+            args += $" --health-cmd {QuoteArgumentIfNeeded(healthCommand)}";
+          }
         }
         if (!string.IsNullOrEmpty(config.HealthCheck.Interval))
           args += $" --health-interval {QuoteArgumentIfNeeded(config.HealthCheck.Interval)}";

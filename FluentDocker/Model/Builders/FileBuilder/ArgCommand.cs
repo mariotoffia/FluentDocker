@@ -5,8 +5,12 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
+  /// <summary>Represents a Dockerfile <c>ARG</c> instruction.</summary>
   public sealed class ArgCommand : ICommand
   {
+    /// <summary>Creates an argument instruction.</summary>
+    /// <param name="name">Argument name.</param>
+    /// <param name="defaultValue">Optional default value.</param>
     public ArgCommand(TemplateString name, TemplateString? defaultValue = null)
     {
       if (null == name || string.IsNullOrEmpty(name.Rendered))
@@ -23,9 +27,12 @@ namespace FluentDocker.Model.Builders.FileBuilder
       }
     }
 
+    /// <summary>Gets the argument name.</summary>
     public string Name { get; }
+    /// <summary>Gets the optional default value.</summary>
     public string? DefaultValue { get; }
 
+    /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
       if (string.IsNullOrEmpty(DefaultValue))
@@ -37,6 +44,6 @@ namespace FluentDocker.Model.Builders.FileBuilder
     }
 
     private static string QuoteDefaultValue(string value) =>
-        new[] { (TemplateString)$"ARG={value}" }.WrapValue()[0]["ARG=".Length..];
+        new[] { new TemplateString($"ARG={value}") }.WrapValue()[0]["ARG=".Length..];
   }
 }

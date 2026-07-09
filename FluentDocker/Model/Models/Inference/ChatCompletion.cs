@@ -76,8 +76,9 @@ namespace FluentDocker.Model.Models.Inference
 
     /// <summary>
     /// Pass-through for any OpenAI-compatible request field not modeled above (e.g.
-    /// <c>tools</c>, <c>tool_choice</c>, <c>response_format</c>, multimodal content). Captured
-    /// verbatim so advanced parameters round-trip to the engine instead of being dropped. (Preview)
+    /// <c>tools</c>, <c>tool_choice</c>, <c>response_format</c>). Message <c>content</c> is a
+    /// modeled field, not extension data: inbound array content is reduced to text parts and
+    /// outbound content remains string-only. (Preview)
     /// </summary>
     [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }

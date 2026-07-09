@@ -164,7 +164,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             if (arr != null)
               images.AddRange(arr);
           }
-          catch (Exception ex) { Logger.LogDebug(ex, "Compose images array JSON parsing failed"); }
+          catch (Exception ex)
+          {
+            Logger.LogDebug(ex, "Compose images array JSON parsing failed");
+            return CommandResponse<IList<ComposeImage>>.Fail(
+                "Compose images array JSON parsing failed: " + ex.Message,
+                ErrorCodes.Compose.ImagesFailed);
+          }
         }
         else
         {

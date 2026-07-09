@@ -322,14 +322,16 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       // Act
       var result = templateSource.Copy(templateWorkdir);
 
-      // Assert - Copy calls CopyTo which copies the contents of sourceDir into workdir,
-      // and returns the directory name of the source.
+      // Assert - Copy copies the source directory *as* workdir/<dirname>/ and returns
+      // "<dirname>", so the returned path is a real relative location under workdir
+      // (the pre-fix behaviour copied into workdir root yet returned a phantom "srcdir").
       Assert.Equal("srcdir", result);
-      Assert.True(File.Exists(Path.Combine(workdir, "a.txt")));
-      Assert.Equal("file a", File.ReadAllText(Path.Combine(workdir, "a.txt")));
-      Assert.True(Directory.Exists(Path.Combine(workdir, "child")));
-      Assert.True(File.Exists(Path.Combine(workdir, "child", "b.txt")));
-      Assert.Equal("file b", File.ReadAllText(Path.Combine(workdir, "child", "b.txt")));
+      var copied = Path.Combine(workdir, "srcdir");
+      Assert.True(File.Exists(Path.Combine(copied, "a.txt")));
+      Assert.Equal("file a", File.ReadAllText(Path.Combine(copied, "a.txt")));
+      Assert.True(Directory.Exists(Path.Combine(copied, "child")));
+      Assert.True(File.Exists(Path.Combine(copied, "child", "b.txt")));
+      Assert.Equal("file b", File.ReadAllText(Path.Combine(copied, "child", "b.txt")));
     }
 
     // ── CopyTo ──────────────────────────────────────────────────────────

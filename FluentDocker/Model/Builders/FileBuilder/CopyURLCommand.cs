@@ -21,6 +21,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
   public sealed class CopyURLCommand(Uri url, TemplateString from, TemplateString to,
     TemplateString? chownUserAndGroup = null, TemplateString? fromAlias = null) : CopyCommand(from, to, chownUserAndGroup, fromAlias)
   {
+    /// <summary>Gets the URL downloaded into the build context.</summary>
     public Uri FromURL { get; } = url;
   }
 }

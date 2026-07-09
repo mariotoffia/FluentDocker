@@ -8,8 +8,12 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
+  /// <summary>Represents a Dockerfile <c>USER</c> instruction.</summary>
   public sealed class UserCommand : ICommand
   {
+    /// <summary>Creates a user instruction.</summary>
+    /// <param name="user">User name or id.</param>
+    /// <param name="group">Optional group name or id.</param>
     public UserCommand(TemplateString user, TemplateString? group = null)
     {
       if (null == user || string.IsNullOrEmpty(user.Rendered))
@@ -26,9 +30,12 @@ namespace FluentDocker.Model.Builders.FileBuilder
       }
     }
 
+    /// <summary>Gets the user name or id.</summary>
     public string User { get; }
+    /// <summary>Gets the optional group name or id.</summary>
     public string? Group { get; }
 
+    /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
       if (string.IsNullOrEmpty(Group))

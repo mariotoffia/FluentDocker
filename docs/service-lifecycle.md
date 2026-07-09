@@ -43,7 +43,7 @@ StopAsync:    Running ─▶ Stopping ─▶ Stopped
 RemoveAsync:  Stopped ─▶ Removing ─▶ Removed
 Start/Stop/Kill/Remove failure: ─▶ Unknown
 Pause failure:                  Container/Compose ─▶ Unknown
-Unpause failure:                Compose ─▶ Unknown; Container throws, state unchanged
+Unpause failure:                Container/Compose ─▶ Unknown
 ```
 
 ## StateChange event
@@ -144,9 +144,9 @@ service half-stopped.
 When a lifecycle operation (start, stop, kill, remove) fails, the service transitions to
 `ServiceRunningState.Unknown` and then throws. `Unknown` means the real state could not be
 confirmed — the daemon may have applied the operation partially. `ContainerService.PauseAsync`,
-`ComposeService.PauseAsync`, and `ComposeService.UnpauseAsync` also transition to
-`Unknown` on failure. `ContainerService.UnpauseAsync` is the exception: on failure it throws
-without changing state.
+`ComposeService.PauseAsync`, `ComposeService.UnpauseAsync`, and `ContainerService.UnpauseAsync`
+also transition to `Unknown` on failure and then rethrow — `UnpauseAsync` follows the same
+`Unknown`-then-throw contract as every sibling lifecycle method.
 
 > **Warning:** Treat `Unknown` as "state not confirmed", not "nothing happened". After a
 > failure, inspect or re-query the service before assuming it is safe to retry.

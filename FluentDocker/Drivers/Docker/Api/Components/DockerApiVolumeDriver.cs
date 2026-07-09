@@ -33,7 +33,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostJsonElementAsync("/volumes/create", body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<VolumeCreateResult>.Fail(result.ErrorMessage,
-            ErrorCodes.Volume.CreateFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Volume.CreateFailed,
             CreateErrorContext("POST /volumes/create", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
@@ -112,7 +114,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostJsonElementAsync("/volumes/prune", null, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<VolumePruneResult>.Fail(result.ErrorMessage,
-            ErrorCodes.Volume.PruneFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Volume.PruneFailed,
             CreateErrorContext("POST /volumes/prune", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 

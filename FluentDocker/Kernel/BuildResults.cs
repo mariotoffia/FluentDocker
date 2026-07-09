@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -136,8 +137,12 @@ namespace FluentDocker.Kernel
     /// each service receives its own <see cref="DefaultDisposeBudgetMs"/> budget so a hung daemon
     /// call cannot starve later resources. Services are removed only after disposal completes;
     /// failed or timed-out resources remain observable in <see cref="All"/>, and a later disposal
-    /// call retries them.
+    /// call retries them. If a second <see cref="DisposeAsync"/> call arrives while the first
+    /// teardown is still running, the second call returns immediately and does not await the
+    /// in-flight teardown; callers that need teardown completion must await the first call.
     /// </remarks>
+    [SuppressMessage("Usage", "CA1816",
+        Justification = "Disposal supports retry: SuppressFinalize is deferred to CompleteOrAllowRetry and only runs once teardown fully completes.")]
     public async ValueTask DisposeAsync()
     {
       if (Volatile.Read(ref _disposed) == 2 ||
@@ -174,6 +179,8 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Sync disposal. Disposes scopes in reverse creation order; best-effort and never throws.
     /// </summary>
+    [SuppressMessage("Usage", "CA1816",
+        Justification = "Disposal supports retry: SuppressFinalize is deferred to CompleteOrAllowRetry and only runs once teardown fully completes.")]
     public void Dispose()
     {
       if (Volatile.Read(ref _disposed) == 2 ||
@@ -206,6 +213,8 @@ namespace FluentDocker.Kernel
       Dispose();
     }
 
+    [SuppressMessage("Usage", "CA1816",
+        Justification = "Intentional: SuppressFinalize runs here (not in Dispose/DisposeAsync) so it only fires once retry-able teardown fully completes.")]
     private void CompleteOrAllowRetry()
     {
       if (_scopes.All(scope => scope.Results.Count == 0))

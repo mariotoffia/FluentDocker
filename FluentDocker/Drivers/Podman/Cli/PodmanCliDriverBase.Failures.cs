@@ -16,7 +16,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     protected string FailureCode(string error, string fallbackCode)
         => FailureCode(Context, error, fallbackCode);
 
-    protected string FailureCode(DriverContext context, string error, string fallbackCode)
+    protected static string FailureCode(DriverContext context, string error, string fallbackCode)
     {
       if (!IsDaemonConnectionError(error))
         return fallbackCode;
@@ -27,7 +27,7 @@ namespace FluentDocker.Drivers.Podman.Cli
         string message, string fallbackCode, ErrorContext context)
         => CreateCommandFailureException(Context, message, fallbackCode, context);
 
-    protected DriverException CreateCommandFailureException(
+    protected static DriverException CreateCommandFailureException(
         DriverContext driverContext, string message, string fallbackCode, ErrorContext context)
     {
       var code = FailureCode(driverContext, message, fallbackCode);

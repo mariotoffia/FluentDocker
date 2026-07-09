@@ -188,9 +188,7 @@ namespace FluentDocker.Services.Impl
               inspect.ErrorCode,
               inspect.ErrorContext);
 
-        var inspectedState = inspect.Data?.State?.Running == true
-            ? ServiceRunningState.Running
-            : ParseState(inspect.Data?.State?.Status);
+        var inspectedState = ParseInspectState(inspect.Data?.State);
         UpdateState(inspectedState);
         if (_state == ServiceRunningState.Running)
           await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
@@ -265,9 +263,7 @@ namespace FluentDocker.Services.Impl
           // "not paused" also covers stopped/exited containers — inspect for the real state.
           var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
           var actual = inspect?.Success == true
-              ? (inspect.Data?.State?.Running == true
-                  ? ServiceRunningState.Running
-                  : ParseState(inspect.Data?.State?.Status))
+              ? ParseInspectState(inspect.Data?.State)
               : ServiceRunningState.Unknown;
           UpdateState(actual);
           await ExecuteHooksAsync(actual).ConfigureAwait(false);
@@ -437,9 +433,7 @@ namespace FluentDocker.Services.Impl
         _lastAppliedInspectSequence = inspectSequence;
         if (data?.State != null)
         {
-          var newState = data.State.Running == true
-              ? ServiceRunningState.Running
-              : ParseState(data.State.Status);
+          var newState = ParseInspectState(data.State);
           if (_state != newState)
           {
             _state = newState;
@@ -454,6 +448,11 @@ namespace FluentDocker.Services.Impl
       if (stateChange != null)
         StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
     }
+
+    private static ServiceRunningState ParseInspectState(ContainerState? state) =>
+        state?.Running == true && state.Paused != true
+            ? ServiceRunningState.Running
+            : ParseState(state?.Status);
 
     // ponytail: key on _disposeCompleted (dispose finished), not _disposed (dispose started), so
     // lifecycle hooks firing DURING dispose can still observe the live container (7.5/M1); external

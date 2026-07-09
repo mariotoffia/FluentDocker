@@ -3,6 +3,7 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
+  /// <summary>Represents a Dockerfile <c>COPY</c> instruction.</summary>
   public class CopyCommand : ICommand
   {
     /// <summary>
@@ -24,20 +25,27 @@ namespace FluentDocker.Model.Builders.FileBuilder
 
       if (null != chownUserAndGroup && !string.IsNullOrEmpty(chownUserAndGroup.Rendered))
       {
-        Chown = chownUserAndGroup.Rendered;
+        Chown = DockerfileInstructionGuard.ValidateToken(
+            chownUserAndGroup.Rendered, "COPY", "chown");
       }
 
       if (null != fromAlias && !string.IsNullOrEmpty(fromAlias.Rendered))
       {
-        Alias = fromAlias.Rendered;
+        Alias = DockerfileInstructionGuard.ValidateToken(
+            fromAlias.Rendered, "COPY", "from alias");
       }
     }
 
+    /// <summary>Gets the source path.</summary>
     public string From { get; internal set; }
+    /// <summary>Gets the destination path.</summary>
     public string To { get; }
+    /// <summary>Gets the optional source build stage alias.</summary>
     public string? Alias { get; }
+    /// <summary>Gets the optional owner assigned by <c>--chown</c>.</summary>
     public string? Chown { get; }
 
+    /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
       var s = "COPY";

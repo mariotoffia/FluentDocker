@@ -176,7 +176,16 @@ namespace FluentDocker.Builders
               await service.RemoveAsync(force: true, removeVolumes: true, cleanupCts.Token).ConfigureAwait(false);
             }
           }
-          catch { /* best effort cleanup */ }
+          catch (Exception cleanupEx)
+          {
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+              _logger.LogDebug(
+                  cleanupEx,
+                  "Best-effort cleanup failed for container '{ContainerId}' after build failure.",
+                  response.Data.Id);
+            }
+          }
           if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
             throw;
           if (!string.IsNullOrWhiteSpace(logTail))

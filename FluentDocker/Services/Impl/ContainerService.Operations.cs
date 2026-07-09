@@ -210,6 +210,13 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <summary>
+    /// Copies data to a container file.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="containerPath"/> must be a file path, not a directory; directory
+    /// destinations receive a runtime-generated temporary filename.
+    /// </remarks>
     public async Task CopyToAsync(string containerPath, byte[] data, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();

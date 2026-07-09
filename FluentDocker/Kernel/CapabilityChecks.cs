@@ -158,13 +158,14 @@ namespace FluentDocker.Kernel
         CancellationToken cancellationToken)
     {
       ArgumentNullException.ThrowIfNull(kernel);
-      if (kernel.IsDriverPack(driverId))
+      var resolvedDriverId = ResolveDriverIdOrDefault(kernel, driverId);
+      if (kernel.IsDriverPack(resolvedDriverId))
       {
-        var pack = kernel.GetDriverPack(driverId);
+        var pack = kernel.GetDriverPack(resolvedDriverId);
         return await pack.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
       }
 
-      var driver = kernel.GetDriver(driverId);
+      var driver = kernel.GetDriver(resolvedDriverId);
       return await driver.GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -174,14 +175,26 @@ namespace FluentDocker.Kernel
         CancellationToken cancellationToken)
     {
       ArgumentNullException.ThrowIfNull(kernel);
-      if (kernel.IsDriverPack(driverId))
+      var resolvedDriverId = ResolveDriverIdOrDefault(kernel, driverId);
+      if (kernel.IsDriverPack(resolvedDriverId))
       {
-        var pack = kernel.GetDriverPack(driverId);
+        var pack = kernel.GetDriverPack(resolvedDriverId);
         return await pack.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
       }
 
-      var driver = kernel.GetDriver(driverId);
+      var driver = kernel.GetDriver(resolvedDriverId);
       return await driver.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static string ResolveDriverIdOrDefault(FluentDockerKernel kernel, string driverId)
+    {
+      if (!string.IsNullOrWhiteSpace(driverId))
+        return driverId;
+
+      var defaultDriverId = kernel.DefaultDriverId;
+      if (string.IsNullOrWhiteSpace(defaultDriverId))
+        throw new InvalidOperationException("No default driver configured. Register a default driver or pass an explicit driver ID.");
+      return defaultDriverId;
     }
   }
 

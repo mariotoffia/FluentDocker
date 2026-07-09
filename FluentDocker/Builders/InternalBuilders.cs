@@ -369,8 +369,10 @@ namespace FluentDocker.Builders
       }
       catch
       {
-        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, borrowedProject, cleanupTimeout)
+        var cleanedUp = await CleanupFailedComposeAsync(
+                driver, context, config, _removeVolumes, borrowedProject, cleanupTimeout, Logger)
             .ConfigureAwait(false);
+        CaptureFailedComposeService(ownedTempFiles, cleanedUp);
         RemoveComposeFiles(ownedTempFiles);
         DeleteTempFiles(ownedTempFiles);
         throw;
@@ -378,8 +380,10 @@ namespace FluentDocker.Builders
 
       if (!response.Success)
       {
-        await CleanupFailedComposeAsync(driver, context, config, _removeVolumes, borrowedProject, cleanupTimeout)
+        var cleanedUp = await CleanupFailedComposeAsync(
+                driver, context, config, _removeVolumes, borrowedProject, cleanupTimeout, Logger)
             .ConfigureAwait(false);
+        CaptureFailedComposeService(ownedTempFiles, cleanedUp);
         // Up failed: no ComposeService is created to own the overlay, so clean it up here.
         RemoveComposeFiles(ownedTempFiles);
         DeleteTempFiles(ownedTempFiles);

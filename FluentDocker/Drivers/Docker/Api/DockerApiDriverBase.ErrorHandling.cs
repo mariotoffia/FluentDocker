@@ -92,11 +92,11 @@ namespace FluentDocker.Drivers.Docker.Api
       return (599, $"Cannot connect to Docker daemon: {ex.Message}");
     }
 
-    // Classifies a streaming open/read exception into an error code. A real HTTP status
+    // Classifies a streaming open exception into an error code. A real HTTP status
     // (e.g. 404 from EnsureStreamSuccessAsync) maps directly; a pre-response transport
     // failure is described (599 connect / 408 timeout) so daemon-down streams surface as
     // Api.ConnectionFailed uniformly with the buffered paths.
-    /// <summary>Classifies a streaming exception into a retry-aware error code.</summary>
+    /// <summary>Classifies a stream-open exception into a retry-aware error code.</summary>
     protected string ClassifyStreamException(Exception ex)
     {
       if (ex is HttpRequestException { StatusCode: not null } http)
@@ -104,6 +104,16 @@ namespace FluentDocker.Drivers.Docker.Api
 
       var (statusCode, _) = DescribeTransportFailure(ex);
       return MapHttpErrorCode(statusCode);
+    }
+
+    /// <summary>Classifies a post-connect stream read failure.</summary>
+    protected static string ClassifyStreamReadException(Exception ex)
+    {
+      if (ex is HttpRequestException { StatusCode: not null } http)
+        return MapHttpErrorCode((int)http.StatusCode.Value);
+      if (ex is TimeoutException or TaskCanceledException)
+        return ErrorCodes.General.Timeout;
+      return ErrorCodes.Api.StreamInterrupted;
     }
 
     #endregion

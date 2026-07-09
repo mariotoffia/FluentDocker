@@ -109,7 +109,8 @@ namespace FluentDocker.Drivers
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>
     /// A <see cref="CommandResponse{T}"/> containing a <see cref="Network"/> with the
-    /// network's full details.
+    /// network's inspect details. Docker CLI inspect output reports IPv6 under
+    /// <c>EnableIPv6</c>; implementations map it to <see cref="Network.IPv6"/> when present.
     /// </returns>
     Task<CommandResponse<Network>> InspectAsync(
         DriverContext context,
@@ -251,6 +252,18 @@ namespace FluentDocker.Drivers
     /// </summary>
     [JsonConverter(typeof(LenientBoolConverter))]
     public bool IPv6 { get; set; }
+
+    /// <summary>
+    /// Docker inspect alias for <see cref="IPv6"/>. Docker network list uses
+    /// <c>IPv6</c>, while inspect uses <c>EnableIPv6</c>.
+    /// </summary>
+    [JsonPropertyName("EnableIPv6")]
+    [JsonConverter(typeof(LenientBoolConverter))]
+    public bool EnableIPv6
+    {
+      get => IPv6;
+      set => IPv6 = value;
+    }
 
     /// <summary>
     /// Indicates whether the network is restricted to internal-only traffic,

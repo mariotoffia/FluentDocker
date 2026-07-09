@@ -1,12 +1,37 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Services;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Builders
 {
+  [SuppressMessage("Reliability", "CA1001",
+      Justification = "ComposeBuilder does not own the lifetime of the captured ComposeService; it is handed off via PendingService to BuildResults, which disposes it.")]
   internal sealed partial class ComposeBuilder
   {
+    private Services.Impl.ComposeService _pendingService;
+    private bool _composeCleanupFailed;
+
+    private ILogger<ComposeBuilder> Logger => _kernel.LoggerFactory.CreateLogger<ComposeBuilder>();
+    internal IServiceAsync PendingService => _pendingService;
+    internal string ProjectName => _projectName;
+
+    internal void ResetForRetry()
+    {
+      _pendingService = null;
+      _composeCleanupFailed = false;
+      BorrowedProject = false;
+    }
+
+    internal string FailureKeepReason(IServiceAsync _) =>
+        BorrowedProject ? "borrowed" : _composeCleanupFailed ? "compose cleanup failed" : null;
+
+    internal bool ForceRemoveOnFailure(IServiceAsync _) => !BorrowedProject && !_composeCleanupFailed;
+
     private void Validate()
     {
       if (_projectName != null && !IsValidProjectName(_projectName))
@@ -102,32 +127,61 @@ namespace FluentDocker.Builders
       return backslashes % 2 == 1;
     }
 
-    private static async Task CleanupFailedComposeAsync(
+    private static async Task<bool> CleanupFailedComposeAsync(
         Drivers.IComposeDriver driver,
         DriverContext context,
         Drivers.ComposeUpConfig upConfig,
         bool removeVolumes,
         bool borrowedProject,
-        TimeSpan cleanupTimeout)
+        TimeSpan cleanupTimeout,
+        ILogger logger)
     {
       if (borrowedProject)
-        return;
+        return false;
 
       try
       {
         using var cleanupCts = new CancellationTokenSource(cleanupTimeout);
-        await driver.DownAsync(context, new Drivers.ComposeDownConfig
+        var response = await driver.DownAsync(context, new Drivers.ComposeDownConfig
         {
           ComposeFiles = upConfig.ComposeFiles,
           ProjectName = upConfig.ProjectName,
           Environment = upConfig.Environment,
           RemoveVolumes = removeVolumes
         }, cleanupCts.Token).WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+        if (!response.Success)
+        {
+          logger.LogWarning(
+              "Failed to clean up compose project '{ProjectName}' after compose failure: {Error}",
+              upConfig.ProjectName ?? "<derived>",
+              response.Error);
+          return false;
+        }
+        return true;
       }
-      catch
+      catch (Exception ex)
       {
-        // Best effort only; preserve the original compose-up failure.
+        logger.LogWarning(
+            ex,
+            "Failed to clean up compose project '{ProjectName}' after compose failure.",
+            upConfig.ProjectName ?? "<derived>");
+        return false;
       }
+    }
+
+    private void CaptureFailedComposeService(IReadOnlyList<string> ownedTempFiles, bool cleanedUp)
+    {
+      _composeCleanupFailed = !cleanedUp;
+      _pendingService = new Services.Impl.ComposeService(
+          _kernel,
+          _driverId,
+          [.. _composeFiles],
+          _projectName ?? (_composeFiles.Count == 0 ? "compose" : null),
+          _removeVolumes,
+          _removeImages,
+          ownedTempFiles,
+          downOnDispose: false,
+          initialState: cleanedUp ? ServiceRunningState.Removed : ServiceRunningState.Unknown);
     }
   }
 }

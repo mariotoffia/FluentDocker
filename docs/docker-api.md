@@ -18,6 +18,7 @@ differ from the [CLI driver](containers.md).
 - [Build support and build-context packaging](#build-support-and-build-context-packaging)
 - [TLS](#tls)
 - [Event, log, and exec streams are bounded](#event-log-and-exec-streams-are-bounded)
+- [Stream failure error codes](#stream-failure-error-codes)
 - [Empty response handling](#empty-response-handling)
 - [Unsupported / limited semantics vs the CLI driver](#unsupported--limited-semantics-vs-the-cli-driver)
 - [Related](#related)
@@ -185,6 +186,22 @@ than 16 KiB before storage, which can corrupt multibyte characters upstream of a
 Attach over the API
 supports stdout/stderr only: requesting stdin fails with a clear error, and the returned
 `OutputStream` is the raw Docker attach stream (multiplexed when TTY is disabled).
+
+## Stream failure error codes
+
+A read that fails while a stream (`/events`, NDJSON, or stats) is being consumed raises a
+`DriverException` whose `ErrorCode` tells the two failure modes apart:
+
+| Error code | Value | Meaning | Transient |
+|---|---|---|---|
+| `ErrorCodes.Api.ConnectionFailed` | `API_CONN` | The connection never opened (daemon down, DNS, socket error). | Yes |
+| `ErrorCodes.Api.StreamInterrupted` | `API_STREAM_INTERRUPTED` | An established stream failed mid-read — a transport fault such as a connection reset. | Yes |
+| `ErrorCodes.Api.StreamEnded` | `API_STREAM_ENDED` | A boundless stream (e.g. `/events` with no `until`) ended cleanly because the daemon closed the connection — an unexpected EOF, not a transport error. | No |
+
+`StreamInterrupted` is distinct from `StreamEnded` so on-call diagnosis is unambiguous: a
+reset mid-stream is retryable, a clean EOF is not. `StreamInterrupted` is reported by
+`ErrorCodes.IsTransientCode(...)` as transient, so retry loops keyed on `IsTransient` resume
+the stream after a reset.
 
 ## Empty response handling
 

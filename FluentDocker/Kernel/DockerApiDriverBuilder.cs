@@ -43,12 +43,16 @@ namespace FluentDocker.Kernel
 
     public IDockerApiDriverBuilder WithConnectionTimeout(TimeSpan timeout)
     {
+      if (timeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Connection timeout must be positive.");
       _connectionTimeout = timeout;
       return this;
     }
 
     public IDockerApiDriverBuilder WithRequestTimeout(TimeSpan timeout)
     {
+      if (timeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Request timeout must be positive.");
       _requestTimeout = timeout;
       return this;
     }

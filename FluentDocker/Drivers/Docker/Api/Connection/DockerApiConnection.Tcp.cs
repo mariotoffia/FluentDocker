@@ -69,6 +69,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var handler = new SocketsHttpHandler
       {
         ConnectTimeout = config.ConnectionTimeout,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         ConnectCallback = async (context, ct) =>
         {
           var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };

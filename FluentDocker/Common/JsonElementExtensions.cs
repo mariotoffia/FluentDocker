@@ -147,6 +147,9 @@ namespace FluentDocker.Common
       {
         JsonValueKind.True => true,
         JsonValueKind.False => false,
+        JsonValueKind.Number => p.TryGetInt64(out var n)
+            ? n != 0
+            : p.TryGetDouble(out var d) ? d != 0 : defaultValue,
         JsonValueKind.String => bool.TryParse(p.GetString(), out var b) ? b : defaultValue,
         _ => defaultValue
       };

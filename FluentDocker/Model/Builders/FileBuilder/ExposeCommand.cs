@@ -6,17 +6,23 @@ using FluentDocker.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
+  /// <summary>Represents a Dockerfile <c>EXPOSE</c> instruction.</summary>
   public sealed class ExposeCommand : ICommand
   {
+    /// <summary>Creates EXPOSE entries from numeric ports.</summary>
+    /// <param name="ports">Ports to expose.</param>
     public ExposeCommand(params int[] ports)
       => Ports = (ports ?? []).Select(ValidatePort).ToArray();
 
     /// <summary>Creates EXPOSE entries from numeric ports, ranges, or port/protocol strings.</summary>
+    /// <param name="ports">Ports to expose.</param>
     public ExposeCommand(params string[] ports)
       => Ports = (ports ?? []).Select(ValidatePort).ToArray();
 
+    /// <summary>Gets the exposed ports.</summary>
     public IEnumerable<string> Ports { get; }
 
+    /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
       return $"EXPOSE {string.Join(" ", Ports)}";

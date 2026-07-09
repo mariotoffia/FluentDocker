@@ -386,9 +386,16 @@ await using var ctrResults = await new Builder()
 
 var backup = ctrResults.Containers.First();
 
-// Wait for completion
-while (backup.State == ServiceRunningState.Running)
+// Wait for the tar container to exit. `State` is a cached field the library updates only
+// on its own lifecycle calls — a container that exits on its own never flips it, so poll a
+// fresh inspection instead and cap the wait so a stuck container can't loop forever.
+var deadline = DateTime.UtcNow.AddMinutes(2);
+while (DateTime.UtcNow < deadline)
 {
+    var info = await backup.GetConfigurationAsync(fresh: true);
+    if (info.State?.Running != true) // stop on exited or unknown state
+        break;
+
     await Task.Delay(100);
 }
 

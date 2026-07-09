@@ -30,6 +30,8 @@ namespace FluentDocker.Kernel
 
     public IDockerCliDriverBuilder WithRequestTimeout(TimeSpan timeout)
     {
+      if (timeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Request timeout must be positive.");
       _requestTimeout = timeout;
       return this;
     }

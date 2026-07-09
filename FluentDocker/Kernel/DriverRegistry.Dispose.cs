@@ -113,7 +113,10 @@ namespace FluentDocker.Kernel
     public const int DefaultDisposeBudgetMs = 60_000;
 
     private static async Task<bool> DisposeDriverWithinBudgetAsync(
-        IDriver driver, ILogger logger, string driverId, TimeSpan disposeBudget)
+        IDriver driver,
+        ILogger logger,
+        string driverId,
+        TimeSpan disposeBudget)
     {
       if (disposeBudget <= TimeSpan.Zero)
       {
@@ -138,7 +141,10 @@ namespace FluentDocker.Kernel
     }
 
     private static async Task<bool> DisposeDriverPackWithinBudgetAsync(
-        IDriverPack driverPack, ILogger logger, string driverId, TimeSpan disposeBudget)
+        IDriverPack driverPack,
+        ILogger logger,
+        string driverId,
+        TimeSpan disposeBudget)
     {
       if (disposeBudget <= TimeSpan.Zero)
       {

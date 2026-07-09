@@ -413,6 +413,6 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     /// Volume defined in this service.
     /// </summary>
-    public IList<IServiceVolumeDefinition> Volumes { get; } = [];
+    public IList<IServiceVolumeDefinition> Volumes { get; set; } = [];
   }
 }

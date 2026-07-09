@@ -212,8 +212,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // Mirror StreamStatsCoreAsync: await foreach configures ConfigureAwait(false) on both
       // MoveNextAsync and the enumerator's DisposeAsync. ReadNdjsonStreamAsync already wraps
-      // any transport read failure as DriverException (ConnectionFailed) and lets caller
-      // cancellation surface as OperationCanceledException, so no per-item catch is needed here.
+      // any mid-stream transport read failure as DriverException (StreamInterrupted) and lets
+      // caller cancellation surface as OperationCanceledException, so no per-item catch is
+      // needed here.
       await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken)
           .ConfigureAwait(false))
       {

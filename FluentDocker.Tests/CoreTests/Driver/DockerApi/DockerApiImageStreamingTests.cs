@@ -87,7 +87,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var conn = new MockDockerApiConnection();
       conn.SetupPost("/auth", 200, "{}");
-      conn.SetupStream("/images/", "{\"status\":\"Pushing\"}\n");
+      conn.SetupStream("/images/", "{\"status\":\"latest: digest: sha256:abc123\"}\n");
       var auth = new DockerApiAuthDriver(conn);
       var driver = CreateDriver(conn);
 

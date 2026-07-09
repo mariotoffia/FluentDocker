@@ -43,5 +43,17 @@ namespace FluentDocker.Model.Builders.FileBuilder
       }
       return value;
     }
+
+    internal static string ValidateToken(string value, string instruction, string field)
+    {
+      Validate(value, instruction, field);
+      foreach (var c in value)
+      {
+        if (char.IsWhiteSpace(c))
+          throw new FluentDockerException(
+              $"Dockerfile {instruction} {field} cannot contain whitespace.");
+      }
+      return value;
+    }
   }
 }

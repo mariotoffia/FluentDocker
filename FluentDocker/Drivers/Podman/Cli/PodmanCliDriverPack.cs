@@ -182,7 +182,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       if (_drivers.TryGetValue(typeof(T), out var driver))
         return (T)driver;
 
-      throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(typeof(T)));
     }
 
     #region IDriverInterfaceResolver
@@ -211,7 +211,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(interfaceType, out var driver))
         return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <inheritdoc />

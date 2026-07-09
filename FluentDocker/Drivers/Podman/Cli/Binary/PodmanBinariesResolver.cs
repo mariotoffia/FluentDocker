@@ -39,9 +39,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
 
       if (MainPodmanClient == null)
       {
-        const string reason = "Failed to find podman client binary - please add it to your path";
         var driverId = string.IsNullOrWhiteSpace(_configuration.BinaryName)
             ? "podman" : _configuration.BinaryName;
+        var reason = IsRemoteClientBinary(driverId)
+            ? $"'{driverId}' is a remote client, not a podman client binary; configure WithBinary(\"podman\") or another local podman client binary."
+            : "Failed to find podman client binary - please add it to your path";
         _logger.LogError("{Reason}", reason);
         throw new DriverNotAvailableException(driverId, reason);
       }
@@ -95,6 +97,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
       var binary = Resolve(podmanCommand);
 
       return binary.FqPath;
+    }
+
+    private static bool IsRemoteClientBinary(string binary)
+    {
+      var name = Path.GetFileName(binary);
+      return name.Equals("podman-remote", StringComparison.OrdinalIgnoreCase)
+          || name.Equals("podman-remote.exe", StringComparison.OrdinalIgnoreCase);
     }
 
     private IEnumerable<PodmanBinary> ResolveFromPaths(

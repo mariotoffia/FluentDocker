@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -28,7 +29,9 @@ namespace FluentDocker.Model.Models.Inference
     /// with a modeled <c>[JsonPropertyName]</c> field of <typeparamref name="T"/> is REJECTED —
     /// such a key would otherwise serialize as a DUPLICATE top-level property and let the
     /// pass-through value silently override the typed one (e.g. an extension <c>"stream"</c>
-    /// overriding <see cref="ChatCompletionRequest.Stream"/>).
+    /// overriding <see cref="ChatCompletionRequest.Stream"/>). Modeled fields such as
+    /// <c>ChatMessage.content</c> must use their typed property; any tolerant read handling
+    /// belongs on that property, not in <c>AdditionalProperties</c>.
     /// </summary>
     /// <typeparam name="T">The DTO type whose modeled JSON names are reserved.</typeparam>
     /// <param name="source">The source extension bag (may be null).</param>
@@ -67,6 +70,45 @@ namespace FluentDocker.Model.Models.Inference
       }
 
       return names;
+    }
+  }
+
+  public sealed class ChatMessageContentConverter : JsonConverter<string?>
+  {
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+      if (reader.TokenType == JsonTokenType.Null)
+        return null;
+      if (reader.TokenType == JsonTokenType.String)
+        return reader.GetString();
+      if (reader.TokenType != JsonTokenType.StartArray)
+        throw new JsonException("Chat message content must be a JSON string or an array of content parts.");
+
+      using var doc = JsonDocument.ParseValue(ref reader);
+      var text = new StringBuilder();
+      foreach (var part in doc.RootElement.EnumerateArray())
+      {
+        if (part.ValueKind != JsonValueKind.Object)
+          continue;
+        if (!part.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String ||
+            !string.Equals(type.GetString(), "text", StringComparison.Ordinal))
+          continue;
+        if (part.TryGetProperty("text", out var value) && value.ValueKind == JsonValueKind.String)
+          text.Append(value.GetString());
+      }
+
+      return text.ToString();
+    }
+
+    public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
+    {
+      if (value is null)
+      {
+        writer.WriteNullValue();
+        return;
+      }
+
+      writer.WriteStringValue(value);
     }
   }
 
@@ -122,16 +164,25 @@ namespace FluentDocker.Model.Models.Inference
     /// <summary>The role: <c>system</c> | <c>user</c> | <c>assistant</c> | <c>tool</c>.</summary>
     [JsonPropertyName("role")] public string? Role { get; set; }
 
-    /// <summary>The message content.</summary>
-    [JsonPropertyName("content")] public string? Content { get; set; }
+    /// <summary>The message text content.</summary>
+    /// <remarks>
+    /// Inbound OpenAI multimodal array content is accepted only to concatenate text parts
+    /// (<c>{"type":"text","text":"..."}</c>). Image and other non-text parts are not modeled
+    /// and are dropped; outbound content is always written as a plain JSON string.
+    /// </remarks>
+    [JsonPropertyName("content")]
+    [JsonConverter(typeof(ChatMessageContentConverter))]
+    public string? Content { get; set; }
 
     /// <summary>An optional participant name.</summary>
     [JsonPropertyName("name")] public string? Name { get; set; }
 
     /// <summary>
     /// Pass-through for any unmodeled message field — notably <c>tool_calls</c> on an assistant
-    /// message and <c>tool_call_id</c> on a tool message, plus multimodal content. Captured
-    /// verbatim so it round-trips instead of being dropped. (Preview)
+    /// message and <c>tool_call_id</c> on a tool message. Modeled fields such as
+    /// <c>content</c> are reserved: array content is accepted on read by <see cref="Content"/>
+    /// and text parts are concatenated, but image/non-text parts are not modeled and outbound
+    /// content is string-only. (Preview)
     /// </summary>
     [JsonExtensionData] public IDictionary<string, JsonElement>? AdditionalProperties { get; set; }
   }

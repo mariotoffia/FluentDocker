@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using FluentDocker.Drivers;
@@ -116,7 +117,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       if (healthCheck == null)
         return;
-      if (healthCheck.Test is { Length: > 0 })
+      if (healthCheck.Test is { Length: 1 } &&
+          string.Equals(healthCheck.Test[0], "NONE", StringComparison.OrdinalIgnoreCase))
+      {
+        args.Add("--no-healthcheck");
+        return;
+      }
+      else if (healthCheck.Test is { Length: > 0 })
       {
         // ponytail: doc-only Windows health-cmd caveat; add OS-aware translation when config exposes container OS.
         var test = healthCheck.Test;

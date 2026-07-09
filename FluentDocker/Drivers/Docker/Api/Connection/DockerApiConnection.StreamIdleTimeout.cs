@@ -47,27 +47,16 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         if (buffer.Length == 0)
           return 0;
 
-        using var readCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var readTask = inner.ReadAsync(buffer, readCts.Token).AsTask();
-        using var delayCts = new CancellationTokenSource();
-        var delayTask = Task.Delay(timeout, delayCts.Token);
-        var completed = await Task.WhenAny(readTask, delayTask).ConfigureAwait(false);
-        if (completed == readTask)
-        {
-          delayCts.Cancel();
-          return await readTask.ConfigureAwait(false);
-        }
-
-        Volatile.Write(ref _timedOut, 1);
-        readCts.Cancel();
         try
         {
-          await readTask.ConfigureAwait(false);
+          return await inner.ReadAsync(buffer, cancellationToken).AsTask()
+              .WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (TimeoutException)
         {
+          Volatile.Write(ref _timedOut, 1);
+          throw CreateTimeoutException();
         }
-        throw CreateTimeoutException();
       }
 
       public override Task<int> ReadAsync(

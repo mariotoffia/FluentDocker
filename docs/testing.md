@@ -136,6 +136,17 @@ public class RedisTests : NUnitContainerFixtureBase
 | MSTest | Per-test base, class-level CRTP base, and helpers | MSTest 3.x |
 | NUnit | One fixture base plus static helpers | NUnit 4.3.2+ |
 
+### Skip when Docker is unavailable
+
+Every `ITestResource` runs a runtime-health preflight before it provisions: if the runtime
+is down, initialization throws `FluentDockerUnavailableException` (`FluentDocker.Common`)
+instead of a raw mid-provision error. To skip rather than fail, probe first with
+`DockerAvailability.IsAvailableAsync(...)` (or `XunitContainerFixtureBase.IsDockerAvailableAsync`)
+and gate the test body — xUnit's `SkipWhenUnavailable` was removed because a fixture cannot
+skip from initialization. See [Skip when Docker is unavailable](testing/skip-when-unavailable.md)
+for the full recipe. MSTest and NUnit fixtures still mark the test inconclusive/ignored via
+their `SkipWhenUnavailable` option.
+
 ## Detailed Documentation
 
 | Topic | Description |

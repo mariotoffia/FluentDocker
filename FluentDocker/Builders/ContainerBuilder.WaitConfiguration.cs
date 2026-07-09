@@ -22,6 +22,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WaitForPort(string portAndProto, long timeoutMs = 30000)
     {
+      ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Port,
@@ -34,6 +35,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WaitForPort(string portAndProto, string address, long timeoutMs = 30000)
     {
+      ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Port,
@@ -47,6 +49,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WaitForProcess(string processName, long timeoutMs = 30000)
     {
+      ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Process,
@@ -59,6 +62,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WaitForHttp(string portAndProto, string path = "/", long timeoutMs = 30000)
     {
+      ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Http,
@@ -78,6 +82,7 @@ namespace FluentDocker.Builders
         HttpMethod method = null, string contentType = null, string body = null,
         Func<RequestResponse, int, long> continuation = null)
     {
+      ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Http,
@@ -94,6 +99,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WaitForLogMessage(string message, long timeoutMs = 30000)
     {
+      ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.LogMessage,
@@ -106,6 +112,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WaitForHealthy(long timeoutMs = 30000)
     {
+      ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Healthy,
@@ -119,6 +126,7 @@ namespace FluentDocker.Builders
         Func<IContainerService, int, int> condition,
         long timeoutMs = 60000)
     {
+      ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition
       {
         Type = WaitConditionType.Lambda,
@@ -127,6 +135,12 @@ namespace FluentDocker.Builders
         PollIntervalMs = _waitPollIntervalMs
       });
       return this;
+    }
+
+    private static void ValidateWaitTimeout(long timeoutMs)
+    {
+      if (timeoutMs < 1)
+        throw new ArgumentOutOfRangeException(nameof(timeoutMs), timeoutMs, "Value must be positive.");
     }
 
     #endregion

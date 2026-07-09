@@ -219,6 +219,11 @@ namespace FluentDocker.Testing.Core
       }
     }
 
+    /// <summary>Runs best-effort cleanup for one POSIX termination signal.</summary>
+    /// <remarks>
+    /// The first SIGINT/SIGTERM runs cleanup synchronously; a second signal during
+    /// the capped cleanup window is intentionally unhandled.
+    /// </remarks>
     private static void OnPosixSignal(PosixSignalContext context)
     {
       Core.RunCleanup();

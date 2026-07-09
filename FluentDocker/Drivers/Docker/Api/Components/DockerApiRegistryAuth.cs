@@ -8,6 +8,8 @@ using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
+  /// <summary>Builds Docker registry authentication headers.</summary>
+  /// <remarks>X-Registry-Auth credentials are held in memory for the connection lifetime and never logged, so they may still be visible in memory dumps.</remarks>
   internal static class DockerApiRegistryAuth
   {
     private const string DockerHubServer = "https://index.docker.io/v1/";
@@ -127,6 +129,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           .Replace('+', '-').Replace('/', '_');
     }
 
+    /// <summary>Per-connection registry credential cache.</summary>
+    /// <remarks>Credentials stay in memory until the connection is cleared or collected; they are never logged but may appear in memory dumps.</remarks>
     private sealed class AuthCache
     {
       private readonly Dictionary<string, RegistryLoginConfig> _configs = [];

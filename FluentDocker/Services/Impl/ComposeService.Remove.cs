@@ -13,6 +13,11 @@ namespace FluentDocker.Services.Impl
     /// <c>WithRemoveVolumes()</c>; <paramref name="force"/> is retained for API compatibility
     /// and has no effect for compose teardown.
     /// </summary>
+    /// <remarks>
+    /// For borrowed handles created by <c>ConnectToExisting</c> (<c>_downOnDispose=false</c>),
+    /// this does not run <c>compose down</c>; it only cleans temp files and marks Removed.
+    /// The compose project keeps running.
+    /// </remarks>
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();

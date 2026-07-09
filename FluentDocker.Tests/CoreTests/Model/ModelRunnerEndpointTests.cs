@@ -240,7 +240,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void TryFromEnvironment_SetButInvalid_ReturnsFalse()
+    public void TryFromEnvironment_SetButInvalid_Throws()
     {
       const string var = "DOCKER_MODEL_RUNNER_URL";
       var previous = Environment.GetEnvironmentVariable(var);
@@ -249,8 +249,9 @@ namespace FluentDocker.Tests.CoreTests.Model
         // Item 5: a SET-but-invalid value must fail fast (not silently fall back to localhost),
         // and the message must name the bad value and the env var.
         Environment.SetEnvironmentVariable(var, "not-a-valid-uri");
-        Assert.False(ModelRunnerEndpoint.TryFromEnvironment(out var ep));
-        Assert.Null(ep);
+        var ex = Assert.Throws<ArgumentException>(() => ModelRunnerEndpoint.TryFromEnvironment(out _));
+        Assert.Contains(var, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("not-a-valid-uri", ex.Message, StringComparison.Ordinal);
       }
       finally
       {
@@ -259,7 +260,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void TryFromEnvironment_NonHttpScheme_ReturnsFalse()
+    public void TryFromEnvironment_NonHttpScheme_Throws()
     {
       const string var = "DOCKER_MODEL_RUNNER_URL";
       var previous = Environment.GetEnvironmentVariable(var);
@@ -268,8 +269,9 @@ namespace FluentDocker.Tests.CoreTests.Model
         // A non-http(s) absolute URI (ftp/file/etc.) is well-formed but cannot reach the runner;
         // it must fail fast like any other invalid value rather than silently falling back.
         Environment.SetEnvironmentVariable(var, "ftp://10.0.0.5:12434");
-        Assert.False(ModelRunnerEndpoint.TryFromEnvironment(out var ep));
-        Assert.Null(ep);
+        var ex = Assert.Throws<ArgumentException>(() => ModelRunnerEndpoint.TryFromEnvironment(out _));
+        Assert.Contains(var, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("ftp://10.0.0.5:12434", ex.Message, StringComparison.Ordinal);
       }
       finally
       {
@@ -309,7 +311,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void Default_SetButInvalid_FallsBackToHostTcp()
+    public void Default_SetButInvalid_Throws()
     {
       const string var = "DOCKER_MODEL_RUNNER_URL";
       var previous = Environment.GetEnvironmentVariable(var);
@@ -318,7 +320,9 @@ namespace FluentDocker.Tests.CoreTests.Model
         // The fail-fast must propagate through Default() too — it must NOT swallow the
         // invalid value and return the localhost fallback.
         Environment.SetEnvironmentVariable(var, "not-a-valid-uri");
-        Assert.Equal(new Uri("http://localhost:12434"), ModelRunnerEndpoint.Default().BaseAddress);
+        var ex = Assert.Throws<ArgumentException>(() => ModelRunnerEndpoint.Default());
+        Assert.Contains(var, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("not-a-valid-uri", ex.Message, StringComparison.Ordinal);
       }
       finally
       {

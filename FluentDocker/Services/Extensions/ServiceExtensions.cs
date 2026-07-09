@@ -83,8 +83,9 @@ namespace FluentDocker.Services.Extensions
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the port is available, false if timeout.</returns>
     /// <remarks>
-    /// Extension waits return false on timeout. Builder waits wrap false results in
-    /// <see cref="FluentDockerException"/> and may include a container log tail.
+    /// Extension waits return false on timeout; builder waits wrap false results in
+    /// <see cref="FluentDockerException"/>. A TCP connect to a published port only
+    /// proves Docker's default proxy accepts it, not that the app inside is ready.
     /// </remarks>
     public static async Task<bool> WaitForPortAsync(
         this IContainerService service,
@@ -105,6 +106,10 @@ namespace FluentDocker.Services.Extensions
     /// <param name="pollIntervalMs">Milliseconds to wait between readiness probes.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the port is available, false if timeout.</returns>
+    /// <remarks>
+    /// A successful TCP connect to a published port can be a false positive: Docker's
+    /// userland-proxy on default installs may accept before the app inside is ready.
+    /// </remarks>
     public static async Task<bool> WaitForPortAsync(
         this IContainerService service,
         string portAndProto,

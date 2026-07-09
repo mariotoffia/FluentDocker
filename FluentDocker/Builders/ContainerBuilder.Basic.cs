@@ -94,7 +94,11 @@ namespace FluentDocker.Builders
             "Do not append :ro/:rw to the container path; pass isReadOnly instead.",
             nameof(containerPath));
       }
-      if (HasAmbiguousVolumeSource(hostPath))
+      if (HasAmbiguousVolumePath(containerPath))
+        throw new ArgumentException(
+            "Container path must not contain ':'; pass isReadOnly for read-only mounts.",
+            nameof(containerPath));
+      if (HasAmbiguousVolumePath(hostPath))
         throw new ArgumentException(
             "Host path contains ':' and cannot be represented by WithVolume(hostPath, containerPath). Use a named volume without ':' or a --mount-style API when available.",
             nameof(hostPath));
@@ -103,10 +107,10 @@ namespace FluentDocker.Builders
       return this;
     }
 
-    private static bool HasAmbiguousVolumeSource(string source)
+    private static bool HasAmbiguousVolumePath(string path)
     {
-      var startIndex = HasWindowsDrivePrefix(source) ? 2 : 0;
-      return source.IndexOf(':', startIndex) >= 0;
+      var startIndex = HasWindowsDrivePrefix(path) ? 2 : 0;
+      return path.IndexOf(':', startIndex) >= 0;
     }
 
     private static string GetVolumeSource(string volume)
