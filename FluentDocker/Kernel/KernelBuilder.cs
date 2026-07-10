@@ -91,6 +91,10 @@ namespace FluentDocker.Kernel
       var configIndex = 0;
       object currentInstance = null;
       var currentRegistered = false;
+      // Only instances the builder itself created (the WithDockerCli/Api/PodmanCli factory packs)
+      // are builder-owned. UseCustomDriver/UseCustomDriverPack instances are user-owned and must
+      // NOT be disposed on a pre-acceptance failure — the user still holds the reference (KRN-MAJ-4).
+      var currentOwnedByBuilder = false;
       var registeredInstances = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
       try
@@ -100,10 +104,12 @@ namespace FluentDocker.Kernel
           var config = _driverConfigurations[configIndex];
           currentInstance = null;
           currentRegistered = false;
+          currentOwnedByBuilder = false;
           var driverPack = config.DriverPackFactory?.Invoke() ?? config.DriverPack;
           if (driverPack != null)
           {
             currentInstance = driverPack;
+            currentOwnedByBuilder = config.DriverPackFactory != null;
             await kernel.RegisterDriverPackAsync(
                 config.DriverId, driverPack, config.Context, cancellationToken).ConfigureAwait(false);
             currentRegistered = true;
@@ -124,8 +130,12 @@ namespace FluentDocker.Kernel
       }
       catch (Exception ex)
       {
+        // Dispose only the builder-created factory pack that failed to register. User-supplied
+        // instances (current or later, unregistered) are left intact for the caller to reuse or
+        // dispose — a duplicate-id typo must not destroy the user's driver (KRN-MAJ-4).
         if (!currentRegistered &&
             currentInstance != null &&
+            currentOwnedByBuilder &&
             !registeredInstances.Contains(currentInstance) &&
             !DriverRegistry.RegistrationFailureDisposedInstance(ex))
         {
@@ -133,8 +143,6 @@ namespace FluentDocker.Kernel
           await DisposeOwnedInstanceAsync(
               currentInstance, logger, _driverConfigurations[configIndex].DriverId).ConfigureAwait(false);
         }
-        await DisposeUnregisteredConfigurationsAsync(
-            configIndex + 1, registeredInstances).ConfigureAwait(false);
         await kernel.DisposeAsync().ConfigureAwait(false);
         throw;
       }
@@ -154,20 +162,6 @@ namespace FluentDocker.Kernel
     {
       if (Volatile.Read(ref _built) != 0)
         throw new InvalidOperationException("KernelBuilder is single-use; create a new builder for another kernel.");
-    }
-
-    private async Task DisposeUnregisteredConfigurationsAsync(
-        int startIndex, HashSet<object> registeredInstances)
-    {
-      var logger = _loggerFactory.CreateLogger<KernelBuilder>();
-      for (var i = startIndex; i < _driverConfigurations.Count; i++)
-      {
-        var config = _driverConfigurations[i];
-        if (config.DriverPack != null && !registeredInstances.Contains(config.DriverPack))
-          await DisposeOwnedInstanceAsync(config.DriverPack, logger, config.DriverId).ConfigureAwait(false);
-        if (config.Driver != null && !registeredInstances.Contains(config.Driver))
-          await DisposeOwnedInstanceAsync(config.Driver, logger, config.DriverId).ConfigureAwait(false);
-      }
     }
 
     private static async Task DisposeOwnedInstanceAsync(object instance, ILogger logger, string driverId)

@@ -131,8 +131,13 @@ namespace FluentDocker.Testing.Core
     private static bool IsEnvironmentEnabled()
     {
       var value = Environment.GetEnvironmentVariable(SessionLabel.ReaperEnvironmentVariable);
-      return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+      // Default ON so a Ctrl-C mid-run reclaims THIS session's own containers instead of leaking
+      // them running (TST-MAJ-1). Only session-labelled resources are reaped, never foreign ones.
+      // Opt out explicitly with the env var set to 0/false; 1/true remains an affirmation.
+      if (string.IsNullOrEmpty(value))
+        return true;
+      return !string.Equals(value, "0", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task DefaultCleanupAsync(

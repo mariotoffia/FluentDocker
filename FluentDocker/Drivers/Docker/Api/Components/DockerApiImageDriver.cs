@@ -267,7 +267,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail($"Failed to write tar archive: {ex.Message}",
-            ErrorCodes.Image.SaveFailed, CreateErrorContext("GET /images/get", 0));
+            ErrorCodes.Image.SaveFailed, CreateErrorContext("GET /images/get", HttpStatusCodeOrZero(ex)));
       }
     }
 
@@ -319,7 +319,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       catch (DriverException ex)
       {
         return CommandResponse<IList<string>>.Fail(ex.Message,
-            ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", 0));
+            ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", HttpStatusCodeOrZero(ex)));
       }
 
       // A successful load emits at least one "Loaded image[: | ID:]" line. None means the
@@ -377,7 +377,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       catch (DriverException ex)
       {
         return CommandResponse<string>.Fail(ex.Message,
-            ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", 0));
+            ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", HttpStatusCodeOrZero(ex)));
       }
 
       // A successful import emits a status line carrying the new image id.

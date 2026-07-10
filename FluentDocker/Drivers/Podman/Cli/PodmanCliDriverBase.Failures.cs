@@ -46,7 +46,12 @@ namespace FluentDocker.Drivers.Podman.Cli
               && error.Contains("connect:", StringComparison.OrdinalIgnoreCase));
     }
 
+    // A daemon connection error is machine-not-running whenever Podman runs behind a machine/VM.
+    // That is unconditionally true on macOS/Windows (no native daemon there), independent of
+    // whether AutoStartMachine was configured — so a stopped machine mid-operation is classified
+    // as ErrorCodes.Machine.NotRunning (and the exception is marked transient) as the docs promise,
+    // not as a generic ConnectionFailed.
     private static bool IsMachineManagedContext(DriverContext context)
-        => context?.AutoStartMachine != null;
+        => context?.AutoStartMachine != null || PodmanCliDriverPack.MachineManagementApplies();
   }
 }

@@ -137,8 +137,9 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     private static async Task ReadTailAsync(TextReader reader, OutputTail tail, CancellationToken cancellationToken)
     {
+      var lineReader = new BoundedLineReader(reader);
       string line;
-      while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+      while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         tail.Append(line);
     }
 

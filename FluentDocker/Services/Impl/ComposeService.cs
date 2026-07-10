@@ -208,6 +208,26 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    // Best-effort reconciliation after a mutating op: a `compose ps` corrects optimistic aggregate
+    // state when some services crashed on start or did not stop (SVC-MAJ-6). If the probe itself
+    // fails we keep the optimistic state rather than throwing — the mutation already succeeded.
+    private async Task TryReconcileStateAsync(CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      try
+      {
+        await RefreshStateAsync(cancellationToken).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
+      catch (Exception)
+      {
+        // Reconciliation is advisory; the optimistic state stands if `ps` is unavailable.
+      }
+    }
+
     public async Task RefreshStateAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -301,6 +321,7 @@ namespace FluentDocker.Services.Impl
 
         UpdateState(ServiceRunningState.Running);
         await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+        await TryReconcileStateAsync(cancellationToken).ConfigureAwait(false);
       }
       catch
       {
@@ -380,6 +401,7 @@ namespace FluentDocker.Services.Impl
 
         UpdateState(ServiceRunningState.Stopped);
         await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        await TryReconcileStateAsync(cancellationToken).ConfigureAwait(false);
       }
       catch
       {

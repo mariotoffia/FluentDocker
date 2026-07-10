@@ -9,7 +9,9 @@ FluentDocker drives Podman through the same fluent API as Docker. This page docu
 runtime-specific behavior you should understand before relying on Podman in CI or
 production. For a runnable sample see the [Podman quick start](index.md#podman-container-runtime).
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## On this page
 

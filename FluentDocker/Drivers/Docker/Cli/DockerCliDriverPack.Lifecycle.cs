@@ -28,15 +28,19 @@ namespace FluentDocker.Drivers.Docker.Cli
           _modelInferenceDriver = null;
         }
 
-        _drivers.Clear();
+        // Do not Clear() _drivers: resolution reads it lock-free (IDriverPack contract),
+        // so mutating it here is a torn-read data race with an in-flight resolver. The
+        // _disposed guard fences new callers; the dictionary stays immutable after init.
         _initialized = false;
         _context = null;
         _binaryResolver = null;
       }
       finally
       {
+        // Do not dispose _initializeLock: a concurrent InitializeAsync may be queued in
+        // WaitAsync; disposing it would hang/mask instead of throwing ObjectDisposedException.
+        // SemaphoreSlim owns no unmanaged resource here (AvailableWaitHandle unused).
         _initializeLock.Release();
-        _initializeLock.Dispose();
       }
 
       if (connection != null)

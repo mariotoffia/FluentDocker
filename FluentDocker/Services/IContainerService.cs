@@ -102,8 +102,22 @@ namespace FluentDocker.Services
     /// <summary>
     /// Exports the container filesystem as a tar archive buffered in memory.
     /// </summary>
-    /// <remarks>The current driver port writes to a file path, so this byte-array API buffers the result.</remarks>
+    /// <remarks>
+    /// The whole archive is buffered into a single <see cref="byte"/> array, so this fails with an
+    /// <see cref="System.IO.IOException"/> / array-size limit for exports at or above ~2 GB. For large
+    /// containers use <see cref="ExportToFileAsync(string, CancellationToken)"/>, which streams to disk.
+    /// </remarks>
     Task<byte[]> ExportAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Exports the container filesystem as a tar archive written directly to
+    /// <paramref name="path"/> (atomic, via a temporary <c>.partial</c> file). Streams to disk with
+    /// no in-memory buffering, so it is not subject to the ~2 GB ceiling of
+    /// <see cref="ExportAsync(CancellationToken)"/>.
+    /// </summary>
+    /// <param name="path">Destination file path for the tar archive; parent directories are created.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task ExportToFileAsync(string path, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Copies a single file from the container as bytes.

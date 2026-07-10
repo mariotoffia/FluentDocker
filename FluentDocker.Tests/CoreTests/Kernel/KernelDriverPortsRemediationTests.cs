@@ -20,8 +20,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
   public sealed class KernelDriverPortsRemediationTests
   {
     [Fact]
-    public async Task BuildAsync_WhenCanceledBeforeRegistryOwnership_DisposesAttemptedPack()
+    public async Task BuildAsync_WhenCanceledBeforeRegistryOwnership_LeavesUserPackIntact()
     {
+      // KRN-MAJ-4: a user-supplied pack never taken into ownership (build canceled pre-registration)
+      // is left intact for the caller to reuse or dispose — consistent with the registry's own
+      // pre-ownership contract (see RegisterDriverPackAsync_WhenDriverIdDuplicate...).
       using var cts = new CancellationTokenSource();
       await cts.CancelAsync();
       var pack = new TrackingPack();
@@ -31,7 +34,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
           builder.BuildAsync(cts.Token));
 
-      Assert.Equal(1, pack.DisposeCount);
+      Assert.Equal(0, pack.DisposeCount);
     }
 
     [Fact]

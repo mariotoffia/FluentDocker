@@ -291,6 +291,11 @@ namespace FluentDocker.Common
 
     private static void ApplyTolerantDateTimeOffsetConverters(JsonTypeInfo typeInfo)
     {
+      // Scope to FluentDocker's own model DTOs: do not silently rewrite DateTimeOffset parsing for
+      // arbitrary user types deserialized through the shared default options (MC-MAJ-1).
+      if (typeInfo.Type.Namespace?.StartsWith("FluentDocker.Model", StringComparison.Ordinal) != true)
+        return;
+
       foreach (var property in typeInfo.Properties)
       {
         if (property.PropertyType == typeof(DateTimeOffset))

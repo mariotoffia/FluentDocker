@@ -61,6 +61,7 @@ namespace FluentDocker.Builders
     private bool _deleteVolumeOnDispose;
     private bool _deleteNamedVolumeOnDispose;
     private bool _forcePullImage;
+    private Drivers.RegistryLoginConfig _registryAuth;
     private ContainerExistsBehavior _existsBehavior = ContainerExistsBehavior.Default;
     private bool _destroyForce;
     private bool _destroyRemoveVolumes;
@@ -208,6 +209,19 @@ namespace FluentDocker.Builders
     }
 
     public IContainerBuilder ForcePullImage() { _forcePullImage = true; return this; }
+
+    public IContainerBuilder WithRegistryAuth(string username, string password, string server = null)
+    {
+      ArgumentException.ThrowIfNullOrEmpty(username);
+      ArgumentNullException.ThrowIfNull(password);
+      _registryAuth = new Drivers.RegistryLoginConfig
+      {
+        Server = server,
+        Username = username,
+        Password = password
+      };
+      return this;
+    }
 
     #endregion
 

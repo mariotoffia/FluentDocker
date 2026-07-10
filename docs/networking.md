@@ -8,7 +8,9 @@ nav_order: 6
 
 FluentDocker provides full support for Docker networks, including custom networks, static IP assignment, and multi-network configurations.
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
 

@@ -87,7 +87,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<Unit>.Fail(
             $"Cannot connect to Docker daemon: {ex.Message}",
             ErrorCodes.Image.PullFailed,
-            CreateErrorContext("POST /images/create (pull)", 0));
+            CreateErrorContext("POST /images/create (pull)", HttpStatusCodeOrZero(ex)));
       }
       catch (HttpRequestException ex)
       {
@@ -139,7 +139,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         // The NDJSON reader throws DriverException on stream read failure.
         return CommandResponse<Unit>.Fail(ex.Message,
             ErrorCodes.Image.PullFailed,
-            CreateErrorContext("POST /images/create (pull)", 0));
+            CreateErrorContext("POST /images/create (pull)", HttpStatusCodeOrZero(ex)));
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
       {
@@ -150,7 +150,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<Unit>.Fail(
             $"Cannot connect to Docker daemon: {ex.Message}",
             ErrorCodes.Image.PullFailed,
-            CreateErrorContext("POST /images/create (pull)", 0));
+            CreateErrorContext("POST /images/create (pull)", HttpStatusCodeOrZero(ex)));
       }
 
       if (!string.IsNullOrWhiteSpace(lastError))
@@ -213,7 +213,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<Unit>.Fail(
             $"Cannot connect to Docker daemon: {ex.Message}",
             ErrorCodes.Image.PushFailed,
-            CreateErrorContext("POST /images/{name}/push", 0));
+            CreateErrorContext("POST /images/{name}/push", HttpStatusCodeOrZero(ex)));
       }
       catch (HttpRequestException ex)
       {
@@ -265,7 +265,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         // The NDJSON reader throws DriverException on stream read failure.
         return CommandResponse<Unit>.Fail(ex.Message,
             ErrorCodes.Image.PushFailed,
-            CreateErrorContext("POST /images/{name}/push", 0));
+            CreateErrorContext("POST /images/{name}/push", HttpStatusCodeOrZero(ex)));
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
       {
@@ -276,7 +276,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<Unit>.Fail(
             $"Cannot connect to Docker daemon: {ex.Message}",
             ErrorCodes.Image.PushFailed,
-            CreateErrorContext("POST /images/{name}/push", 0));
+            CreateErrorContext("POST /images/{name}/push", HttpStatusCodeOrZero(ex)));
       }
 
       if (!string.IsNullOrWhiteSpace(lastError))
@@ -359,7 +359,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       Stream tarStream;
       try
       {
-        tarStream = await CreateBuildContextTarAsync(config.BuildContext, config, cancellationToken)
+        tarStream = await CreateBuildContextTarAsync(config.BuildContext, config, Logger, cancellationToken)
             .ConfigureAwait(false);
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
@@ -367,7 +367,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<ImageBuildResult>.Fail(
             $"Failed to create build context tar: {ex.Message}",
             ErrorCodes.Image.BuildFailed,
-            CreateErrorContext("POST /build", 0));
+            CreateErrorContext("POST /build", HttpStatusCodeOrZero(ex)));
       }
 
       try
@@ -432,13 +432,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         // transient code (connection/timeout) so callers can retry, else it is a build error.
         var code = ErrorCodes.IsTransientCode(ex.ErrorCode) ? ex.ErrorCode : ErrorCodes.Image.BuildFailed;
         return CommandResponse<ImageBuildResult>.Fail(ex.Message, code,
-            CreateErrorContext("POST /build", 0));
+            CreateErrorContext("POST /build", HttpStatusCodeOrZero(ex)));
       }
       catch (Exception ex) when (ex is not OperationCanceledException)
       {
         return CommandResponse<ImageBuildResult>.Fail(ex.Message,
             ErrorCodes.Image.BuildFailed,
-            CreateErrorContext("POST /build", 0));
+            CreateErrorContext("POST /build", HttpStatusCodeOrZero(ex)));
       }
       finally
       {

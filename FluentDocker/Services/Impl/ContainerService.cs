@@ -204,9 +204,8 @@ namespace FluentDocker.Services.Impl
       ThrowIfDisposed();
       if (_state == ServiceRunningState.Removed)
         throw new InvalidOperationException("Cannot pause a removed container.");
-      // State is this client's view; call InspectAsync first when daemon-authoritative state matters.
-      if (_state == ServiceRunningState.Paused)
-        return;
+      // No stale-state short-circuit: a cached "Paused" may be wrong (external unpause), so always
+      // issue the pause and treat an already-paused daemon response as idempotent success (SVC-MAJ-4).
 
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
@@ -215,7 +214,7 @@ namespace FluentDocker.Services.Impl
       {
         var response = await driver.PauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
-        if (!response.Success)
+        if (!response.Success && !IsAlreadyPaused(response))
         {
           throw new DriverException(
               $"Failed to pause container '{_name}': {response.Error}",
@@ -284,8 +283,11 @@ namespace FluentDocker.Services.Impl
       cancellationToken.ThrowIfCancellationRequested();
       if (throwIfDisposed)
         ThrowIfDisposed();
-      // State is this client's view; call InspectAsync first when daemon-authoritative state matters.
-      if (_state is ServiceRunningState.Stopped or ServiceRunningState.Removed)
+      // Only short-circuit on the terminal Removed state. A cached "Stopped" may be stale (the
+      // container could have been restarted externally / by a restart policy), so we must still
+      // issue the stop; the driver maps an already-stopped container to success idempotently
+      // (IsAlreadyNotRunning) rather than dropping the intent (SVC-MAJ-4).
+      if (_state is ServiceRunningState.Removed)
         return;
       var removeVersion = Volatile.Read(ref _disposeRemoveVersion);
 
@@ -345,7 +347,22 @@ namespace FluentDocker.Services.Impl
               response.ErrorContext);
         }
 
-        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        // `docker kill` returns on signal DELIVERY, not termination. SIGKILL cannot be caught, so it
+        // is guaranteed terminal → Stopped. Any other signal (a handler-ignored SIGTERM, SIGHUP,
+        // SIGUSR1) may leave the container running, so inspect for the authoritative state instead of
+        // blindly claiming Stopped (SVC-MAJ-1).
+        if (IsGuaranteedTerminalSignal(signal))
+        {
+          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        }
+        else
+        {
+          var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+          var actual = inspect?.Success == true
+              ? ParseInspectState(inspect.Data?.State)
+              : ServiceRunningState.Unknown;
+          await UpdateStateAndExecuteHooksAsync(actual).ConfigureAwait(false);
+        }
       }
       catch
       {

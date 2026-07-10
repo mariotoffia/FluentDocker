@@ -65,6 +65,15 @@ namespace FluentDocker.Drivers
     /// </summary>
     public string Email { get; set; }
 
+    /// <summary>
+    /// Identity token returned by the registry's token/2FA flow. When set it is preferred over
+    /// username/password in subsequent <c>X-Registry-Auth</c> headers (Docker Hub PAT/2FA and some
+    /// cloud registries require this). Populated by the driver from the <c>POST /auth</c> response;
+    /// callers do not normally set it.
+    /// </summary>
+    [JsonIgnore]
+    public string IdentityToken { get; set; }
+
     /// <summary>Returns a redacted representation of the registry login configuration.</summary>
     public override string ToString()
     {

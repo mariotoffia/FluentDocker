@@ -15,7 +15,9 @@ file, appends it to the compose-files list for you, and **deletes the temp file
 automatically** when the compose service is torn down / disposed — no path juggling,
 no manual cleanup:
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ```csharp
 using FluentDocker.Builders;
@@ -66,9 +68,10 @@ var overlayPath = overlay.WriteOverlay(
 
 try
 {
-    new Builder().WithinDriver("docker", kernel)
+    await using var results = await new Builder().WithinDriver("docker", kernel)
       .UseCompose(c => c.WithComposeFiles("docker-compose.yml", overlayPath))
-      .Build();
+      .BuildAsync();
+    // ... use the compose project; `results` tears it down on dispose ...
 }
 finally
 {

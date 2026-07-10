@@ -11,7 +11,9 @@ public type in `FluentDocker`. It is not committed to the repository: the docs
 CI build runs `xmldocmd` against the compiled assembly and writes the pages under
 `api-reference/` on each deploy.
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 - [Browse the generated API reference](https://mariotoffia.github.io/FluentDocker/api-reference/FluentDocker.html)
 

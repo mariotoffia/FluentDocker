@@ -185,6 +185,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var mockPack = new MockDriverPack();
       mockPack.SetupContainerKill();
+      // SIGTERM is catchable, so KillAsync now inspects for the authoritative state (SVC-MAJ-1);
+      // the container actually exited, so the reconciled state is Stopped.
+      mockPack.SetupContainerInspect("test-container-123", running: false);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
 

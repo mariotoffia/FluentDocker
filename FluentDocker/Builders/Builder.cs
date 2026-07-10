@@ -343,6 +343,10 @@ namespace FluentDocker.Builders
       // skip the per-operation ResetForRetry). Both checks are read-only.
       if (_operations.Count == 0)
         throw new InvalidOperationException("no resources configured");
+      // Re-snapshot container refs from the live builders so validation sees exactly what
+      // ExecuteAsync will use. Guards the foot-gun where a stashed IContainerBuilder is mutated
+      // after its configure lambda returns, which would otherwise bypass declare-before-use.
+      RefreshContainerSnapshots();
       ValidateContiguousScopes();
       ValidateOperationReferences();
 

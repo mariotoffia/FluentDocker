@@ -24,6 +24,21 @@ lifetime control.
 | `NUnitContainerFixtureBase` | **Per test class** (`[OneTimeSetUp]`/`[OneTimeTearDown]`) | The class intentionally shares one fixture. |
 | `NUnitResourceHelpers.CreateContainerAsync` | Caller-controlled | You need method-level or custom lifetime control. |
 
+### ⚠️ Cross-package lifetime differs — do not assume by name
+
+A base named `<Framework>ContainerFixtureBase` does **not** mean the same lifetime across packages.
+Migrating between frameworks can silently flip container isolation — pick by the lifetime column,
+not the class name.
+
+| Package | `…ContainerFixtureBase` | Per-test-method (isolated) | Per-test-class (shared) |
+| --- | --- | --- | --- |
+| **xUnit** | per test **class** | `XunitContainerTestBase` | `XunitContainerFixtureBase` (`IClassFixture<T>`) |
+| **NUnit** | per test **class** | subclass with `[SetUp]`/`[TearDown]` | `NUnitContainerFixtureBase` (`[OneTimeSetUp]`) |
+| **MSTest** | per test **method** ⚠️ | `MsTestContainerFixtureBase` | `MsTestClassContainerFixtureBase<T>` |
+
+MSTest's `MsTestContainerFixtureBase` is per **method** — the opposite of the like-named xUnit/NUnit
+bases (per class).
+
 ## Best-effort crash cleanup
 
 Normal cleanup runs during fixture disposal and the next initialization orphan sweep. Set

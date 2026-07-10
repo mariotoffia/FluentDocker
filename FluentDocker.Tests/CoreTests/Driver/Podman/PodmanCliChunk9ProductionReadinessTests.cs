@@ -82,7 +82,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
-      Assert.Equal(ErrorCodes.Api.ConnectionFailed, result.ErrorCode);
+      // Machine-backed Podman (macOS/Windows) maps a daemon outage to Machine.NotRunning
+      // (POD-MAJ-3); Linux keeps Api.ConnectionFailed. Both are transient.
+      Assert.Equal(
+          OperatingSystem.IsMacOS() || OperatingSystem.IsWindows()
+              ? ErrorCodes.Machine.NotRunning
+              : ErrorCodes.Api.ConnectionFailed,
+          result.ErrorCode);
       Assert.True(new DriverException(result.Error, result.ErrorCode).IsTransient);
     }
 

@@ -111,6 +111,19 @@ format:
 .PHONY: check
 check: lint test test-runners coverage-check
 
+# Release-docs gate (DOC-CRIT-2 / DOC-MAJ-4): fail if any temporary/typo branch link survives in
+# the docs or READMEs so a published doc set never points at a branch that 404s after merge. Wire
+# this into the release/publish job. At GA, also assert the preview banner is gone (see below).
+.PHONY: check-release-docs
+check-release-docs:
+	@echo "Checking docs for temporary branch links..."
+	@if grep -rn "featrure/model-support" README.md FluentDocker/README.md docs/ 2>/dev/null; then \
+		echo "ERROR: temporary/typo branch link found in docs; sweep to a permalink before release."; exit 1; \
+	fi
+	@echo "OK: no temporary branch links."
+	@echo "GA reminder: before a stable (non-preview) release, remove the preview banner from docs/*.md"
+	@echo "             and drop the net8->net10 retarget warnings once they are no longer relevant."
+
 .PHONY: coverage
 coverage:
 	@mkdir -p .out/coverage

@@ -10,7 +10,9 @@ This guide helps you install FluentDocker and run your first container.
 For the complete beginner-to-advanced map and reading plans by role, see the
 [documentation index](index.md#documentation-by-level).
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Read This Guide in Order
 
@@ -47,7 +49,7 @@ dotnet add package FluentDocker.Testing.NUnit --prerelease   # NUnit adapter
 
 ## Prerequisites
 
-- **Docker** — Docker Engine API **1.24+** (Docker Engine 1.12+) or current Docker Desktop; Compose samples require Compose V2
+- **Docker / Podman** — a current Docker Engine or Docker Desktop (the API driver negotiates the API version dynamically, with no fixed floor), or Podman. Compose samples require Compose V2. CI exercises current engine releases only; older engines are untested.
 - **.NET runtime** — FluentDocker targets **net10.0**, so consume it from a net10.0 project
 - **Building this repository** requires the **.NET 10 SDK** (`global.json` pins `10.0.100`) — distinct from the runtime targets above
 

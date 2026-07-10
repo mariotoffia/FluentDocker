@@ -9,7 +9,9 @@ description: "Custom driver interfaces, driver-aware builder extensions, and mul
 
 FluentDocker's extensibility model lets drivers expose custom interfaces and builder extensions without kernel changes. This enables driver-specific features (Podman pods, Docker Swarm, etc.) to integrate cleanly with the fluent API.
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
 

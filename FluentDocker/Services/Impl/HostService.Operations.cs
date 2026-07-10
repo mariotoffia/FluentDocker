@@ -62,6 +62,9 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      // A null tag means "the default tag": normalize to "latest" so the explicit-tag parse and the
+      // post-pull inspect reference are well-formed instead of "repo:" (SVC-MAJ-3).
+      tag ??= "latest";
       if (tag != null && tag != "latest" && HasExplicitImageTag(image))
       {
         throw new ArgumentException(

@@ -77,6 +77,11 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
+      // Guard the terminal Removed state (like the sibling ContainerService/ComposeService starts):
+      // without it Removed -> Starting fires hooks against a gone pod and the driver's "no such pod"
+      // catch overwrites the terminal state with Unknown (SVC-MAJ-2).
+      if (State is ServiceRunningState.Removed)
+        throw new InvalidOperationException("Cannot start a removed pod.");
       var driver = _kernel.SysCtl<IPodmanPodDriver>(_driverId);
       var context = new DriverContext(_driverId);
 

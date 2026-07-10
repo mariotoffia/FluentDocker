@@ -18,11 +18,15 @@ namespace FluentDocker.Builders
       var removed = new List<BuildFailureResource>();
       var kept = new List<BuildFailureResource>();
 
+      // Shared deadline across the whole sweep: cleanupTimeout is a total bound (see
+      // IBuilder docs), not a per-resource budget. A wedged daemon can no longer stretch
+      // "bounded" cleanup to timeout × resourceCount.
+      using var cleanupCts = new CancellationTokenSource(cleanupTimeout);
+
       // Reverse creation order: dependents before dependencies on failure too.
       for (var i = completedOperations.Count - 1; i >= 0; i--)
       {
         var (operation, service) = completedOperations[i];
-        using var cleanupCts = new CancellationTokenSource(cleanupTimeout);
         try
         {
           if (operation.ForceRemoveOnFailure?.Invoke(service) == true)
@@ -45,6 +49,10 @@ namespace FluentDocker.Builders
             kept.Add(ToResource(service, reason));
           else if (service.State == ServiceRunningState.Removed)
             removed.Add(ToResource(service, "disposed"));
+          else
+            // Disposed but not removed (e.g. Stopped): still on the daemon — the
+            // resource most likely to linger must appear in the manifest, not vanish.
+            kept.Add(ToResource(service, "disposed but not removed"));
         }
         catch (Exception ex)
         {

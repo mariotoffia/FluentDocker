@@ -201,6 +201,18 @@ namespace FluentDocker.Testing.MsTest
         Trace.TraceWarning(message);
         writer.WriteLine(message);
       }
+
+      // Under strict mode, escalate a leaked class fixture to a non-zero process exit so CI fails
+      // instead of only printing a warning that scrolls past unnoticed (TST-MAJ-4).
+      if (fixtures.Length > 0 && IsStrict())
+        Environment.ExitCode = 1;
+    }
+
+    private static bool IsStrict()
+    {
+      var value = Environment.GetEnvironmentVariable("FLUENTDOCKER_STRICT");
+      return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
   }
 }

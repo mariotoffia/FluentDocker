@@ -40,8 +40,10 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task ContainerStopAsync_WhenAlreadyStopped_DoesNotInvokeDriverAgain()
+    public async Task ContainerStopAsync_WhenAlreadyStopped_StillInvokesDriver()
     {
+      // SVC-MAJ-4: a cached "Stopped" may be stale (external restart), so stop always re-issues to
+      // the daemon (which is idempotent) rather than short-circuiting and dropping the intent.
       MockPack.SetupContainerStop();
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
       await service.StopAsync(TestContext.Current.CancellationToken);
@@ -50,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       MockPack.ContainerDriver.Verify(d => d.StopAsync(
           It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(),
-          It.IsAny<CancellationToken>()), Times.Once);
+          It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -353,6 +355,23 @@ namespace FluentDocker.Tests.CoreTests.Service
       await service.KillAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.Equal(ServiceRunningState.Stopped, service.State);
+    }
+
+    [Fact]
+    public async Task ContainerKillAsync_WhenNonLethalSignalLeavesContainerRunning_DoesNotLieAboutStopped()
+    {
+      // SVC-MAJ-1: a handler-ignored SIGTERM leaves the container running; `docker kill` returns on
+      // delivery, so the service must inspect and report Running, not claim Stopped.
+      MockPack.ContainerDriver
+          .Setup(d => d.KillAsync(
+              It.IsAny<DriverContext>(), "container-123", "SIGTERM", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+      MockPack.SetupContainerInspect("container-123", running: true);
+      var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
+
+      await service.KillAsync("SIGTERM", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.Equal(ServiceRunningState.Running, service.State);
     }
 
     [Fact]

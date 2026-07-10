@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -131,11 +132,20 @@ namespace FluentDocker.Drivers.Models
               (int)response.StatusCode);
         }
 
+        // Bound the success body: time is bounded by TimeoutHttpContent, but memory was not, so a
+        // misbehaving/hostile OpenAI-compatible endpoint could stream gigabytes into one call before
+        // the deadline. Overflow is a typed failure, never a silent truncation (DMR-MAJ-4).
+        var (body, overflow) = await ReadBoundedBodyAsync(response, cancellationToken).ConfigureAwait(false);
+        if (overflow)
+          return CommandResponse<TResponse>.Fail(
+              $"{operation}: inference response exceeded the {MaxNonStreamingResponseBytes / (1024 * 1024)} MiB limit",
+              ErrorCodes.ModelInference.StreamParseError,
+              CreateApiErrorContext(context, operation, response));
+
         // A literal JSON `null` body (or empty stream) deserializes to null without throwing.
         // Treat it as a protocol/parse failure rather than a successful null payload — a null
         // response is never a valid OpenAI completion/embeddings result. Return a failed
         // CommandResponse rather than throwing so callers always get a typed result.
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(body))
           return CommandResponse<TResponse>.Fail(
               $"{operation}: inference response body was null (expected JSON object)",
@@ -236,6 +246,27 @@ namespace FluentDocker.Drivers.Models
       EmbeddingsRequest r => r.Model,
       _ => null
     };
+
+    // Generous ceiling (64 MiB) on a non-streaming success body; embeddings can be large, but a
+    // response beyond this is treated as hostile/misbehaving rather than materialized (DMR-MAJ-4).
+    private const int MaxNonStreamingResponseBytes = 64 * 1024 * 1024;
+
+    private static async Task<(string Body, bool Overflow)> ReadBoundedBodyAsync(
+        HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+      await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+      var buffer = new byte[81920];
+      using var accumulator = new MemoryStream();
+      int read;
+      while ((read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+      {
+        if (accumulator.Length + read > MaxNonStreamingResponseBytes)
+          return (null, true);
+        accumulator.Write(buffer, 0, read);
+      }
+
+      return (Encoding.UTF8.GetString(accumulator.GetBuffer(), 0, (int)accumulator.Length), false);
+    }
 
     private static async Task<string> SafeReadError(HttpResponseMessage response, CancellationToken cancellationToken)
     {

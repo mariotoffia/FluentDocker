@@ -15,6 +15,12 @@ namespace FluentDocker.Model.Containers
           Enum.IsDefined(value))
         return value;
 
+      // Drift to a structured token (Status: {...} / [...]) must be consumed so the reader stays
+      // aligned for the rest of the container-inspect parse, instead of desyncing and failing the
+      // whole document (MC-MAJ-2, mirrors TolerantDateTimeOffsetConverter).
+      if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
+        reader.Skip();
+
       return HealthState.Unknown;
     }
 

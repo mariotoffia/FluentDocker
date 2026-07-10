@@ -112,7 +112,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(context, "version", cancellationToken).ConfigureAwait(false);
+        // A liveness probe against a wedged daemon must fail in seconds, not hang the readiness
+        // loop for the 5-min buffered default (DCLI-MAJ-3). Cap at 10s (honor a smaller caller
+        // RequestTimeout). Mirrors the model runner's BackendProbeTimeout.
+        var probeCeiling = TimeSpan.FromSeconds(10);
+        var probeTimeout = context?.RequestTimeout is { } rt && rt < probeCeiling ? rt : probeCeiling;
+        var result = await ExecuteCommandAsync(context, "version", probeTimeout, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
             : CommandResponse<Unit>.Fail(
@@ -227,7 +232,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (config?.Volumes == true)
           args += " --volumes";
 
-        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        // `system prune -a --volumes` on a loaded host routinely exceeds the 5-min buffered
+        // default and would be falsely killed mid-reclaim (DCLI-MAJ-2). Give it a generous 30-min
+        // ceiling (still bounded, unlike the unbounded path) unless the caller set RequestTimeout.
+        var pruneTimeout = context?.RequestTimeout ?? TimeSpan.FromMinutes(30);
+        var result = await ExecuteCommandAsync(context, args, pruneTimeout, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

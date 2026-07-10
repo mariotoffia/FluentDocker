@@ -139,6 +139,10 @@ namespace FluentDocker.Extensions
 
       foreach (var diSourceSubDir in source.GetDirectories())
       {
+        // Do not follow directory symlinks/junctions: recursing through them can escape the source
+        // tree or loop forever on a cycle (StackOverflowException) (MC-MAJ-4).
+        if ((diSourceSubDir.Attributes & FileAttributes.ReparsePoint) != 0)
+          continue;
         var nextTargetSubDir =
           target.CreateSubdirectory(diSourceSubDir.Name);
         CopyAll(diSourceSubDir, nextTargetSubDir);

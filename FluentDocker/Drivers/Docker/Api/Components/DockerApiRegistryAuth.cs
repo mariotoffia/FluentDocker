@@ -115,13 +115,22 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           server.Equals("docker.io", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static object AuthConfig(RegistryLoginConfig config, string server) => new
+    private static object AuthConfig(RegistryLoginConfig config, string server)
     {
-      username = config.Username,
-      password = config.Password,
-      email = config.Email,
-      serveraddress = IsDockerHub(server) ? DockerHubServer : config.Server ?? server
-    };
+      var serveraddress = IsDockerHub(server) ? DockerHubServer : config.Server ?? server;
+      // A registry-issued identity token replaces the raw credentials in X-Registry-Auth
+      // (Docker Hub PAT/2FA, token registries). Sending the password again would be rejected.
+      if (!string.IsNullOrEmpty(config.IdentityToken))
+        return new { identitytoken = config.IdentityToken, serveraddress };
+
+      return new
+      {
+        username = config.Username,
+        password = config.Password,
+        email = config.Email,
+        serveraddress
+      };
+    }
 
     private static string ToBase64Url(string value)
     {

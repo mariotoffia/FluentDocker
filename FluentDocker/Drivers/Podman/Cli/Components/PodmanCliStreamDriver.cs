@@ -156,6 +156,19 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
+        // A line the bounded reader truncated is unparseable JSON (an unbalanced bracket would
+        // wedge the depth counter); discard the accumulator and resync on the next batch.
+        if (line.EndsWith(BoundedLineReader.TruncationMarker, StringComparison.Ordinal))
+        {
+          Logger.LogWarning("Podman stats line exceeded the streaming line cap; resetting parser state.");
+          buffer.Clear();
+          started = false;
+          depth = 0;
+          inString = false;
+          escaped = false;
+          continue;
+        }
+
         UpdateJsonState(line, ref started, ref depth, ref inString, ref escaped);
         if (!started)
           continue;

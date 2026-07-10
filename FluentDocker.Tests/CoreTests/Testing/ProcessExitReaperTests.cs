@@ -26,13 +26,18 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public void IsEnabled_UsesOptInEnvironmentVariable()
+    public void IsEnabled_DefaultsOnAndOptsOutViaEnvironmentVariable()
     {
+      // TST-MAJ-1: the exit reaper defaults ON so Ctrl-C reclaims this session's containers; an
+      // explicit 0/false opts out.
       var original = Environment.GetEnvironmentVariable(SessionLabel.ReaperEnvironmentVariable);
       try
       {
         var core = new ProcessExitReaperCore(cleanup: (_, _, _, _) => Task.CompletedTask);
         Environment.SetEnvironmentVariable(SessionLabel.ReaperEnvironmentVariable, null);
+        Assert.True(core.IsEnabled());
+
+        Environment.SetEnvironmentVariable(SessionLabel.ReaperEnvironmentVariable, "0");
         Assert.False(core.IsEnabled());
 
         Environment.SetEnvironmentVariable(SessionLabel.ReaperEnvironmentVariable, "true");

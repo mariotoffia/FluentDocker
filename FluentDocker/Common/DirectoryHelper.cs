@@ -19,12 +19,6 @@ namespace FluentDocker.Common
     static DirectoryHelper() => GetTempPath = Path.GetTempPath;
     private static Func<string> _getTempPath = null!;
 
-    private static readonly Dictionary<string, string> ToRename = new()
-    {
-      {"dot_git", ".git"},
-      {"gitmodules", ".gitmodules"}
-    };
-
     private static readonly Type[] Whitelist = [typeof(IOException), typeof(UnauthorizedAccessException)];
 
     /// <summary>
@@ -43,24 +37,24 @@ namespace FluentDocker.Common
 
     /// <summary>Recursively copies all files and subdirectories from source to target.</summary>
     /// <remarks>
-    /// During copy, LibGit2Sharp-style fixture names are restored:
-    /// <c>dot_git</c> becomes <c>.git</c>, and <c>gitmodules</c> becomes <c>.gitmodules</c>.
+    /// File names are copied verbatim and existing target files are overwritten. Directory
+    /// symlinks/junctions are not followed.
     /// </remarks>
     /// <param name="source">The source directory to copy from.</param>
     /// <param name="target">The target directory to copy into.</param>
     public static void CopyFilesRecursively(DirectoryInfo source, DirectoryInfo target)
     {
       // From http://stackoverflow.com/questions/58744/best-way-to-copy-the-entire-contents-of-a-directory-in-c/58779#58779
-
       foreach (var dir in source.GetDirectories())
-        CopyFilesRecursively(dir, target.CreateSubdirectory(Rename(dir.Name)));
+      {
+        // Do not follow directory symlinks/junctions: copying through them can escape the source
+        // tree or loop on a cycle (MC-MAJ-4).
+        if ((dir.Attributes & FileAttributes.ReparsePoint) != 0)
+          continue;
+        CopyFilesRecursively(dir, target.CreateSubdirectory(dir.Name));
+      }
       foreach (var file in source.GetFiles())
-        file.CopyTo(Path.Combine(target.FullName, Rename(file.Name)));
-    }
-
-    private static string Rename(string name)
-    {
-      return ToRename.TryGetValue(name, out var renamed) ? renamed : name;
+        file.CopyTo(Path.Combine(target.FullName, file.Name), overwrite: true);
     }
 
     /// <summary>Deletes a directory and all its contents, retrying on transient IO errors.</summary>
@@ -83,15 +77,24 @@ namespace FluentDocker.Common
 
     private static void NormalizeAttributes(string directoryPath)
     {
+      // A directory symlink/junction is left untouched: recursing through it can loop forever on a
+      // cycle (StackOverflowException) or clear attributes on files OUTSIDE the tree (MC-MAJ-4).
+      if (IsReparsePoint(directoryPath))
+        return;
+
       var filePaths = Directory.GetFiles(directoryPath);
       var subdirectoryPaths = Directory.GetDirectories(directoryPath);
 
       foreach (var filePath in filePaths)
-        File.SetAttributes(filePath, FileAttributes.Normal);
+        if (!IsReparsePoint(filePath))
+          File.SetAttributes(filePath, FileAttributes.Normal);
       foreach (var subdirectoryPath in subdirectoryPaths)
         NormalizeAttributes(subdirectoryPath);
       File.SetAttributes(directoryPath, FileAttributes.Normal);
     }
+
+    private static bool IsReparsePoint(string path) =>
+        (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
     private static void DeleteDirectory(
         string directoryPath, int maxAttempts, int initialTimeout, int timeoutFactor, bool throwOnFailure)

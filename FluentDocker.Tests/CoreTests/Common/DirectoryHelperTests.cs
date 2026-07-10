@@ -57,9 +57,10 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
-    public void CopyFilesRecursively_RenamesDotGit()
+    public void CopyFilesRecursively_PreservesFixtureNamesVerbatim()
     {
-      // Arrange
+      // MC-MAJ-3: the general-purpose public copy must not silently rename user files. LibGit2Sharp
+      // fixture names like "dot_git"/"gitmodules" are copied verbatim, not to ".git"/".gitmodules".
       var sourceDir = Path.Combine(_tempDir, "source");
       var targetDir = Path.Combine(_tempDir, "target");
       Directory.CreateDirectory(sourceDir);
@@ -68,35 +69,15 @@ namespace FluentDocker.Tests.CoreTests.Common
       var dotGitDir = Path.Combine(sourceDir, "dot_git");
       Directory.CreateDirectory(dotGitDir);
       File.WriteAllText(Path.Combine(dotGitDir, "HEAD"), "ref: refs/heads/main");
-
-      // Act
-      DirectoryHelper.CopyFilesRecursively(new DirectoryInfo(sourceDir), new DirectoryInfo(targetDir));
-
-      // Assert
-      Assert.False(Directory.Exists(Path.Combine(targetDir, "dot_git")));
-      Assert.True(Directory.Exists(Path.Combine(targetDir, ".git")));
-      Assert.True(File.Exists(Path.Combine(targetDir, ".git", "HEAD")));
-      Assert.Equal("ref: refs/heads/main", File.ReadAllText(Path.Combine(targetDir, ".git", "HEAD")));
-    }
-
-    [Fact]
-    public void CopyFilesRecursively_RenamesGitmodules()
-    {
-      // Arrange
-      var sourceDir = Path.Combine(_tempDir, "source");
-      var targetDir = Path.Combine(_tempDir, "target");
-      Directory.CreateDirectory(sourceDir);
-      Directory.CreateDirectory(targetDir);
-
       File.WriteAllText(Path.Combine(sourceDir, "gitmodules"), "[submodule \"lib\"]");
 
-      // Act
       DirectoryHelper.CopyFilesRecursively(new DirectoryInfo(sourceDir), new DirectoryInfo(targetDir));
 
-      // Assert
-      Assert.False(File.Exists(Path.Combine(targetDir, "gitmodules")));
-      Assert.True(File.Exists(Path.Combine(targetDir, ".gitmodules")));
-      Assert.Equal("[submodule \"lib\"]", File.ReadAllText(Path.Combine(targetDir, ".gitmodules")));
+      Assert.True(Directory.Exists(Path.Combine(targetDir, "dot_git")));
+      Assert.False(Directory.Exists(Path.Combine(targetDir, ".git")));
+      Assert.True(File.Exists(Path.Combine(targetDir, "dot_git", "HEAD")));
+      Assert.True(File.Exists(Path.Combine(targetDir, "gitmodules")));
+      Assert.False(File.Exists(Path.Combine(targetDir, ".gitmodules")));
     }
 
     [Fact]

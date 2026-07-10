@@ -7,6 +7,21 @@ namespace FluentDocker.Builders
 {
   public partial class Builder
   {
+    private void RefreshContainerSnapshots()
+    {
+      foreach (var operation in _operations)
+      {
+        if (operation.ResourceBuilder is not ContainerBuilder builder)
+          continue;
+        operation.ResourceName = builder.ContainerName;
+        operation.NetworkReferences = builder.NetworkReferences;
+        operation.VolumeReferences = builder.VolumeReferences;
+        operation.LinkReferences = builder.LinkReferences;
+        operation.ImageReferences = builder.ImageReferences;
+        operation.PodReferences = builder.PodReferences;
+      }
+    }
+
     private void ValidateOperationReferences()
     {
       for (var i = 0; i < _operations.Count; i++)

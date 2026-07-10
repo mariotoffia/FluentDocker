@@ -179,7 +179,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Theory]
     [InlineData("Error: unable to connect to Podman socket: dial unix /run/podman/podman.sock: connect: no such file or directory")]
     [InlineData("dial unix /run/podman/podman.sock: connect: connection refused")]
-    public async Task CommandFailures_ClassifyPodmanSocketOutagesAsConnectionFailed(string error)
+    public async Task CommandFailures_ClassifyPodmanSocketOutages(string error)
     {
       RequirePosixShellFixture();
       var driver = CreateImageDriver($"""
@@ -194,9 +194,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
-      Assert.Equal(ErrorCodes.Api.ConnectionFailed, result.ErrorCode);
+      Assert.Equal(ExpectedSocketOutageCode, result.ErrorCode);
       Assert.Equal(125, result.ExitCode);
     }
+
+    // On macOS/Windows Podman runs behind a machine/VM, so a daemon connection outage is
+    // classified as Machine.NotRunning (POD-MAJ-3); on Linux it is a genuine socket failure.
+    private static string ExpectedSocketOutageCode =>
+        OperatingSystem.IsMacOS() || OperatingSystem.IsWindows()
+            ? ErrorCodes.Machine.NotRunning
+            : ErrorCodes.Api.ConnectionFailed;
 
     [Fact]
     public async Task StreamLogsAsync_WithDetails_DoesNotInjectUnsupportedFlag()
@@ -245,7 +252,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
-      Assert.Equal(ErrorCodes.Api.ConnectionFailed, result.ErrorCode);
+      Assert.Equal(ExpectedSocketOutageCode, result.ErrorCode);
     }
 
     [Fact]
@@ -264,7 +271,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
-      Assert.Equal(ErrorCodes.Api.ConnectionFailed, result.ErrorCode);
+      Assert.Equal(ExpectedSocketOutageCode, result.ErrorCode);
     }
 
     private static async Task<List<LogEntry>> ReadLogEntriesAsync(IStreamDriver driver, StreamLogsConfig config)

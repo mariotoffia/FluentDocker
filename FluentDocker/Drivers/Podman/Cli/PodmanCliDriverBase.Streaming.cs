@@ -72,8 +72,8 @@ namespace FluentDocker.Drivers.Podman.Cli
       // Drain stderr concurrently so a chatty child cannot deadlock by filling the stderr
       // pipe buffer while we only read stdout. The drain is bounded (truncating) so a
       // pathological child cannot force unbounded buffering.
-      var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, cancellationToken);
-      var reader = process.StandardOutput;
+      var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, cancellationToken);
+      var reader = new BoundedLineReader(process.StandardOutput);
       string failure = null;
       var failureExitCode = 0;
       string failureError = null;
@@ -318,8 +318,9 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       async Task PumpAsync(TextReader reader)
       {
+        var lineReader = new BoundedLineReader(reader);
         string line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+        while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           await writer.WriteAsync(line, cancellationToken).ConfigureAwait(false);
       }
 
@@ -344,8 +345,9 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       async Task PumpAsync(TextReader reader, LogStreamSource source, bool emit)
       {
+        var lineReader = new BoundedLineReader(reader);
         string line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+        while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         {
           lock (tail)
             AddTail(tail, line);

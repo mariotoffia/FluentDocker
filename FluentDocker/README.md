@@ -138,7 +138,7 @@ See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/
 - **Testing integration** — xUnit, NUnit, and MSTest fixtures with full lifecycle management
 - **Docker Model Runner** *(preview, v3.2)* — manage local LLMs and run chat, completions, and embeddings via the same builder
 - **Security options** — capabilities, read-only root, security-opt, tmpfs
-- **Cross-platform** — Linux, macOS, Windows; .NET 8 and .NET 10
+- **Cross-platform** — Linux, macOS, Windows; targets **.NET 10** only (v3.2 dropped the net8.0 target — a net8 project restoring this package hits NU1202)
 
 ## Documentation
 

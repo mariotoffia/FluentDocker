@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -26,7 +27,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// context's <c>.dockerignore</c> rules. The caller owns the returned stream.
     /// </summary>
     private static async Task<Stream> CreateBuildContextTarAsync(
-        string contextPath, ImageBuildConfig config, CancellationToken cancellationToken)
+        string contextPath, ImageBuildConfig config, ILogger logger, CancellationToken cancellationToken)
     {
       var dockerfileName = string.IsNullOrEmpty(config?.DockerfileName)
           ? "Dockerfile"
@@ -54,6 +55,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             if (linkTarget != null)
               await DockerApiTarWriter.WriteSymlinkAsync(fileStream, relativePath, linkTarget,
                   dir.LastWriteTimeUtc, cancellationToken).ConfigureAwait(false);
+            else
+              WarnSymlinkDropped(logger, relativePath, dir.LinkTarget);
             continue;
           }
           await DockerApiTarWriter.WriteDirectoryAsync(fileStream, relativePath,
@@ -73,7 +76,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             {
               var linkTarget = GetContainedSymlinkTarget(file, contextRoot);
               if (linkTarget == null)
+              {
+                WarnSymlinkDropped(logger, relativePath, file.LinkTarget);
                 continue;
+              }
               await DockerApiTarWriter.WriteSymlinkAsync(fileStream, relativePath, linkTarget,
                   file.LastWriteTimeUtc, cancellationToken).ConfigureAwait(false);
               continue;
@@ -165,10 +171,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <summary>
     /// Depth-first enumeration of files under the build context that mirrors Docker's
     /// security posture: directory symlinks are emitted as links but not traversed (avoids
-    /// infinite loops and paths that escape the context) and symlinks whose target resolves
-    /// outside the context are skipped (avoids exfiltrating host files such as
+    /// infinite loops and paths that escape the context) and symlinks whose target is absolute or
+    /// resolves outside the context are skipped (avoids exfiltrating host files such as
     /// <c>/etc/passwd</c>). Symlinks that stay inside the context and use relative targets
-    /// are emitted as symlink entries.
+    /// are emitted as symlink entries. Skips are logged (not silent) so the divergence from a
+    /// permissive <c>docker build</c> context is observable (API-MAJ-1).
     /// </summary>
     private static IEnumerable<FileInfo> EnumerateContextFilesSafe(string contextRoot)
     {
@@ -226,6 +233,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         return null;
       }
+    }
+
+    // A symlink whose target is absolute or escapes the context is deliberately excluded from the
+    // build-context tar (host-file exfiltration defense) — stricter than a permissive `docker build`.
+    // Log it so the divergence is observable rather than silent (API-MAJ-1).
+    private static void WarnSymlinkDropped(ILogger logger, string relativePath, string linkTarget)
+    {
+      logger?.LogWarning(
+          "Build context symlink '{Path}' -> '{Target}' was excluded (absolute or escapes the context); " +
+          "unlike a permissive `docker build`, the image will not contain this link.",
+          relativePath, linkTarget ?? "<null>");
     }
 
     private static string? GetContainedSymlinkTarget(FileSystemInfo file, string contextRoot)

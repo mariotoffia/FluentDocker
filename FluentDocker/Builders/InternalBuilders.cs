@@ -184,6 +184,9 @@ namespace FluentDocker.Builders
           // removed our volume and an external actor recreated the same name in between, we re-own
           // that name too — acceptable, since the caller explicitly asked to manage (and remove)
           // the volume named X. A volume not created on any attempt stays borrowed, never removed.
+          // Restore ownership so a failed later attempt force-removes it and the failure manifest
+          // reports it as builder-created, not "borrowed" (mirrors NetworkBuilder).
+          CreatedResource = priorAttemptCreated;
           return new Services.Impl.VolumeService(
               _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: priorAttemptCreated && _removeOnDispose);
         }
@@ -328,9 +331,22 @@ namespace FluentDocker.Builders
       var ownedTempFiles = RenderModelOverlay();
 
       // Attach to an already-running project: do NOT run `compose up`, just hand back a
-      // service bound to the existing project (issue #305).
+      // service bound to the existing project (issue #305). Probe first so a typo'd project
+      // name fails at the attach call site instead of far downstream. The probe is fail-safe
+      // (returns true on any list error), so we only throw when the project is *provably* absent.
       if (_attachToExisting)
       {
+        var probeConfig = new Drivers.ComposeUpConfig
+        {
+          ComposeFiles = _composeFiles,
+          ProjectName = _projectName,
+          Environment = _environment
+        };
+        if (!await ComposeProjectExistsAsync(driver, context, probeConfig, cancellationToken).ConfigureAwait(false))
+          throw new FluentDockerException(
+              $"ConnectToExisting could not find a running compose project " +
+              $"'{_projectName ?? "<derived>"}'. Verify the project name / compose file, or start it first.");
+
         BorrowedProject = true;
         return new Services.Impl.ComposeService(
             _kernel, _driverId, [.. _composeFiles], _projectName, _removeVolumes, _removeImages, ownedTempFiles,

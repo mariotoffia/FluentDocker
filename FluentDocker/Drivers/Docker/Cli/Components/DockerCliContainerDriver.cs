@@ -110,7 +110,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" -t {FormatInvariant(timeout.Value)}";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(
+            context, args, DeriveGracefulStopCeiling(timeout, context), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -147,7 +148,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" -t {FormatInvariant(timeout.Value)}";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(
+            context, args, DeriveGracefulStopCeiling(timeout, context), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
@@ -168,6 +170,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RestartFailed));
       }
+    }
+
+    // docker stop/restart send SIGTERM, wait -t seconds (default 10), then SIGKILL — intrinsically
+    // bounded, so they must NOT use the unbounded path where a CancellationToken.None caller against a
+    // wedged daemon hangs forever (DCLI-MAJ-5). Ceiling = timeout + 30s daemon-latency grace; a larger
+    // caller RequestTimeout wins.
+    private static TimeSpan DeriveGracefulStopCeiling(int? timeoutSeconds, DriverContext context)
+    {
+      var derived = TimeSpan.FromSeconds((timeoutSeconds ?? 10) + 30);
+      return context?.RequestTimeout is { } rt && rt > derived ? rt : derived;
     }
 
     /// <inheritdoc />

@@ -65,6 +65,37 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.Equal(expected, value);
     }
 
+    [Fact]
+    public async Task PullAsync_AfterTokenLogin_PrefersIdentityTokenOverPassword()
+    {
+      // API-MAJ-2: a registry that returns an IdentityToken (Docker Hub PAT/2FA, cloud registries)
+      // must have it echoed in X-Registry-Auth as {"identitytoken":...}, never the raw password.
+      var conn = new MockDockerApiConnection();
+      conn.SetupPost("/auth", 200, "{\"Status\":\"Login Succeeded\",\"IdentityToken\":\"tok-123\"}");
+      conn.SetupStream("/images/create", "{\"status\":\"Status: Downloaded newer image\"}\n");
+      var auth = new DockerApiAuthDriver(conn);
+      var driver = CreateDriver(conn);
+
+      var login = await auth.LoginAsync(Ctx, new RegistryLoginConfig
+      {
+        Server = "registry.example.com",
+        Username = "me",
+        Password = "secret"
+      }, TestContext.Current.CancellationToken);
+      var result = await driver.PullAsync(Ctx, "registry.example.com/team/app", "latest",
+          null!, TestContext.Current.CancellationToken);
+
+      Assert.True(login.Success);
+      Assert.True(result.Success);
+      var request = conn.GetRequests().Last(r => r.Method == "POST_STREAM");
+      var header = request.Headers!["X-Registry-Auth"];
+      var json = Encoding.UTF8.GetString(
+          Convert.FromBase64String(header.Replace('-', '+').Replace('_', '/')));
+      Assert.Contains("tok-123", json);
+      Assert.DoesNotContain("secret", json);
+      Assert.DoesNotContain("password", json);
+    }
+
     #region PushAsync
 
     [Fact]

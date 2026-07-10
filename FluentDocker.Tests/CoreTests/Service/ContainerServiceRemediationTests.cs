@@ -119,8 +119,10 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StopAsync_WhenAlreadyStopped_ReturnsWithoutDriverOrEvents()
+    public async Task StopAsync_WhenAlreadyStopped_ReissuesStopToDaemon()
     {
+      // SVC-MAJ-4: the cached "Stopped" may be stale, so stop always re-issues to the idempotent
+      // daemon instead of dropping the intent; this re-surfaces Stopping->Stopped transitions.
       MockPack.SetupContainerStop();
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
       await service.StopAsync(TestContext.Current.CancellationToken);
@@ -129,10 +131,10 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       await service.StopAsync(TestContext.Current.CancellationToken);
 
-      Assert.Empty(states);
+      Assert.Equal([ServiceRunningState.Stopping, ServiceRunningState.Stopped], states);
       MockPack.ContainerDriver.Verify(d => d.StopAsync(
           It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(),
-          It.IsAny<CancellationToken>()), Times.Once);
+          It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]

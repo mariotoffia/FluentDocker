@@ -71,8 +71,10 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StopAsync_WhenAlreadyStopped_DoesNotFirePhantomTransitions()
+    public async Task StopAsync_WhenAlreadyStopped_ReissuesStopToDaemon()
     {
+      // SVC-MAJ-4: a cached "Stopped" may be stale (external restart), so stop re-issues to the
+      // idempotent daemon rather than short-circuiting — which surfaces Stopping->Stopped again.
       MockPack.SetupContainerStart()
           .SetupContainerInspect("container-123", running: true);
       MockPack.ContainerDriver
@@ -86,9 +88,9 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       await service.StopAsync(TestContext.Current.CancellationToken);
 
-      Assert.Empty(states);
+      Assert.Equal([ServiceRunningState.Stopping, ServiceRunningState.Stopped], states);
       MockPack.ContainerDriver.Verify(d => d.StopAsync(
-          It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Once);
+          It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]

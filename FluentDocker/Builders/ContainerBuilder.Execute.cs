@@ -27,6 +27,20 @@ namespace FluentDocker.Builders
       _kernel.TrySysCtl<Drivers.IImageDriver>(_driverId, out var imageDriver);
       var context = new DriverContext(_driverId);
 
+      // Authenticate to a private registry before any image pull (force-pull or the implicit daemon
+      // pull on create), so WithRegistryAuth is a fluent alternative to hand-resolving IAuthDriver
+      // (TST-MAJ-5).
+      if (_registryAuth != null)
+      {
+        if (!_kernel.TrySysCtl<Drivers.IAuthDriver>(_driverId, out var authDriver))
+          throw new FluentDockerException("WithRegistryAuth() requires a driver that supports IAuthDriver.");
+        var login = await authDriver.LoginAsync(context, _registryAuth, cancellationToken).ConfigureAwait(false);
+        if (!login.Success)
+          throw new DriverException(
+              $"Registry login failed for '{_registryAuth.Server ?? "Docker Hub"}': {login.Error}",
+              login.ErrorCode, login.ErrorContext);
+      }
+
       if (!string.IsNullOrEmpty(_name) && _existsBehavior != ContainerExistsBehavior.Default)
       {
         var existing = await FindExistingContainerAsync(driver, context, _name, cancellationToken).ConfigureAwait(false);

@@ -139,8 +139,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         var result = await RunAsync(context, args, cancellationToken).ConfigureAwait(false);
 
-        // DMR `rm` of a missing model prints an error but exits 0 — inspect output.
-        if (!result.Success || IndicatesRemoveFailure(result.Output))
+        // DMR `rm` of a missing model prints an error but exits 0 — inspect output. Scan BOTH
+        // streams: some DMR versions emit the failure to stderr with exit 0, which stdout-only
+        // detection would report as a successful removal — silent state divergence (DMR-MAJ-2).
+        if (!result.Success || IndicatesRemoveFailure(FirstNonEmpty(result.Error, result.Output)))
           return CommandResponse<Unit>.Fail(
               ModelErrorOrDefault(result, "model rm failed"),
               ModelFailureCode(FirstNonEmpty(result.Error, result.Output), ErrorCodes.Model.RemoveFailed),

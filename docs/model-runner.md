@@ -13,7 +13,9 @@ LM Studio, or a hosted endpoint). It mirrors the existing
 `Builder → WithinDriver → UseXxx` pattern, so a model handle lives in the *same*
 kernel and lifecycle as your containers, networks and volumes.
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Two surfaces, one façade
 
@@ -194,12 +196,12 @@ Engine; the internal DNS name resolves automatically on Desktop). It never creat
 a network or a volume.
 
 ```csharp
-new Builder()
+await using var results = await new Builder()
   .WithinDriver("docker", kernel)
   .UseContainer(c => c
       .UseImage("my-app:latest")
       .WithModel(ModelReference.Parse("ai/smollm2")))   // injects LLM_URL=…/engines/v1, LLM_MODEL
-  .Build();
+  .BuildAsync();
 ```
 
 `localhost` is rejected for container consumers (it would resolve to the container
@@ -557,7 +559,7 @@ dedicated guide: **[Compose models integration](model-runner-compose.md)**.
 The library detects but does **not** install DMR. `runner.StatusAsync()` reports whether
 the runner is running.
 
-> **Running the sample.** [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)
+> **Running the sample.** [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)
 > targets `net10.0`: run it with `dotnet run` (or `dotnet run -f net10.0`).
 
 ## Testing
@@ -594,4 +596,4 @@ broader `Category=Integration` lane.
 
 - [Getting Started](getting-started.md) · [Containers](containers.md) · [Compose](compose.md) · [Architecture](architecture.md)
 - Model Runner sub-pages: [Compose models](model-runner-compose.md) · [Writing a runner plugin](model-runner-plugins.md)
-- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner)
+- Runnable sample: [`Examples/ModelRunner`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner)

@@ -329,6 +329,17 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ForcePullImage();
 
+    /// <summary>
+    /// Authenticates to a container registry before the image is pulled, so a private-registry image
+    /// can be used without hand-resolving <c>IAuthDriver</c>. Requires a driver that supports
+    /// <c>IAuthDriver</c>.
+    /// </summary>
+    /// <param name="username">Registry username.</param>
+    /// <param name="password">Registry password or token.</param>
+    /// <param name="server">Registry server URL; <c>null</c> for Docker Hub.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IContainerBuilder WithRegistryAuth(string username, string password, string server = null);
+
     #endregion
 
 

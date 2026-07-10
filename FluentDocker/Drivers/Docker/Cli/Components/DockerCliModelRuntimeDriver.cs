@@ -157,12 +157,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var running = !knownNotRunning
             && combined.Contains("model runner is running", StringComparison.OrdinalIgnoreCase);
 
-        // A non-zero exit that is NOT a recognizable running/not-running status is a
-        // genuine failure (docker missing, not permitted, plugin error) — surface it
-        // rather than silently reporting Running=false.
-        if (!result.Success && !running && !knownNotRunning)
+        // Output we cannot classify as running OR not-running is either a genuine failure
+        // (docker missing, not permitted, plugin error) or CLI-wording drift. Either way, fail loud
+        // with a typed status error instead of silently defaulting to Running=false (DMR-MAJ-3).
+        if (!running && !knownNotRunning)
           return CommandResponse<ModelRunnerStatus>.Fail(
-              ModelErrorOrDefault(result, "docker model status failed"),
+              ModelErrorOrDefault(result,
+                  "could not determine model runner status from `docker model status` output (CLI format may have changed)"),
               ModelFailureCode(FirstNonEmpty(result.Error, output), ErrorCodes.Model.StatusFailed),
               result.ExitCode);
 

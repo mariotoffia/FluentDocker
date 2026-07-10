@@ -17,6 +17,9 @@ namespace FluentDocker.Model.Drivers
           or Network.Timeout
           or Api.ConnectionFailed
           or Api.StreamInterrupted
+          // A stopped Podman machine is transient: start it and retry (POD-MAJ-3). Aligns
+          // IsTransient with the machine-not-running exception marked transient at its throw site.
+          or Machine.NotRunning
           or ModelInference.EndpointUnreachable
           or ModelInference.Timeout
           or ModelInference.ServiceUnavailable;

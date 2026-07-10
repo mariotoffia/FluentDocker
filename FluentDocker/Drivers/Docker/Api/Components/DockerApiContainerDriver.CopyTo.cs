@@ -94,7 +94,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<Unit>.Fail(
             $"Failed to copy to container '{containerId}': {ex.Message}",
             ErrorCodes.Container.CopyFailed,
-            CreateErrorContext($"PUT /containers/{containerId}/archive", 0));
+            CreateErrorContext($"PUT /containers/{containerId}/archive", HttpStatusCodeOrZero(ex)));
       }
     }
 

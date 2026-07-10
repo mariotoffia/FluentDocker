@@ -74,12 +74,18 @@ namespace FluentDocker.Kernel
   public interface IDriverBuilder
   {
     /// <summary>
-    /// Uses a custom driver instance.
+    /// Uses a custom driver instance. Ownership transfers to the kernel only once the driver is
+    /// successfully registered by <see cref="IKernelBuilder.BuildAsync"/> (the kernel then disposes
+    /// it). If the build fails before that — e.g. a duplicate driver id — the instance is left intact
+    /// for the caller to reuse or dispose; the builder does not dispose user-supplied instances.
     /// </summary>
     IDriverBuilder UseCustomDriver(IDriver driver);
 
     /// <summary>
-    /// Uses a custom driver pack instance.
+    /// Uses a custom driver pack instance. Ownership transfers to the kernel only once the pack is
+    /// successfully registered by <see cref="IKernelBuilder.BuildAsync"/> (the kernel then disposes
+    /// it). If the build fails before that, the instance is left intact for the caller to reuse or
+    /// dispose; the builder does not dispose user-supplied instances.
     /// </summary>
     IDriverBuilder UseCustomDriverPack(IDriverPack driverPack);
 

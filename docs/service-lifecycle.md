@@ -12,7 +12,9 @@ model — implements `IServiceAsync`. That interface carries the running state, 
 `StateChange` event, and a hook API you can use to react when a service starts, stops,
 pauses, or is removed.
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
 

@@ -168,7 +168,7 @@ Podman Kubernetes, topology, and model resource types.
 ## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.2)*
 
 > **Preview — not on NuGet yet.** Model Runner support lands in **3.2.0-preview.2**, which
-> isn't published yet; build from the [preview branch](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) to
+> isn't published yet; build from the [preview branch](https://github.com/mariotoffia/FluentDocker/tree/master) to
 > use it (the latest published package, 3.1.0, has no Model Runner). The inference DTO shapes
 > may still change. Everything above is the stable surface — reach for this section only once
 > you need local models.
@@ -179,7 +179,7 @@ OpenAI-compatible runner (vLLM, LM Studio, `llama-server`, hosted) — behind th
 guidance, and troubleshooting live in the model guide.
 
 Full guide: **[Model Runner (local LLMs)](docs/model-runner.md)** ·
-[runner plugins](docs/model-runner-plugins.md) · runnable [Examples/ModelRunner](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner).
+[runner plugins](docs/model-runner-plugins.md) · runnable [Examples/ModelRunner](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner).
 
 ## Linux Users
 

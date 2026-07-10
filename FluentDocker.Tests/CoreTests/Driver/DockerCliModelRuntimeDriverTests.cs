@@ -178,6 +178,23 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
+    public async Task StatusAsync_ExitZeroButRewordedOutput_FailsLoudInsteadOfDefaultingNotRunning()
+    {
+      // DMR-MAJ-3: if `docker model status` exits 0 but its wording drifts so we can classify it as
+      // neither running nor not-running, fail with a typed status error rather than silently
+      // reporting Running=false (which would look like a clean stopped runner).
+      var driver = new FakeRuntimeDriver
+      {
+        Responder = _ => Ok("Model Runner: operational (v2 status format)\n")
+      };
+
+      var result = await driver.StatusAsync(Ctx, TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Model.StatusFailed, result.ErrorCode);
+    }
+
+    [Fact]
     public async Task VersionAsync_Parses()
     {
       var driver = new FakeRuntimeDriver { Responder = _ => Ok("Client:\n Version:    v1.2.1\n") };

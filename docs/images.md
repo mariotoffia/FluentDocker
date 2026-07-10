@@ -9,7 +9,9 @@ nav_order: 8
 FluentDocker v3 provides a lambda-based API for building Docker images from Dockerfiles
 or inline definitions. All builder operations require a kernel and a driver scope.
 
-{% include preview-banner.html %}
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
 
@@ -463,6 +465,19 @@ await using var results = await new Builder()
         .ToImage()
         .BuildArguments("VERSION=1.0.0", "BUILD_DATE=2024-01-01"))
     .BuildAsync();
+```
+
+## Private Registries
+
+`WithRegistryAuth(username, password, server)` authenticates before the image is pulled — a fluent
+alternative to hand-resolving `IAuthDriver` (`server` is `null` for Docker Hub). Read the password from a secret store, never hard-code it.
+
+```csharp
+.UseContainer(c => c
+    .UseImage("registry.example.com/team/app:latest")
+    .WithRegistryAuth("me", Environment.GetEnvironmentVariable("REGISTRY_TOKEN")!, "registry.example.com")
+    .ForcePullImage()
+    .WithName("app"))
 ```
 
 ## Accessing Build Results

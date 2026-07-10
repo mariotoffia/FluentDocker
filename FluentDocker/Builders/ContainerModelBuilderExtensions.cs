@@ -30,13 +30,22 @@ namespace FluentDocker.Builders
     /// </param>
     /// <param name="endpointVar">The env var to receive the endpoint URL (default <c>LLM_URL</c>).</param>
     /// <param name="modelVar">The env var to receive the model id (default <c>LLM_MODEL</c>).</param>
+    /// <param name="addHostGateway">
+    /// When the endpoint host is <c>model-runner.docker.internal</c>, add a
+    /// <c>--add-host model-runner.docker.internal:host-gateway</c> alias. Required on Docker Engine
+    /// (the name does not otherwise resolve). On Docker Desktop the name resolves natively, and the
+    /// alias in <c>/etc/hosts</c> takes precedence over the embedded DNS — redirecting the name to
+    /// the host gateway, which only serves the runner if host-side TCP (:12434) is enabled (off by
+    /// default). Pass <c>false</c> on Desktop if the container gets connection-refused (DMR-MAJ-1).
+    /// </param>
     /// <returns>The container builder for chaining.</returns>
     public static IContainerBuilder WithModel(
         this IContainerBuilder builder,
         ModelReference model,
         ModelRunnerEndpoint endpoint = null,
         string endpointVar = "LLM_URL",
-        string modelVar = "LLM_MODEL")
+        string modelVar = "LLM_MODEL",
+        bool addHostGateway = true)
     {
       ArgumentNullException.ThrowIfNull(builder);
       ArgumentNullException.ThrowIfNull(model);
@@ -66,9 +75,10 @@ namespace FluentDocker.Builders
       // above), so the ToString() fallback is purely defensive.
       builder.WithEnvironment(modelVar, InferenceModelId.FromModelReference(model)?.Value ?? model.ToString());
 
-      // On Docker Engine the internal DNS name does not resolve unless a host-gateway
-      // alias is added; on Desktop it resolves automatically (the entry is harmless there).
-      if (string.Equals(host, InternalDns, StringComparison.OrdinalIgnoreCase))
+      // On Docker Engine the internal DNS name does not resolve unless a host-gateway alias is added.
+      // On Desktop the name resolves natively and this alias can SHADOW it (DMR-MAJ-1), so it is
+      // gated behind addHostGateway (default on for the common Engine case; pass false on Desktop).
+      if (addHostGateway && string.Equals(host, InternalDns, StringComparison.OrdinalIgnoreCase))
         builder.WithExtraHost(InternalDns, "host-gateway");
 
       return builder;

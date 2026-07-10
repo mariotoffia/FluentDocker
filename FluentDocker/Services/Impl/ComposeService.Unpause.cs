@@ -37,6 +37,7 @@ namespace FluentDocker.Services.Impl
 
         UpdateState(ServiceRunningState.Running);
         await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+        await TryReconcileStateAsync(cancellationToken).ConfigureAwait(false);
       }
       catch
       {

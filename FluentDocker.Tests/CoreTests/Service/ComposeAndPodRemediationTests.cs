@@ -99,6 +99,29 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task PodStartAsync_WhenRemoved_ThrowsAndDoesNotResurrect()
+    {
+      // SVC-MAJ-2: starting a removed pod must throw (like the container/compose siblings) rather
+      // than transition Removed -> Starting -> Unknown and fire hooks against a gone pod.
+      var podDriver = new Mock<IPodmanPodDriver>();
+      podDriver
+          .Setup(d => d.RemovePodAsync(
+              It.IsAny<DriverContext>(), "pod", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+      MockPack.RegisterCustomDriver(podDriver.Object);
+      var service = new PodService(Kernel, DriverId, "pod-id", "pod");
+      await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken);
+      Assert.Equal(ServiceRunningState.Removed, service.State);
+
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          service.StartAsync(TestContext.Current.CancellationToken));
+
+      Assert.Equal(ServiceRunningState.Removed, service.State);
+      podDriver.Verify(d => d.StartPodAsync(
+          It.IsAny<DriverContext>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task NetworkDisposeAsync_WhenRemoveCompletesAfterBudget_DoesNotRaisePostDisposeStateChange()
     {
       var removeResponse = new TaskCompletionSource<CommandResponse<Unit>>(

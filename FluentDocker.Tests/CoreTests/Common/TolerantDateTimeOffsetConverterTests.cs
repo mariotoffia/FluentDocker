@@ -69,6 +69,40 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
+    public void TryDeserialize_BadDate_IncrementsDriftCounterAndInvokesHook()
+    {
+      // MC-MAJ-1: a present-but-unparseable timestamp must be observable (counter + hook), not a
+      // silent zero indistinguishable from a genuinely-unset date.
+      string? captured = null;
+      var before = TolerantDateTimeOffsetConverter.DriftCount;
+      TolerantDateTimeOffsetConverter.OnDrift = raw => captured = raw;
+      try
+      {
+        var json = """[{ "Name": "data", "CreatedAt": "not-a-date" }]""";
+        Assert.True(JsonHelper.TryDeserialize<List<Volume>>(json, out _));
+      }
+      finally
+      {
+        TolerantDateTimeOffsetConverter.OnDrift = null;
+      }
+
+      Assert.True(TolerantDateTimeOffsetConverter.DriftCount > before);
+      Assert.Equal("not-a-date", captured);
+    }
+
+    [Fact]
+    public void TryDeserialize_ArbitraryUserType_IsNotSilentlyToleranced()
+    {
+      // MC-MAJ-1: the tolerant converter is scoped to FluentDocker.Model DTOs; an arbitrary user
+      // type keeps strict parsing, so a bad date fails to deserialize instead of being zeroed.
+      var json = """{ "When": "not-a-date" }""";
+
+      var ok = JsonHelper.TryDeserialize<ExternalDto>(json, out _);
+
+      Assert.False(ok);
+    }
+
+    [Fact]
     public void TryDeserialize_ContainerWithDockerNanosecondTimestamp_RoundsToHundredNanosecondTick()
     {
       // Docker emits 9 fractional digits (nanoseconds); .NET resolves to 100ns ticks. The
@@ -93,6 +127,13 @@ namespace FluentDocker.Tests.CoreTests.Common
       var container = Assert.Single(containers!);
       Assert.Equal("abc123", container.Id);
       Assert.Equal(expected, container.State!.StartedAt);
+    }
+
+    // A stand-in for an arbitrary consumer type (namespace is FluentDocker.Tests.*, not
+    // FluentDocker.Model.*), so it is NOT touched by the tolerant DateTimeOffset modifier.
+    private sealed class ExternalDto
+    {
+      public DateTimeOffset When { get; set; }
     }
   }
 }

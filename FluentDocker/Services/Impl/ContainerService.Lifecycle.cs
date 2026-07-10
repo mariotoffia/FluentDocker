@@ -317,6 +317,23 @@ namespace FluentDocker.Services.Impl
     private static bool IsAlreadyNotPaused(CommandResponse<Unit> response) =>
         response.Error?.Contains("is not paused", StringComparison.OrdinalIgnoreCase) == true;
 
+    // Pause fails "is already paused" when the container is already paused — idempotent success.
+    private static bool IsAlreadyPaused(CommandResponse<Unit> response) =>
+        response.Error?.Contains("is already paused", StringComparison.OrdinalIgnoreCase) == true;
+
+    // SIGKILL (9) is the only signal a process cannot catch, block, or ignore, so it is guaranteed
+    // to terminate the container. Every other signal may be handled, so post-kill state must be
+    // inspected rather than assumed (SVC-MAJ-1).
+    private static bool IsGuaranteedTerminalSignal(string signal)
+    {
+      if (string.IsNullOrEmpty(signal))
+        return true; // default is SIGKILL
+      var s = signal.Trim();
+      if (s.StartsWith("SIG", StringComparison.OrdinalIgnoreCase))
+        s = s[3..];
+      return s.Equals("KILL", StringComparison.OrdinalIgnoreCase) || s == "9";
+    }
+
     private async Task RunDisposeHooksWithoutRemovalAsync(CancellationToken cancellationToken)
     {
       await ExecuteLifecycleHooksAsync(

@@ -61,7 +61,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           return null;
         }
 
-        var nanos = value * multiplier;
+        decimal nanos;
+        try
+        {
+          // decimal multiply is always checked and throws OverflowException past ~7.9e28
+          // (e.g. "9999999999999999999999999999h"); treat that as an invalid duration, not a crash.
+          nanos = value * multiplier;
+        }
+        catch (OverflowException)
+        {
+          return null;
+        }
         if (nanos > long.MaxValue || nanos > long.MaxValue - total)
           return null;
         total += (long)nanos;

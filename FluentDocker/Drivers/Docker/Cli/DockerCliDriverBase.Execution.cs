@@ -343,12 +343,6 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       StartProcessOrThrow(process, binaryPath);
 
-      if (passwordForStdin != null)
-      {
-        await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
-        process.StandardInput.Close();
-      }
-
       // Drain stderr concurrently so a chatty child cannot deadlock by filling the
       // stderr pipe buffer while we only read stdout.
       var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, cancellationToken);
@@ -357,6 +351,13 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       try
       {
+        // Write the sudo password inside the guarded region: if sudo exits immediately the
+        // write throws a broken-pipe IOException, and it must still reach KillProcessSafely in
+        // finally instead of orphaning the child (DCLI-MAJ-1). TryWrite swallows + closes stdin.
+        if (passwordForStdin != null)
+          _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken)
+              .ConfigureAwait(false);
+
         string line;
         while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           yield return line;
@@ -437,12 +438,6 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       StartProcessOrThrow(process, binaryPath);
 
-      if (passwordForStdin != null)
-      {
-        await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
-        process.StandardInput.Close();
-      }
-
       // Both pipes are read line-by-line and merged into a bounded channel so neither
       // can deadlock by filling its pipe buffer while only the other is consumed.
       var channel = System.Threading.Channels.Channel.CreateBounded<string>(
@@ -460,6 +455,12 @@ namespace FluentDocker.Drivers.Docker.Cli
 
       try
       {
+        // Write the sudo password inside the guarded region so a broken-pipe write still hits
+        // KillProcessSafely in finally instead of orphaning the child (DCLI-MAJ-1).
+        if (passwordForStdin != null)
+          _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken)
+              .ConfigureAwait(false);
+
         await foreach (var line in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
           AddTail(tail, line);

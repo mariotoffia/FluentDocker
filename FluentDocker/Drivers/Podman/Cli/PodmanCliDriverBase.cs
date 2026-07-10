@@ -143,11 +143,16 @@ namespace FluentDocker.Drivers.Podman.Cli
     #region Command Execution
 
     /// <summary>
-    /// Sanity cap on the bytes a single non-streaming Podman command may buffer for
-    /// stdout/stderr. A pathological child cannot force unbounded memory growth: stdout
-    /// fails the command on exceeding the cap, stderr is truncated (kept, with a marker).
+    /// Sanity cap (64 MiB) on buffered stdout of a non-streaming Podman command. Large hosts
+    /// can produce multi-MiB JSON from <c>ps -a --format json</c> / <c>inspect</c> / <c>images</c>;
+    /// those outputs must fail above a high ceiling, not at a low one that breaks parity with the
+    /// Docker CLI base. Streaming commands are unaffected (read line-by-line). Overridable so tests
+    /// can exercise the bounded-read failure path without generating 64 MiB of output.
     /// </summary>
-    private const int MaxNonStreamingOutputBytes = 4 * 1024 * 1024;
+    protected virtual int MaxNonStreamingOutputBytes => 64 * 1024 * 1024;
+
+    /// <summary>Cap (4 MiB) on buffered stderr; truncated (kept, with a marker), never fails the command.</summary>
+    private const int MaxNonStreamingErrorBytes = 4 * 1024 * 1024;
 
     /// <summary>
     /// Default wall-clock timeout applied to a buffered (non-streaming) Podman CLI command
@@ -242,7 +247,8 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// Handles sudo by setting the process FileName to "sudo" and passing the
     /// password via stdin (never on the command line).
     /// </summary>
-    private static async Task<SimpleCommandResult> ExecuteProcessAsync(
+    // Instance (not static) so the overridable MaxNonStreamingOutputBytes cap is readable.
+    private async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
         string stdinData,
         SudoMechanism sudo, string sudoPassword,
@@ -298,7 +304,7 @@ namespace FluentDocker.Drivers.Podman.Cli
         // unbounded buffering; stdout fails the command on exceeding the cap, while stderr
         // (the error message itself) is truncated and kept.
         outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
-        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingOutputBytes, linkedToken);
+        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, linkedToken);
 
         var stdinFailure = needsStdin
             ? await TryWriteStandardInputAsync(process, passwordForStdin, stdinData, linkedToken).ConfigureAwait(false)

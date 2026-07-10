@@ -245,7 +245,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<string>.Fail(
             $"Failed to get logs for service '{serviceId}': {ex.Message}",
             ErrorCodes.Service.LogsFailed,
-            CreateErrorContext($"GET /services/{serviceId}/logs", 0));
+            CreateErrorContext($"GET /services/{serviceId}/logs", HttpStatusCodeOrZero(ex)));
       }
     }
 

@@ -283,14 +283,17 @@ namespace FluentDocker.Drivers.Docker.Api
       {
         connection = _connection;
         _connection = null;
-        _drivers.Clear();
+        // Do not Clear() _drivers: resolution reads it lock-free (IDriverPack contract),
+        // so mutating it here is a torn-read data race with an in-flight resolver. The
+        // _disposed guard fences new callers; the dictionary stays immutable after init.
         _initialized = false;
         _context = null;
       }
       finally
       {
+        // Do not dispose _initializeLock: a concurrent InitializeAsync may be queued in
+        // WaitAsync; disposing it would hang/mask instead of throwing ObjectDisposedException.
         _initializeLock.Release();
-        _initializeLock.Dispose();
       }
 
       if (connection != null)

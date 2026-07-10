@@ -69,8 +69,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task BuildAsync_WhenMiddleDriverFails_DisposesUnreachedOwnedDriver()
+    public async Task BuildAsync_WhenMiddleDriverFails_LeavesUnreachedUserDriverIntact()
     {
+      // KRN-MAJ-4: the builder disposes only what it registered / the registry disposes what it
+      // took ownership of. A user-supplied driver never reached by the build stays intact.
       var first = new TestDriver();
       var failing = new TestDriver(failInitialize: true);
       var unreached = new TestDriver();
@@ -82,14 +84,16 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       await Assert.ThrowsAsync<InvalidOperationException>(() =>
           builder.BuildAsync(TestContext.Current.CancellationToken));
 
-      Assert.True(first.Disposed);
-      Assert.True(failing.Disposed);
-      Assert.True(unreached.Disposed);
+      Assert.True(first.Disposed);       // registered → kernel owns → kernel.DisposeAsync disposes
+      Assert.True(failing.Disposed);     // init failed post-acceptance → registry disposes
+      Assert.False(unreached.Disposed);  // never reached, user-owned → left intact
     }
 
     [Fact]
-    public async Task BuildAsync_WhenDuplicateDriverIdBeforeInitialize_DisposesJustAttemptedDriver()
+    public async Task BuildAsync_WhenDuplicateDriverId_LeavesUserSuppliedDriversIntact()
     {
+      // KRN-MAJ-4: a duplicate-id typo must not destroy the user's driver instances. Only the
+      // successfully-registered one is disposed (by the kernel on teardown).
       var first = new TestDriver();
       var duplicate = new TestDriver();
       var unreached = new TestDriver();
@@ -101,9 +105,9 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       await Assert.ThrowsAsync<DriverException>(() =>
           builder.BuildAsync(TestContext.Current.CancellationToken));
 
-      Assert.True(first.Disposed);
-      Assert.True(duplicate.Disposed);
-      Assert.True(unreached.Disposed);
+      Assert.True(first.Disposed);       // registered → kernel disposes on teardown
+      Assert.False(duplicate.Disposed);  // pre-acceptance duplicate-id reject → left intact
+      Assert.False(unreached.Disposed);  // never reached → left intact
     }
 
     [Fact]
