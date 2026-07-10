@@ -417,7 +417,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       Assert.NotNull(fixture.Resource);
       Assert.Same(capturedKernel, fixture.Kernel);
-      Assert.Equal("fixture-stack", fixture.StackName);
+      Assert.StartsWith("fixture-stack", fixture.StackName); // session-scoped by default
 
       await fixture.DisposeAsync();
     }

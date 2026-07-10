@@ -108,14 +108,16 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void Raw_AuthorityOnlyUri_KeepsEnginePrefix()
+    public void Raw_AuthorityOnlyUri_IsRootAnchored_NoEnginePrefix()
     {
       var ep = ModelRunnerEndpoint.Raw(new Uri("http://host:12434"));
 
-      // Authority-only Raw URLs have no raw base path, so they keep the engine prefix.
-      Assert.Equal("/engines/llama.cpp", ep.EnginePath);
-      Assert.Equal("/engines/llama.cpp/v1/chat/completions", ep.EngineV1Path("/chat/completions"));
-      Assert.Equal("/engines/llama.cpp/v1/chat/completions", ep.ResolveUri("/chat/completions").AbsolutePath);
+      // MDL-MAJ-3: Raw promises "no engine prefix is added". An authority-only URL must therefore be
+      // root-anchored so a bare OpenAI-compatible server is hit directly, not at
+      // /engines/llama.cpp/v1/... (which 404s). (Custom(), by contrast, keeps the engine prefix.)
+      Assert.Equal(string.Empty, ep.EnginePath);
+      Assert.Equal("/chat/completions", ep.EngineV1Path("/chat/completions"));
+      Assert.Equal("/chat/completions", ep.ResolveUri("/chat/completions").AbsolutePath);
     }
 
     [Fact]

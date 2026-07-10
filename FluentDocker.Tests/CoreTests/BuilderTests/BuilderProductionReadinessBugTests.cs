@@ -272,7 +272,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .WithStartupTimeout(10))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
 
-      Assert.Contains("Timeout waiting for container crash-loop to start", ex.Message);
+      Assert.Contains("Timeout waiting for container", ex.Message);
+      Assert.Contains("crash-loop", ex.Message);
     }
 
     private static async Task<FluentDockerKernel> CreateKernelAsync(

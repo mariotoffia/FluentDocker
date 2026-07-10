@@ -299,16 +299,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       }
     }
 
-    private static async Task WaitForFileAsync(string path)
-    {
-      var deadline = DateTime.UtcNow.AddSeconds(5);
-      while (!File.Exists(path))
-      {
-        if (DateTime.UtcNow > deadline)
-          throw new TimeoutException($"Timed out waiting for {path}");
-        await Task.Delay(20, TestContext.Current.CancellationToken).ConfigureAwait(false);
-      }
-    }
+    private static Task WaitForFileAsync(string path)
+        => FakeProcessMarker.WaitForFileAsync(path, TestContext.Current.CancellationToken);
 
     private static PodmanCliContainerDriver CreateContainerDriver(string script)
         => CreateContainerDriverFromDirectory(CreatePodmanDirectory("podman-chunk3-container", script));

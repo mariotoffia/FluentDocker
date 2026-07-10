@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task BuildAsync_ContainerReferencingLaterNetworkThrowsClearOrderingError()
     {
-      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new Builder()
+      var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c.UseImage("nginx").WithName("web").WithNetwork("db-net"))
           .UseNetwork(n => n.WithName("db-net"))

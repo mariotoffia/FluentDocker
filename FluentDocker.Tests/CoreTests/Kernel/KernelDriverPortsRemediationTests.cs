@@ -84,7 +84,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
           "faulty", new FaultingPack(cause), new DriverContext("faulty"),
           TestContext.Current.CancellationToken);
 
-      var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
+      var ex = Assert.Throws<DriverException>(() =>
           kernel.SysCtl<IContainerDriver>("faulty"));
 
       Assert.Same(cause, ex.InnerException);
@@ -100,7 +100,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
           "faulty", new FaultingPack(cause), new DriverContext("faulty"),
           TestContext.Current.CancellationToken);
 
-      var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
+      var ex = Assert.Throws<DriverException>(() =>
           kernel.TrySysCtl<IContainerDriver>("faulty", out _));
 
       Assert.Same(cause, ex.InnerException);
@@ -199,19 +199,22 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     [Fact]
     public async Task FirstPartyPacks_FormatGenericUnsupportedInterfaceNames()
     {
+      // After KRN-MAJ-7 the pack has no driverId-based SysCtl; the kernel formats the unsupported
+      // interface name when resolution (pack.TryResolve) finds nothing.
       foreach (var pack in new IDriverPack[] { new DockerCliDriverPack(), new DockerApiDriverPack() })
       {
-        await pack.InitializeAsync(
+        await using var kernel = new FluentDockerKernel(
+            new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+        await kernel.RegisterDriverPackAsync(
+            "driver", pack,
             new DriverContext("driver") { ModelRunnerEndpoint = ModelRunnerEndpoint.HostTcp() },
             TestContext.Current.CancellationToken);
 
         var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
-            pack.SysCtl<IGenericMissing<string>>("driver"));
+            kernel.SysCtl<IGenericMissing<string>>("driver"));
 
         Assert.Contains("<", ex.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("`", ex.Message, StringComparison.Ordinal);
-        if (pack is IAsyncDisposable asyncDisposable)
-          await asyncDisposable.DisposeAsync();
       }
     }
 
@@ -235,7 +238,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         instance = null!;
         return false;
       }
-      public bool TryResolve(Type interfaceType, out object implementation)
+      public virtual bool TryResolve(Type interfaceType, out object implementation)
       {
         implementation = null!;
         return false;
@@ -248,14 +251,17 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       }
     }
 
+    // Faults now surface via TryResolve — the only pack-resolution path after the redundant
+    // driverId-based SysCtl fallback was removed (KRN-MAJ-7); the kernel still wraps them as
+    // DriverException (KRN-MAJ-1).
     private sealed class FaultingPack(Exception exception) : TrackingPack
     {
-      public override object SysCtl(string driverId, Type interfaceType) => throw exception;
+      public override bool TryResolve(Type interfaceType, out object implementation) => throw exception;
     }
 
     private sealed class CancelledPack(CancellationToken token) : TrackingPack
     {
-      public override object SysCtl(string driverId, Type interfaceType) =>
+      public override bool TryResolve(Type interfaceType, out object implementation) =>
           throw new OperationCanceledException(token);
     }
 

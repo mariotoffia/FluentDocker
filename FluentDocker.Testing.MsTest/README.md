@@ -53,21 +53,25 @@ one reference; then you only add `FluentDocker.Testing.MsTest`.
 
 ## Base-class fixture
 
-Recommended entry point: use `MsTestContainerFixtureBase` for a fresh container
+Recommended entry point: use `MsTestPerTestContainerFixtureBase` for a fresh container
 per test method. Use `MsTestClassContainerFixtureBase<TFixture>` only when a
 single container must be shared by the whole test class.
+
+> The old name `MsTestContainerFixtureBase` is now a deprecated alias for
+> `MsTestPerTestContainerFixtureBase` (same behavior, clearer name). It still compiles
+> with an obsolete warning; switch to the new name.
 
 ## Fixture lifetime (important)
 
 | Helper | Container lifetime | Use when |
 | --- | --- | --- |
-| `MsTestContainerFixtureBase` | **Per test method** (`[TestInitialize]`/`[TestCleanup]`) | Tests must be isolated. |
+| `MsTestPerTestContainerFixtureBase` | **Per test method** (`[TestInitialize]`/`[TestCleanup]`) | Tests must be isolated. |
 | `MsTestClassContainerFixtureBase<TFixture>` | **Per test class** (lazy first `[TestInitialize]`, then `[ClassCleanup]`) | The class intentionally shares one expensive fixture. |
 
 ### ⚠️ Cross-package lifetime differs — do not assume by name
 
 A base named `<Framework>ContainerFixtureBase` does **not** mean the same lifetime across packages.
-`MsTestContainerFixtureBase` is per test **method**, whereas the like-named xUnit/NUnit bases are per
+`MsTestPerTestContainerFixtureBase` is per test **method**, whereas the like-named xUnit/NUnit bases are per
 test **class** — migrating between frameworks can silently flip container isolation. Pick by the
 lifetime column, not the class name.
 
@@ -75,15 +79,17 @@ lifetime column, not the class name.
 | --- | --- | --- | --- |
 | **xUnit** | per test **class** | `XunitContainerTestBase` | `XunitContainerFixtureBase` (`IClassFixture<T>`) |
 | **NUnit** | per test **class** | subclass with `[SetUp]`/`[TearDown]` | `NUnitContainerFixtureBase` (`[OneTimeSetUp]`) |
-| **MSTest** | per test **method** ⚠️ | `MsTestContainerFixtureBase` | `MsTestClassContainerFixtureBase<T>` |
+| **MSTest** | per test **method** ⚠️ | `MsTestPerTestContainerFixtureBase` | `MsTestClassContainerFixtureBase<T>` |
 
 ## Best-effort crash cleanup
 
 Normal cleanup runs during fixture disposal and the next initialization orphan sweep. Set
 `FLUENTDOCKER_TEST_SESSION=<shared-id>` to group parallel test processes into one live session.
-Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` to opt in to process-exit/SIGINT/SIGTERM cleanup for
-the current session. Shared `FLUENTDOCKER_TEST_SESSION` runs skip exit reaping to avoid deleting
-sibling processes; SIGKILL and hard CI termination cannot run in-process cleanup.
+Process-exit/SIGINT/SIGTERM cleanup for the current session is **on by default**, so a Ctrl-C
+or other catchable termination reaps this session's own labeled containers instead of leaking
+them running. Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=0` (or `false`) to opt out. Shared
+`FLUENTDOCKER_TEST_SESSION` runs skip exit reaping to avoid deleting sibling processes; SIGKILL
+and hard CI termination cannot run in-process cleanup.
 
 ```csharp
 using FluentDocker.Builders;
@@ -91,7 +97,7 @@ using FluentDocker.Testing.MsTest;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
-public sealed class RedisTests : MsTestContainerFixtureBase
+public sealed class RedisTests : MsTestPerTestContainerFixtureBase
 {
   protected override void ConfigureContainer(IContainerBuilder builder)
       => builder.UseImage("redis:7-alpine");

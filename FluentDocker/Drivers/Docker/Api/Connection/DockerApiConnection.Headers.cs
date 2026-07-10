@@ -38,12 +38,12 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         // sub-ConnectionTimeout write progress continuously; a daemon that wedges while we are still
         // streaming the body stops draining the socket, our writes stall, and the watchdog cancels the
         // send instead of hanging forever (even under CancellationToken.None).
-        // ponytail: the watchdog bounds only the body-writing phase. Once the whole body is flushed
-        // (uploadCompleted) it disarms, and the post-upload response-header wait is left to the caller
-        // token: a large `load`/`import` can legitimately take longer than ConnectionTimeout to produce
-        // headers, so bounding it here would false-positive. Ceiling: a daemon that accepts a small body
-        // in full and then wedges before responding is unbounded under CancellationToken.None — out of
-        // scope for this watchdog; pass a token if you need to bound that.
+        // The watchdog bounds the body-writing phase with ConnectionTimeout; once the whole body is
+        // flushed (uploadCompleted) it re-arms with the larger RequestTimeout to bound the response-
+        // header wait too — otherwise a daemon that drains the context tar then wedges before
+        // responding hangs FOREVER under CancellationToken.None, an un-diagnosable production hang on
+        // the heaviest flows (build/load/import) (DAPI-MAJ-2). RequestTimeout (minutes) is generous
+        // enough that a legitimately-slow large load still produces headers before it fires.
         // ponytail: a spurious watchdog cancel cannot corrupt a returned response at realistic bounds —
         // the finally awaits the watchdog to completion before returning, and at the default 30s bound an
         // early response arrives in milliseconds, long before a full bound of write-stall accrues. Only a
@@ -57,10 +57,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
             () => Interlocked.Exchange(ref lastProgress, Environment.TickCount64),
             () => Volatile.Write(ref uploadCompleted, 1));
         var bound = _config.ConnectionTimeout;
+        var responseHeaderBound = _config.RequestTimeout;
         var watchdog = UploadStallWatchdogAsync(
             () => Interlocked.Read(ref lastProgress),
             () => Volatile.Read(ref uploadCompleted) != 0,
-            bound, stallCts, watchdogDone.Token);
+            bound, responseHeaderBound, stallCts, watchdogDone.Token);
         try
         {
           return await _longRunningHttpClient.SendAsync(
@@ -70,6 +71,10 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         catch (OperationCanceledException ex) when (
             !ct.IsCancellationRequested && stallCts.IsCancellationRequested)
         {
+          // Distinguish the two watchdog cancel causes: after the body flushed, a cancel is the
+          // post-upload response-header timeout (RequestTimeout); before, it is a mid-upload stall.
+          if (Volatile.Read(ref uploadCompleted) != 0)
+            throw new DockerApiTtfbTimeoutException(responseHeaderBound, ex);
           throw new DockerApiUploadStallException(bound, ex);
         }
         finally
@@ -96,7 +101,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     private static async Task UploadStallWatchdogAsync(
         Func<long> lastProgress, Func<bool> uploadCompleted, TimeSpan bound,
-        CancellationTokenSource stallCts, CancellationToken done)
+        TimeSpan responseHeaderBound, CancellationTokenSource stallCts, CancellationToken done)
     {
       var boundMs = (long)bound.TotalMilliseconds;
       var pollMs = Math.Clamp(boundMs / 4, 25, 1000);
@@ -105,7 +110,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         while (!done.IsCancellationRequested)
         {
           await Task.Delay(TimeSpan.FromMilliseconds(pollMs), done).ConfigureAwait(false);
-          if (!uploadCompleted() && Environment.TickCount64 - lastProgress() > boundMs)
+          if (uploadCompleted())
+          {
+            // Body flushed: re-arm to bound the response-header wait, then stop watching for stalls.
+            stallCts.CancelAfter(responseHeaderBound);
+            return;
+          }
+
+          if (Environment.TickCount64 - lastProgress() > boundMs)
           {
             stallCts.Cancel();
             return;

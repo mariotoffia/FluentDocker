@@ -28,16 +28,24 @@ namespace FluentDocker.Testing.MsTest
     private TResource? _resource;
     private FluentDockerKernel? _kernel;
 
+    /// <summary>The initialized resource. Throws until <see cref="InitializeAsync"/> completes.</summary>
     public TResource Resource
     {
       get { EnsureInitialized(); return _resource!; }
     }
 
+    /// <summary>The kernel managing drivers for this resource. Throws until initialized.</summary>
     public FluentDockerKernel Kernel
     {
       get { EnsureInitialized(); return _kernel!; }
     }
 
+    /// <summary>
+    /// Builds and initializes the assembly-scoped resource and its kernel.
+    /// </summary>
+    /// <param name="resourceFactory">Creates the resource from the kernel.</param>
+    /// <param name="kernelFactory">Optional kernel factory; null uses the default Docker CLI kernel.</param>
+    /// <param name="cancellationToken">Propagated to resource initialization.</param>
     public async Task InitializeAsync(
         Func<FluentDockerKernel, TResource> resourceFactory,
         Func<Task<FluentDockerKernel>>? kernelFactory = null,
@@ -54,6 +62,7 @@ namespace FluentDocker.Testing.MsTest
       _resource = resource;
     }
 
+    /// <summary>Disposes the resource then its kernel (null-safe if never initialized).</summary>
     public async ValueTask DisposeAsync()
     {
       await ResourceLifecycle.DisposeAsync(_resource, _kernel).ConfigureAwait(false);

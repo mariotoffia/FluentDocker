@@ -15,7 +15,7 @@ permalink: /
 FluentDocker is a .NET library providing a fluent API for Docker and Docker Compose. It simplifies container management for development, testing, and CI/CD pipelines.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## New Here?
@@ -133,7 +133,7 @@ await kube.DownAsync(context, "pod.yaml");
 
 ## Installation
 
-> **Preview:** the published NuGet is 3.1.0. These docs describe 3.2.0-preview.2 — until it ships, build from the [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) branch or pin a matching `PackageReference`; 3.1.0's `WithPort` is container-first (host-first here).
+> **Preview:** the published NuGet is 3.1.0. These docs describe 3.2.0-preview.2 — until it ships, build it from the [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) branch into a local feed ([Consume the preview](getting-started.md#consume-the-preview)); 3.1.0's `WithPort` is container-first (host-first here).
 
 ```bash
 dotnet add package FluentDocker

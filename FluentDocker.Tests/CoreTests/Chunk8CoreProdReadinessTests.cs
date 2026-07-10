@@ -25,13 +25,17 @@ namespace FluentDocker.Tests.CoreTests
   public sealed class Chunk8EndpointAndParsingTests
   {
     [Fact]
-    public void RawAuthorityOnlyEndpoint_UsesSameEnginePathAsCustom()
+    public void RawAuthorityOnlyEndpoint_IsRootAnchored_UnlikeCustom()
     {
       var raw = ModelRunnerEndpoint.Raw(new Uri("http://localhost:12434"));
       var custom = ModelRunnerEndpoint.Custom(new Uri("http://localhost:12434"));
 
-      Assert.Equal(custom.EnginePath, raw.EnginePath);
-      Assert.Equal(custom.EngineV1Path("/chat/completions"), raw.EngineV1Path("/chat/completions"));
+      // MDL-MAJ-3: Raw honors its "no engine prefix" contract (root-anchored), whereas Custom
+      // appends the engine prefix for an authority-only base — so they intentionally differ now.
+      Assert.Equal(string.Empty, raw.EnginePath);
+      Assert.Equal("/chat/completions", raw.EngineV1Path("/chat/completions"));
+      Assert.Equal("/engines/llama.cpp", custom.EnginePath);
+      Assert.NotEqual(custom.EnginePath, raw.EnginePath);
     }
 
     [Fact]

@@ -10,9 +10,11 @@ xUnit 2.x.
 
 Normal cleanup runs during fixture disposal and the next initialization orphan sweep. Set
 `FLUENTDOCKER_TEST_SESSION=<shared-id>` to group parallel test processes into one live session.
-Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` to opt in to process-exit/SIGINT/SIGTERM cleanup for
-the current session. Shared `FLUENTDOCKER_TEST_SESSION` runs skip exit reaping to avoid deleting
-sibling processes; SIGKILL and hard CI termination cannot run in-process cleanup.
+Process-exit/SIGINT/SIGTERM cleanup for the current session is **on by default**, so a Ctrl-C
+or other catchable termination reaps this session's own labeled containers instead of leaking
+them running. Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=0` (or `false`) to opt out. Shared
+`FLUENTDOCKER_TEST_SESSION` runs skip exit reaping to avoid deleting sibling processes; SIGKILL
+and hard CI termination cannot run in-process cleanup.
 
 ## Install
 

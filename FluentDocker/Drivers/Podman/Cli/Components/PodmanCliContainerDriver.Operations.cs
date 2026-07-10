@@ -34,15 +34,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         bool follow = false, int? tail = null, bool timestamps = false,
         CancellationToken cancellationToken = default)
     {
+      // Guarded ABOVE the try so the deterministic misuse surfaces the honest, Docker-parity code
+      // (Container.LogsFailed) instead of being relabeled General.Unknown by the catch-all (PDM-MAJ-3).
+      if (follow)
+      {
+        return CommandResponse<string>.Fail(
+            "GetLogsAsync does not support follow=true because 'podman logs --follow' " +
+            "streams indefinitely. Use IStreamDriver.StreamLogsAsync instead.",
+            ErrorCodes.Container.LogsFailed);
+      }
+
       try
       {
-        if (follow)
-        {
-          throw new NotSupportedException(
-              "GetLogsAsync does not support follow=true because 'podman logs --follow' " +
-              "streams indefinitely. Use IStreamDriver.StreamLogsAsync instead.");
-        }
-
         var args = "logs";
         if (tail.HasValue)
           args += $" --tail {tail.Value}";

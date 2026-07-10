@@ -11,7 +11,7 @@ The testing core lives inside the main `FluentDocker` assembly under the namespa
 `FluentDocker.Testing.Core`. No separate NuGet package is needed.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 **Packaging decision:** testing support ships in the production assembly so the
@@ -156,9 +156,10 @@ export FLUENTDOCKER_TEST_SESSION="${CI_PIPELINE_ID:-local-dev}"
 
 Use the same value for all processes in one CI job and a different value for
 unrelated jobs. Orphan cleanup preserves the current session, so this prevents a
-parallel process from treating a sibling's resources as abandoned. If
-`FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` is also set, shared-session processes skip
-exit reaping so one process cannot delete a sibling process's live fixtures.
+parallel process from treating a sibling's resources as abandoned. Exit reaping is
+on by default, but shared-session processes skip it regardless (unless
+`FLUENTDOCKER_TEST_REAPER_ON_EXIT=0` has already disabled it) so one process cannot
+delete a sibling process's live fixtures.
 
 ### Cleaning up managed containers by hand
 
@@ -180,9 +181,9 @@ The testing core removes its containers when the fixture is disposed — that is
 during normal test teardown. When a CI runner sends `SIGKILL` (`kill -9`) — job
 timeout, cancelled pipeline, agent teardown — the process dies before disposal runs,
 so session-labeled containers stay up. The next run won't reclaim running
-containers at any age; that is deliberate fail-safe behavior. Enable
-`FLUENTDOCKER_TEST_REAPER_ON_EXIT=1` for catchable exits, or run an explicit
-`docker rm -f`/`podman rm -f` sweep when CI owns the daemon.
+containers at any age; that is deliberate fail-safe behavior. Exit reaping (on by
+default unless `FLUENTDOCKER_TEST_REAPER_ON_EXIT=0`) covers catchable exits only;
+for SIGKILL run an explicit `docker rm -f`/`podman rm -f` sweep when CI owns the daemon.
 
 Reap them explicitly at the start (or end) of the job. Every managed resource carries
 the `fluentdocker.managed=true` label:

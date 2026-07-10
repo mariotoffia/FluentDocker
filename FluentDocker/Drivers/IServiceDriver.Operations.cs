@@ -60,6 +60,11 @@ namespace FluentDocker.Drivers
     /// characters with a truncation marker when output is larger. Drivers return a failed
     /// response when <see cref="ServiceLogsConfig.Follow"/> is <c>true</c>; use streaming
     /// APIs for indefinite logs.
+    /// <para>
+    /// <b>Ordering:</b> the result is stdout-first, then stderr; cross-stream chronological
+    /// interleaving is not preserved. Use <see cref="IStreamDriver.StreamLogEntriesAsync"/>
+    /// for arrival-ordered entries.
+    /// </para>
     /// </returns>
     /// <exception cref="OperationCanceledException">
     /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.

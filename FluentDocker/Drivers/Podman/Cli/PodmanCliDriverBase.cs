@@ -91,10 +91,12 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     /// <summary>
     /// Builds global CLI flags from the driver context.
-    /// Podman uses --url for the remote host. TLS settings are not supported via the
-    /// Podman CLI, so <see cref="DriverContext.CertificatePath"/> and
-    /// <see cref="DriverContext.VerifyTls"/> are ignored. Warning deduplication is
-    /// process-wide and keyed by driver/host, so long-lived hosts see each warning once.
+    /// Podman uses --url for the remote host. Docker-style TLS is not expressible via the Podman CLI:
+    /// on a <c>tcp://</c> host, setting <see cref="DriverContext.CertificatePath"/> or
+    /// <see cref="DriverContext.VerifyTls"/><c>=true</c> <b>fails closed</b> with a
+    /// <see cref="DriverException"/> rather than silently connecting in plaintext; on <c>ssh://</c>
+    /// or <c>unix://</c> endpoints those settings are ignored with a one-time warning. Warning
+    /// deduplication is process-wide and keyed by driver/host, so long-lived hosts see each once.
     /// </summary>
     /// <param name="context">The driver context (may be null).</param>
     /// <param name="logger">Optional logger used for one-time warnings about ignored settings.</param>
@@ -103,6 +105,21 @@ namespace FluentDocker.Drivers.Podman.Cli
     {
       if (context == null)
         return "";
+
+      // Fail closed on tcp://: podman CLI cannot apply Docker-style TLS, so honoring a request for
+      // it by silently connecting in plaintext with no server authentication is a security downgrade.
+      // ssh:// tunnels and unix:// sockets are already secure/local, so ignoring the TLS settings there
+      // is legitimate and only warrants a warning (PDM-MAJ-1).
+      var wantsTls = !string.IsNullOrEmpty(context.CertificatePath) || context.VerifyTls == true;
+      if (wantsTls && !string.IsNullOrEmpty(context.Host) &&
+          context.Host.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase))
+      {
+        throw new DriverException(
+            "Podman CLI cannot apply Docker-style TLS (CertificatePath/VerifyTls) to a tcp:// endpoint; " +
+            "proceeding would connect in plaintext with no server authentication. Use an ssh:// or unix:// " +
+            "endpoint, or clear CertificatePath/VerifyTls if a plaintext tcp:// connection is intended.",
+            ErrorCodes.General.InvalidArgument);
+      }
 
       if (!string.IsNullOrEmpty(context.CertificatePath))
         WarnCertificatePathIgnoredOnce(context, logger);

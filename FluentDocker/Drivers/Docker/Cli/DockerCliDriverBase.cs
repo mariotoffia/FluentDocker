@@ -172,6 +172,14 @@ namespace FluentDocker.Drivers.Docker.Cli
         where T : IFormattable
         => value.ToString(format, CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// Concatenates buffered stdout then stderr into one string. Ordering is
+    /// <b>stdout-first, then stderr</b> — the two streams are captured into separate
+    /// buffers, so cross-stream chronological interleaving is <b>not</b> preserved
+    /// (a crash line on stderr appears after all stdout, not where it occurred).
+    /// Callers needing arrival-ordered lines must use
+    /// <see cref="IStreamDriver.StreamLogEntriesAsync"/> instead.
+    /// </summary>
     protected static string MergeOutputAndError(string output, string error)
     {
       if (string.IsNullOrEmpty(output))

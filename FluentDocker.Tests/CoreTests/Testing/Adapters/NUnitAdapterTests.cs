@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
-      Assert.Equal("nunit-stack", resource.StackName);
+      Assert.StartsWith("nunit-stack", resource.StackName); // session-scoped by default
       Assert.Same(Kernel, kernel);
 
       await NUnitResourceHelpers.DisposeAsync(resource, null!);

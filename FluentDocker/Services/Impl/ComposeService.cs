@@ -155,59 +155,6 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
-    public async Task<string> ExecuteAsync(string service, string[] command, CancellationToken cancellationToken = default)
-    {
-      cancellationToken.ThrowIfCancellationRequested();
-      ThrowIfDisposed();
-      var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
-      var context = new DriverContext(_driverId);
-
-      var config = new ComposeExecConfig
-      {
-        ComposeFiles = _composeFiles,
-        ProjectName = _projectName,
-        Service = service,
-        Command = command
-      };
-
-      var response = await driver.ExecuteAsync(context, config, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
-      {
-        throw new DriverException(
-            $"Failed to execute command in service '{service}' for project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
-
-      return response.Data;
-    }
-
-    public async Task ScaleAsync(string service, int replicas, CancellationToken cancellationToken = default)
-    {
-      cancellationToken.ThrowIfCancellationRequested();
-      ThrowIfDisposed();
-      var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
-      var context = new DriverContext(_driverId);
-
-      var config = new ComposeScaleConfig
-      {
-        ComposeFiles = _composeFiles,
-        ProjectName = _projectName,
-        Scale = new Dictionary<string, int> { { service, replicas } }
-      };
-
-      var response = await driver.ScaleAsync(context, config, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
-      {
-        throw new DriverException(
-            $"Failed to scale service '{service}' for project '{_projectName}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
-    }
-
     // Best-effort reconciliation after a mutating op: a `compose ps` corrects optimistic aggregate
     // state when some services crashed on start or did not stop (SVC-MAJ-6). If the probe itself
     // fails we keep the optimistic state rather than throwing — the mutation already succeeded.
@@ -412,49 +359,6 @@ namespace FluentDocker.Services.Impl
 
     public Task RestartAsync(CancellationToken cancellationToken = default) =>
         RestartAsync(null, cancellationToken);
-
-    public async Task RestartAsync(IEnumerable<string> services, CancellationToken cancellationToken = default)
-    {
-      cancellationToken.ThrowIfCancellationRequested();
-      ThrowIfDisposed();
-      if (_state == ServiceRunningState.Removed)
-        throw new InvalidOperationException("Cannot restart a removed compose project.");
-
-      var driver = _kernel.SysCtl<IComposeDriver>(_driverId);
-      var context = new DriverContext(_driverId);
-
-      var config = new ComposeRestartConfig
-      {
-        ComposeFiles = _composeFiles,
-        ProjectName = _projectName,
-        Services = services is null ? [] : [.. services]
-      };
-
-      try
-      {
-        var response = await driver.RestartAsync(context, config, cancellationToken).ConfigureAwait(false);
-
-        if (!response.Success)
-        {
-          throw new DriverException(
-              $"Failed to restart compose project '{_projectName}': {response.Error}",
-              response.ErrorCode,
-              response.ErrorContext);
-        }
-
-        if (config.Services.Count == 0)
-          UpdateState(ServiceRunningState.Running);
-        else
-          await RefreshStateAsync(cancellationToken).ConfigureAwait(false);
-        if (_state == ServiceRunningState.Running)
-          await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
-      }
-      catch
-      {
-        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
-        throw;
-      }
-    }
 
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {

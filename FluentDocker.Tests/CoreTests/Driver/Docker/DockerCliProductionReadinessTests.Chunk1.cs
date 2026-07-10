@@ -145,7 +145,11 @@ exit 0
           new DriverContext("docker"),
           new ContainerCreateConfig { Image = "alpine", Detach = true },
           cts.Token);
-      for (var i = 0; i < 500 && (!File.Exists(record) || !File.ReadAllText(record).Contains("cid-written", StringComparison.Ordinal)); i++)
+      // Wall-clock ceiling (not an iteration count, which thread-pool starvation stretches) —
+      // waits for the fake to both start AND write its cid marker under load. See FakeProcessMarker.
+      var deadline = DateTime.UtcNow.AddSeconds(30);
+      while ((!File.Exists(record) || !File.ReadAllText(record).Contains("cid-written", StringComparison.Ordinal))
+             && DateTime.UtcNow <= deadline)
         await Task.Delay(20, TestContext.Current.CancellationToken);
       Assert.True(File.Exists(record), "fake docker did not start");
       cts.Cancel();

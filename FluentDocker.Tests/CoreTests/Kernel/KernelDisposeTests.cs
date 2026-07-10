@@ -274,6 +274,8 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     public IReadOnlyList<string> GetDriversByRuntime(RuntimeType runtime) => [];
     public string GetDefaultDriverId() => null!;
     public void SetDefaultDriver(string driverId) => throw new NotSupportedException();
+    public int AbandonedDriverCount => 0;
+    public bool IsDisposeComplete => DisposeCalls >= 2;
   }
 
   #endregion

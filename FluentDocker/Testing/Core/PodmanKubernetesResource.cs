@@ -23,7 +23,7 @@ namespace FluentDocker.Testing.Core
         LoggerMessage.Define(
             LogLevel.Warning,
             new EventId(1, nameof(MissingSessionLabels)),
-            "Podman Kubernetes resources cannot apply FluentDocker session labels automatically; use unique YAML resource names and run kube-specific cleanup for leaks.");
+            "Podman Kubernetes resources cannot apply FluentDocker session labels or auto-scope resource names, because pod/service names live inside your YAML and are not rewritten. Parallel runs of the same manifest WILL collide; give each run unique metadata.names (or an isolated host/session) and run kube-specific cleanup for leaks.");
 
     /// <summary>
     /// Creates a Podman Kubernetes resource.

@@ -19,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [Fact]
     public void NoErrors_WithNoCustomCaContext_Rejects()
     {
-      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(null!, null!, null!, SslPolicyErrors.None));
+      Assert.False(ModelTlsValidation.ValidateWithCustomRoot((X509Certificate2)null!, null!, null!, SslPolicyErrors.None));
     }
 
     [Theory]
@@ -30,7 +30,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void NameMismatchOrMissing_AlwaysRejected_EvenWithChainError(SslPolicyErrors errors)
     {
       // A custom CA must never paper over a hostname mismatch / missing cert.
-      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(null!, null!, null!, errors));
+      Assert.False(ModelTlsValidation.ValidateWithCustomRoot((X509Certificate2)null!, null!, null!, errors));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     {
       // Only chain errors are eligible for custom-root re-validation; without a CA
       // (or chain/cert), it must not silently pass.
-      Assert.False(ModelTlsValidation.ValidateWithCustomRoot(null!, null!, null!, SslPolicyErrors.RemoteCertificateChainErrors));
+      Assert.False(ModelTlsValidation.ValidateWithCustomRoot((X509Certificate2)null!, null!, null!, SslPolicyErrors.RemoteCertificateChainErrors));
     }
 
     [Fact]
@@ -75,6 +75,30 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.False(ModelTlsValidation.ValidateWithCustomRoot(cert, cert, chain, errs)); // strict default
       Assert.True(ModelTlsValidation.ValidateWithCustomRoot(cert, cert, chain, errs, allowHostnameMismatch: true));
+    }
+
+    [Fact]
+    public void CustomRootBundle_TrustsCertMatchingAnyCaInBundle_NotJustFirst()
+    {
+      // DAPI-MAJ-3: every cert in a ca.pem bundle must be added to the trust store. Put an unrelated
+      // CA first and the matching (self-signed) CA second; chain validation must still succeed.
+      using var unrelatedRsa = RSA.Create(2048);
+      var unrelatedReq = new CertificateRequest("CN=unrelated-ca", unrelatedRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+      unrelatedReq.CertificateExtensions.Add(new X509BasicConstraintsExtension(certificateAuthority: true, hasPathLengthConstraint: false, pathLengthConstraint: 0, critical: true));
+      using var unrelatedCa = unrelatedReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+
+      using var rsa = RSA.Create(2048);
+      var req = new CertificateRequest("CN=server.example", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+      req.CertificateExtensions.Add(new X509BasicConstraintsExtension(certificateAuthority: true, hasPathLengthConstraint: false, pathLengthConstraint: 0, critical: true));
+      using var serverCa = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+
+      var bundle = new X509Certificate2Collection { unrelatedCa, serverCa };
+      using var chain = new X509Chain();
+
+      var accepted = ModelTlsValidation.ValidateWithCustomRoot(
+          bundle, serverCa, chain, SslPolicyErrors.RemoteCertificateChainErrors);
+
+      Assert.True(accepted);
     }
   }
 }

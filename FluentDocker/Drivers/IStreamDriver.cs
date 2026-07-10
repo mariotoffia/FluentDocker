@@ -375,6 +375,14 @@ namespace FluentDocker.Drivers
     /// </summary>
     public Exception? KillError { get; private set; }
 
+    /// <summary>
+    /// The aggregate exception from failing to dispose the attach streams, if any. Populated
+    /// instead of throwing from <see cref="DisposeAsync"/> — an <see cref="System.IO.IOException"/>
+    /// closing stdin of an already-exited process is an everyday, benign trigger and must never
+    /// replace the body's original exception under <c>await using</c> (KRN-MAJ-5).
+    /// </summary>
+    public Exception? StreamDisposeError { get; private set; }
+
     private int _disposed;
 
     /// <summary>Disposes the attach connection.</summary>
@@ -420,10 +428,14 @@ namespace FluentDocker.Drivers
         }
       }
 
+      // Never throw from DisposeAsync: a stream-dispose failure is captured into StreamDisposeError
+      // (inspectable by callers) rather than surfaced, so it cannot mask the original exception of
+      // an `await using` block.
+      if (disposeErrors.Count > 0)
+        StreamDisposeError = new AggregateException("One or more attach streams failed to dispose.", disposeErrors);
+
       GC.SuppressFinalize(this);
-      return disposeErrors.Count == 0
-          ? ValueTask.CompletedTask
-          : ValueTask.FromException(new AggregateException("One or more attach streams failed to dispose.", disposeErrors));
+      return ValueTask.CompletedTask;
     }
 
     private static void DisposeStream(Stream stream, List<Exception> disposeErrors, ILogger logger)

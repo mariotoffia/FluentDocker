@@ -374,6 +374,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .SetupContainerRemove();
       await dockerPack.InitializeAsync(new DriverContext("docker"), TestContext.Current.CancellationToken);
       await podmanPack.InitializeAsync(new DriverContext("podman"), TestContext.Current.CancellationToken);
+      // WithinPodmanCli now fails fast unless the scoped driver resolves the pod port (BLD-MAJ-6).
+      podmanPack.RegisterCustomDriver<FluentDocker.Drivers.Podman.IPodmanPodDriver>(
+          new Mock<FluentDocker.Drivers.Podman.IPodmanPodDriver>().Object);
       await using var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       await kernel.RegisterDriverPackAsync(

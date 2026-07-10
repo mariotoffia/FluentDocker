@@ -15,7 +15,7 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
 {
   [TestClass]
   [TestCategory("Unit")]
-  public class UnavailableContainerFixtureRunnerTests : MsTestContainerFixtureBase
+  public class UnavailableContainerFixtureRunnerTests : MsTestPerTestContainerFixtureBase
   {
     protected override bool SkipWhenUnavailable => true;
 
@@ -36,7 +36,7 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
 
   [TestClass]
   [TestCategory("Unit")]
-  public class MissingBinaryContainerFixtureRunnerTests : MsTestContainerFixtureBase
+  public class MissingBinaryContainerFixtureRunnerTests : MsTestPerTestContainerFixtureBase
   {
     protected override bool SkipWhenUnavailable => true;
 

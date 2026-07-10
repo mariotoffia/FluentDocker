@@ -29,7 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task TrySysCtl_WhenInterfaceUnsupported_ReturnsFalseAndNullAfterFallback()
+    public async Task TrySysCtl_WhenInterfaceUnsupported_ReturnsFalseAndNull()
     {
       await using var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
@@ -39,9 +39,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       var found = kernel.TrySysCtl<IImageDriver>("pack", out var imageDriver);
 
+      // KRN-MAJ-7 removed the redundant driverId-based SysCtl fallback, so the pack's TryResolve
+      // miss is authoritative and the (never-invoked) fallback is not called.
       Assert.False(found);
       Assert.Null(imageDriver);
-      Assert.Equal(1, pack.FallbackCalls);
+      Assert.Equal(0, pack.FallbackCalls);
     }
 
     [Fact]

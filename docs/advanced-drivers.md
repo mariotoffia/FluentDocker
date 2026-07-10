@@ -14,7 +14,7 @@ prune. This page shows how to reach those ports and gives one worked snippet per
 capability.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Overview
@@ -225,7 +225,7 @@ await foreach (var evt in stream.StreamEventsAsync(context, events, cts.Token))
 `StreamStatsAsync(context, containerId, config, ct)` yields `ContainerStats`, and
 `AttachAsync(context, containerId, config, ct)` yields an `AttachResult` on `.Data`
 with the live streams. The runnable version — start a container, capture its lifecycle
-events — is [`Examples/EventDriven`](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/EventDriven).
+events — is [`Examples/EventDriven`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/EventDriven).
 
 ## System prune
 

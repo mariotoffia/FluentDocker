@@ -162,7 +162,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public async Task RunAsync_CmdHealthCheckWithSpacedArgument_ShellQuotesHealthTokens()
+    public async Task RunAsync_CmdHealthCheck_UsesJsonExecForm()
     {
       RequirePosixShellFixture();
       var dir = CreateOutputDirectory("podman-health-cmd");
@@ -188,7 +188,26 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var args = await ReadArgsAsync(record);
       var healthIndex = Array.IndexOf(args, "--health-cmd");
       Assert.True(healthIndex >= 0);
-      Assert.Equal("/bin/check 'arg with spaces'", args[healthIndex + 1]);
+      // PDM-MAJ-2: exec form — a JSON array podman runs directly, not a shell-quoted string.
+      // The argv value here is the JSON after the OS's CommandLineToArgvW round-trip.
+      Assert.Equal(JsonHelper.Serialize(new[] { "/bin/check", "arg with spaces" }), args[healthIndex + 1]);
+    }
+
+    [Fact]
+    public async Task GetLogsAsync_FollowTrue_ReturnsLogsFailedNotUnknown()
+    {
+      var dir = CreateOutputDirectory("podman-logs-follow");
+      WriteExecutable(Path.Combine(dir, "podman"), "#!/bin/sh\necho ignored\n");
+      var driver = CreateContainerDriverFromDirectory(dir);
+
+      var result = await driver.GetLogsAsync(
+          new DriverContext("podman"), "ctr", follow: true,
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      // PDM-MAJ-3: the deterministic misuse must surface the honest Docker-parity code, not the
+      // catch-all's General.Unknown.
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Container.LogsFailed, result.ErrorCode);
     }
 
     private static ContainerProcesses InvokeParseTopOutput(string output)
@@ -256,13 +275,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
     private static async Task<string[]> ReadLinesEventuallyAsync(string record)
     {
-      for (var i = 0; i < 500; i++)
-      {
-        if (File.Exists(record))
-          return await File.ReadAllLinesAsync(record, TestContext.Current.CancellationToken);
-        await Task.Delay(10, TestContext.Current.CancellationToken);
-      }
-
+      await FakeProcessMarker.WaitForFileAsync(record, TestContext.Current.CancellationToken);
       return await File.ReadAllLinesAsync(record, TestContext.Current.CancellationToken);
     }
 

@@ -87,25 +87,18 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("ssh://user@host", result);
     }
 
-    [Fact]
-    public void ToString_NpipeScheme_InsertsDoubleSlash()
+    [Theory]
+    [InlineData("npipe:////./pipe/docker_engine")]
+    [InlineData("npipe:////./pipe/custom_pipe")]
+    [InlineData("npipe:////./pipe/podman-machine-default")]
+    public void ToString_NpipeScheme_RoundTripsOriginal(string original)
     {
-      // Arrange
-      var uri = new DockerUri("npipe://./pipe/docker_engine");
+      // MDL-MAJ-1: npipe URIs must round-trip verbatim. Uri normalization dot-segment-collapses the
+      // "." host marker and mangles custom pipe names (npipe:////./pipe/custom -> npipe://////pipe/custom),
+      // breaking exactly the format Podman documents for Windows.
+      var uri = new DockerUri(original);
 
-      // Act
-      var result = uri.ToString();
-
-      // Assert - the override inserts "//" at position 6 of base.ToString().
-      // On macOS/Linux, base.ToString() returns "npipe://./pipe/docker_engine",
-      // so the insertion produces "npipe:" + "//" + "//./pipe/docker_engine"
-      // = "npipe:////./pipe/docker_engine". On Windows the base class may strip
-      // the authority slashes, and the insertion restores them.
-      Assert.StartsWith("npipe:", result);
-      Assert.Contains("./pipe/docker_engine", result);
-
-      // Verify the "//" insertion is present at position 6
-      Assert.Equal("//", result.Substring(6, 2));
+      Assert.Equal(original, uri.ToString());
     }
 
     [Fact]

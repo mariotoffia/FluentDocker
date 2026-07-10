@@ -55,7 +55,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     public int AbandonedDriverCount => Volatile.Read(ref _abandonedDriverCount);
 
-    internal bool IsDisposeComplete => Volatile.Read(ref _disposed) == 2;
+    /// <inheritdoc />
+    public bool IsDisposeComplete => Volatile.Read(ref _disposed) == 2;
 
     #region Driver Registration
 

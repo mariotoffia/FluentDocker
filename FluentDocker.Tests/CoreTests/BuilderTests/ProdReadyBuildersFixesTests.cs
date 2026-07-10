@@ -254,7 +254,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       }
       finally
       {
-        listener.Stop();
+        listener.Close();
       }
       await response.ConfigureAwait(false);
 
@@ -293,7 +293,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       }
       finally
       {
-        listener.Stop();
+        listener.Close();
       }
       Assert.True(continuationCalled);
       await response.ConfigureAwait(false);

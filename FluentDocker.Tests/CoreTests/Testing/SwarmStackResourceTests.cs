@@ -41,11 +41,34 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       await resource.InitializeAsync(TestContext.Current.CancellationToken);
       Assert.True(resource.IsInitialized);
-      Assert.Equal("my-stack", resource.StackName);
+      // Session-scoped by default (parallel-run collision guard): starts with the caller's name.
+      Assert.StartsWith("my-stack", resource.StackName);
       Assert.NotNull(resource.DeployResult);
 
       await resource.DisposeAsync();
       Assert.False(resource.IsInitialized);
+    }
+
+    [Fact]
+    public void StackName_IsSessionScoped_ByDefault()
+    {
+      var options = new DockerResourceOptions { SessionId = "abcdef1234567890" };
+      var resource = new SwarmStackResource(
+          Kernel, new StackDeployConfig { StackName = "app" }, options);
+
+      // Default (EnableSessionLabels=true) appends a deterministic session suffix so
+      // parallel jobs deploying "app" cannot tear down each other's live stack.
+      Assert.Equal("app-abcdef123456", resource.StackName);
+    }
+
+    [Fact]
+    public void StackName_IsExact_WhenSessionLabelsDisabled()
+    {
+      var options = new DockerResourceOptions { SessionId = "abcdef1234567890", EnableSessionLabels = false };
+      var resource = new SwarmStackResource(
+          Kernel, new StackDeployConfig { StackName = "app" }, options);
+
+      Assert.Equal("app", resource.StackName);
     }
 
     [Fact]

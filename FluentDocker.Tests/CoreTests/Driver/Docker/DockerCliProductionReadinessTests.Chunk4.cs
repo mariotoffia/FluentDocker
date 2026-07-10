@@ -449,18 +449,8 @@ exit 2
     private static (bool Success, string ErrorCode) ToStatus<T>(CommandResponse<T> response) =>
         (response.Success, response.ErrorCode);
 
-    private static async Task WaitForFileAsync(string path)
-    {
-      // Budget generous enough to survive process-spawn latency under a fully
-      // parallel unit run (fake docker writes args, then sleeps 2s, so the file
-      // persists well past the poll window once the child has started).
-      for (var i = 0; i < 250; i++)
-      {
-        if (File.Exists(path))
-          return;
-        await Task.Delay(20, TestContext.Current.CancellationToken);
-      }
-    }
+    private static Task WaitForFileAsync(string path)
+        => FakeProcessMarker.WaitForFileAsync(path, TestContext.Current.CancellationToken);
 
     private sealed class SudoResolver(string dockerPath) : IBinaryResolver
     {

@@ -21,7 +21,7 @@ namespace FluentDocker.Testing.Core
         LoggerMessage.Define(
             LogLevel.Warning,
             new EventId(1, nameof(MissingSessionLabels)),
-            "Swarm stack resources cannot apply FluentDocker session labels automatically; use unique stack names and run stack-specific cleanup for leaks.");
+            "Swarm stack resources cannot apply FluentDocker session labels automatically; the stack name is session-scoped by default to avoid parallel-run collisions. Set DockerResourceOptions.EnableSessionLabels=false to keep the exact name, then ensure uniqueness yourself and run stack-specific cleanup for leaks.");
 
     /// <summary>
     /// Creates a swarm stack resource.
@@ -39,6 +39,12 @@ namespace FluentDocker.Testing.Core
       _config = config;
       if (string.IsNullOrWhiteSpace(config.StackName))
         throw new ArgumentException("StackName must not be null or empty.", nameof(config));
+
+      // Swarm stacks cannot carry session labels, so two parallel jobs deploying the same
+      // caller-fixed StackName would collide and tear down each other's live stack. Session-scope
+      // the name by default; opt out with DockerResourceOptions.EnableSessionLabels=false.
+      if (Options.EnableSessionLabels)
+        _config.StackName = SessionScopedName(config.StackName, Options.SessionId);
     }
 
     /// <summary>

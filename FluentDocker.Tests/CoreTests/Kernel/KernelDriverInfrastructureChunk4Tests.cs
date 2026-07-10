@@ -16,7 +16,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
   public sealed class KernelDriverInfrastructureChunk4Tests
   {
     [Fact]
-    public async Task SysCtl_WhenPackResolverMisses_DelegatesToPackSysCtl()
+    public async Task SysCtl_ResolvesViaPackTryResolve()
     {
       var marker = new Marker();
       await using var kernel = new FluentDockerKernel(
@@ -218,13 +218,8 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       protected override TimeSpan DisposeBudget => TimeSpan.FromMilliseconds(100);
     }
 
-    private static bool GetIsDisposeComplete(DriverRegistry registry)
-    {
-      var property = typeof(DriverRegistry).GetProperty(
-          "IsDisposeComplete", BindingFlags.Instance | BindingFlags.NonPublic);
-      Assert.NotNull(property);
-      return (bool)property.GetValue(registry)!;
-    }
+    // IsDisposeComplete is now a public member of IDriverRegistry (KRN-MAJ-2); no reflection needed.
+    private static bool GetIsDisposeComplete(DriverRegistry registry) => registry.IsDisposeComplete;
 
     private abstract class BasePack : IDriverPack
     {
@@ -252,7 +247,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
           return false;
         }
       }
-      public bool TryResolve(Type interfaceType, out object implementation)
+      public virtual bool TryResolve(Type interfaceType, out object implementation)
       {
         implementation = null!;
         return false;
@@ -262,12 +257,20 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
     private sealed class SysCtlFallbackPack(IMarker marker) : BasePack
     {
-      public override object SysCtl(string driverId, Type interfaceType)
+      // Post-KRN-MAJ-7 packs resolve via TryResolve (the driverId-based SysCtl fallback was removed).
+      public override bool TryResolve(Type interfaceType, out object implementation)
       {
         if (interfaceType == typeof(IMarker))
-          return marker;
-        throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+        {
+          implementation = marker;
+          return true;
+        }
+        implementation = null!;
+        return false;
       }
+
+      public override object SysCtl(string driverId, Type interfaceType) =>
+          throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
     }
 
     private sealed class UnsupportedFallbackPack : BasePack

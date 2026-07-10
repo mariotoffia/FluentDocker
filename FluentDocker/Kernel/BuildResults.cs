@@ -18,14 +18,18 @@ namespace FluentDocker.Kernel
   public class BuildResults(List<BuildScope> scopes) : IAsyncDisposable, IDisposable
   {
     /// <summary>
-    /// Per-service wall-clock budget (milliseconds) bounding <b>asynchronous</b> disposal
-    /// of each service (containers, pods, networks, volumes, compose), so one hung
-    /// daemon call cannot consume cleanup time for later resources. The synchronous
-    /// <see cref="Dispose"/> path does not apply this budget.
+    /// Per-service wall-clock budget (milliseconds) bounding disposal of each service
+    /// (containers, pods, networks, volumes, compose), so one hung daemon call cannot consume
+    /// cleanup time for later resources. Applied by both <see cref="DisposeAsync"/> and the
+    /// synchronous <see cref="Dispose"/> path (the sync path can only bound the caller's wait —
+    /// a timed-out service is retained for retry and its dispose continues in the background).
     /// </summary>
     public const int DefaultDisposeBudgetMs = 60_000;
 
     private readonly List<BuildScope> _scopes = scopes == null ? [] : [.. scopes];
+    // Serializes Dispose/DisposeAsync so a second concurrent caller AWAITS the in-flight teardown
+    // instead of returning before containers are actually gone (KRN-MAJ-4).
+    private readonly SemaphoreSlim _disposeGate = new(1, 1);
     private int _disposed; // 0=not disposed/incomplete, 1=disposing, 2=complete
 
     /// <summary>
@@ -137,22 +141,24 @@ namespace FluentDocker.Kernel
     /// each service receives its own <see cref="DefaultDisposeBudgetMs"/> budget so a hung daemon
     /// call cannot starve later resources. Services are removed only after disposal completes;
     /// failed or timed-out resources remain observable in <see cref="All"/>, and a later disposal
-    /// call retries them. If a second <see cref="DisposeAsync"/> call arrives while the first
-    /// teardown is still running, the second call returns immediately and does not await the
-    /// in-flight teardown; callers that need teardown completion must await the first call.
+    /// call retries them. If a second <see cref="DisposeAsync"/>/<see cref="Dispose"/> call arrives
+    /// while the first teardown is still running, it blocks on an internal gate and returns only
+    /// once that teardown completes (or, if the first failed, retries the teardown itself).
     /// </remarks>
     [SuppressMessage("Usage", "CA1816",
         Justification = "Disposal supports retry: SuppressFinalize is deferred to CompleteOrAllowRetry and only runs once teardown fully completes.")]
     public async ValueTask DisposeAsync()
     {
-      if (Volatile.Read(ref _disposed) == 2 ||
-          Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
-      {
+      if (Volatile.Read(ref _disposed) == 2)
         return;
-      }
 
+      await _disposeGate.WaitAsync().ConfigureAwait(false);
       try
       {
+        if (Volatile.Read(ref _disposed) == 2)
+          return; // first caller completed the teardown while we waited on the gate
+
+        _disposed = 1;
         var perServiceTimeout = TimeSpan.FromMilliseconds(DefaultDisposeBudgetMs);
         for (var i = _scopes.Count - 1; i >= 0; i--)
         {
@@ -165,6 +171,10 @@ namespace FluentDocker.Kernel
       {
         Interlocked.Exchange(ref _disposed, 0);
         throw;
+      }
+      finally
+      {
+        _disposeGate.Release();
       }
     }
 
@@ -183,17 +193,20 @@ namespace FluentDocker.Kernel
         Justification = "Disposal supports retry: SuppressFinalize is deferred to CompleteOrAllowRetry and only runs once teardown fully completes.")]
     public void Dispose()
     {
-      if (Volatile.Read(ref _disposed) == 2 ||
-          Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
-      {
+      if (Volatile.Read(ref _disposed) == 2)
         return;
-      }
 
+      _disposeGate.Wait();
       try
       {
+        if (Volatile.Read(ref _disposed) == 2)
+          return; // first caller completed the teardown while we waited on the gate
+
+        _disposed = 1;
+        var perServiceTimeout = TimeSpan.FromMilliseconds(DefaultDisposeBudgetMs);
         for (var i = _scopes.Count - 1; i >= 0; i--)
         {
-          _scopes[i].DisposeAll();
+          _scopes[i].DisposeAll(perServiceTimeout);
         }
 
         CompleteOrAllowRetry();
@@ -202,6 +215,10 @@ namespace FluentDocker.Kernel
       {
         Interlocked.Exchange(ref _disposed, 0);
         throw;
+      }
+      finally
+      {
+        _disposeGate.Release();
       }
     }
 

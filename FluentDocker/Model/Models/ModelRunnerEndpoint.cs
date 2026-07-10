@@ -101,8 +101,10 @@ namespace FluentDocker.Model.Models
         throw new ArgumentException("Model runner endpoint URL must be an absolute http(s) URL with a host.", nameof(url));
 
       var authority = new Uri(url.GetLeftPart(UriPartial.Authority));
-      var path = url.AbsolutePath.TrimEnd('/');
-      var basePath = string.IsNullOrEmpty(path) ? null : path;
+      // Keep an empty path as string.Empty (root-anchored), NOT null: null makes EnginePath/EngineV1Path
+      // fall back to the "/engines/{engine}/v1" prefix, which contradicts Raw's "no engine prefix"
+      // contract and 404s a bare OpenAI-compatible server (e.g. Raw("http://host:12434")) (MDL-MAJ-3).
+      var basePath = url.AbsolutePath.TrimEnd('/');
       var query = string.IsNullOrEmpty(url.Query) ? null : url.Query;
       return new ModelRunnerEndpoint(authority, engine, null, true, basePath, query);
     }

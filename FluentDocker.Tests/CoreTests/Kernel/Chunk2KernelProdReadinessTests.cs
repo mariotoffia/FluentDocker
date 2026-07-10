@@ -54,7 +54,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
-    public async Task TrySysCtl_WhenPackSysCtlThrows_WrapsFaultAsInterfaceNotSupportedException()
+    public async Task TrySysCtl_WhenPackSysCtlThrows_WrapsFaultAsDriverException()
     {
       await using var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
@@ -62,7 +62,9 @@ namespace FluentDocker.Tests.CoreTests.Kernel
           "faulty", new FaultingPack(), new DriverContext("faulty"),
           TestContext.Current.CancellationToken);
 
-      var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
+      // KRN-MAJ-1: a genuine fault from the pack.SysCtl fallback is now surfaced HARD as
+      // DriverException, not the soft InterfaceNotSupportedException reserved for "not implemented".
+      var ex = Assert.Throws<DriverException>(() =>
           kernel.TrySysCtl<IContainerDriver>("faulty", out _));
 
       Assert.IsType<InvalidOperationException>(ex.InnerException);
@@ -154,11 +156,14 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         Logger = logger
       };
 
-      var ex = await Assert.ThrowsAsync<AggregateException>(() => result.DisposeAsync().AsTask());
+      // KRN-MAJ-5: DisposeAsync must NOT throw (that would mask an await-using body's exception);
+      // the stream-dispose failure is captured into StreamDisposeError instead.
+      await result.DisposeAsync();
 
       Assert.True(output.Disposed);
       Assert.True(error.Disposed);
-      Assert.Contains(ex.InnerExceptions, inner => inner.Message == "input failed");
+      var streamError = Assert.IsType<AggregateException>(result.StreamDisposeError);
+      Assert.Contains(streamError.InnerExceptions, inner => inner.Message == "input failed");
       Assert.Contains(logger.Warnings, message =>
           message.Contains("Attach stream disposal failed", StringComparison.Ordinal));
     }
@@ -268,8 +273,9 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
     private sealed class FaultingPack : EmptyPack
     {
-      public override object SysCtl(string driverId, Type interfaceType) =>
-          throw new InvalidOperationException("pack fallback failed");
+      // Faults now surface via TryResolve (the only pack-resolution path after KRN-MAJ-7).
+      public override bool TryResolve(Type interfaceType, out object implementation) =>
+          throw new InvalidOperationException("pack resolution failed");
     }
 
     private sealed class TrackingStream : Stream

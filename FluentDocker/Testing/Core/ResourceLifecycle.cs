@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Testing.Core
 {
@@ -16,10 +15,12 @@ namespace FluentDocker.Testing.Core
   /// </summary>
   /// <remarks>
   /// The <c>loggerFactory</c> parameter defaults to
-  /// <see cref="NullLoggerFactory.Instance"/> on the test-adapter helpers because
-  /// fixture authors typically don't want logs from the test resource plumbing.
-  /// Pass a real factory (or override the fixture's <c>LoggerFactory</c> property)
-  /// to capture lifecycle diagnostics.
+  /// <see cref="DefaultFixtureLoggerFactory.Instance"/> so operational warnings a testing library
+  /// must not hide (teardown-failed-but-recovered, session-label overlay skipped, swarm/kube label
+  /// limits, orphan-sweep errors) surface on <see cref="System.Console.Error"/> instead of vanishing
+  /// into a <c>NullLoggerFactory</c>. Set <c>FLUENTDOCKER_TEST_LOG=off</c> to silence it, or
+  /// pass a real factory (or override the fixture's <c>LoggerFactory</c> property) to capture
+  /// lifecycle diagnostics elsewhere.
   /// </remarks>
   public static class ResourceLifecycle
   {
@@ -27,10 +28,10 @@ namespace FluentDocker.Testing.Core
     /// Creates a default Docker CLI kernel.
     /// </summary>
     /// <param name="loggerFactory">Logger factory for the kernel.
-    /// Defaults to <see cref="NullLoggerFactory.Instance"/>.</param>
+    /// Defaults to <see cref="DefaultFixtureLoggerFactory.Instance"/> (Warning+ to stderr).</param>
     public static Task<FluentDockerKernel> CreateDefaultDockerKernelAsync(
         ILoggerFactory loggerFactory = null)
-        => FluentDockerKernel.Create(loggerFactory ?? NullLoggerFactory.Instance)
+        => FluentDockerKernel.Create(loggerFactory ?? DefaultFixtureLoggerFactory.Instance)
             .WithDockerCli("docker-cli", d => d.AsDefault())
             .BuildAsync();
 
@@ -38,10 +39,10 @@ namespace FluentDocker.Testing.Core
     /// Creates a default Podman CLI kernel.
     /// </summary>
     /// <param name="loggerFactory">Logger factory for the kernel.
-    /// Defaults to <see cref="NullLoggerFactory.Instance"/>.</param>
+    /// Defaults to <see cref="DefaultFixtureLoggerFactory.Instance"/> (Warning+ to stderr).</param>
     public static Task<FluentDockerKernel> CreateDefaultPodmanKernelAsync(
         ILoggerFactory loggerFactory = null)
-        => FluentDockerKernel.Create(loggerFactory ?? NullLoggerFactory.Instance)
+        => FluentDockerKernel.Create(loggerFactory ?? DefaultFixtureLoggerFactory.Instance)
             .WithPodmanCli("podman-cli", d => d.AsDefault())
             .BuildAsync();
 
@@ -68,7 +69,8 @@ namespace FluentDocker.Testing.Core
     /// Defaults to <see cref="CreateDefaultDockerKernelAsync"/>.
     /// </param>
     /// <param name="loggerFactory">Optional logger factory; when null, uses
-    /// <see cref="NullLoggerFactory"/>.</param>
+    /// <see cref="DefaultFixtureLoggerFactory.Instance"/> so operational warnings surface on stderr
+    /// (set <c>FLUENTDOCKER_TEST_LOG=off</c> to silence).</param>
     /// <param name="cancellationToken">Optional cancellation token propagated to
     /// <see cref="ITestResource.InitializeAsync"/>.</param>
     public static async Task<(FluentDockerKernel kernel, TResource resource)>
@@ -81,7 +83,7 @@ namespace FluentDocker.Testing.Core
         where TResource : class, ITestResource
     {
       ArgumentNullException.ThrowIfNull(resourceFactory);
-      loggerFactory ??= NullLoggerFactory.Instance;
+      loggerFactory ??= DefaultFixtureLoggerFactory.Instance;
       defaultKernelFactory ??= () => CreateDefaultDockerKernelAsync(loggerFactory);
 
       var logger = loggerFactory.CreateLogger(typeof(ResourceLifecycle));

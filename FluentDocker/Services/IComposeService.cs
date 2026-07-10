@@ -84,9 +84,16 @@ namespace FluentDocker.Services
     /// Refreshes <see cref="IServiceAsync.State"/> by querying the live per-service status
     /// (<c>docker compose ps</c>). Useful after attaching to an existing project (see
     /// <c>ConnectToExisting</c>) so the aggregate state reflects what the daemon reports
-    /// rather than the assumed default. The state becomes <c>Running</c> if any service is
-    /// running, <c>Stopped</c> if all are stopped/exited/dead, or <c>Unknown</c> if no services
-    /// exist or any service reports another state such as paused/restarting.
+    /// rather than the assumed default. The aggregate is resolved in this precedence order:
+    /// <list type="bullet">
+    ///   <item><c>Running</c> — any service is running;</item>
+    ///   <item><c>Starting</c> — otherwise, any service is restarting;</item>
+    ///   <item><c>Stopped</c> — otherwise, every service is stopped/exited/dead;</item>
+    ///   <item><c>Paused</c> — otherwise, every service is paused;</item>
+    ///   <item><c>Unknown</c> — otherwise (a mixed set of states, or no services exist).</item>
+    /// </list>
+    /// A project already <c>Removed</c> stays <c>Removed</c>; an empty <c>ps</c> result does not
+    /// resurrect it.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task RefreshStateAsync(CancellationToken cancellationToken = default);

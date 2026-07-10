@@ -133,23 +133,59 @@ namespace FluentDocker.Kernel
     }
 
     /// <summary>
-    /// Disposes all services in this scope synchronously.
+    /// Disposes all services in this scope synchronously. When <paramref name="perServiceTimeout"/>
+    /// is supplied each service's synchronous <c>Dispose()</c> is bounded so a hung daemon call
+    /// cannot freeze the caller forever; a timed-out service is retained for a later retry and its
+    /// (abandoned) dispose continues in the background.
     /// </summary>
-    public void DisposeAll()
+    public void DisposeAll(TimeSpan? perServiceTimeout = null)
     {
       // Reverse creation order: dependents before their dependencies.
       var results = SnapshotResults();
 
       for (var i = results.Length - 1; i >= 0; i--)
       {
+        var service = results[i];
+        if (perServiceTimeout is not { } budget)
+        {
+          try
+          {
+            service.Dispose();
+            RemoveResult(service);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogWarning(ex, "BuildScope sync disposal failed; service retained for retry");
+          }
+          continue;
+        }
+
+        var task = Task.Run(service.Dispose);
+        bool completed;
         try
         {
-          results[i].Dispose();
-          RemoveResult(results[i]);
+          completed = task.Wait(budget);
         }
         catch (Exception ex)
         {
           _logger.LogWarning(ex, "BuildScope sync disposal failed; service retained for retry");
+          continue;
+        }
+
+        if (completed)
+        {
+          RemoveResult(service);
+        }
+        else
+        {
+          // Abandon the hung dispose but observe its eventual fault so it does not surface as an
+          // UnobservedTaskException; keep the service in Results for a later retry.
+          _ = task.ContinueWith(
+              static t => _ = t.Exception,
+              CancellationToken.None,
+              TaskContinuationOptions.OnlyOnFaulted,
+              TaskScheduler.Default);
+          _logger.LogWarning("BuildScope sync disposal timed out; service retained for retry");
         }
       }
     }
@@ -183,6 +219,15 @@ namespace FluentDocker.Kernel
       var task = service is IAsyncDisposable asyncDisposable
           ? asyncDisposable.DisposeAsync().AsTask()
           : Task.Run(() => service.Dispose(), CancellationToken.None);
+
+      // If a timed-out or caller-cancelled wait below abandons this task and it later faults, observe
+      // that fault so it cannot surface as an UnobservedTaskException (mirrors the bounded sync path).
+      _ = task.ContinueWith(
+          static t => _ = t.Exception,
+          CancellationToken.None,
+          TaskContinuationOptions.OnlyOnFaulted,
+          TaskScheduler.Default);
+
       if (perServiceTimeout == null)
       {
         await task.WaitAsync(cancellationToken).ConfigureAwait(false);

@@ -30,5 +30,18 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       var result = Assert.Single(results);
       Assert.Equal("chat.json", result.Resource);
     }
+
+    [Fact]
+    public void Include_MatchesTrailingSuffixOfFullyQualifiedName()
+    {
+      // MDL-MAJ-2: ExtractFile lossily reduces "Foo.Bar.child.txt" to "child.txt"; a request with a
+      // longer trailing suffix must still find it instead of silently returning nothing.
+      var results = new ResourceQuery()
+        .Namespace("Foo", recursive: true)
+        .Include("Bar.child.txt")
+        .ToList();
+
+      Assert.Single(results);
+    }
   }
 }

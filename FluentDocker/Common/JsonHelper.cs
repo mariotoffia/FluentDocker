@@ -26,6 +26,7 @@ namespace FluentDocker.Common
     private const string ContainerNetworkSettingsTypeName = "FluentDocker.Model.Containers.ContainerNetworkSettings";
     private static readonly JsonConverter<string?> TolerantNetworkPrefixConverter = new TolerantStringConverter();
     private static readonly JsonConverter<DateTimeOffset> TolerantDateTimeOffsetConverterInstance = new TolerantDateTimeOffsetConverter();
+    private static readonly JsonConverter<DateTimeOffset?> TolerantNullableDateTimeOffsetConverterInstance = new TolerantNullableDateTimeOffsetConverter();
     private static readonly HashSet<string> TolerantNetworkPrefixProperties =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -300,6 +301,8 @@ namespace FluentDocker.Common
       {
         if (property.PropertyType == typeof(DateTimeOffset))
           property.CustomConverter = TolerantDateTimeOffsetConverterInstance;
+        else if (property.PropertyType == typeof(DateTimeOffset?))
+          property.CustomConverter = TolerantNullableDateTimeOffsetConverterInstance;
       }
     }
   }

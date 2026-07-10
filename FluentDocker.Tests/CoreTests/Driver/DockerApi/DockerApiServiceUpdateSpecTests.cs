@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       driver.Initialize(Ctx);
 
       var result = await driver.ScaleAsync(
-          Ctx, new() { ["svc-abc"] = 5 },
+          Ctx, new() { ["svc-abc"] = 5 }, detach: true,
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);

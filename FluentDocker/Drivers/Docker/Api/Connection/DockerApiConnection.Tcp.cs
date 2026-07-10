@@ -172,11 +172,16 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var caPath = Path.Combine(config.CertificatePath, "ca.pem");
       if (File.Exists(caPath))
       {
-        var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
-        ownedCertificates.Add(caCert);
+        // Load the WHOLE ca.pem bundle (intermediate + root), not just the first block — enterprise
+        // DOCKER_CERT_PATH setups routinely ship multi-cert bundles and the Go docker CLI trusts all
+        // of them (DAPI-MAJ-3).
+        var caCerts = new X509Certificate2Collection();
+        caCerts.ImportFromPemFile(caPath);
+        foreach (var caCert in caCerts)
+          ownedCertificates.Add(caCert);
         sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
             ModelTlsValidation.ValidateWithCustomRoot(
-                caCert, cert, chain, errors, config.AllowTlsHostnameMismatch);
+                caCerts, cert, chain, errors, config.AllowTlsHostnameMismatch);
       }
       else if (config.AllowTlsHostnameMismatch)
       {

@@ -164,5 +164,22 @@ namespace FluentDocker.Kernel
     void SetDefaultDriver(string driverId);
 
     #endregion
+
+    #region Disposal diagnostics
+
+    /// <summary>
+    /// Number of driver/pack instances abandoned because their disposal exceeded the teardown
+    /// budget. A non-zero value after disposal means OS processes/containers may have leaked and
+    /// warrants investigation. Observable without a downcast so consumers can detect leaks after a
+    /// timed-out teardown (KRN-MAJ-2).
+    /// </summary>
+    int AbandonedDriverCount { get; }
+
+    /// <summary>
+    /// <c>true</c> once disposal has fully completed (no abandoned drivers, no in-flight teardown).
+    /// </summary>
+    bool IsDisposeComplete { get; }
+
+    #endregion
   }
 }

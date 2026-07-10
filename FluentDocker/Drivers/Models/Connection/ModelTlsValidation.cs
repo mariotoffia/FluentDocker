@@ -29,6 +29,18 @@ namespace FluentDocker.Drivers.Models.Connection
     /// </param>
     /// <returns><c>true</c> only when the certificate is acceptable.</returns>
     public static bool ValidateWithCustomRoot(X509Certificate2 caCert, X509Certificate cert, X509Chain chain,
+        SslPolicyErrors errors, bool allowHostnameMismatch = false) =>
+        ValidateWithCustomRoot(
+            caCert == null ? null : new X509Certificate2Collection(caCert),
+            cert, chain, errors, allowHostnameMismatch);
+
+    /// <summary>
+    /// Custom-root validation against a full CA bundle (intermediate + root). Enterprise
+    /// <c>ca.pem</c> files routinely ship several PEM blocks and the Go docker CLI trusts all of
+    /// them, so loading only the first cert rejected valid chains (DAPI-MAJ-3). All certs in
+    /// <paramref name="caCerts"/> are added to the custom trust store.
+    /// </summary>
+    public static bool ValidateWithCustomRoot(X509Certificate2Collection caCerts, X509Certificate cert, X509Chain chain,
         SslPolicyErrors errors, bool allowHostnameMismatch = false)
     {
       // A missing certificate is never acceptable.
@@ -46,11 +58,11 @@ namespace FluentDocker.Drivers.Models.Connection
       // Only the chain-trust error is eligible for custom-root re-validation.
       if ((remaining & ~SslPolicyErrors.RemoteCertificateChainErrors) != 0)
         return false;
-      if (caCert == null || chain == null || cert == null)
+      if (caCerts == null || caCerts.Count == 0 || chain == null || cert == null)
         return false;
 
       chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-      chain.ChainPolicy.CustomTrustStore.Add(caCert);
+      chain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
 
       if (cert is X509Certificate2 server)
         return chain.Build(server);

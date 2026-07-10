@@ -149,9 +149,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           }
           else
           {
+            // CMD-SHELL is shell form (a single command string). CMD (and a bare token list) is
+            // EXEC form: emit a JSON array so podman runs the command directly rather than under
+            // /bin/sh -c — the only form that works on distroless/shell-less images. Mirrors the
+            // --entrypoint JSON serialization above (PDM-MAJ-2).
             var healthCommand = test[0] == "CMD-SHELL"
                 ? string.Join(" ", test[1..])
-                : string.Join(" ", (test[0] == "CMD" ? test[1..] : test).Select(ShellQuoteHealthToken));
+                : JsonHelper.Serialize(test[0] == "CMD" ? test[1..] : test);
             args += $" --health-cmd {QuoteArgumentIfNeeded(healthCommand)}";
           }
         }
@@ -171,15 +175,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += " " + string.Join(" ", config.Command.Select(QuoteArgumentIfNeeded));
 
       return args;
-    }
-
-    private static string ShellQuoteHealthToken(string value)
-    {
-      if (string.IsNullOrEmpty(value))
-        return "''";
-      return value.Any(c => char.IsWhiteSpace(c) || "|&;()<>$`'\"\\*?[]{}!#~=".Contains(c))
-          ? $"'{value.Replace("'", "'\"'\"'")}'"
-          : value;
     }
 
     #endregion

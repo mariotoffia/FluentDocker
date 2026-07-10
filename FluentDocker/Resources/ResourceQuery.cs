@@ -43,7 +43,33 @@ namespace FluentDocker.Resources
     public IEnumerable<ResourceInfo> Include(params string[] resources)
     {
       return QueryCore(ResolveAssembly(Assembly.GetCallingAssembly()))
-        .Where(x => resources.Contains(x.Resource));
+        .Where(x => resources.Any(r => MatchesRequestedResource(x, r)));
+    }
+
+    /// <summary>
+    /// Matches a resource against a requested name. Because <see cref="ExtractFile"/> can only make a
+    /// lossy guess at the original filename from a dotted manifest name (e.g. reducing
+    /// <c>Ns.Dockerfile.template</c> to <c>template</c>), a request also matches on a trailing-suffix of
+    /// the fully qualified name — so <c>Include("Dockerfile.template")</c> finds it instead of silently
+    /// returning nothing (MDL-MAJ-2).
+    /// </summary>
+    private static bool MatchesRequestedResource(ResourceInfo info, string requested)
+    {
+      if (string.IsNullOrEmpty(requested))
+        return false;
+      if (string.Equals(info.Resource, requested, StringComparison.Ordinal))
+        return true;
+
+      // ns + "." + Resource reconstructs the original fully qualified manifest name.
+      var fq = info.Namespace + "." + info.Resource;
+      if (string.Equals(fq, requested, StringComparison.Ordinal))
+        return true;
+
+      // Broaden to a trailing-suffix match only for MULTI-SEGMENT requests (which ExtractFile can
+      // mangle, e.g. "Dockerfile.template"/"archive.tar.gz"). A bare extension like "json" has no dot
+      // and must NOT match every *.json resource — it only matches an exact Resource name above.
+      return requested.Contains('.', StringComparison.Ordinal) &&
+             fq.EndsWith("." + requested, StringComparison.Ordinal);
     }
 
     private Assembly ResolveAssembly(Assembly caller)

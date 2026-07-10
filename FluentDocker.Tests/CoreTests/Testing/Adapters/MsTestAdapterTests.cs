@@ -63,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
-      Assert.Equal("mstest-stack", resource.StackName);
+      Assert.StartsWith("mstest-stack", resource.StackName); // session-scoped by default
       Assert.Same(Kernel, kernel);
 
       await MsTestResourceHelpers.DisposeAsync(resource, null!);

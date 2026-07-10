@@ -54,7 +54,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
                   ++attempts >= targetAttempts ? -1 : 1))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
       sw.Stop();
-      listener.Stop();
+      listener.Close();
       await server.ConfigureAwait(false);
 
       Assert.Equal(targetAttempts, attempts);
@@ -117,7 +117,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task BuildAsync_ContainerBeforeDeclaredImage_ThrowsOrderingError()
     {
-      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new Builder()
+      var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c.UseImage("app").WithName("web"))
           .UseImage("app", d => d.FromString("FROM scratch"))
@@ -131,7 +131,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task BuildAsync_ContainerBeforeDeclaredPod_ThrowsOrderingError()
     {
-      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => new Builder()
+      var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c.UseImage("alpine").WithName("web").WithPod("app-pod"))
           .UsePod(p => p.WithName("app-pod"))
@@ -341,7 +341,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           context.Response.Close();
         }
       }
-      catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException or OperationCanceledException)
+      // InvalidOperationException: listener.Close() can land between the IsListening check
+      // and GetContextAsync — same benign "listener stopped" signal as the others.
+      catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException or OperationCanceledException or InvalidOperationException)
       {
       }
     }

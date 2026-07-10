@@ -1,7 +1,16 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
+using FluentDocker.Drivers;
+using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.BuilderTests
@@ -183,7 +192,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task WithinPodmanCli_ReturnsPodmanCliFluentBuilder()
     {
-      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("podman");
+      var kernel = await CreatePodmanCapableKernelAsync();
       try
       {
         var result = new Builder().WithinPodmanCli("podman", kernel);
@@ -196,7 +205,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task WithinPodmanCli_UseContainer_ReturnsPodmanCliBuilder()
     {
-      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("podman");
+      var kernel = await CreatePodmanCapableKernelAsync();
       try
       {
         var result = new Builder()
@@ -212,7 +221,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task WithinPodmanCli_UsePod_ReturnsPodmanCliBuilder()
     {
-      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("podman");
+      var kernel = await CreatePodmanCapableKernelAsync();
       try
       {
         var result = new Builder()
@@ -228,7 +237,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task WithinPodmanCli_Chaining_Works()
     {
-      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("podman");
+      var kernel = await CreatePodmanCapableKernelAsync();
       try
       {
         var result = new Builder()
@@ -267,7 +276,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task WithinDriver_UsePod_StillWorks()
     {
-      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("podman");
+      var kernel = await CreatePodmanCapableKernelAsync();
       try
       {
         var builder = new Builder()
@@ -303,6 +312,65 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       Assert.Throws<InvalidOperationException>(() =>
           new Builder().WithinPodmanCli("podman"));
+    }
+
+    #endregion
+
+    #region Wrong-driver-kind fail-fast (BLD-MAJ-6)
+
+    private static async Task<FluentDockerKernel> CreateNoPortsKernelAsync(string driverId)
+    {
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync(driverId, new NoPortsPack(), new DriverContext(driverId));
+      return kernel;
+    }
+
+    // A "podman" kernel whose mock pack resolves the pod port, so the WithinPodmanCli capability
+    // probe passes (the shared MockDriverPack does not register IPodmanPodDriver by default).
+    private static async Task<FluentDockerKernel> CreatePodmanCapableKernelAsync()
+    {
+      var (kernel, mock) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("podman");
+      mock.RegisterCustomDriver<IPodmanPodDriver>(new Mock<IPodmanPodDriver>().Object);
+      return kernel;
+    }
+
+    [Fact]
+    public async Task WithinDockerCli_DriverWithoutCompose_FailsFast()
+    {
+      var kernel = await CreateNoPortsKernelAsync("bad");
+      try
+      {
+        Assert.Throws<InterfaceNotSupportedException>(() =>
+            new Builder().WithinDockerCli("bad", kernel));
+      }
+      finally { await kernel.DisposeAsync(); }
+    }
+
+    [Fact]
+    public async Task WithinPodmanCli_DriverWithoutPods_FailsFast()
+    {
+      var kernel = await CreateNoPortsKernelAsync("bad");
+      try
+      {
+        Assert.Throws<InterfaceNotSupportedException>(() =>
+            new Builder().WithinPodmanCli("bad", kernel));
+      }
+      finally { await kernel.DisposeAsync(); }
+    }
+
+    // A driver pack that resolves no capability ports, so the typed scopes' probes must reject it.
+    private sealed class NoPortsPack : IDriverPack
+    {
+      public DriverType Type => DriverType.DockerCli;
+      public RuntimeType Runtime => RuntimeType.Docker;
+      public Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+      public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default) => Task.FromResult(DriverCapabilities.Default());
+      public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
+      public T SysCtl<T>(string driverId) where T : class => throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+      public object SysCtl(string driverId, Type interfaceType) => throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      public bool TrySysCtl<T>(string driverId, out T instance) where T : class { instance = null!; return false; }
+      public bool TryResolve(Type interfaceType, out object implementation) { implementation = null!; return false; }
+      public IReadOnlyCollection<Type> GetSupportedInterfaces() => [];
     }
 
     #endregion

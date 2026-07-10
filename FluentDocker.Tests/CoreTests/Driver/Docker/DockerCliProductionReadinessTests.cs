@@ -61,10 +61,16 @@ exit 2
         Assert.Skip("POSIX shell script fake docker; not applicable on Windows");
 
       var record = Path.Combine(TestOutputDirectory(), $"args-{Guid.NewGuid():N}.txt");
+      // The fake sleeps far longer than the per-call timeout so the command is always ended by the
+      // timeout, never by its own exit. The per-call timeout (8s) must comfortably exceed worst-case
+      // process-spawn latency (~3.6s p99 under a saturated parallel run) so the child reliably runs
+      // its first line — the `printf` that records the args — before the driver kills it; otherwise
+      // args.txt is never written. It still fires well before the 30s sleep and stays below the
+      // component timeout, proving the per-call override.
       var docker = CreateFakeDocker($$"""
 #!/bin/sh
 printf '%s\n' "$@" > "{{record}}"
-sleep 2
+sleep 30
 echo '{}'
 exit 0
 """);
@@ -72,17 +78,18 @@ exit 0
       driver.Initialize(new DriverContext("docker")
       {
         Host = "tcp://component:2375",
-        RequestTimeout = TimeSpan.FromSeconds(10)
+        RequestTimeout = TimeSpan.FromSeconds(60)
       });
 
       var result = await driver.GetInfoAsync(new DriverContext("docker")
       {
         Host = "tcp://per-call:2375",
-        RequestTimeout = TimeSpan.FromMilliseconds(1500)
+        RequestTimeout = TimeSpan.FromSeconds(8)
       }, TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Contains("timed out", result.Error, StringComparison.OrdinalIgnoreCase);
+      await FakeProcessMarker.WaitForFileAsync(record, TestContext.Current.CancellationToken);
       var args = await File.ReadAllTextAsync(record, TestContext.Current.CancellationToken);
       Assert.Contains("tcp://per-call:2375", args);
       Assert.DoesNotContain("tcp://component:2375", args);

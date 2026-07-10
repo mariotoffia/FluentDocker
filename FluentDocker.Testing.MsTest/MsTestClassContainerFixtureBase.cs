@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
@@ -38,6 +39,7 @@ namespace FluentDocker.Testing.MsTest
     private static readonly SemaphoreSlim LifecycleLock = new(1, 1);
     private static ContainerResource? _resource;
     private static FluentDockerKernel? _kernel;
+    private static ExceptionDispatchInfo? _initFailure;
 
     /// <summary>
     /// The underlying container resource, available after initialization.
@@ -82,6 +84,15 @@ namespace FluentDocker.Testing.MsTest
     protected virtual bool SkipWhenUnavailable => false;
 
     /// <summary>
+    /// When <c>false</c> (the default), the <b>first</b> class-initialization failure is
+    /// memoized and replayed instantly to every subsequent test method in the class instead
+    /// of re-running full container init (kernel build + health probe + provision) per test —
+    /// which, against a down or hung daemon, could burn minutes of CI per class. Override to
+    /// <c>true</c> to retry initialization on each test method (the pre-3.2 behavior).
+    /// </summary>
+    protected virtual bool RetryInitializationPerTest => false;
+
+    /// <summary>
     /// Initializes the shared class container on the first test method.
     /// </summary>
     [TestInitialize]
@@ -96,28 +107,44 @@ namespace FluentDocker.Testing.MsTest
         if (_resource != null)
           return;
 
-        (FluentDockerKernel kernel, ContainerResource resource) result;
+        // Fail fast after a prior class-init failure: replay the captured outcome
+        // (a real error, or Assert.Inconclusive) rather than re-attempting init per test.
+        if (_initFailure != null && !RetryInitializationPerTest)
+          _initFailure.Throw();
+
         try
         {
-          result = await ResourceLifecycle.CreateAndInitializeAsync(
-              k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
-              KernelFactory!).ConfigureAwait(false);
-        }
-        catch (ResourceInitializationException ex)
-            when (SkipWhenUnavailable && ex.InnerException is FluentDockerUnavailableException)
-        {
-          Assert.Inconclusive(ex.InnerException.Message);
-          return;
-        }
-        catch (DriverNotAvailableException ex) when (SkipWhenUnavailable)
-        {
-          Assert.Inconclusive(ex.Message);
-          return;
-        }
+          (FluentDockerKernel kernel, ContainerResource resource) result;
+          try
+          {
+            result = await ResourceLifecycle.CreateAndInitializeAsync(
+                k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
+                KernelFactory!).ConfigureAwait(false);
+          }
+          catch (ResourceInitializationException ex)
+              when (SkipWhenUnavailable && ex.InnerException is FluentDockerUnavailableException)
+          {
+            Assert.Inconclusive(ex.InnerException.Message);
+            return;
+          }
+          catch (DriverNotAvailableException ex) when (SkipWhenUnavailable)
+          {
+            Assert.Inconclusive(ex.Message);
+            return;
+          }
 
-        _kernel = result.kernel;
-        _resource = result.resource;
-        MsTestClassContainerLeakTracker.Register(typeof(TFixture));
+          _kernel = result.kernel;
+          _resource = result.resource;
+          MsTestClassContainerLeakTracker.Register(typeof(TFixture));
+        }
+        catch (Exception ex)
+        {
+          // Memoize ANY escaping init outcome (real failure or Assert.Inconclusive) so the
+          // remaining test methods replay it immediately instead of re-initializing.
+          if (!RetryInitializationPerTest)
+            _initFailure = ExceptionDispatchInfo.Capture(ex);
+          throw;
+        }
       }
       finally
       {
@@ -137,6 +164,7 @@ namespace FluentDocker.Testing.MsTest
         await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
         _resource = null;
         _kernel = null;
+        _initFailure = null;
         MsTestClassContainerLeakTracker.Unregister(typeof(TFixture));
       }
       finally

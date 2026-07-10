@@ -19,6 +19,13 @@ namespace FluentDocker.Builders
         operation.LinkReferences = builder.LinkReferences;
         operation.ImageReferences = builder.ImageReferences;
         operation.PodReferences = builder.PodReferences;
+        // Wait parameters were snapshotted by value at UseContainer time, but StartDeferred is a
+        // live lambda and names/references are refreshed here — so a WaitForPort(...)/AllowCleanExit
+        // set on the stashed builder AFTER UseContainer would otherwise run the deferred start with
+        // the stale budget (BLD-MAJ-3). Refresh them from the builder's current values too.
+        operation.AllowCleanExit = builder.AllowCleanExitOnStart;
+        operation.StartupTimeoutMs = builder.StartupTimeoutMs;
+        operation.StartupPollIntervalMs = builder.StartupPollIntervalMs;
       }
     }
 
@@ -114,7 +121,10 @@ namespace FluentDocker.Builders
       var containerName = string.IsNullOrWhiteSpace(operation.ResourceName)
           ? "<unnamed>"
           : operation.ResourceName;
-      throw new InvalidOperationException(
+      // Graph/config validation uses FluentDockerException uniformly (matching the non-contiguous
+      // scope check) so a caller can catch one type for "builder graph misconfigured"; plain
+      // InvalidOperationException is reserved for lifecycle misuse (BLD-MAJ-4).
+      throw new FluentDockerException(
           $"container '{containerName}' references {referencedKind} '{reference}' which is {reason}; " +
           "declare dependencies before containers that use them");
     }

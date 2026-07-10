@@ -13,7 +13,7 @@ model — implements `IServiceAsync`. That interface carries the running state, 
 pauses, or is removed.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
@@ -162,6 +162,30 @@ cleanup is budgeted: `ContainerService.DefaultDisposeCleanupTimeoutMs` is `30_00
 (30 seconds). If the daemon is unresponsive, disposal abandons the cleanup once the budget
 elapses instead of hanging. The budget is adjustable per instance through the
 constructor's `disposeCleanupTimeout` parameter.
+
+### Disposing `BuildResults`
+
+Disposing the `BuildResults` returned by `Builder.BuildAsync()` tears down every service it
+built, but the guarantee is **time-bounded and best-effort**, not unconditional:
+
+- **Per-service budget.** Each service gets `BuildResults.DefaultDisposeBudgetMs` (**60 s**) of
+  its own, so one hung daemon call cannot starve the teardown of later resources. This budget
+  applies to **both** `await using` (`DisposeAsync`) and the synchronous `using`/`Dispose()` path;
+  the sync path can only bound the *caller's* wait, so a timed-out service is retained for retry
+  while its abandoned dispose finishes in the background. Prefer `await using` — only there is the
+  teardown actually cancellable.
+- **Partial teardown & retry.** A service that fails or times out is **not** silently forgotten: it
+  stays observable in `results.All`, and a **second** `Dispose`/`DisposeAsync` retries it. A second
+  call that arrives while the first teardown is still running blocks on an internal gate and returns
+  only once that teardown completes (it never returns early reporting success before the containers
+  are gone).
+- **`cleanupTimeout`.** `Builder.BuildAsync(TimeSpan? cleanupTimeout, …)` bounds the cleanup that
+  runs when a build *fails* mid-way (default 120 s); the reverse-order removal manifest is attached
+  to the thrown exception's `Data`.
+
+With a wedged daemon, teardown is abandoned after the per-service budget: leaked containers then
+carry the `fluentdocker.session`/`fluentdocker.managed` labels and are reclaimed by the next run's
+orphan sweep or a manual `docker rm -f` by label.
 
 ## See also
 

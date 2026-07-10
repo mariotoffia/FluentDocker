@@ -35,12 +35,12 @@ dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter (optional)
 dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter (optional)
 ```
 
-For 3.2 previews, add `--prerelease` to the package commands. **Caveat:** 3.2.0-preview.2
-is not on NuGet yet, so `--prerelease` currently resolves the latest published package,
-**3.1.0** — whose `WithPort` is container-first while every doc here teaches the host-first
-3.2 semantics. Until the preview ships, build from the feature branch or pin the version
-explicitly (see [Getting Started](docs/getting-started.md#installation)); don't run these
-samples against 3.1.0.
+**Caveat:** 3.2.0-preview.2 is **not on NuGet yet**, so `dotnet add package … --prerelease`
+currently resolves the latest published package, **3.1.0** — whose `WithPort` is container-first
+while every doc here teaches the host-first 3.2 semantics. Until the preview ships, build it from
+the `featrure/model-support` branch into a local feed and reference `3.2.0-preview.2` from there:
+see **[Consume the preview](docs/getting-started.md#consume-the-preview)** for the copy-paste recipe.
+Don't run these samples against 3.1.0.
 
 ## Quick Start
 
@@ -168,8 +168,9 @@ Podman Kubernetes, topology, and model resource types.
 ## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.2)*
 
 > **Preview — not on NuGet yet.** Model Runner support lands in **3.2.0-preview.2**, which
-> isn't published yet; build from the [preview branch](https://github.com/mariotoffia/FluentDocker/tree/master) to
-> use it (the latest published package, 3.1.0, has no Model Runner). The inference DTO shapes
+> isn't published yet; build it from the [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support)
+> branch into a local feed to use it — see [Consume the preview](docs/getting-started.md#consume-the-preview)
+> (the latest published package, 3.1.0, has no Model Runner). The inference DTO shapes
 > may still change. Everything above is the stable surface — reach for this section only once
 > you need local models.
 
@@ -179,7 +180,7 @@ OpenAI-compatible runner (vLLM, LM Studio, `llama-server`, hosted) — behind th
 guidance, and troubleshooting live in the model guide.
 
 Full guide: **[Model Runner (local LLMs)](docs/model-runner.md)** ·
-[runner plugins](docs/model-runner-plugins.md) · runnable [Examples/ModelRunner](https://github.com/mariotoffia/FluentDocker/tree/master/Examples/ModelRunner).
+[runner plugins](docs/model-runner-plugins.md) · runnable [Examples/ModelRunner](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner).
 
 ## Linux Users
 

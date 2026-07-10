@@ -232,7 +232,12 @@ namespace FluentDocker.Testing.Core
 
       try
       {
-        var directory = Path.Combine(Path.GetTempPath(), "fluentdocker");
+        // Per-user directory: on a multi-user CI host the shared temp root is sticky, so each
+        // user must own its own top-level dir. A subdir under one shared "fluentdocker" parent
+        // would inherit the first writer's permissions and make every other user's overlay write
+        // fail with UnauthorizedAccessException — silently running compose resources UNLABELED and
+        // invisible to orphan cleanup (TST-MAJ-3).
+        var directory = Path.Combine(Path.GetTempPath(), $"fluentdocker-{CurrentUserDirSegment()}");
         SweepStaleSessionLabelOverlays(directory);
         await builder.LoadEnvFilesAsync(cancellationToken).ConfigureAwait(false);
         var environment = ComposeEnvironmentWithProfiles(builder);
@@ -280,6 +285,21 @@ namespace FluentDocker.Testing.Core
         ComposeLabelOverlaySkipped(Logger, ex.Message, ex);
         return null;
       }
+    }
+
+    /// <summary>
+    /// Filesystem-safe segment identifying the current OS user, so session-label overlays live
+    /// under a per-user temp directory instead of a world-shared one.
+    /// </summary>
+    private static string CurrentUserDirSegment()
+    {
+      var user = Environment.UserName;
+      if (string.IsNullOrEmpty(user))
+        return "default";
+
+      return new string(user
+          .Select(c => char.IsLetterOrDigit(c) || c is '.' or '-' or '_' ? c : '_')
+          .ToArray());
     }
 
     private static void SweepStaleSessionLabelOverlays(string directory)

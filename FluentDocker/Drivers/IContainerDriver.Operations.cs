@@ -49,6 +49,12 @@ namespace FluentDocker.Drivers
     /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/> when truncation occurs.
     /// Use <paramref name="tail"/> or <see cref="IStreamDriver.StreamLogsAsync"/> for full
     /// diagnostics. Other buffered CLI calls still fail fast at their memory cap.
+    /// <para>
+    /// <b>Ordering:</b> when the source separates the two streams (Docker CLI, Podman CLI)
+    /// the result is stdout-first, then stderr; cross-stream chronological interleaving is
+    /// not preserved. Use <see cref="IStreamDriver.StreamLogEntriesAsync"/> for arrival-ordered
+    /// entries tagged by stream.
+    /// </para>
     /// </returns>
     /// <exception cref="OperationCanceledException">
     /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.

@@ -78,6 +78,7 @@ namespace FluentDocker.Testing.NUnit
     /// </summary>
     protected virtual bool SkipWhenUnavailable => false;
 
+    /// <summary>Provisions the class-scoped container once before the fixture's tests (NUnit <c>[OneTimeSetUp]</c>).</summary>
     [OneTimeSetUp]
     public async Task SetUpAsync()
     {
@@ -107,12 +108,15 @@ namespace FluentDocker.Testing.NUnit
       _resource = result.resource;
     }
 
+    /// <summary>Tears down the class-scoped container after the fixture's tests (NUnit <c>[OneTimeTearDown]</c>).</summary>
     [OneTimeTearDown]
     public async Task TearDownAsync()
     {
       // Clear handles only AFTER successful disposal. If cleanup throws, the public
-      // Resource/Kernel handles stay available for LastTeardownDiagnostics, retry, or
-      // manual cleanup, and the exception propagates.
+      // Resource/Kernel handles stay non-null for LastTeardownDiagnostics and label-based
+      // manual cleanup (docker/podman rm -f by the session label). The kernel is already
+      // disposed by ResourceLifecycle.DisposeAsync, so it cannot be reused to retry teardown;
+      // recover via the next run's orphan sweep or a manual label sweep. The exception propagates.
       await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
       _resource = null;
       _kernel = null;

@@ -431,13 +431,17 @@ namespace FluentDocker.Drivers.Models.Connection
         }
         else if (caPath != null)
         {
-          var caCert = X509CertificateLoader.LoadCertificateFromFile(caPath);
-          ownedCertificates.Add(caCert);
-          // Pin: the custom CA is the exclusive trust root for chain validation; hostname
+          // Load the WHOLE ca.pem bundle (intermediate + root), not just the first block, matching
+          // the Go docker CLI (DAPI-MAJ-3).
+          var caCerts = new X509Certificate2Collection();
+          caCerts.ImportFromPemFile(caPath);
+          foreach (var caCert in caCerts)
+            ownedCertificates.Add(caCert);
+          // Pin: the custom CA bundle is the exclusive trust root for chain validation; hostname
           // mismatch and a missing certificate are still rejected by default (see
           // ModelTlsValidation). Without ca.pem the system trust store applies (no callback).
           sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
-              ModelTlsValidation.ValidateWithCustomRoot(caCert, cert, chain, errors, config.AllowTlsHostnameMismatch);
+              ModelTlsValidation.ValidateWithCustomRoot(caCerts, cert, chain, errors, config.AllowTlsHostnameMismatch);
         }
       }
       else if (!config.VerifyTls)

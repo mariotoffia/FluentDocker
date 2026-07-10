@@ -9,7 +9,7 @@ nav_order: 4
 Complete guide to creating, configuring, and managing containers with FluentDocker v3.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
@@ -517,7 +517,13 @@ When a container with the same name already exists, control what happens:
 
 ## Cleanup and Dispose Behavior
 
-By default, containers are stopped and removed when `BuildResults` is disposed.
+By default, containers are stopped and removed when `BuildResults` is disposed — as
+**best-effort, time-bounded** cleanup (each service gets a 60 s budget; a wedged daemon
+leaves the resource retained for retry rather than hanging). See
+[Disposal is time-bounded → Disposing `BuildResults`](service-lifecycle.md#disposing-buildresults)
+for the per-service budget, the retry/second-call contract, sync-vs-async differences, and
+`BuildAsync(cleanupTimeout)`.
+
 Use these methods inside the `UseContainer(c => ...)` lambda to customize:
 
 ```csharp

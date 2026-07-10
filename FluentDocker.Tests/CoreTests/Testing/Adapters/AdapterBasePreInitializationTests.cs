@@ -157,14 +157,14 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       }
     }
 
-    private sealed class TestMsTestContainerFixtureBase : MsTestContainerFixtureBase
+    private sealed class TestMsTestContainerFixtureBase : MsTestPerTestContainerFixtureBase
     {
       protected override void ConfigureContainer(IContainerBuilder builder)
       {
       }
     }
 
-    private sealed class OtherMsTestContainerFixtureBase : MsTestContainerFixtureBase
+    private sealed class OtherMsTestContainerFixtureBase : MsTestPerTestContainerFixtureBase
     {
       protected override void ConfigureContainer(IContainerBuilder builder)
       {

@@ -28,7 +28,7 @@ Follow YAGNI principles, and one-liner solutions.
 - All CLI args → `QuoteArgumentIfNeeded` (in `Drivers/Docker/Cli/DockerCliDriverBase.cs` / `PodmanCliDriverBase.cs`).
 - Use `CommandResponse<T>` from `FluentDocker.Model.Drivers`.
 - `ImplicitUsings=disable` → explicit `using`s; 2-space indent, `var`, braces on new lines (`.editorconfig`).
-- Strong-named, **no `InternalsVisibleTo`** → test through public surfaces, not internals.
+- Strong-named, **no `InternalsVisibleTo`** → prefer testing through public surfaces. **Documented exception:** unit-testing an `internal`/`private` pure function (parsers, formatters, classifiers) directly via reflection (`BindingFlags.NonPublic`) is accepted where exercising it through the public API would need a live daemon — it keeps parser logic under fast unit tests. Such a test must feed realistic payloads and assert real outputs (not echo a mock); when adding a new parser, expose a public/`internal`-visible test seam if one is cheap, otherwise reflection is fine. Don't reflect into private *state/lifecycle* to bypass the public contract.
 - Dispose idempotent (`Interlocked.CompareExchange`); prefer `DisposeAsync()` — sync `Dispose()` is the fallback.
 - Scratch / test output goes under `.out/` (git-ignored). Don't commit binaries.
 

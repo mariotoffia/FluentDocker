@@ -61,4 +61,31 @@ namespace FluentDocker.Common
       writer.WriteStringValue(value);
     }
   }
+
+  /// <summary>
+  /// Nullable counterpart of <see cref="TolerantDateTimeOffsetConverter"/>. A JSON <c>null</c> reads
+  /// as <c>null</c>; a present-but-unparseable value drifts to the non-nullable default (and is counted
+  /// via <see cref="TolerantDateTimeOffsetConverter.DriftCount"/>) rather than poisoning the payload.
+  /// Needed because <c>DateTimeOffset?</c> is the natural type for timestamps Docker omits, and STJ
+  /// would otherwise apply strict parsing to it (MC-MAJ-1 / MDL-MAJ-4).
+  /// </summary>
+  public sealed class TolerantNullableDateTimeOffsetConverter : JsonConverter<DateTimeOffset?>
+  {
+    private static readonly TolerantDateTimeOffsetConverter Inner = new();
+
+    public override DateTimeOffset? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+      if (reader.TokenType == JsonTokenType.Null)
+        return null;
+      return Inner.Read(ref reader, typeof(DateTimeOffset), options);
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTimeOffset? value, JsonSerializerOptions options)
+    {
+      if (value.HasValue)
+        writer.WriteStringValue(value.Value);
+      else
+        writer.WriteNullValue();
+    }
+  }
 }

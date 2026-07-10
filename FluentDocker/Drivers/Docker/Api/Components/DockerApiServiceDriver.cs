@@ -18,7 +18,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of IServiceDriver for Docker Swarm services.
   /// Uses /services and /tasks endpoints.
   /// </summary>
-  public class DockerApiServiceDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IServiceDriver
+  public partial class DockerApiServiceDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IServiceDriver
   {
     /// <inheritdoc />
     public async Task<CommandResponse<ServiceCreateResult>> CreateAsync(
@@ -133,6 +133,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             ErrorCodes.Service.RollbackFailed,
             CreateErrorContext($"POST /services/{serviceId}/update (rollback)", result.StatusCode),
             result.StatusCode);
+
+      // detach=false waits for the rolled-back spec to converge. Re-inspect to learn the (previous)
+      // desired replica count; skip the wait for global mode / unknown counts.
+      if (!detach)
+      {
+        var postInspect = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (postInspect.Success && postInspect.Data.Replicas > 0)
+        {
+          var converged = await WaitForServiceConvergenceAsync(context, serviceId, postInspect.Data.Replicas, cancellationToken).ConfigureAwait(false);
+          if (!converged.Success)
+            return converged;
+        }
+      }
 
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
@@ -260,6 +273,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var result = await UpdateAsync(context, serviceId, updateConfig, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return result;
+
+        // detach=false must wait for the service to actually converge (parity with the CLI driver).
+        if (!detach)
+        {
+          var converged = await WaitForServiceConvergenceAsync(context, serviceId, replicas, cancellationToken).ConfigureAwait(false);
+          if (!converged.Success)
+            return converged;
+        }
       }
 
       return CommandResponse<Unit>.Ok(Unit.Default);

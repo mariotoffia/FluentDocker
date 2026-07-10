@@ -27,6 +27,14 @@ namespace FluentDocker.Services
     Removing = 6,
 
     /// <summary>Service has been removed and is no longer available.</summary>
-    Removed = 7
+    Removed = 7,
+
+    /// <summary>
+    /// Container has been created but not yet started. Distinct from <see cref="Starting"/>:
+    /// a created container is idle, so seeding this state (rather than <see cref="Starting"/>)
+    /// lets a subsequent start transition into <see cref="Starting"/> and fire
+    /// <c>AddHook(Starting, …)</c> hooks / the Starting state-change event.
+    /// </summary>
+    Created = 8
   }
 }

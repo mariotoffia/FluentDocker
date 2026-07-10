@@ -83,6 +83,10 @@ namespace FluentDocker.Builders
         string driverId, FluentDockerKernel kernel = null)
     {
       SetScope(driverId, kernel);
+      // Fail fast when the scoped driver is not actually Docker-CLI-capable: otherwise a later
+      // UseCompose queues happily and fails deep inside BuildAsync, possibly after other resources
+      // were created. Matches the model-builder fail-fast (BLD-MAJ-6).
+      RequireScopedPort<Drivers.IComposeDriver>();
       return new DockerCliFluentBuilder(this, _currentKernel, _currentDriverId);
     }
 
@@ -107,6 +111,9 @@ namespace FluentDocker.Builders
         string driverId, FluentDockerKernel kernel = null)
     {
       SetScope(driverId, kernel);
+      // Fail fast when the scoped driver is not actually Podman-CLI-capable: otherwise a later
+      // UsePod queues happily and fails deep inside BuildAsync (BLD-MAJ-6).
+      RequireScopedPort<Drivers.Podman.IPodmanPodDriver>();
       return new PodmanCliFluentBuilder(this, _currentKernel, _currentDriverId);
     }
 
@@ -146,51 +153,6 @@ namespace FluentDocker.Builders
         StartupPollIntervalMs = builder.StartupPollIntervalMs
       });
       return this;
-    }
-
-    /// <summary>
-    /// Begins building an <see cref="Services.IModelRunner"/> in the current scope
-    /// (set by <see cref="WithinDriver(string, FluentDockerKernel)"/>). Unlike the
-    /// other <c>UseXxx</c> operations this returns the runner builder directly
-    /// (the runner is not part of the deferred build pipeline).
-    /// </summary>
-    /// <returns>A model runner builder.</returns>
-    public IModelRunnerBuilder UseModelRunner()
-    {
-      ValidateScope();
-      if (_operations.Count > 0)
-        throw new InvalidOperationException(ModelBuilderAfterOpsMessage);
-      var builder = new ModelRunnerBuilder(_currentKernel, _currentDriverId);
-      // Shared fail-fast capability guard (same one the driver-scoped extensions use).
-      if (!ModelDriverScopedBuilderExtensions.HasAnyModelPort(builder))
-        throw new Common.InterfaceNotSupportedException(_currentDriverId, nameof(IModelRunnerBuilder));
-      return builder;
-    }
-
-    /// <summary>
-    /// Begins building a managed single-model <see cref="Services.IModelService"/> in
-    /// the current scope.
-    /// </summary>
-    /// <param name="reference">The model reference string.</param>
-    /// <returns>A model service builder.</returns>
-    public IModelServiceBuilder UseModel(string reference) =>
-        UseModel(Model.Models.ModelReference.Parse(reference));
-
-    /// <summary>
-    /// Begins building a managed single-model <see cref="Services.IModelService"/> in
-    /// the current scope from a pre-built <see cref="Model.Models.ModelReference"/>.
-    /// </summary>
-    /// <param name="reference">The model reference.</param>
-    /// <returns>A model service builder.</returns>
-    public IModelServiceBuilder UseModel(Model.Models.ModelReference reference)
-    {
-      ValidateScope();
-      if (_operations.Count > 0)
-        throw new InvalidOperationException(ModelBuilderAfterOpsMessage);
-      var serviceBuilder = new ModelServiceBuilder(_currentKernel, _currentDriverId);
-      if (!ModelDriverScopedBuilderExtensions.HasModelRuntime(serviceBuilder))
-        throw new Common.InterfaceNotSupportedException(_currentDriverId, nameof(Drivers.IModelRuntimeDriver));
-      return serviceBuilder.ForModel(reference);
     }
 
     /// <summary>
@@ -338,24 +300,32 @@ namespace FluentDocker.Builders
     {
       if (_buildSucceeded)
         throw new InvalidOperationException("builder already consumed by BuildAsync; create a new Builder");
-      // Pre-flight checks run BEFORE acquiring the in-progress latch so a validation failure
-      // cannot leave the latch stuck set (which would brick every subsequent BuildAsync and
-      // skip the per-operation ResetForRetry). Both checks are read-only.
-      if (_operations.Count == 0)
-        throw new InvalidOperationException("no resources configured");
-      // Re-snapshot container refs from the live builders so validation sees exactly what
-      // ExecuteAsync will use. Guards the foot-gun where a stashed IContainerBuilder is mutated
-      // after its configure lambda returns, which would otherwise bypass declare-before-use.
-      RefreshContainerSnapshots();
-      ValidateContiguousScopes();
-      ValidateOperationReferences();
 
+      // Acquire the in-progress latch FIRST, then run pre-flight under it. RefreshContainerSnapshots
+      // WRITES operation.ResourceName/reference/wait fields (it is NOT read-only), so running it
+      // before the latch let a second concurrent BuildAsync mutate fields the in-flight build reads
+      // (BLD-MAJ-2). A pre-flight failure releases the latch in the catch so a validation error
+      // cannot brick every subsequent BuildAsync or skip the per-operation ResetForRetry.
       if (Interlocked.CompareExchange(ref _buildInProgress, 1, 0) != 0)
         throw new InvalidOperationException("BuildAsync is already running on this Builder instance");
-      if (_buildSucceeded)
+
+      try
+      {
+        if (_buildSucceeded)
+          throw new InvalidOperationException("builder already consumed by BuildAsync; create a new Builder");
+        if (_operations.Count == 0)
+          throw new InvalidOperationException("no resources configured");
+        // Re-snapshot container refs/wait params from the live builders so validation and deferred
+        // start see exactly what ExecuteAsync will use. Guards the foot-gun where a stashed
+        // IContainerBuilder is mutated after its configure lambda returns.
+        RefreshContainerSnapshots();
+        ValidateContiguousScopes();
+        ValidateOperationReferences();
+      }
+      catch
       {
         Interlocked.Exchange(ref _buildInProgress, 0);
-        throw new InvalidOperationException("builder already consumed by BuildAsync; create a new Builder");
+        throw;
       }
 
       var effectiveCleanupTimeout = cleanupTimeout ?? TimeSpan.FromSeconds(120);
@@ -441,6 +411,17 @@ namespace FluentDocker.Builders
           "Provide a kernel or create one with FluentDockerKernel.Create().BuildAsync()");
 
       _currentDriverId = driverId;
+    }
+
+    /// <summary>
+    /// Throws <see cref="Common.InterfaceNotSupportedException"/> when the currently scoped driver
+    /// cannot resolve the port <typeparamref name="T"/> — used by the typed <c>WithinXxx</c> wrappers
+    /// to reject a wrong-kind driver up front instead of deep inside <c>BuildAsync</c>.
+    /// </summary>
+    private void RequireScopedPort<T>() where T : class
+    {
+      if (_currentKernel == null || !_currentKernel.TrySysCtl<T>(_currentDriverId, out _))
+        throw new Common.InterfaceNotSupportedException(_currentDriverId, typeof(T).Name);
     }
 
     internal T RunInScope<T>(FluentDockerKernel kernel, string driverId, Func<T> action)

@@ -374,16 +374,7 @@ exit 0
       Assert.Equal("nginx -g daemon off;", process["CMD"]);
     }
 
-    private static async Task WaitForReadyFileAsync(string path)
-    {
-      for (var i = 0; i < 100; i++)
-      {
-        if (File.Exists(path))
-          return;
-        await Task.Delay(50, TestContext.Current.CancellationToken).ConfigureAwait(false);
-      }
-
-      throw new TimeoutException($"Timed out waiting for {path}.");
-    }
+    private static Task WaitForReadyFileAsync(string path)
+        => FakeProcessMarker.WaitForFileAsync(path, TestContext.Current.CancellationToken);
   }
 }

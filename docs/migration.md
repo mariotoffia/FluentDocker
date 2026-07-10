@@ -10,7 +10,7 @@ has_children: true
 This guide helps you migrate from v2.x.x to the FluentDocker v3 line.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
@@ -43,6 +43,10 @@ This guide helps you migrate from v2.x.x to the FluentDocker v3 line.
 <!-- NEW -->
 <PackageReference Include="FluentDocker" Version="3.2.0-preview.2" />
 ```
+
+> `3.2.0-preview.2` is not on NuGet yet. Build it from the `featrure/model-support` branch into a
+> local feed first, then add the reference above — see
+> [Consume the preview](getting-started.md#consume-the-preview) for the recipe.
 
 ## Step 2: Update Namespaces
 

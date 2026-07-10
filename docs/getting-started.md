@@ -11,7 +11,7 @@ For the complete beginner-to-advanced map and reading plans by role, see the
 [documentation index](index.md#documentation-by-level).
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> from [`master`](https://github.com/mariotoffia/FluentDocker/tree/master) to use it. The latest published package
+> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Read This Guide in Order
@@ -25,26 +25,57 @@ If you are new to FluentDocker, complete Step 1-3 before jumping to later sectio
 
 ## Installation
 
-### NuGet Packages
+### Consume the preview
+
+`3.2.0-preview.2` is **not on NuGet yet**. Until it ships, build the strong-named packages from the
+`featrure/model-support` branch into a local NuGet feed and reference them from your project. This is
+the one canonical install path — every "preview" banner in these docs points here.
 
 ```bash
-# Once 3.2.0-preview.2 is published to NuGet (see the note above), install with --prerelease:
-dotnet add package FluentDocker --prerelease
+# 1. Clone and switch to the branch that carries the 3.2.0-preview.2 API
+git clone https://github.com/mariotoffia/FluentDocker.git
+cd FluentDocker
+git switch featrure/model-support
 
-# Optional: Test framework adapters
-dotnet add package FluentDocker.Testing.Xunit --prerelease   # xUnit adapter
-dotnet add package FluentDocker.Testing.MsTest --prerelease  # MSTest adapter
-dotnet add package FluentDocker.Testing.NUnit --prerelease   # NUnit adapter
+# 2. Pack the shipping projects into ./local-feed (produces *.3.2.0-preview.2.nupkg)
+dotnet pack FluentDocker/FluentDocker.csproj -c Release -o ./local-feed
+dotnet pack FluentDocker.Testing.Xunit/FluentDocker.Testing.Xunit.csproj -c Release -o ./local-feed
+dotnet pack FluentDocker.Testing.MsTest/FluentDocker.Testing.MsTest.csproj -c Release -o ./local-feed
+dotnet pack FluentDocker.Testing.NUnit/FluentDocker.Testing.NUnit.csproj -c Release -o ./local-feed
 ```
 
-### Package References
+Register the folder as a package source with a `NuGet.config` next to your solution (use the
+**absolute** path to the `local-feed` produced above):
 
 ```xml
-<!-- 3.2.0-preview.2 is not on NuGet yet — build from the feature branch until it ships. -->
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="fluentdocker-preview" value="/absolute/path/to/FluentDocker/local-feed" />
+  </packageSources>
+</configuration>
+```
+
+Then reference the preview version from your project and run `dotnet restore`:
+
+```xml
 <PackageReference Include="FluentDocker" Version="3.2.0-preview.2" />
+<!-- Optional test-framework adapters -->
 <PackageReference Include="FluentDocker.Testing.Xunit" Version="3.2.0-preview.2" />
 <PackageReference Include="FluentDocker.Testing.MsTest" Version="3.2.0-preview.2" />
 <PackageReference Include="FluentDocker.Testing.NUnit" Version="3.2.0-preview.2" />
+```
+
+### From NuGet (once published)
+
+When `3.2.0-preview.2` ships to NuGet, delete the `NuGet.config` source above and install with
+`--prerelease` instead:
+
+```bash
+dotnet add package FluentDocker --prerelease
+dotnet add package FluentDocker.Testing.Xunit --prerelease   # xUnit adapter (optional)
+dotnet add package FluentDocker.Testing.MsTest --prerelease  # MSTest adapter (optional)
+dotnet add package FluentDocker.Testing.NUnit --prerelease   # NUnit adapter (optional)
 ```
 
 ## Prerequisites

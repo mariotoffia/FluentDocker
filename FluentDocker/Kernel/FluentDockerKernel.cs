@@ -220,6 +220,24 @@ namespace FluentDocker.Kernel
       _registry.SetDefaultDriver(driverId);
     }
 
+    /// <inheritdoc />
+    public async Task<DriverCapabilities> GetCapabilitiesAsync(string driverId, CancellationToken cancellationToken = default)
+    {
+      var resolved = ResolveDriverIdOrDefault(driverId);
+      return IsDriverPack(resolved)
+          ? await GetDriverPack(resolved).GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false)
+          : await GetDriver(resolved).GetCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsHealthyAsync(string driverId, CancellationToken cancellationToken = default)
+    {
+      var resolved = ResolveDriverIdOrDefault(driverId);
+      return IsDriverPack(resolved)
+          ? await GetDriverPack(resolved).IsHealthyAsync(cancellationToken).ConfigureAwait(false)
+          : await GetDriver(resolved).IsHealthyAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     #endregion
 
     #region Registry Access
@@ -228,6 +246,18 @@ namespace FluentDocker.Kernel
     /// Gets the driver registry.
     /// </summary>
     internal IDriverRegistry Registry => _registry;
+
+    /// <summary>
+    /// Number of driver/pack instances abandoned because their disposal exceeded the teardown
+    /// budget. A non-zero value after disposal means OS processes/containers may have leaked.
+    /// Exposed so leaks are observable without a downcast to the concrete registry (KRN-MAJ-2).
+    /// </summary>
+    public int AbandonedDriverCount => _registry.AbandonedDriverCount;
+
+    /// <summary>
+    /// <c>true</c> once the kernel's registry disposal has fully completed.
+    /// </summary>
+    public bool IsDisposeComplete => _registry.IsDisposeComplete;
 
     #endregion
 
@@ -290,31 +320,11 @@ namespace FluentDocker.Kernel
           throw CreateResolutionFailureException(driverId, interfaceType, ex);
         }
 
-        try
-        {
-          resolved = driverPack.SysCtl(driverId, interfaceType);
-          if (interfaceType.IsInstanceOfType(resolved))
-            return true;
-          LogTypeMismatch(driverPack, interfaceType, resolved);
-        }
-        catch (Exception ex)
-        {
-          if (ex is InterfaceNotSupportedException)
-          {
-            unsupportedCause = ex;
-          }
-          else if (IsResolutionContractException(ex))
-          {
-            throw;
-          }
-          else
-          {
-            LogPackFallbackFailure(driverPack, interfaceType, ex);
-            throw new InterfaceNotSupportedException(
-                driverId, TypeNameFormatter.Format(interfaceType), ex);
-          }
-        }
-
+        // No pack.SysCtl(driverId) fallback: it was redundant with TryResolve above (both resolve
+        // through the same interface map) and its only distinct effect — echoing driverId into an
+        // exception — is meaningless at pack level, so IDriverPack no longer inherits ISysCtl
+        // (KRN-MAJ-7). A genuine TryResolve fault is still surfaced HARD as DriverException above;
+        // a soft InterfaceNotSupportedException still means "not implemented" (KRN-MAJ-1).
         resolved = null;
         return false;
       }
@@ -464,7 +474,7 @@ namespace FluentDocker.Kernel
         _logger.LogWarning(ex, "Kernel DisposeAsync cleanup retry failed");
       }
 
-      if (_registry is DriverRegistry registry && !registry.IsDisposeComplete)
+      if (!_registry.IsDisposeComplete)
         _logger.LogError(original, "Kernel DisposeAsync cleanup did not complete after retry");
     }
 

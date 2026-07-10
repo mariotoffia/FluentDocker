@@ -107,6 +107,11 @@ namespace FluentDocker.Drivers
     /// rolling tail instead of failing on the bounded stdout cap, and the command is
     /// limited only by caller cancellation. <c>Follow=true</c> is not supported by this
     /// buffered method and returns a failed response; use a streaming logs API for follow.
+    /// <para>
+    /// <b>Ordering:</b> the result is stdout-first, then stderr; cross-stream chronological
+    /// interleaving is not preserved. Use <see cref="IStreamDriver.StreamLogEntriesAsync"/>
+    /// for arrival-ordered entries.
+    /// </para>
     /// </summary>
     Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context,

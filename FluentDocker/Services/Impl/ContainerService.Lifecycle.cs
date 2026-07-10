@@ -474,7 +474,7 @@ namespace FluentDocker.Services.Impl
         "paused" => ServiceRunningState.Paused,
         "exited" => ServiceRunningState.Stopped,
         "stopped" => ServiceRunningState.Stopped,
-        "created" => ServiceRunningState.Starting,
+        "created" => ServiceRunningState.Created,
         "restarting" => ServiceRunningState.Starting,
         "stopping" => ServiceRunningState.Stopping,
         "removing" => ServiceRunningState.Removing,

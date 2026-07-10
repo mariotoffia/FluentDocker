@@ -62,11 +62,19 @@ namespace FluentDocker.Model.Common
       if (Scheme == "ssh")
         return baseString.TrimEnd('/');
 
-      if (Scheme == "npipe" && OriginalString == DockerHostUrlWindowsNativeCanonical)
-        return OriginalString;
-
+      // Work from OriginalString, not base.ToString(): Uri normalization dot-segment-collapses the
+      // "." host marker and mangles custom pipe names (npipe:////./pipe/custom -> npipe://////pipe/custom).
+      // An already-canonical npipe:////<...> form (incl. custom/Podman pipe names) is returned verbatim;
+      // only the legacy two-slash npipe://<...> form gets the missing authority slashes added (MDL-MAJ-1).
       if (Scheme == "npipe")
-        return string.Concat(baseString.AsSpan(0, 6), "//", baseString.AsSpan(6));
+      {
+        var source = OriginalString ?? baseString;
+        if (source.StartsWith("npipe:////", StringComparison.Ordinal))
+          return source;
+        if (source.StartsWith("npipe://", StringComparison.Ordinal))
+          return "npipe:////" + source.Substring("npipe://".Length);
+        return source;
+      }
 
       return baseString;
     }

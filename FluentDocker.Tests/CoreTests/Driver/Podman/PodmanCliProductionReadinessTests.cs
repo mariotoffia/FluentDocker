@@ -471,13 +471,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
     private static async Task<string[]> ReadLinesEventuallyAsync(string record)
     {
-      for (var i = 0; i < 50; i++)
-      {
-        if (File.Exists(record))
-          return await File.ReadAllLinesAsync(record, TestContext.Current.CancellationToken);
-        await Task.Delay(10, TestContext.Current.CancellationToken);
-      }
-
+      await FakeProcessMarker.WaitForFileAsync(record, TestContext.Current.CancellationToken);
       return await File.ReadAllLinesAsync(record, TestContext.Current.CancellationToken);
     }
 

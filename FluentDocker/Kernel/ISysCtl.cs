@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FluentDocker.Kernel
 {
@@ -81,5 +83,23 @@ namespace FluentDocker.Kernel
     /// fresh resolution throws <see cref="ObjectDisposedException"/>.
     /// </remarks>
     bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class;
+
+    /// <summary>
+    /// The declared capability surface of a driver/pack. Exposed on the abstraction so capability
+    /// gating works through <see cref="ISysCtl"/> (e.g. a <c>BuildScope.Kernel</c>) without a
+    /// downcast to the concrete kernel (KRN-MAJ-6). This reflects the driver's declared surface,
+    /// not live daemon feature availability.
+    /// </summary>
+    /// <param name="driverId">Driver identifier; null/whitespace resolves the default driver.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<Model.Drivers.DriverCapabilities> GetCapabilitiesAsync(string driverId, CancellationToken cancellationToken = default);
+
+    /// <summary>Whether the resolved driver/pack reports healthy.</summary>
+    /// <param name="driverId">Driver identifier; null/whitespace resolves the default driver.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<bool> IsHealthyAsync(string driverId, CancellationToken cancellationToken = default);
+
+    /// <summary>The configured default driver id, or <c>null</c>/empty when none is set.</summary>
+    string DefaultDriverId { get; }
   }
 }

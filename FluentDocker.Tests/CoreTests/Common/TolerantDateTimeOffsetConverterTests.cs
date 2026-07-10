@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using FluentDocker.Common;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Volumes;
@@ -127,6 +128,34 @@ namespace FluentDocker.Tests.CoreTests.Common
       var container = Assert.Single(containers!);
       Assert.Equal("abc123", container.Id);
       Assert.Equal(expected, container.State!.StartedAt);
+    }
+
+    // MDL-MAJ-4 / MC-MAJ-1: the tolerant handling must also cover DateTimeOffset? (the natural type
+    // for timestamps Docker omits), or a single bad value would fail the whole payload under strict STJ.
+    private static readonly JsonSerializerOptions NullableConverterOptions =
+        new() { Converters = { new TolerantNullableDateTimeOffsetConverter() } };
+
+    [Fact]
+    public void TolerantNullableConverter_JsonNull_ReadsAsNull()
+    {
+      var result = JsonSerializer.Deserialize<DateTimeOffset?>("null", NullableConverterOptions);
+      Assert.Null(result);
+    }
+
+    [Fact]
+    public void TolerantNullableConverter_ValidTimestamp_Parses()
+    {
+      var result = JsonSerializer.Deserialize<DateTimeOffset?>("\"2020-01-02T03:04:05Z\"", NullableConverterOptions);
+      Assert.Equal(new DateTimeOffset(2020, 1, 2, 3, 4, 5, TimeSpan.Zero), result);
+    }
+
+    [Fact]
+    public void TolerantNullableConverter_UnparseableTimestamp_DriftsInsteadOfThrowing()
+    {
+      var result = JsonSerializer.Deserialize<DateTimeOffset?>("\"2021-13-45T99:99:99Z\"", NullableConverterOptions);
+
+      // Present-but-unparseable drifts to the non-nullable default (year 0001), never throws.
+      Assert.Equal(default(DateTimeOffset), result);
     }
 
     // A stand-in for an arbitrary consumer type (namespace is FluentDocker.Tests.*, not

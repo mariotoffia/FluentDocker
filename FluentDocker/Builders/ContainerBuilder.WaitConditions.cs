@@ -402,7 +402,14 @@ namespace FluentDocker.Builders
         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
       }
       cancellationToken.ThrowIfCancellationRequested();
-      throw new FluentDockerException($"Timeout waiting for container {containerId} to start");
+      // Match the exit/AutoRemove branches above: use the friendly "name (id)" label and attach a
+      // log tail, so a linked/deferred-start timeout is as diagnosable as a standalone one instead
+      // of a bare "Timeout waiting for container <id>" — exactly the multi-container case where the
+      // logs matter most (BLD-MAJ-5).
+      var timeoutLabel = string.IsNullOrWhiteSpace(containerName) ? containerId : $"{containerName} ({containerId})";
+      var timeoutLogs = await ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
+      throw new FluentDockerException(AppendLogTail(
+          $"Timeout waiting for container {timeoutLabel} to start.", timeoutLogs));
     }
 
     private static bool HasReachedTerminalState(ContainerState state)

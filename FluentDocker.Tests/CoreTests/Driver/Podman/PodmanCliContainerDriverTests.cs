@@ -268,7 +268,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         }
       };
       var result = InvokeBuildCreateArgs("create", config);
-      Assert.Contains("--health-cmd \"curl -f http://localhost/\"", result);
+      // PDM-MAJ-2: a CMD healthcheck must be exec form (JSON array), not a shell-quoted string,
+      // so it works on distroless/shell-less images. Mirrors --entrypoint JSON serialization.
+      var expectedHealthCmd = "--health-cmd " +
+          CommandLineQuoting.QuoteArgumentIfNeeded(JsonHelper.Serialize(new[] { "curl", "-f", "http://localhost/" }));
+      Assert.Contains(expectedHealthCmd, result);
       Assert.Contains("--health-interval 30s", result);
       Assert.Contains("--health-timeout 10s", result);
       Assert.Contains("--health-retries 3", result);
