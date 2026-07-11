@@ -113,6 +113,72 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task DockerfileAdd_RootedBasenameCollidesWithNestedStagedDirectory_ThrowsTypedError()
+    {
+      var root = NewOutDir("bld1-dir-collision");
+      var collidingName = $"coll-{Guid.NewGuid():N}";
+      // A nested relative COPY 'collidingName/inner.txt' resolves against the process CWD, so its
+      // source must live there; it stages to <ctx>/collidingName/inner.txt, creating a DIRECTORY
+      // at <ctx>/collidingName that a later rooted ADD's identical basename then targets.
+      var nestedRelativeDir = Path.Combine(Directory.GetCurrentDirectory(), collidingName);
+      try
+      {
+        Directory.CreateDirectory(nestedRelativeDir);
+        await File.WriteAllTextAsync(
+            Path.Combine(nestedRelativeDir, "inner.txt"), "nested", TestContext.Current.CancellationToken);
+        var rootedSource = Path.Combine(root, collidingName);
+        await File.WriteAllTextAsync(rootedSource, "rooted", TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<NotSupportedException>(() => new DockerfileBuilder()
+            .WorkingFolder(Path.Combine(root, "context"))
+            .UseParent("alpine")
+            .Copy($"{collidingName}/inner.txt", "/app/inner.txt")
+            .Add(rootedSource, "/app/conf")
+            .ToDockerfileStringAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("a directory already exists", ex.Message);
+        Assert.Contains(collidingName, ex.Message);
+      }
+      finally
+      {
+        SafeDelete(nestedRelativeDir);
+        SafeDelete(root);
+      }
+    }
+
+    [Fact]
+    public async Task DockerfileCopy_MissingLenientRelative_ThenRootedSameBasename_StagesWithoutSpuriousCollision()
+    {
+      var root = NewOutDir("bld1-lenient-claim");
+      try
+      {
+        // Relative COPY source is never created → missing; the rooted ADD shares its basename.
+        var sharedName = $"absent-{Guid.NewGuid():N}.txt";
+        var rootedSource = Path.Combine(root, "src", sharedName);
+        Directory.CreateDirectory(Path.GetDirectoryName(rootedSource)!);
+        await File.WriteAllTextAsync(rootedSource, "real", TestContext.Current.CancellationToken);
+        var workingFolder = Path.Combine(root, "context");
+
+        // Lenient string-gen (strictCopySources=false): the missing relative COPY is skipped and
+        // must NOT reserve its basename, so the real rooted ADD with the same basename still stages.
+        var dockerfile = await new DockerfileBuilder()
+            .WorkingFolder(workingFolder)
+            .UseParent("alpine")
+            .Copy(sharedName, "/app/a")
+            .Add(rootedSource, "/app/b")
+            .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains($@"ADD [""{sharedName}"", ""/app/b""]", dockerfile);
+        Assert.Equal("real", await File.ReadAllTextAsync(
+            StagedPath(workingFolder, sharedName), TestContext.Current.CancellationToken));
+      }
+      finally
+      {
+        SafeDelete(root);
+      }
+    }
+
+    [Fact]
     public async Task ComposeProjectPreExistingAtUp_IsBorrowedWarnsAndDoesNotDownOnDispose()
     {
       var loggerFactory = new RecordingLoggerFactory();
