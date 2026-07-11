@@ -37,9 +37,13 @@ namespace FluentDocker.Extensions
     ///   namespace.
     /// </param>
     /// <remarks>
-    ///   This function extract recursively embedded resources if no <paramref name="files" /> has been specified. If any
-    ///   <paramref name="files" /> has been specifies it won't do a recursive extraction, instead all files in the provided
-    ///   namespace (in <paramref name="assemblyAndNamespace" />) will be matched against the <paramref name="files" />.
+    ///   This function extracts recursively in both cases. If no <paramref name="files" /> has been specified,
+    ///   every embedded resource under the <paramref name="assemblyAndNamespace" /> namespace (and its
+    ///   sub-namespaces) is written out. If any <paramref name="files" /> has been specified, the query still
+    ///   searches recursively — a multi-dot filename (e.g. "Dockerfile.template") is embedded one namespace
+    ///   segment "deeper" than its manifest name suggests, so a non-recursive query would drop it before it
+    ///   could ever be matched — but only resources matching one of the <paramref name="files" /> (via
+    ///   <see cref="ResourceQuery.Include" />) are extracted, written under the requested name.
     /// </remarks>
     public static void ResourceExtract(this Type assemblyAndNamespace, TemplateString targetPath, params string[] files)
     {
@@ -50,7 +54,7 @@ namespace FluentDocker.Extensions
       }
 
       new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name!)
-        .Namespace(assemblyAndNamespace.Namespace!, false)
+        .Namespace(assemblyAndNamespace.Namespace!, true)
         .Include(files)
         .ToFile(targetPath);
     }

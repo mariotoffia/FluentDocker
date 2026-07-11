@@ -30,6 +30,13 @@
   <ItemGroup>
     <EmbeddedResource Include="Fixtures\ResourceQuery\Foo\Bar\child.txt" LogicalName="Foo.Bar.child.txt" />
     <EmbeddedResource Include="Fixtures\ResourceQuery\Foo\Barbaz\sibling.txt" LogicalName="Foo.Barbaz.sibling.txt" />
+    <!-- Task 12 (Co-H1/Co-M1): multi-dot filenames, embedded flat AND one level nested under "Res" -->
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Dockerfile.template" LogicalName="Res.Dockerfile.template" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\plain.txt" LogicalName="Res.plain.txt" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\settings.production" LogicalName="Res.settings.production" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\archive.tar.gz" LogicalName="Res.archive.tar.gz" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\app.properties" LogicalName="Res.app.properties" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Sub\Dockerfile.template" LogicalName="Res.Sub.Dockerfile.template" />
   </ItemGroup>
 
   <!-- DMR (Docker Model Runner) fixtures — embedded so they survive Release test runs -->

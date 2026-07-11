@@ -43,33 +43,61 @@ namespace FluentDocker.Resources
     public IEnumerable<ResourceInfo> Include(params string[] resources)
     {
       return QueryCore(ResolveAssembly(Assembly.GetCallingAssembly()))
-        .Where(x => resources.Any(r => MatchesRequestedResource(x, r)));
+        .Select(x => MatchRequestedResource(x, resources))
+        .OfType<ResourceInfo>();
     }
 
     /// <summary>
-    /// Matches a resource against a requested name. Because <see cref="ExtractFile"/> can only make a
-    /// lossy guess at the original filename from a dotted manifest name (e.g. reducing
-    /// <c>Ns.Dockerfile.template</c> to <c>template</c>), a request also matches on a trailing-suffix of
-    /// the fully qualified name — so <c>Include("Dockerfile.template")</c> finds it instead of silently
-    /// returning nothing (MDL-MAJ-2).
+    /// Matches a resource against the requested names. An exact match (on <see cref="ResourceInfo.Resource"/>
+    /// or the reconstructed fully qualified name) is returned unchanged. A trailing-suffix match is
+    /// REWRITTEN onto the requested name instead of <see cref="ExtractFile"/>'s guess (Co-M1) — without
+    /// this, a match like "Dockerfile.template" would extract as a mangled <c>Dockerfile/template</c>
+    /// (directory + fragment) rather than the file <c>Dockerfile.template</c>.
     /// </summary>
-    private static bool MatchesRequestedResource(ResourceInfo info, string requested)
+    /// <remarks>
+    /// This only ever runs on resources the caller's <see cref="QueryCore"/> query already yielded. A
+    /// NON-recursive <see cref="Namespace"/> query drops a multi-dot resource (e.g.
+    /// <c>Res.Dockerfile.template</c>, whose guessed sub-namespace <c>Res.Dockerfile</c> ≠ the query root
+    /// <c>Res</c>) before it ever reaches this match — so the original MDL-MAJ-2 fix on this method alone
+    /// did NOT make <c>Include("Dockerfile.template")</c> work; the resource was already gone (Co-H1). The
+    /// caller must query recursively for the trailing-suffix match below to ever run.
+    /// </remarks>
+    private static ResourceInfo? MatchRequestedResource(ResourceInfo info, string[] requested)
     {
-      if (string.IsNullOrEmpty(requested))
-        return false;
-      if (string.Equals(info.Resource, requested, StringComparison.Ordinal))
-        return true;
+      foreach (var name in requested)
+      {
+        if (string.IsNullOrEmpty(name))
+          continue;
+        if (string.Equals(info.Resource, name, StringComparison.Ordinal))
+          return info;
 
-      // ns + "." + Resource reconstructs the original fully qualified manifest name.
-      var fq = info.Namespace + "." + info.Resource;
-      if (string.Equals(fq, requested, StringComparison.Ordinal))
-        return true;
+        // ns + "." + Resource reconstructs the original fully qualified manifest name.
+        var fq = info.Namespace + "." + info.Resource;
+        if (string.Equals(fq, name, StringComparison.Ordinal))
+          return info;
 
-      // Broaden to a trailing-suffix match only for MULTI-SEGMENT requests (which ExtractFile can
-      // mangle, e.g. "Dockerfile.template"/"archive.tar.gz"). A bare extension like "json" has no dot
-      // and must NOT match every *.json resource — it only matches an exact Resource name above.
-      return requested.Contains('.', StringComparison.Ordinal) &&
-             fq.EndsWith("." + requested, StringComparison.Ordinal);
+        // Broaden to a trailing-suffix match only for MULTI-SEGMENT requests (which ExtractFile can
+        // mangle, e.g. "Dockerfile.template"/"archive.tar.gz"). A bare extension like "json" has no dot
+        // and must NOT match every *.json resource — it only matches an exact Resource name above.
+        if (!name.Contains('.', StringComparison.Ordinal) || !fq.EndsWith("." + name, StringComparison.Ordinal))
+          continue;
+
+        // Suffix match: rewrite Namespace/Resource/RelativeRootNamespace from the REQUESTED name (not
+        // ExtractFile's guess), reconstructing the folder from what's left of fq once the requested
+        // name (and its separating dot) is removed, so the resource writes to the correct file at the
+        // correct folder regardless of how ExtractFile originally split it (Co-M1).
+        var prefix = fq[..(fq.Length - name.Length - 1)];
+        return new ResourceInfo
+        {
+          Assembly = info.Assembly,
+          Namespace = prefix,
+          Root = info.Root,
+          RelativeRootNamespace = prefix == info.Root ? string.Empty : prefix[(info.Root!.Length + 1)..],
+          Resource = name
+        };
+      }
+
+      return null;
     }
 
     private Assembly ResolveAssembly(Assembly caller)
@@ -96,6 +124,18 @@ namespace FluentDocker.Resources
         if (ns.Length < _namespace.Length)
         {
           continue;
+        }
+
+        // ExtractFile guessed a DOTLESS filename beyond the query root (e.g. "Res.Dockerfile.template"
+        // -> "template"): a strong signal the true filename actually spans multiple dot-segments, since
+        // ExtractFile only ever returns a dotless result when it couldn't find/trust an earlier dot. Best
+        // effort for this no-request Query()/ToFile() path (Include disambiguates exactly instead, see
+        // MatchRequestedResource): re-anchor to the full remainder after the root so the resource lands as
+        // one FILE at the target root instead of scattered into a wrong subfolder + fragment (Co-M1).
+        if (ns.Length > _namespace.Length && !file.Contains('.', StringComparison.Ordinal))
+        {
+          file = res[(_namespace.Length + 1)..];
+          ns = _namespace;
         }
 
         var nseqlen = ns.Length == _namespace.Length;
@@ -125,9 +165,14 @@ namespace FluentDocker.Resources
     ///   .NET's GetManifestResourceInfo returns metadata about the resource's location
     ///   (embedded, linked, satellite assembly) but not the original filename.
     ///   Manifest resource names use dots as namespace separators, making original filenames
-    ///   lossy: "Ns.Dockerfile.template" may be reduced to "template", and
-    ///   "Ns.archive.tar.gz" may be reduced to "tar.gz". Use <see cref="Include(string[])"/>
-    ///   with explicit trailing suffixes when exact resource names matter.
+    ///   inherently lossy to reconstruct from this string alone: "Ns.Dockerfile.template" may be
+    ///   reduced to "template", and "Ns.archive.tar.gz" may be reduced to "tar.gz" — this function
+    ///   cannot tell a namespace-dot from a filename-dot with certainty. <see cref="QueryCore"/> applies
+    ///   a best-effort refinement using the known query root for the no-request <see cref="Query"/> /
+    ///   ToFile path, which resolves the common "long trailing segment" shape (e.g. ".template",
+    ///   ".properties") but not every shape (a compound short extension like ".tar.gz" can still land
+    ///   one folder off). Use <see cref="Include(string[])"/> with the exact requested name when the
+    ///   result must be exact — it rewrites the match from the request instead of relying on this guess.
     /// </remarks>
     /// <param name="fqResource">The fully qualified resource name including namespace (e.g., "MyApp.Resources.config.json").</param>
     /// <returns>The extracted filename (e.g., "config.json").</returns>
