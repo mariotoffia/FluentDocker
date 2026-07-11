@@ -139,8 +139,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
+        // --no-reset is required even for the single-shot (--no-stream) call: goterm's Flush()
+        // writes a \033[2J[H reset sequence before the reading, and only skips it when it detects
+        // a non-TTY output. Relying on that skip is an accident of library internals, not a
+        // guarantee — --no-reset stops the sequence at the source, symmetric with the streaming
+        // path in PodmanCliStreamDriver.BuildStreamStatsArgs (P-M3).
         var result = await ExecuteCommandAsync(
-            context, $"stats --no-stream --format json {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
+            context, $"stats --no-stream --no-reset --format json {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerStatsResult>.Fail(
               ErrorOrDefault(result, "Container stats failed"), FailureCode(result.Error, ErrorCodes.Container.StatsFailed),

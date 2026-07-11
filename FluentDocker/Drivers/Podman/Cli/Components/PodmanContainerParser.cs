@@ -13,11 +13,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// <summary>
   /// Utility class for parsing Podman CLI JSON output into container model objects.
   /// Extracted from PodmanCliContainerDriver to separate parsing concerns from driver API.
+  /// Split across partials to stay under the 500-line file cap: this file holds the
+  /// container/state/health/config/mounts parsing and the shared low-level helpers;
+  /// <c>PodmanContainerParser.Network.cs</c> holds the <c>NetworkSettings</c> cluster.
   /// </summary>
-  public static class PodmanContainerParser
+  public static partial class PodmanContainerParser
   {
     #region JSON Parsing
 
+    /// <summary>
+    /// Parses <c>podman ps --format json</c> output into containers. Accepts both the JSON-array
+    /// form and newline-delimited JSON objects (one object per line), since podman emits either
+    /// depending on version/output size.
+    /// </summary>
+    /// <param name="json">Raw stdout from <c>podman ps --format json</c>.</param>
+    /// <returns>
+    /// One <see cref="Container"/> per list entry; an empty (never null) list when
+    /// <paramref name="json"/> is null, empty, or whitespace-only.
+    /// </returns>
+    /// <exception cref="JsonException">
+    /// The array-form text (when it starts with '[') or an individual NDJSON line is not valid JSON.
+    /// </exception>
     public static IList<Container> ParseContainerList(string json)
     {
       var containers = new List<Container>();
@@ -80,6 +96,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         && status.StartsWith("Up", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Parses <c>podman inspect &lt;container&gt;</c> output — a single JSON object, or a
+    /// single-element JSON array (the shape podman inspect actually emits).
+    /// </summary>
+    /// <param name="json">Raw stdout from <c>podman inspect</c>. Must not be null.</param>
+    /// <returns>
+    /// The parsed <see cref="Container"/>, with nested state/config/mounts/network settings
+    /// resolved via the corresponding <c>Parse*</c> methods below. An empty JSON array yields a
+    /// default (all-null/empty) <see cref="Container"/> rather than throwing.
+    /// </returns>
+    /// <exception cref="NullReferenceException"><paramref name="json"/> is null.</exception>
+    /// <exception cref="JsonException"><paramref name="json"/> is not valid JSON.</exception>
     public static Container ParseContainerInspect(string json)
     {
       var trimmed = json.Trim();
@@ -117,6 +145,16 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       };
     }
 
+    /// <summary>
+    /// Parses the <c>State</c> object of a container inspect payload, including its nested
+    /// <c>Health</c>/<c>Healthcheck</c> block.
+    /// </summary>
+    /// <param name="stateToken">The <c>State</c> property value, or null if absent.</param>
+    /// <returns>
+    /// The parsed <see cref="ContainerState"/>; a default (all-false/null) empty instance when
+    /// <paramref name="stateToken"/> is null or a JSON null/undefined token — never throws for
+    /// those cases.
+    /// </returns>
     public static ContainerState ParseContainerState(JsonElement? stateToken)
     {
       if (stateToken == null || stateToken.Value.IsNullOrUndefined())
@@ -140,6 +178,18 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       };
     }
 
+    /// <summary>
+    /// Parses a container's <c>Health</c> (or podman's <c>Healthcheck</c> alias) block, including
+    /// its <c>Log</c> array.
+    /// </summary>
+    /// <param name="healthToken">The <c>Health</c>/<c>Healthcheck</c> property value, or null.</param>
+    /// <returns>
+    /// The parsed <see cref="Health"/>; <c>null</c> when <paramref name="healthToken"/> is null or
+    /// a JSON null/undefined token (a container without a configured healthcheck has no health
+    /// object). <see cref="Health.Status"/> falls back to <see cref="HealthState.Unknown"/> when
+    /// the <c>Status</c> string is missing, empty, or not a recognized <see cref="HealthState"/>
+    /// name. <see cref="Health.Log"/> stays null unless the <c>Log</c> property is a JSON array.
+    /// </returns>
     public static Health ParseHealth(JsonElement? healthToken)
     {
       if (healthToken == null || healthToken.Value.IsNullOrUndefined())
@@ -178,6 +228,16 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return health;
     }
 
+    /// <summary>
+    /// Parses the <c>Config</c> object of a container inspect payload, including podman's
+    /// <c>Cmd</c>/<c>Entrypoint</c> string-or-array quirk and the <c>Domainname</c>/<c>DomainName</c>
+    /// casing variance.
+    /// </summary>
+    /// <param name="configToken">The <c>Config</c> property value, or null if absent.</param>
+    /// <returns>
+    /// The parsed <see cref="ContainerConfig"/>; <c>null</c> when <paramref name="configToken"/>
+    /// is null or a JSON null/undefined token.
+    /// </returns>
     public static ContainerConfig ParseContainerConfig(JsonElement? configToken)
     {
       if (configToken == null || configToken.Value.IsNullOrUndefined())
@@ -208,6 +268,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       };
     }
 
+    /// <summary>
+    /// Parses the <c>Mounts</c> array of a container inspect payload.
+    /// </summary>
+    /// <param name="mountsToken">The <c>Mounts</c> property value, or null if absent.</param>
+    /// <returns>
+    /// One <see cref="ContainerMount"/> per array entry; an empty (never null) array when
+    /// <paramref name="mountsToken"/> is null, not a JSON array, or an empty array.
+    /// </returns>
     public static ContainerMount[] ParseMounts(JsonElement? mountsToken)
     {
       if (mountsToken == null || mountsToken.Value.ValueKind != JsonValueKind.Array)
@@ -234,121 +302,24 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return [.. result];
     }
 
-    public static ContainerNetworkSettings ParseNetworkSettings(JsonElement? nsToken)
-    {
-      if (nsToken == null || nsToken.Value.IsNullOrUndefined())
-        return null;
-
-      var el = nsToken.Value;
-      return new ContainerNetworkSettings
-      {
-        Bridge = el.GetStringOrDefault("Bridge"),
-        SandboxID = el.GetStringOrDefault("SandboxID"),
-        HairpinMode = el.GetBoolOrDefault("HairpinMode"),
-        LinkLocalIPv6Address = el.GetStringOrDefault("LinkLocalIPv6Address"),
-        LinkLocalIPv6PrefixLen = el.GetStringOrDefault("LinkLocalIPv6PrefixLen"),
-        SandboxKey = el.GetStringOrDefault("SandboxKey"),
-        SecondaryIPAddresses = ParseSecondaryAddresses(el.Prop("SecondaryIPAddresses")),
-        SecondaryIPv6Addresses = ParseSecondaryAddresses(el.Prop("SecondaryIPv6Addresses")),
-        EndpointID = el.GetStringOrDefault("EndpointID"),
-        Gateway = el.GetStringOrDefault("Gateway"),
-        GlobalIPv6Address = el.GetStringOrDefault("GlobalIPv6Address"),
-        GlobalIPv6PrefixLen = el.GetStringOrDefault("GlobalIPv6PrefixLen"),
-        IPAddress = el.GetStringOrDefault("IPAddress"),
-        IPPrefixLen = el.GetStringOrDefault("IPPrefixLen"),
-        IPv6Gateway = el.GetStringOrDefault("IPv6Gateway"),
-        MacAddress = el.GetStringOrDefault("MacAddress"),
-        Ports = ParsePorts(el.Prop("Ports")),
-        Networks = ParseNetworks(el.Prop("Networks"))
-      };
-    }
-
-    public static Dictionary<string, HostIpEndpoint[]> ParsePorts(JsonElement? portsToken)
-    {
-      if (portsToken == null || portsToken.Value.ValueKind != JsonValueKind.Object)
-        return null;
-
-      var result = new Dictionary<string, HostIpEndpoint[]>();
-      foreach (var prop in portsToken.Value.EnumerateObject())
-      {
-        if (prop.Value.ValueKind == JsonValueKind.Array && prop.Value.GetArrayLength() > 0)
-        {
-          var bindings = new List<HostIpEndpoint>();
-          foreach (var b in prop.Value.EnumerateArray())
-          {
-            bindings.Add(new HostIpEndpoint
-            {
-              HostIp = b.GetStringOrDefault("HostIp"),
-              HostPort = b.GetStringOrDefault("HostPort")
-            });
-          }
-          result[prop.Name] = [.. bindings];
-        }
-        else
-        {
-          result[prop.Name] = [];
-        }
-      }
-
-      return result;
-    }
-
-    public static IList<SecondaryAddress> ParseSecondaryAddresses(JsonElement? addressesToken)
-    {
-      if (addressesToken == null || addressesToken.Value.ValueKind != JsonValueKind.Array)
-        return null;
-
-      var result = new List<SecondaryAddress>();
-      foreach (var address in addressesToken.Value.EnumerateArray())
-      {
-        if (address.ValueKind != JsonValueKind.Object)
-          continue;
-
-        result.Add(new SecondaryAddress
-        {
-          Addr = address.GetStringOrDefault("Addr"),
-          PrefixLen = address.GetInt32OrDefault("PrefixLen")
-        });
-      }
-
-      return result;
-    }
-
-    public static Dictionary<string, BridgeNetwork> ParseNetworks(JsonElement? networksToken)
-    {
-      if (networksToken == null || networksToken.Value.ValueKind != JsonValueKind.Object)
-        return null;
-
-      var result = new Dictionary<string, BridgeNetwork>();
-      foreach (var prop in networksToken.Value.EnumerateObject())
-      {
-        var n = prop.Value;
-        result[prop.Name] = new BridgeNetwork
-        {
-          NetworkID = n.GetStringOrDefault("NetworkID"),
-          EndpointID = n.GetStringOrDefault("EndpointID"),
-          Gateway = n.GetStringOrDefault("Gateway"),
-          IPAddress = n.GetStringOrDefault("IPAddress"),
-          IPPrefixLen = n.GetInt32OrDefault("IPPrefixLen"),
-          IPv6Gateway = n.GetStringOrDefault("IPv6Gateway"),
-          GlobalIPv6Address = n.GetStringOrDefault("GlobalIPv6Address"),
-          GlobalIPv6PrefixLen = n.GetInt32OrDefault("GlobalIPv6PrefixLen"),
-          MacAddress = n.GetStringOrDefault("MacAddress"),
-          Aliases = ParseStringArray(n.Prop("Aliases"))
-        };
-      }
-
-      return result;
-    }
-
     #endregion
 
     #region Parsing Helpers
 
     /// <summary>
     /// Parses a JsonElement that may be a JSON array of strings or a single string value.
-    /// Handles the Podman quirk where fields like EntryPoint and Cmd can be either format.
+    /// Handles the Podman quirk where fields like EntryPoint and Cmd can be either shape.
     /// </summary>
+    /// <param name="token">The property value, or null if absent.</param>
+    /// <returns>
+    /// The array items when <paramref name="token"/> is a JSON array; a single-element array
+    /// wrapping the value when it is a JSON string; otherwise <c>null</c> — including when
+    /// <paramref name="token"/> is null, a JSON null/undefined token, or a non-string scalar
+    /// (number/bool/object).
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="token"/> is an array containing a non-string, non-null element.
+    /// </exception>
     public static string[] ParseStringOrArray(JsonElement? token)
     {
       if (token == null || token.Value.IsNullOrUndefined())

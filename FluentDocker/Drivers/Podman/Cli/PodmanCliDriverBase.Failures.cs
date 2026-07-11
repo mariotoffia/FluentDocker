@@ -50,8 +50,15 @@ namespace FluentDocker.Drivers.Podman.Cli
     // That is unconditionally true on macOS/Windows (no native daemon there), independent of
     // whether AutoStartMachine was configured — so a stopped machine mid-operation is classified
     // as ErrorCodes.Machine.NotRunning (and the exception is marked transient) as the docs promise,
-    // not as a generic ConnectionFailed.
+    // not as a generic ConnectionFailed. A remote Host, however, is never machine-managed: a
+    // macOS/Windows client can still target a remote rootful daemon over ssh://, and when that
+    // remote dies there is no local machine/VM to blame or restart (P-M1).
     private static bool IsMachineManagedContext(DriverContext context)
-        => context?.AutoStartMachine != null || PodmanCliDriverPack.MachineManagementApplies();
+    {
+      if (!string.IsNullOrEmpty(context?.Host))
+        return false; // remote daemon → not a local machine/VM
+
+      return context?.AutoStartMachine != null || PodmanCliDriverPack.MachineManagementApplies();
+    }
   }
 }
