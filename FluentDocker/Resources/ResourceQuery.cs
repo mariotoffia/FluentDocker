@@ -129,10 +129,14 @@ namespace FluentDocker.Resources
         // ExtractFile guessed a DOTLESS filename beyond the query root (e.g. "Res.Dockerfile.template"
         // -> "template"): a strong signal the true filename actually spans multiple dot-segments, since
         // ExtractFile only ever returns a dotless result when it couldn't find/trust an earlier dot. Best
-        // effort for this no-request Query()/ToFile() path (Include disambiguates exactly instead, see
-        // MatchRequestedResource): re-anchor to the full remainder after the root so the resource lands as
-        // one FILE at the target root instead of scattered into a wrong subfolder + fragment (Co-M1).
-        if (ns.Length > _namespace.Length && !file.Contains('.', StringComparison.Ordinal))
+        // effort for the RECURSIVE no-request Query()/ToFile() path (Include disambiguates exactly instead,
+        // see MatchRequestedResource): re-anchor to the full remainder after the root so the resource lands
+        // as one FILE at the target root instead of scattered into a wrong subfolder + fragment (Co-M1).
+        // Gated to _recursive: on the non-recursive (root-level-only) path a genuinely-nested dotless file
+        // (real folder Res/Sub/ with a file literally named "README" -> "Res.Sub.README") must stay
+        // EXCLUDED, not be silently re-anchored to the root — re-anchoring there would reintroduce the
+        // wrong-location silent-write class Co-H1 exists to close.
+        if (_recursive && ns.Length > _namespace.Length && !file.Contains('.', StringComparison.Ordinal))
         {
           file = res[(_namespace.Length + 1)..];
           ns = _namespace;

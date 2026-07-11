@@ -37,6 +37,7 @@
     <EmbeddedResource Include="Fixtures\ResourceQuery\Res\archive.tar.gz" LogicalName="Res.archive.tar.gz" />
     <EmbeddedResource Include="Fixtures\ResourceQuery\Res\app.properties" LogicalName="Res.app.properties" />
     <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Sub\Dockerfile.template" LogicalName="Res.Sub.Dockerfile.template" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Sub\README" LogicalName="Res.Sub.README" />
   </ItemGroup>
 
   <!-- DMR (Docker Model Runner) fixtures — embedded so they survive Release test runs -->

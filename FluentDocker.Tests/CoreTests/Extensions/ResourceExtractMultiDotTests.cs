@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
 using FluentDocker.Extensions;
+using FluentDocker.Resources;
 using Xunit;
 
 namespace Res
@@ -32,6 +34,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     private const string ArchiveTarGzContent = "fake-tar-gz-payload\n";
     private const string AppPropertiesContent = "key=value\ntimeout=30\n";
     private const string SubDockerfileTemplateContent = "FROM {{BASE_IMAGE}}\nRUN echo sub-nested\n";
+    private const string SubReadmeContent = "genuinely nested dotless file\n";
 
     [Fact]
     public void ResourceExtract_MultiDotFilename_ExtractsFileWithExactBytes()
@@ -141,6 +144,15 @@ namespace FluentDocker.Tests.CoreTests.Extensions
         AssertFile(dir, "app.properties", AppPropertiesContent);
         AssertFile(dir, "plain.txt", PlainTextContent);
 
+        // Documented remaining ambiguity (nested multi-dot): a GENUINELY-nested multi-dot file
+        // "Res.Sub.Dockerfile.template" is indistinguishable, from the manifest name alone, from a flat
+        // file literally named "Sub.Dockerfile.template". The recursive no-files refinement folds the
+        // whole remainder after the root into the filename, so it collapses to a flat file
+        // "Sub.Dockerfile.template" at the target root (correct for the flat interpretation, loses the
+        // real "Sub" folder). Pinned so a future QueryCore change can't silently alter it; request by
+        // name (Include) if the folder must be preserved exactly.
+        AssertFile(dir, "Sub.Dockerfile.template", SubDockerfileTemplateContent);
+
         // Documented remaining ambiguity: a compound SHORT extension (".tar.gz") already parses via
         // ExtractFile's normal 2-segment walk-back into a DOTTED guess ("tar.gz"), so the no-files
         // path's refinement (which only re-anchors DOTLESS guesses) does not touch it — it lands one
@@ -154,6 +166,25 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       {
         Cleanup(dir);
       }
+    }
+
+    [Fact]
+    public void ResourceQuery_NonRecursive_ExcludesGenuinelyNestedDotlessFile()
+    {
+      // Fix pass 1 (IMPORTANT): the dotless-guess re-anchoring in QueryCore must NOT run on the
+      // non-recursive (root-level-only) path. A GENUINELY-nested dotless file — real folder Res/Sub/
+      // holding a file literally named "README" (manifest "Res.Sub.README", ExtractFile guesses the
+      // dotless "README") — must stay EXCLUDED by a non-recursive query, not be silently re-anchored
+      // to the root as "Sub.README". Re-anchoring it there is a NEW wrong-location silent write, the
+      // same silent-corruption class Co-H1 exists to close. RED before the _recursive gate (README
+      // wrongly present); GREEN after.
+      var results = new ResourceQuery()
+        .From("FluentDocker.Tests")
+        .Namespace("Res", recursive: false)
+        .Query()
+        .ToList();
+
+      Assert.DoesNotContain(results, r => r.Resource.Contains("README", StringComparison.Ordinal));
     }
 
     private static string NewOutDir(string testName)
