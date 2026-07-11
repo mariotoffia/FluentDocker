@@ -15,6 +15,12 @@ namespace FluentDocker.Builders
   {
     private Services.Impl.ComposeService _pendingService;
     private bool _composeCleanupFailed;
+    // Deliberately NOT reset by ResetForRetry: survives across retries on the same builder so a
+    // retried BuildAsync() that finds ITS OWN leftover project (created here, but whose cleanup
+    // failed) re-owns it instead of misclassifying it as an external borrow (B-M1). Compose
+    // projects have no stable id to re-own by (unlike Network/Volume), so this created-marker
+    // plus the stable project name is the proof of "we made this".
+    private bool _priorAttemptCreatedProject;
 
     private ILogger<ComposeBuilder> Logger => _kernel.LoggerFactory.CreateLogger<ComposeBuilder>();
     internal IServiceAsync PendingService => _pendingService;

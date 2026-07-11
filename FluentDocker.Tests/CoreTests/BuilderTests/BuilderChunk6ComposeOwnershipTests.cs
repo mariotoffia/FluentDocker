@@ -122,5 +122,85 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           It.IsAny<DriverContext>(), It.IsAny<ComposeDownConfig>(),
           It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task BuildAsync_RetryReownsOwnLeftoverComposeProject_TearsDownOnDispose()
+    {
+      // Attempt 1's probe finds nothing (empty list); attempt 2's probe finds the leftover
+      // this builder itself created on attempt 1 but failed to clean up.
+      var listCalls = 0;
+      MockPack.ComposeDriver
+          .Setup(d => d.ListAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ComposeListConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(() => CommandResponse<IList<ComposeServiceInfo>>.Ok(listCalls++ == 0
+              ? []
+              : [new ComposeServiceInfo { Name = "web", Project = "retry-project" }]));
+      MockPack.ComposeDriver
+          .SetupSequence(d => d.UpAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ComposeUpConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ComposeUpResult>.Fail("up failed"))
+          .ReturnsAsync(CommandResponse<ComposeUpResult>.Ok(new ComposeUpResult { ProjectName = "retry-project" }));
+      MockPack.ComposeDriver
+          .SetupSequence(d => d.DownAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ComposeDownConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("down failed"))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+
+      var builder = new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseCompose(c => c.WithProjectName("retry-project"));
+
+      // Attempt 1: up fails and best-effort cleanup (down) also fails, so the half-created
+      // project survives (simulated by attempt 2's probe finding it below).
+      await Assert.ThrowsAsync<DriverException>(
+          () => builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+      // Retry on the SAME builder instance -- the only supported retry contract (Builder.cs:336-338).
+      await using (var results = await builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken))
+      {
+        var compose = Assert.Single(results.ComposeServices);
+        Assert.False(compose.IsBorrowed);
+      }
+
+      // One down from attempt 1's failed cleanup, one from attempt 2's successful dispose-time
+      // teardown -- the re-owned leftover must actually be torn down, not leaked.
+      MockPack.ComposeDriver.Verify(d => d.DownAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ComposeDownConfig>(),
+          It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task BuildAsync_RetryWithGenuinePreExistingComposeProject_NeverReownsOrTearsDown()
+    {
+      MockPack
+          .SetupComposeList(new ComposeServiceInfo { Name = "web", Project = "shared" })
+          .SetupComposeUp("shared")
+          .SetupComposeDown();
+      MockPack.ContainerDriver
+          .Setup(d => d.CreateAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ContainerCreateConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ContainerCreateResult>.Fail("boom"));
+
+      var builder = new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseCompose(c => c.WithProjectName("shared").WithRemoveVolumes(true))
+          .UseContainer(c => c.UseImage("alpine"));
+
+      // Control: a genuinely pre-existing project (this builder's created-marker is never set,
+      // since it never owned the project) must stay borrowed across retries too -- re-own must
+      // never over-reach into a resource this builder did not create.
+      await Assert.ThrowsAsync<DriverException>(
+          () => builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+      await Assert.ThrowsAsync<DriverException>(
+          () => builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+      MockPack.ComposeDriver.Verify(d => d.DownAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ComposeDownConfig>(),
+          It.IsAny<CancellationToken>()), Times.Never);
+    }
   }
 }

@@ -181,9 +181,16 @@ namespace FluentDocker.Builders
       {
         borrowedProject = await ComposeProjectExistsAsync(driver, context, config, cancellationToken)
             .ConfigureAwait(false);
+        if (borrowedProject && _priorAttemptCreatedProject)
+          // Re-own our own leftover from a failed prior attempt (its down-on-cleanup failed)
+          // instead of treating it as a genuine external borrow -- otherwise it survives dispose
+          // forever. Not a real borrow, so no implicit-borrow warning below.
+          borrowedProject = false;
         BorrowedProject = borrowedProject;
         if (borrowedProject)
           LogImplicitBorrow(config);
+        else
+          _priorAttemptCreatedProject = true;
         response = await driver.UpAsync(context, config, cancellationToken).ConfigureAwait(false);
       }
       catch
