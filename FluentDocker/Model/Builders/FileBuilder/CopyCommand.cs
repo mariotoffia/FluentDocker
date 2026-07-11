@@ -60,9 +60,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
         s = $"{s} --from={Alias}";
       }
 
-      return $"{s} {DockerfileJson.Array([NormalizePath(From), NormalizePath(To)])}";
+      return $"{s} {DockerfileJson.Array([DockerfileJson.NormalizePath(From), DockerfileJson.NormalizePath(To)])}";
     }
-
-    private static string NormalizePath(string path) => path.Replace('\\', '/');
   }
 }

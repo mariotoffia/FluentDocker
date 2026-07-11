@@ -112,11 +112,7 @@ namespace FluentDocker.Builders
             throw new NotSupportedException(
                 "Directory sources are not supported by DockerfileBuilder; add files individually.");
           var name = Path.GetFileName(from);
-          if (rootedNames.TryGetValue(name, out var prior) &&
-              !string.Equals(prior, from, StringComparison.Ordinal))
-            throw new NotSupportedException(
-                $"Multiple rooted COPY sources share the file name '{name}'; rename the sources.");
-          rootedNames[name] = from;
+          ClaimRootedName(rootedNames, name, from);
           if (!File.Exists(from))
           {
             if (!strictCopySources)
@@ -131,6 +127,11 @@ namespace FluentDocker.Builders
         if (Directory.Exists(from))
           throw new NotSupportedException(
               "Directory sources are not supported by DockerfileBuilder; add files individually.");
+        // A bare (root-level) relative source stages next to any rooted COPY/ADD, so it must
+        // claim its name too or a later rooted source with the same basename would silently
+        // ship this file's bytes under its name instead of its own.
+        if (string.IsNullOrEmpty(Path.GetDirectoryName(from)))
+          ClaimRootedName(rootedNames, Path.GetFileName(from), from);
         if (!File.Exists(from))
         {
           if (!strictCopySources)
@@ -152,17 +153,8 @@ namespace FluentDocker.Builders
         if (Path.IsPathRooted(source))
         {
           var name = Path.GetFileName(source);
-          if (rootedNames.TryGetValue(name, out var prior) &&
-              !string.Equals(prior, source, StringComparison.Ordinal))
-            throw new NotSupportedException(
-                $"Multiple rooted COPY/ADD sources share the file name '{name}'; rename the sources.");
-          rootedNames[name] = source;
+          ClaimRootedName(rootedNames, name, source);
           var rootedDest = Path.Combine(workingFolder, name);
-          if (File.Exists(rootedDest) || Directory.Exists(rootedDest))
-          {
-            _addSourceOverrides[command] = Path.GetFileName(source);
-            continue;
-          }
           if (Directory.Exists(source))
             throw new NotSupportedException(
                 "Directory sources are not supported by DockerfileBuilder; add files individually.");
@@ -182,6 +174,8 @@ namespace FluentDocker.Builders
         if (Directory.Exists(source))
           throw new NotSupportedException(
               "Directory sources are not supported by DockerfileBuilder; add files individually.");
+        if (string.IsNullOrEmpty(Path.GetDirectoryName(source)))
+          ClaimRootedName(rootedNames, Path.GetFileName(source), source);
         if (!File.Exists(source))
         {
           if (!strictCopySources)
@@ -196,6 +190,21 @@ namespace FluentDocker.Builders
 
         File.Copy(source, wff, true);
       }
+    }
+
+    /// <summary>
+    /// Claims <paramref name="name"/> for <paramref name="source"/> in the shared root-level
+    /// namespace, so a later rooted/root-level source with the same basename but a different
+    /// identity fails the build early instead of silently overwriting (or losing out to) it.
+    /// </summary>
+    private static void ClaimRootedName(
+        Dictionary<string, string> rootedNames, string name, string source)
+    {
+      if (rootedNames.TryGetValue(name, out var prior) &&
+          !string.Equals(prior, source, StringComparison.Ordinal))
+        throw new NotSupportedException(
+            $"Multiple rooted COPY/ADD sources share the file name '{name}'; rename the sources.");
+      rootedNames[name] = source;
     }
 
     private static string ResolveOwnedContextPath(string workingFolder, string relativePath)

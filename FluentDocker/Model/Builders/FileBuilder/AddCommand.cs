@@ -16,7 +16,9 @@ namespace FluentDocker.Model.Builders.FileBuilder
     /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
-      return $"ADD {DockerfileJson.Array([Source.Rendered, Destination.Rendered])}";
+      var source = DockerfileJson.NormalizePath(Source.Rendered);
+      var destination = DockerfileJson.NormalizePath(Destination.Rendered);
+      return $"ADD {DockerfileJson.Array([source, destination])}";
     }
   }
 }

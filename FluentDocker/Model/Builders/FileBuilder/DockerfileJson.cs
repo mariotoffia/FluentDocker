@@ -19,5 +19,8 @@ namespace FluentDocker.Model.Builders.FileBuilder
     {
       return $"[{string.Join(", ", values.Select(Quote))}]";
     }
+
+    /// <summary>Normalizes Windows-style separators so a rendered path matches the staged tar entry.</summary>
+    internal static string NormalizePath(string path) => path.Replace('\\', '/');
   }
 }

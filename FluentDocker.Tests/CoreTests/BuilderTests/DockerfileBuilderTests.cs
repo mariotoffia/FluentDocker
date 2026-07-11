@@ -250,6 +250,17 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task Add_WindowsPaths_NormalizesSeparatorsInDockerfile()
+    {
+      var dockerfile = await new DockerfileBuilder()
+          .UseParent("alpine")
+          .Add(@"conf\app.json", "/app/")
+          .ToDockerfileStringAsync();
+
+      Assert.Contains(@"ADD [""conf/app.json"", ""/app/""]", dockerfile);
+    }
+
+    [Fact]
     public async Task WithHealthCheck_AddsHealthcheckInstruction()
     {
       var dockerfile = await new DockerfileBuilder()
@@ -370,6 +381,85 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
       Assert.True(File.Exists(Path.Combine(first, "source.txt")));
       Assert.True(File.Exists(Path.Combine(second, "source.txt")));
+    }
+
+    [Fact]
+    public async Task CopyRelativeRootLevel_AddRootedSameBasenameDifferentContent_ThrowsCollision()
+    {
+      // Bare (no subdirectory) relative COPY source: must sit directly in the process CWD to
+      // land at the context root, so it can collide with a rooted ADD's basename.
+      var relativeName = $"fd-root-collision-{Guid.NewGuid():N}.conf";
+      await File.WriteAllTextAsync(relativeName, "copy-bytes", TestContext.Current.CancellationToken);
+      Directory.CreateDirectory(".out");
+      var rootedDir = Path.GetFullPath(Path.Combine(".out", "add-rooted-collision-source"));
+      Directory.CreateDirectory(rootedDir);
+      var rootedSource = Path.Combine(rootedDir, relativeName);
+      await File.WriteAllTextAsync(rootedSource, "add-bytes", TestContext.Current.CancellationToken);
+      var workingFolder = Path.Combine(".out", "add-rooted-collision-build");
+
+      try
+      {
+        var ex = await Assert.ThrowsAsync<NotSupportedException>(() => new DockerfileBuilder()
+            .WorkingFolder(workingFolder)
+            .UseParent("alpine")
+            .Copy(relativeName, "/etc/a.conf")
+            .Add(rootedSource, "/etc/b.conf")
+            .ToDockerfileStringAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains(relativeName, ex.Message);
+      }
+      finally
+      {
+        File.Delete(relativeName);
+      }
+    }
+
+    [Fact]
+    public async Task Add_RootedSourceRestagedIntoFixedWorkingFolder_RefreshesStaleContent()
+    {
+      Directory.CreateDirectory(".out");
+      var root = Path.GetFullPath(Path.Combine(".out", "add-stale-refresh"));
+      Directory.CreateDirectory(root);
+      var source = Path.Combine(root, "app.conf");
+      await File.WriteAllTextAsync(source, "v1", TestContext.Current.CancellationToken);
+      var workingFolder = Path.Combine(root, "context");
+      var builder = new DockerfileBuilder()
+          .WorkingFolder(workingFolder)
+          .UseParent("alpine")
+          .Add(source, "/etc/app.conf");
+
+      await builder.ToDockerfileStringAsync(TestContext.Current.CancellationToken);
+      Assert.Equal("v1", await File.ReadAllTextAsync(
+          Path.Combine(workingFolder, "app.conf"), TestContext.Current.CancellationToken));
+
+      await File.WriteAllTextAsync(source, "v2", TestContext.Current.CancellationToken);
+      await builder.ToDockerfileStringAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal("v2", await File.ReadAllTextAsync(
+          Path.Combine(workingFolder, "app.conf"), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Add_SameRootedSourceUsedTwice_NoThrowAndCorrectBytes()
+    {
+      Directory.CreateDirectory(".out");
+      var root = Path.GetFullPath(Path.Combine(".out", "add-same-source-twice"));
+      Directory.CreateDirectory(root);
+      var source = Path.Combine(root, "shared.conf");
+      await File.WriteAllTextAsync(source, "shared-bytes", TestContext.Current.CancellationToken);
+      var workingFolder = Path.Combine(root, "context");
+
+      var dockerfile = await new DockerfileBuilder()
+          .WorkingFolder(workingFolder)
+          .UseParent("alpine")
+          .Add(source, "/etc/a.conf")
+          .Add(source, "/etc/b.conf")
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
+
+      Assert.Contains(@"ADD [""shared.conf"", ""/etc/a.conf""]", dockerfile);
+      Assert.Contains(@"ADD [""shared.conf"", ""/etc/b.conf""]", dockerfile);
+      Assert.Equal("shared-bytes", await File.ReadAllTextAsync(
+          Path.Combine(workingFolder, "shared.conf"), TestContext.Current.CancellationToken));
     }
 
     [Fact]
