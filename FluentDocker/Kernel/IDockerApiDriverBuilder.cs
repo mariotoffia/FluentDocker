@@ -42,6 +42,16 @@ namespace FluentDocker.Kernel
     /// Sets an opt-in read-idle timeout for streamed Docker API response bodies.
     /// </summary>
     /// <param name="timeout">Maximum idle time between received bytes. Disabled by default.</param>
+    /// <remarks>
+    /// Blast radius: this applies to EVERY streamed response on the connection — logs, pull/push
+    /// progress, and also long-lived <c>/events</c>, stats, and attach streams. A legitimately
+    /// idle stream (a quiet events feed, a container producing no output) is torn down every
+    /// time <paramref name="timeout"/> elapses without a byte arriving, so size it above the
+    /// longest expected legitimate idle gap for the streams you use. Each firing also
+    /// intentionally leaks the in-flight read's pooled buffer rather than returning it (the
+    /// abandoned read may still write into it) — one leaked buffer per timeout, traded against
+    /// not corrupting a recycled pool segment. Enable only once both trade-offs are acceptable.
+    /// </remarks>
     IDockerApiDriverBuilder WithStreamIdleTimeout(TimeSpan timeout);
 
     /// <summary>

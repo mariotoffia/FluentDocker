@@ -1,10 +1,12 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Connection;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Drivers.Docker.Api
 {
@@ -14,8 +16,19 @@ namespace FluentDocker.Drivers.Docker.Api
     private const string MultiplexedStreamContentType = "application/vnd.docker.multiplexed-stream";
     private const string RawStreamContentType = "application/vnd.docker.raw-stream";
 
+    /// <param name="stream">The opened log response stream.</param>
+    /// <param name="containerId">
+    /// When supplied and the response Content-Type does not authoritatively identify the stream
+    /// (pre-1.42 daemons, or an unrecognized type), a container inspect determines TTY mode
+    /// instead of byte-sniffing the first frame header. A TTY container can emit binary output
+    /// whose first 8 bytes coincidentally satisfy the stdcopy header shape, which byte-sniffing
+    /// would misparse as multiplexed and corrupt by stripping fake "headers" throughout the log.
+    /// Pass null when no single container backs the stream (e.g. a Swarm service log, which
+    /// aggregates multiple tasks) — that falls back straight to the byte-sniff.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     protected async Task<string> ReadDockerLogTailAsync(
-        Stream stream, CancellationToken cancellationToken)
+        Stream stream, string containerId, CancellationToken cancellationToken)
     {
       var contentType = (stream as ResponseOwningStream)?.ContentType;
       if (UseDockerLogContentType(contentType))
@@ -26,8 +39,48 @@ namespace FluentDocker.Drivers.Docker.Api
             stream, sniffOnInvalidHeader: false, cancellationToken).ConfigureAwait(false);
       }
 
+      if (containerId != null)
+      {
+        var tty = await DetectTtyAsync(containerId, cancellationToken).ConfigureAwait(false);
+        if (tty == true)
+          return await ReadRawLogTailAsync(stream, cancellationToken).ConfigureAwait(false);
+        if (tty == false)
+          return await ReadMultiplexedLogTailAsync(
+              stream, sniffOnInvalidHeader: false, cancellationToken).ConfigureAwait(false);
+      }
+
+      // containerId is null, or inspect could not determine TTY mode: fall back to the
+      // byte-sniff, the closest guess available.
       return await ReadMultiplexedLogTailAsync(
           stream, sniffOnInvalidHeader: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Inspects the container to determine whether it was started with a TTY. A TTY stream is
+    /// raw text (no multiplex headers). On inspect failure this returns null, so the caller
+    /// falls back to byte-sniffing the stream to decide multiplexing. The
+    /// Content-Type: application/vnd.docker.multiplexed-stream response header (API >= 1.42) is
+    /// the authoritative future seam; this is the pre-1.42 / unrecognized-type fallback shared by
+    /// the log-tail and log-stream readers.
+    /// </summary>
+    protected async Task<bool?> DetectTtyAsync(string containerId, CancellationToken ct)
+    {
+      try
+      {
+        var result = await GetJsonElementAsync(
+            $"/containers/{Uri.EscapeDataString(containerId)}/json", ct).ConfigureAwait(false);
+        if (result.Success && result.Data.ValueKind == JsonValueKind.Object)
+        {
+          var config = result.Data.Prop("Config");
+          if (config?.ValueKind == JsonValueKind.Object)
+            return config.Value.GetBoolOrDefault("Tty");
+        }
+      }
+      catch (Exception ex)
+      {
+        Logger.LogDebug(ex, "Could not determine container TTY mode; defaulting to demux");
+      }
+      return null;
     }
 
     private bool UseDockerLogContentType(string contentType)

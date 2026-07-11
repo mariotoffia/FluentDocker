@@ -35,8 +35,20 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Optional read-idle timeout for streamed response bodies. Null means disabled.
+    /// Optional read-idle timeout for streamed response bodies. Null means disabled (default).
     /// </summary>
+    /// <remarks>
+    /// Applies to EVERY streamed response on this connection, not just logs/pull/push: this
+    /// includes long-lived <c>/events</c>, stats, and attach streams. A legitimately idle
+    /// stream (e.g. an events feed with no activity, or a container that is quiet for a while)
+    /// is torn down every time this window elapses without a byte arriving — set it well above
+    /// the longest expected legitimate idle gap, or leave it disabled for long-lived streams.
+    /// Each time the timeout fires, the in-flight read's rented <see cref="System.Buffers.ArrayPool{T}"/>
+    /// buffer is intentionally leaked rather than returned to the pool, because the abandoned
+    /// inner read may still be writing into it; the stream is unusable after timing out, so this
+    /// trades one leaked buffer per timeout for avoiding a corrupted pooled segment. Enable only
+    /// once both trade-offs are acceptable for your streams.
+    /// </remarks>
     public TimeSpan? StreamIdleTimeout { get; set; }
 
     /// <summary>

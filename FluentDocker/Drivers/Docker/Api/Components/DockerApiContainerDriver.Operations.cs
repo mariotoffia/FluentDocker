@@ -44,7 +44,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
-        var logs = await ReadDockerLogTailAsync(stream, cancellationToken).ConfigureAwait(false);
+        var logs = await ReadDockerLogTailAsync(stream, containerId, cancellationToken).ConfigureAwait(false);
         return CommandResponse<string>.Ok(logs);
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

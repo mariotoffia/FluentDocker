@@ -142,32 +142,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           version.CompareTo(new Version(1, 42)) >= 0;
     }
 
-    /// <summary>
-    /// Inspects the container to determine whether it was started with a TTY. A TTY stream
-    /// is raw text (no multiplex headers). On inspect failure this returns null, so the
-    /// caller falls back to byte-sniffing the stream to decide multiplexing. The
-    /// Content-Type: application/vnd.docker.multiplexed-stream response header (API >= 1.42)
-    /// is the authoritative future seam.
-    /// </summary>
-    private async Task<bool?> DetectTtyAsync(string containerId, CancellationToken ct)
-    {
-      try
-      {
-        var result = await GetJsonElementAsync(
-            $"/containers/{Uri.EscapeDataString(containerId)}/json", ct).ConfigureAwait(false);
-        if (result.Success && result.Data.ValueKind == JsonValueKind.Object)
-        {
-          var config = result.Data.Prop("Config");
-          if (config?.ValueKind == JsonValueKind.Object)
-            return config.Value.GetBoolOrDefault("Tty");
-        }
-      }
-      catch (Exception ex)
-      {
-        Logger.LogDebug(ex, "Could not determine container TTY mode; defaulting to demux");
-      }
-      return null;
-    }
+    // DetectTtyAsync is inherited from DockerApiDriverBase (shared with the log-tail reader).
 
     /// <inheritdoc />
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(

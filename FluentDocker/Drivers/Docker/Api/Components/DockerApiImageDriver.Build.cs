@@ -63,6 +63,22 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       else
       {
+        // An embedded tag in `image` (e.g. "nginx:1.25") must be split into fromImage/tag: the
+        // daemon's reference.WithTag rebuilds the ref from the repository domain/path only and
+        // silently discards a tag baked into `image`, pulling ":latest" instead. Mirrors the CLI
+        // driver's ShouldAppendTag embedded-tag detection so both drivers pull the same reference.
+        if (TrySplitEmbeddedTag(image, out var repo, out var embeddedTag))
+        {
+          if (tag != null && !string.Equals(tag, embeddedTag, StringComparison.OrdinalIgnoreCase))
+            return CommandResponse<Unit>.Fail(
+                $"Conflicting tags in image '{image}' and tag '{tag}'",
+                ErrorCodes.General.InvalidArgument,
+                CreateErrorContext("POST /images/create (pull)", 0));
+
+          image = repo;
+          tag = embeddedTag;
+        }
+
         tag ??= "latest";
         path = $"/images/create" +
                $"?fromImage={Uri.EscapeDataString(image)}" +
@@ -306,6 +322,31 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var path = $"/images/{Uri.EscapeDataString(image)}/json";
       var result = await GetJsonElementAsync(path, cancellationToken).ConfigureAwait(false);
       return result.Success;
+    }
+
+    /// <summary>
+    /// Detects a tag embedded in the repository segment of an image reference (e.g.
+    /// "nginx:1.25"), mirroring the CLI driver's <c>ShouldAppendTag</c> detection: a ':' after
+    /// the last '/' is a tag; a ':' at or before the last '/' is a registry host:port (e.g.
+    /// "registry:5000/nginx", not split). A digest reference ('@') never has an embedded tag —
+    /// callers route those through the digest branch before reaching this helper.
+    /// </summary>
+    private static bool TrySplitEmbeddedTag(string image, out string repo, out string embeddedTag)
+    {
+      repo = image;
+      embeddedTag = null;
+      if (string.IsNullOrEmpty(image) || image.Contains('@', StringComparison.Ordinal))
+        return false;
+
+      var lastSlash = image.LastIndexOf('/');
+      var lastSegment = lastSlash < 0 ? image : image[(lastSlash + 1)..];
+      if (!lastSegment.Contains(':', StringComparison.Ordinal))
+        return false;
+
+      var colon = (lastSlash + 1) + lastSegment.LastIndexOf(':');
+      repo = image[..colon];
+      embeddedTag = image[(colon + 1)..];
+      return true;
     }
 
     private static bool IsTerminalPullStatus(string status)
