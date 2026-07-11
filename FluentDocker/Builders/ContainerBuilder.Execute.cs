@@ -182,7 +182,7 @@ namespace FluentDocker.Builders
 
           var logTail = ex is OperationCanceledException
               ? null
-              : await ReadLogTailAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
+              : await WaitDiagnostics.ReadLogTailAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
           try
           {
             if (!_keepContainer)
@@ -206,7 +206,7 @@ namespace FluentDocker.Builders
           if (!string.IsNullOrWhiteSpace(logTail))
             ex.Data["ContainerLogTail"] = logTail;
           if (ex.GetType() == typeof(FluentDockerException))
-            throw new FluentDockerException(AppendLogTail(ex.Message, logTail), ex);
+            throw new FluentDockerException(WaitDiagnostics.AppendLogTail(ex.Message, logTail), ex);
           throw;
         }
       }

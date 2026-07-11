@@ -36,11 +36,11 @@ namespace FluentDocker.Builders
       {
         var logTail = ex is OperationCanceledException
             ? null
-            : await ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
+            : await WaitDiagnostics.ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(logTail))
           ex.Data["ContainerLogTail"] = logTail;
         if (ex.GetType() == typeof(FluentDockerException))
-          throw new FluentDockerException(AppendLogTail(ex.Message, logTail), ex);
+          throw new FluentDockerException(WaitDiagnostics.AppendLogTail(ex.Message, logTail), ex);
         throw;
       }
     }

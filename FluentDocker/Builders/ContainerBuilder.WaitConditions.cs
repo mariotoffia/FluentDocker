@@ -374,13 +374,13 @@ namespace FluentDocker.Builders
           // (it has not truly started) so WaitForRunning cannot succeed on a restarting container.
           if (state?.Running == true && state.Restarting != true)
             return;
-          if (HasReachedTerminalState(state))
+          if (WaitDiagnostics.HasReachedTerminalState(state))
           {
             if (allowCleanExit && state.ExitCode == 0)
               return;
 
-            var logs = await ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
-            throw new FluentDockerException(AppendLogTail(
+            var logs = await WaitDiagnostics.ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
+            throw new FluentDockerException(WaitDiagnostics.AppendLogTail(
                 $"Container {containerId} exited before it was ready with exit code {state.ExitCode}.",
                 logs));
           }
@@ -407,44 +407,10 @@ namespace FluentDocker.Builders
       // of a bare "Timeout waiting for container <id>" — exactly the multi-container case where the
       // logs matter most (BLD-MAJ-5).
       var timeoutLabel = string.IsNullOrWhiteSpace(containerName) ? containerId : $"{containerName} ({containerId})";
-      var timeoutLogs = await ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
-      throw new FluentDockerException(AppendLogTail(
+      var timeoutLogs = await WaitDiagnostics.ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
+      throw new FluentDockerException(WaitDiagnostics.AppendLogTail(
           $"Timeout waiting for container {timeoutLabel} to start.", timeoutLogs));
     }
-
-    private static bool HasReachedTerminalState(ContainerState state)
-    {
-      if (state == null)
-        return false;
-      if (state.Dead)
-        return true;
-      return string.Equals(state.Status, "exited", StringComparison.OrdinalIgnoreCase) ||
-          string.Equals(state.Status, "dead", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static async Task<string> ReadLogTailAsync(
-        Drivers.IContainerDriver driver,
-        Model.Drivers.DriverContext context,
-        string containerId,
-        CancellationToken cancellationToken)
-    {
-      try
-      {
-        var logs = await driver.GetLogsAsync(
-            context, containerId, follow: false, tail: 100, timestamps: false, cancellationToken)
-            .ConfigureAwait(false);
-        return logs.Success ? logs.Data : null;
-      }
-      catch
-      {
-        return null;
-      }
-    }
-
-    private static string AppendLogTail(string message, string logTail) =>
-        string.IsNullOrWhiteSpace(logTail)
-            ? message
-            : $"{message}{Environment.NewLine}Container log tail:{Environment.NewLine}{logTail}";
 
     private static async Task<string> FindExistingContainerAsync(
         Drivers.IContainerDriver driver, Model.Drivers.DriverContext context,

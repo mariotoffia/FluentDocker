@@ -120,8 +120,12 @@ namespace FluentDocker.Services.Extensions
       cancellationToken.ThrowIfCancellationRequested();
       var sw = Stopwatch.StartNew();
       var forceFreshEndpoint = true;
+      Exception lastException = null;
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
+        // Fail fast on a dead container instead of burning the rest of the timeout (outside the
+        // catches below so the diagnostic exception is never mistaken for a transient failure).
+        await WaitDiagnostics.ThrowIfTerminalAsync(service, cancellationToken).ConfigureAwait(false);
         try
         {
           if (forceFreshEndpoint)
@@ -143,10 +147,12 @@ namespace FluentDocker.Services.Extensions
         }
         catch (DriverException ex) when (ex.IsTransient)
         {
+          lastException = ex;
           forceFreshEndpoint = true;
         }
         catch (SocketException ex)
         {
+          lastException = ex;
           forceFreshEndpoint = true;
           LogDebug(service, ex, "WaitForPortAsync", portAndProto);
         }
@@ -156,6 +162,7 @@ namespace FluentDocker.Services.Extensions
       }
 
       cancellationToken.ThrowIfCancellationRequested();
+      LogWaitFailure(service, lastException, "WaitForPortAsync", portAndProto);
       return false;
     }
 
@@ -292,7 +299,7 @@ namespace FluentDocker.Services.Extensions
         catch (DriverException ex) when (ex.IsTransient)
         {
         }
-        catch (Exception ex) when (IsRetriableWaitException(ex))
+        catch (Exception ex) when (IsRetriableWaitException(ex, cancellationToken))
         {
           LogDebug(service, ex, "WaitForProcessAsync", processName);
         }
@@ -361,6 +368,9 @@ namespace FluentDocker.Services.Extensions
 
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
+        // Fail fast on a dead container instead of burning the rest of the timeout (outside the
+        // catches below so the diagnostic exception is never mistaken for a transient failure).
+        await WaitDiagnostics.ThrowIfTerminalAsync(service, cancellationToken).ConfigureAwait(false);
         try
         {
           if (forceFreshEndpoint)
@@ -419,8 +429,22 @@ namespace FluentDocker.Services.Extensions
       return false;
     }
 
-    private static bool IsRetriableWaitException(Exception ex) =>
-        ex is not DriverException and not OperationCanceledException and not ObjectDisposedException and not NullReferenceException;
+    // Whitelist of genuinely transient probe failures. DriverException/OperationCanceledException
+    // are already handled by dedicated catch clauses at each call site before this one runs, so in
+    // practice a DriverException reaching here is never transient (transient ones were already
+    // caught by the dedicated clause) and a TaskCanceledException reaching here is always a
+    // per-attempt timeout, not caller cancellation (that's caught by the dedicated OCE clause
+    // first). Everything else - programming errors, serialization failures, driver-invariant
+    // violations - propagates instead of being silently retried to a timeout.
+    private static bool IsRetriableWaitException(Exception ex, CancellationToken cancellationToken) =>
+        ex switch
+        {
+          SocketException => true,
+          HttpRequestException => true,
+          DriverException { IsTransient: true } => true,
+          TaskCanceledException => !cancellationToken.IsCancellationRequested,
+          _ => false
+        };
 
     private static void InvalidateInspectCache(IContainerService service)
     {
@@ -455,42 +479,6 @@ namespace FluentDocker.Services.Extensions
               "Container wait helper timed out during {Operation} for {Value}; last failure is attached",
               operation,
               value);
-    }
-
-    #endregion
-
-    #region Host Extensions
-
-    /// <summary>
-    /// Gets the Docker host address.
-    /// </summary>
-    /// <param name="service">The host service.</param>
-    /// <returns>The Docker host address.</returns>
-    /// <remarks>
-    /// Uses <see cref="IServiceAsync.Name"/> when it contains a URI such as
-    /// <c>tcp://host:2376</c>; otherwise falls back to localhost.
-    /// </remarks>
-    public static string GetDockerHost(this IHostService service)
-    {
-      if (service.IsNative)
-        return "127.0.0.1";
-
-      var configured = TryGetDockerHost(service.Name);
-      if (!string.IsNullOrEmpty(configured))
-        return configured;
-
-      return "127.0.0.1";
-    }
-
-    private static string? TryGetDockerHost(string? value)
-    {
-      if (string.IsNullOrWhiteSpace(value) || value == "native")
-        return null;
-
-      if (Uri.TryCreate(value, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.Host))
-        return uri.Host;
-
-      return value.Contains("://", StringComparison.Ordinal) ? null : value;
     }
 
     #endregion

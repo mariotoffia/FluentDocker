@@ -56,6 +56,9 @@ namespace FluentDocker.Services.Extensions
 
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
+        // Fail fast on a dead container instead of burning the rest of the timeout (outside the
+        // catches below so the diagnostic exception is never mistaken for a transient failure).
+        await WaitDiagnostics.ThrowIfTerminalAsync(service, cancellationToken).ConfigureAwait(false);
         try
         {
           var containerService = service as ContainerService;
@@ -77,7 +80,7 @@ namespace FluentDocker.Services.Extensions
         catch (DriverException ex) when (ex.IsTransient)
         {
         }
-        catch (Exception ex) when (IsRetriableWaitException(ex))
+        catch (Exception ex) when (IsRetriableWaitException(ex, cancellationToken))
         {
           LogDebug(service, ex, "WaitForLogMessageAsync", text);
         }
@@ -119,7 +122,7 @@ namespace FluentDocker.Services.Extensions
         {
           return false;
         }
-        catch (Exception ex) when (IsRetriableWaitException(ex))
+        catch (Exception ex) when (IsRetriableWaitException(ex, cancellationToken))
         {
           LogDebug(service, ex, "WaitForLogMessageAsync", text);
           return false;
@@ -139,7 +142,7 @@ namespace FluentDocker.Services.Extensions
       {
         return false;
       }
-      catch (Exception ex) when (IsRetriableWaitException(ex))
+      catch (Exception ex) when (IsRetriableWaitException(ex, cancellationToken))
       {
         LogDebug(service, ex, "WaitForLogMessageAsync", text);
         return false;
