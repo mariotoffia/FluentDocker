@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -15,7 +14,7 @@ namespace FluentDocker.Kernel
   /// Non-singleton in v3.0.0 - can have multiple kernel instances.
   /// Implements ISysCtl for unified driver component access.
   /// </summary>
-  public class FluentDockerKernel : ISysCtl, IAsyncDisposable, IDisposable
+  public partial class FluentDockerKernel : ISysCtl, IAsyncDisposable, IDisposable
   {
     private readonly IDriverRegistry _registry;
     private readonly ILoggerFactory _loggerFactory;
@@ -63,9 +62,11 @@ namespace FluentDocker.Kernel
 
       driverId = ResolveDriverIdOrDefault(driverId);
 
-      if (TryResolveCore(driverId, interfaceType, out var resolved, out var unsupportedCause))
+      if (TryResolveCore(driverId, interfaceType, out var resolved, out var unsupportedCause, out var mismatchedType))
         return resolved;
       var interfaceName = TypeNameFormatter.Format(interfaceType);
+      if (mismatchedType != null)
+        throw new InterfaceNotSupportedException(driverId, interfaceName, mismatchedType);
       throw unsupportedCause == null
           ? new InterfaceNotSupportedException(driverId, interfaceName)
           : new InterfaceNotSupportedException(driverId, interfaceName, unsupportedCause);
@@ -93,7 +94,7 @@ namespace FluentDocker.Kernel
 
       // A genuinely unsupported interface makes TryResolveCore return false (→ false here);
       // real faults (broken resolver, fallback fault, missing driver, I/O, cancellation) throw.
-      if (TryResolveCore(driverId, typeof(T), out var resolved, out _))
+      if (TryResolveCore(driverId, typeof(T), out var resolved, out _, out _))
       {
         instance = (T)resolved;
         return true;
@@ -292,89 +293,8 @@ namespace FluentDocker.Kernel
       ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
     }
 
-    private bool TryResolveCore(
-        string driverId,
-        Type interfaceType,
-        [NotNullWhen(true)] out object? resolved,
-        out Exception? unsupportedCause)
-    {
-      unsupportedCause = null;
-      if (_registry.TryGetDriverPack(driverId, out var driverPack))
-      {
-        try
-        {
-          if (driverPack.TryResolve(interfaceType, out resolved))
-          {
-            if (interfaceType.IsInstanceOfType(resolved))
-              return true;
-            LogTypeMismatch(driverPack, interfaceType, resolved);
-          }
-        }
-        catch (InterfaceNotSupportedException ex)
-        {
-          unsupportedCause = ex;
-        }
-        catch (Exception ex) when (!IsResolutionContractException(ex))
-        {
-          LogPackFallbackFailure(driverPack, interfaceType, ex);
-          throw CreateResolutionFailureException(driverId, interfaceType, ex);
-        }
-
-        // No pack.SysCtl(driverId) fallback: it was redundant with TryResolve above (both resolve
-        // through the same interface map) and its only distinct effect — echoing driverId into an
-        // exception — is meaningless at pack level, so IDriverPack no longer inherits ISysCtl
-        // (KRN-MAJ-7). A genuine TryResolve fault is still surfaced HARD as DriverException above;
-        // a soft InterfaceNotSupportedException still means "not implemented" (KRN-MAJ-1).
-        resolved = null;
-        return false;
-      }
-
-      if (_registry.TryGetDriver(driverId, out var driver))
-      {
-        if (driver is IDriverInterfaceResolver driverResolver)
-        {
-          try
-          {
-            if (driverResolver.TryResolve(interfaceType, out resolved)
-                && interfaceType.IsInstanceOfType(resolved))
-              return true;
-          }
-          catch (InterfaceNotSupportedException ex)
-          {
-            unsupportedCause = ex;
-          }
-          catch (Exception ex) when (!IsResolutionContractException(ex))
-          {
-            throw CreateResolutionFailureException(driverId, interfaceType, ex);
-          }
-        }
-
-        if (interfaceType.IsInstanceOfType(driver))
-        {
-          resolved = driver;
-          return true;
-        }
-
-        resolved = null;
-        return false;
-      }
-
-      throw new DriverNotFoundException(driverId, _registry.GetAllDriverIds());
-    }
-
-    private static bool IsResolutionContractException(Exception ex) =>
-        ex is DriverException
-        or IOException
-        or ObjectDisposedException
-        or OperationCanceledException;
-
-    private static DriverException CreateResolutionFailureException(
-        string driverId, Type interfaceType, Exception ex)
-    {
-      return new DriverException(
-          $"Driver '{driverId}' failed while resolving interface '{TypeNameFormatter.Format(interfaceType)}'.",
-          ex);
-    }
+    // TryResolveCore and its resolution-only helpers live in FluentDockerKernel.Resolution.cs
+    // (kept as a partial-class split so this file stays under the 500-line limit).
 
     private string ResolveDriverIdOrDefault(string driverId)
     {
@@ -392,27 +312,6 @@ namespace FluentDocker.Kernel
       if (string.IsNullOrWhiteSpace(driverId))
         throw new ArgumentException("Driver ID cannot be empty or whitespace.", nameof(driverId));
       return driverId;
-    }
-
-    private void LogTypeMismatch(IDriverPack driverPack, Type interfaceType, object resolved)
-    {
-      if (!_logger.IsEnabled(LogLevel.Debug))
-        return;
-
-      _logger.LogDebug(
-          "Driver pack {DriverPackType} returned {ActualType} for requested interface {InterfaceType}",
-          driverPack.GetType().FullName,
-          resolved?.GetType().FullName ?? "<null>",
-          TypeNameFormatter.Format(interfaceType));
-    }
-
-    private void LogPackFallbackFailure(IDriverPack driverPack, Type interfaceType, Exception ex)
-    {
-      _logger.LogWarning(
-          ex,
-          "Driver pack {DriverPackType} failed to resolve interface {InterfaceType}",
-          driverPack.GetType().FullName,
-          TypeNameFormatter.Format(interfaceType));
     }
 
     #endregion

@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -176,6 +180,51 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
+    public async Task SysCtl_WhenPackReturnsWrongType_MessageNamesActualAndRequestedTypesAndLogsWarning()
+    {
+      // K-M4: TryResolve returning true with a non-assignable instance (a mis-mapped pack, e.g.
+      // Drivers[typeof(IContainerDriver)] = imageDriver) must be diagnosable — a Warning-level log
+      // line and an exception message that names both the actual and requested types, not a
+      // cause-less "does not implement" that hides what actually happened.
+      var factory = new RecordingLoggerFactory();
+      await using var kernel = new FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), factory);
+      await kernel.RegisterDriverPackAsync(
+          "bad", new WrongTypeDriverPack(), new DriverContext("bad"),
+          TestContext.Current.CancellationToken);
+
+      var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
+          kernel.SysCtl<IContainerDriver>("bad"));
+
+      Assert.Contains("String", ex.Message, StringComparison.Ordinal);
+      Assert.Contains("IContainerDriver", ex.Message, StringComparison.Ordinal);
+      Assert.Contains("not assignable", ex.Message, StringComparison.Ordinal);
+      Assert.Contains(factory.Records, r =>
+          r.Level == LogLevel.Warning && r.Message.Contains("String", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task SysCtl_WhenDriverResolverReturnsWrongType_MessageNamesActualAndRequestedTypesAndLogsWarning()
+    {
+      // K-M4 plain-driver path (FluentDockerKernel.cs:~338-339): previously logged nothing at all.
+      var factory = new RecordingLoggerFactory();
+      var registry = new DriverRegistry(NullLoggerFactory.Instance);
+      await using var kernel = new FluentDockerKernel(registry, factory);
+      await kernel.RegisterDriverAsync(
+          "bad", new WrongTypeResolverDriver(), new DriverContext("bad"),
+          TestContext.Current.CancellationToken);
+
+      var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
+          kernel.SysCtl<IContainerDriver>("bad"));
+
+      Assert.Contains("String", ex.Message, StringComparison.Ordinal);
+      Assert.Contains("IContainerDriver", ex.Message, StringComparison.Ordinal);
+      Assert.Contains("not assignable", ex.Message, StringComparison.Ordinal);
+      Assert.Contains(factory.Records, r =>
+          r.Level == LogLevel.Warning && r.Message.Contains("String", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task RegisterDriverPackAsync_WhenInitializeThrows_DisposesFailingPack()
     {
       var registry = new DriverRegistry(NullLoggerFactory.Instance);
@@ -324,6 +373,55 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         Interlocked.Increment(ref _disposeCount);
         DisposeStarted.SetResult();
         await CompleteDispose.Task.ConfigureAwait(false);
+      }
+    }
+
+    /// <summary>
+    /// Plain driver (not a pack) whose IDriverInterfaceResolver.TryResolve reports success but
+    /// hands back an instance that does not implement the requested interface — the driver-path
+    /// analog of WrongTypeDriverPack, for K-M4.
+    /// </summary>
+    private sealed class WrongTypeResolverDriver : IDriver, IDriverInterfaceResolver
+    {
+      public DriverType Type => DriverType.Custom;
+      public RuntimeType Runtime => RuntimeType.Unknown;
+
+      public Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default) =>
+          Task.CompletedTask;
+
+      public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default) =>
+          Task.FromResult(DriverCapabilities.Default());
+
+      public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
+          Task.FromResult(true);
+
+      public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
+      {
+        implementation = "not a container driver";
+        return true;
+      }
+
+      public IReadOnlyCollection<Type> GetSupportedInterfaces() => [typeof(IContainerDriver)];
+    }
+
+    /// <summary>
+    /// Minimal in-memory ILoggerFactory for asserting on (Level, Message) pairs without extra
+    /// test infra. Mirrors the pattern in LoggerFactoryWiringTests.cs.
+    /// </summary>
+    private sealed class RecordingLoggerFactory : ILoggerFactory
+    {
+      public ConcurrentQueue<(LogLevel Level, string Message)> Records { get; } = new();
+      public void AddProvider(ILoggerProvider provider) { }
+      public ILogger CreateLogger(string categoryName) => new RecordingLogger(Records);
+      public void Dispose() { }
+
+      private sealed class RecordingLogger(ConcurrentQueue<(LogLevel Level, string Message)> records) : ILogger
+      {
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => null!;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter) =>
+            records.Enqueue((logLevel, formatter(state, exception)));
       }
     }
   }

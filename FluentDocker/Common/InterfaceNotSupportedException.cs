@@ -59,5 +59,23 @@ namespace FluentDocker.Common
       DriverId = driverId;
       InterfaceName = interfaceName;
     }
+
+    /// <summary>
+    /// Initializes a new instance for a resolved instance that is not assignable to the requested
+    /// interface — a mis-mapped driver/pack registration (for example
+    /// <c>Drivers[typeof(IContainerDriver)] = imageDriver</c>) rather than a genuinely unimplemented
+    /// interface.
+    /// </summary>
+    /// <param name="driverId">The identifier of the driver.</param>
+    /// <param name="interfaceName">The name of the requested interface.</param>
+    /// <param name="actualType">The type that was actually resolved.</param>
+    public InterfaceNotSupportedException(string driverId, string interfaceName, Type actualType)
+        : base(
+            $"Driver '{driverId}' resolved '{TypeNameFormatter.Format(actualType)}' but it is not assignable to interface '{interfaceName}'",
+            ErrorCodes.Driver.InterfaceNotSupported)
+    {
+      DriverId = driverId;
+      InterfaceName = interfaceName;
+    }
   }
 }
