@@ -16,7 +16,6 @@ namespace FluentDocker.Model.Common
   public sealed partial class TemplateString : IEquatable<TemplateString>
   {
     private static readonly Dictionary<string, Func<string>> Templates;
-    private static readonly Regex UrlDetector = MyRegex();
 
     static TemplateString() => Templates =
         new Dictionary<string, Func<string>>
@@ -43,11 +42,11 @@ namespace FluentDocker.Model.Common
           {"${PWD}", Directory.GetCurrentDirectory}
         };
 
-    public TemplateString(string str, bool handleWindowsPathIfNeeded = false)
+    public TemplateString(string str)
     {
       ArgumentNullException.ThrowIfNull(str);
       Original = str;
-      Rendered = Render(ToTargetOs(str, handleWindowsPathIfNeeded));
+      Rendered = Render(str);
     }
 
     /// <summary>Original template string supplied by the caller.</summary>
@@ -55,35 +54,6 @@ namespace FluentDocker.Model.Common
 
     /// <summary>Rendered string after built-in and environment templates are expanded.</summary>
     public string Rendered { get; }
-
-    private static string ToTargetOs(string str, bool handleWindowsPathIfNeeded)
-    {
-      if (string.IsNullOrEmpty(str) || str.StartsWith("emb:", StringComparison.Ordinal))
-        return str;
-
-      if (!FdOs.IsWindows() || !handleWindowsPathIfNeeded)
-      {
-        return str;
-      }
-
-      var match = UrlDetector.Match(str);
-      if (!match.Success)
-        return str.Replace('/', '\\');
-
-      var res = "";
-      var idx = 0;
-      while (match.Success)
-      {
-        res += str[idx..match.Index].Replace('/', '\\');
-        res += str.Substring(match.Index, match.Length);
-        idx = match.Index + match.Length;
-
-        match = match.NextMatch();
-      }
-
-      res += str[idx..].Replace('/', '\\');
-      return res;
-    }
 
     private static string Render(string str)
     {
@@ -138,9 +108,6 @@ namespace FluentDocker.Model.Common
         left is null ? right is null : left.Equals(right);
 
     public static bool operator !=(TemplateString? left, TemplateString? right) => !(left == right);
-
-    [GeneratedRegex("((\"|')http(|s)://.*?(\"|'))", RegexOptions.Compiled)]
-    private static partial Regex MyRegex();
 
     [GeneratedRegex(@"\$\{E_(?<name>[^}]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
     private static partial Regex EnvironmentTokenRegex();

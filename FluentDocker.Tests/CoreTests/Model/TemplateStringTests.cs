@@ -123,13 +123,20 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void UnifiedSeparator_TranslatedOnWindows()
+    public void MixedDockerVolumeSpec_KeepsForwardSlashesOnAllOses()
     {
-      if (!FdOs.IsWindows())
-        return; // Skip on non-Windows
+      var path = new TemplateString("c:/data:/data");
+      Assert.Equal("c:/data:/data", path.Rendered);
+    }
 
-      var path = new TemplateString(@"${TEMP}/folder/${RND}", handleWindowsPathIfNeeded: true);
-      Assert.Contains(@"\folder\", path.Rendered);
+    [Fact]
+    public void HostMountTemplateSpec_ContainerSideKeepsForwardSlashes()
+    {
+      var path = new TemplateString(@"${TMP}/data:/data");
+      var containerSide = path.Rendered[(path.Rendered.LastIndexOf(':') + 1)..];
+
+      Assert.Equal("/data", containerSide);
+      Assert.DoesNotContain('\\', containerSide);
     }
 
     [Fact]
