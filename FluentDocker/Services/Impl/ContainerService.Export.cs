@@ -99,8 +99,9 @@ namespace FluentDocker.Services.Impl
         if (hook.Explode)
         {
           Directory.CreateDirectory(hook.HostPath);
-          using var stream = File.OpenRead(tempPath);
-          TarFile.ExtractToDirectory(stream, hook.HostPath, overwriteFiles: true);
+          await using var stream = File.OpenRead(tempPath);
+          await TarFile.ExtractToDirectoryAsync(stream, hook.HostPath, overwriteFiles: true, cancellationToken)
+              .ConfigureAwait(false);
         }
         else
         {

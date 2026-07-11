@@ -380,6 +380,40 @@ namespace FluentDocker.Tests.CoreTests.Service
           It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
+    // S-M2: OperationCanceledException from a canceled dispose token must stop the per-volume
+    // cleanup loop instead of being swallowed and retried against every remaining named volume.
+    [Fact]
+    public async Task DisposeAsync_NamedVolumeCleanupThrowsOperationCanceled_StopsLoopInsteadOfCallingEveryVolume()
+    {
+      MockPack.SetupContainerRemove();
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "container-123",
+            Mounts =
+            [
+              new ContainerMount { Name = "orders-data" },
+              new ContainerMount { Name = "orders-log" },
+              new ContainerMount { Name = "orders-cache" }
+            ]
+          }));
+      MockPack.VolumeDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new OperationCanceledException());
+      var service = new ContainerService(
+          Kernel, DriverId, "container-123", "alpine", "test",
+          stopOnDispose: false, deleteOnDispose: true, deleteNamedVolumeOnDispose: true);
+
+      await service.DisposeAsync();
+
+      MockPack.VolumeDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<DriverContext>(), It.IsAny<string>(), It.IsAny<bool>(),
+          It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private sealed class ContainerOnlyDriverPack : IDriverPack
     {
       private bool _initialized;

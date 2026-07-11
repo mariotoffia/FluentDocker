@@ -287,7 +287,7 @@ namespace FluentDocker.Services.Impl
                 response.Error);
           }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
           _logger.LogWarning(
               ex,

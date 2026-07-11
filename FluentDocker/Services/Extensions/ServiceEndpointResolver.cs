@@ -64,7 +64,21 @@ namespace FluentDocker.Services.Extensions
         }
 
         if (IPAddress.TryParse(hostIp, out var address))
+        {
+          // A literal loopback binding (127.0.0.1/::1) only means "this daemon's own loopback".
+          // Returning it verbatim for a REMOTE daemon would make the caller probe its own
+          // loopback instead of the daemon's — mirror the wildcard branch and resolve to the
+          // daemon host instead (still an honest failure/timeout if the port is daemon-local-only,
+          // rather than a false-positive against the wrong machine).
+          if (IPAddress.IsLoopback(address) && IsRemoteDaemon(dockerHost))
+          {
+            return new IPEndPoint(
+                await ResolveDockerHostAddressAsync(dockerHost, cancellationToken).ConfigureAwait(false),
+                hostPort);
+          }
+
           return new IPEndPoint(address, hostPort);
+        }
       }
 
       return null;
@@ -73,6 +87,16 @@ namespace FluentDocker.Services.Extensions
     internal static Uri GetDockerHostUri(string value)
     {
       return Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri : null;
+    }
+
+    private static bool IsRemoteDaemon(Uri dockerHost)
+    {
+      if (dockerHost == null || dockerHost.Scheme is not ("tcp" or "ssh") || string.IsNullOrEmpty(dockerHost.Host))
+        return false;
+      if (string.Equals(dockerHost.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+        return false;
+
+      return !IPAddress.TryParse(dockerHost.Host, out var hostAddress) || !IPAddress.IsLoopback(hostAddress);
     }
 
     private static async Task<IPAddress> ResolveDockerHostAddressAsync(
