@@ -37,10 +37,11 @@ namespace FluentDocker.Kernel
           {
             if (interfaceType.IsInstanceOfType(resolved))
               return true;
-            // K-M4: a pack that claims (via TryResolve) it can serve this interface but hands back
-            // an instance that doesn't implement it is a mis-mapped registration, not a "not
-            // supported" case — log it and let the caller report the actual resolved type.
-            mismatchedType = LogTypeMismatch(driverPack, interfaceType, resolved);
+            // K-M4: a pack that resolved a non-null instance not assignable to the interface is a
+            // mis-mapped registration — log it and report the actual type. A null "success" is
+            // treated as plain unsupported (falls through to InterfaceNotSupportedException), never NRE.
+            if (resolved != null)
+              mismatchedType = LogTypeMismatch(driverPack, interfaceType, resolved);
           }
         }
         catch (InterfaceNotSupportedException ex)
@@ -72,8 +73,9 @@ namespace FluentDocker.Kernel
             {
               if (interfaceType.IsInstanceOfType(resolved))
                 return true;
-              // K-M4 plain-driver path: previously fell through silently with no log at all.
-              mismatchedType = LogTypeMismatch(driver, interfaceType, resolved);
+              // K-M4 plain-driver path (previously silent). Null "success" → plain unsupported, not NRE.
+              if (resolved != null)
+                mismatchedType = LogTypeMismatch(driver, interfaceType, resolved);
             }
           }
           catch (InterfaceNotSupportedException ex)

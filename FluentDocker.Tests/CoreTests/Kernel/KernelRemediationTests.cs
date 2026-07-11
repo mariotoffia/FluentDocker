@@ -211,7 +211,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var registry = new DriverRegistry(NullLoggerFactory.Instance);
       await using var kernel = new FluentDockerKernel(registry, factory);
       await kernel.RegisterDriverAsync(
-          "bad", new WrongTypeResolverDriver(), new DriverContext("bad"),
+          "bad", new WrongTypeResolverDriver(resolved: "not a container driver"), new DriverContext("bad"),
           TestContext.Current.CancellationToken);
 
       var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
@@ -222,6 +222,44 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       Assert.Contains("not assignable", ex.Message, StringComparison.Ordinal);
       Assert.Contains(factory.Records, r =>
           r.Level == LogLevel.Warning && r.Message.Contains("String", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task SysCtl_WhenPackResolvesNull_ThrowsInterfaceNotSupported_AndTrySysCtlReturnsFalse()
+    {
+      // K-M4 fix-pass regression guard: TryResolve returning true with a NULL implementation must
+      // not NRE (which the catch-all would promote to DriverException, breaking TrySysCtl's
+      // never-throws-for-unsupported contract). A null "success" is plain unsupported.
+      await using var kernel = new FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync(
+          "bad", new NullResolvingDriverPack(), new DriverContext("bad"),
+          TestContext.Current.CancellationToken);
+
+      Assert.Throws<InterfaceNotSupportedException>(() =>
+          kernel.SysCtl<IContainerDriver>("bad"));
+
+      var found = kernel.TrySysCtl<IContainerDriver>("bad", out var instance);
+      Assert.False(found);
+      Assert.Null(instance);
+    }
+
+    [Fact]
+    public async Task SysCtl_WhenDriverResolverResolvesNull_ThrowsInterfaceNotSupported_AndTrySysCtlReturnsFalse()
+    {
+      // K-M4 fix-pass regression guard, plain-driver path (shares LogTypeMismatch with the pack path).
+      await using var kernel = new FluentDockerKernel(
+          new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverAsync(
+          "bad", new WrongTypeResolverDriver(resolved: null), new DriverContext("bad"),
+          TestContext.Current.CancellationToken);
+
+      Assert.Throws<InterfaceNotSupportedException>(() =>
+          kernel.SysCtl<IContainerDriver>("bad"));
+
+      var found = kernel.TrySysCtl<IContainerDriver>("bad", out var instance);
+      Assert.False(found);
+      Assert.Null(instance);
     }
 
     [Fact]
@@ -378,10 +416,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
     /// <summary>
     /// Plain driver (not a pack) whose IDriverInterfaceResolver.TryResolve reports success but
-    /// hands back an instance that does not implement the requested interface — the driver-path
-    /// analog of WrongTypeDriverPack, for K-M4.
+    /// hands back <paramref name="resolved"/> (a wrong-typed instance, or null) — the driver-path
+    /// analog of WrongTypeDriverPack. Null exercises the fix-pass NRE regression guard for K-M4.
     /// </summary>
-    private sealed class WrongTypeResolverDriver : IDriver, IDriverInterfaceResolver
+    private sealed class WrongTypeResolverDriver(object? resolved) : IDriver, IDriverInterfaceResolver
     {
       public DriverType Type => DriverType.Custom;
       public RuntimeType Runtime => RuntimeType.Unknown;
@@ -395,13 +433,31 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
           Task.FromResult(true);
 
+      // Deliberately violates [NotNullWhen(true)] to model a buggy resolver — the scenario the guard defends.
       public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
       {
-        implementation = "not a container driver";
+        implementation = resolved!;
         return true;
       }
 
       public IReadOnlyCollection<Type> GetSupportedInterfaces() => [typeof(IContainerDriver)];
+    }
+
+    /// <summary>
+    /// Pack whose TryResolve reports success with a null implementation — the fix-pass NRE
+    /// regression guard for K-M4 (pack path).
+    /// </summary>
+    private sealed class NullResolvingDriverPack : FailOnceDriverPack
+    {
+      public override Task InitializeAsync(
+          DriverContext context, CancellationToken cancellationToken = default) =>
+          Task.CompletedTask;
+
+      public override bool TryResolve(Type interfaceType, out object implementation)
+      {
+        implementation = null!;
+        return true;
+      }
     }
 
     /// <summary>

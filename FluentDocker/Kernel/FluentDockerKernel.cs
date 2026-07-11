@@ -256,7 +256,9 @@ namespace FluentDocker.Kernel
     public int AbandonedDriverCount => _registry.AbandonedDriverCount;
 
     /// <summary>
-    /// <c>true</c> once the kernel's registry disposal has fully completed.
+    /// <c>true</c> once the kernel's registry disposal pass has completed. This does <em>not</em>
+    /// mean every driver/pack was cleanly disposed — budget-exhausted instances are abandoned;
+    /// also check <see cref="AbandonedDriverCount"/> to detect that partial cleanup.
     /// </summary>
     public bool IsDisposeComplete => _registry.IsDisposeComplete;
 
