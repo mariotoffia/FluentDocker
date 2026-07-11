@@ -102,6 +102,9 @@ namespace FluentDocker.Builders
     /// <summary>Persistent context window (applied via <c>configure</c> before the run).</summary>
     public ModelRunOptionsBuilder WithContextSize(int tokens)
     {
+      if (tokens <= 0)
+        throw new ArgumentOutOfRangeException(nameof(tokens), tokens, "Context size must be greater than zero.");
+
       _contextSize = tokens;
       return this;
     }

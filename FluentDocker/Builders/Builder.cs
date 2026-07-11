@@ -329,7 +329,11 @@ namespace FluentDocker.Builders
       }
 
       var effectiveCleanupTimeout = cleanupTimeout ?? TimeSpan.FromSeconds(120);
-      var scopes = new Dictionary<(FluentDockerKernel, string), BuildScope>();
+      // ponytail: a List (not a Dictionary) so BuildResults' reverse-disposal order (dependents
+      // before dependencies, e.g. containers before their network) is guaranteed by insertion
+      // order, not by Dictionary<K,V> enumeration (an unspecified CLR detail). GroupBy below
+      // already yields unique (Kernel, DriverId) keys, so no keyed lookup is needed here.
+      var scopes = new List<BuildScope>();
       var groupedOps = _operations.GroupBy(op => (op.Kernel, op.DriverId));
       var completedOperations = new List<(BuildOperation Operation, IServiceAsync Service)>();
 
@@ -343,7 +347,7 @@ namespace FluentDocker.Builders
         {
           var key = group.Key;
           var scope = new BuildScope(key.Kernel, key.DriverId);
-          scopes[key] = scope;
+          scopes.Add(scope);
 
           var groupOperations = group.ToList();
           var executedOperations = new List<(BuildOperation Operation, IServiceAsync Service)>();
@@ -380,7 +384,7 @@ namespace FluentDocker.Builders
         }
 
         _buildSucceeded = true;
-        return new BuildResults([.. scopes.Values]);
+        return new BuildResults(scopes);
       }
       catch (Exception ex)
       {

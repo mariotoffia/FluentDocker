@@ -56,6 +56,9 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     public IModelRunnerBuilder WithContextSize(int tokens)
     {
+      if (tokens <= 0)
+        throw new ArgumentOutOfRangeException(nameof(tokens), tokens, "Context size must be greater than zero.");
+
       _contextSize = tokens;
       return this;
     }
