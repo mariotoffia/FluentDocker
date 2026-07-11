@@ -27,7 +27,9 @@ namespace FluentDocker.Services.Impl
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(request);
-      return Inference().ChatCompletionStreamAsync(Context(), request, cancellationToken);
+      return ModelRunnerInferenceHelpers.GuardDisposalAsync(
+          Inference().ChatCompletionStreamAsync(Context(), request, cancellationToken),
+          () => Volatile.Read(ref _disposed) != 0, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -44,7 +46,9 @@ namespace FluentDocker.Services.Impl
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(request);
-      return Inference().CompletionStreamAsync(Context(), request, cancellationToken);
+      return ModelRunnerInferenceHelpers.GuardDisposalAsync(
+          Inference().CompletionStreamAsync(Context(), request, cancellationToken),
+          () => Volatile.Read(ref _disposed) != 0, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -67,6 +71,57 @@ namespace FluentDocker.Services.Impl
 
   internal static class ModelRunnerInferenceHelpers
   {
+    private const string DisposedMessage =
+        "Model runner was disposed while the inference stream was being read.";
+
+    /// <summary>
+    /// Wraps a driver inference stream so a runner (or its owned connection) disposed
+    /// mid-enumeration surfaces as a typed <see cref="ModelRunnerException"/>
+    /// (<see cref="ErrorCodes.ModelInference.Disposed"/>) instead of a raw
+    /// <see cref="ObjectDisposedException"/> from deep inside the transport. Checks
+    /// <paramref name="isDisposed"/> before each advance and also translates an
+    /// <see cref="ObjectDisposedException"/> thrown by <c>MoveNextAsync</c> into the same typed
+    /// error (the ODE is preserved as the inner exception).
+    /// </summary>
+    public static async IAsyncEnumerable<T> GuardDisposalAsync<T>(
+        IAsyncEnumerable<T> source, Func<bool> isDisposed,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+      ArgumentNullException.ThrowIfNull(source);
+      ArgumentNullException.ThrowIfNull(isDisposed);
+
+      // A `yield return` cannot sit inside the try/catch that translates a mid-read ODE, so advance
+      // in the try and yield outside it — the enumerator pattern used by OpenAiModelInferenceDriver
+      // .Streaming's StreamAsync. Dispose the source enumerator in finally with ConfigureAwait(false).
+      var enumerator = source.GetAsyncEnumerator(cancellationToken);
+      try
+      {
+        while (true)
+        {
+          if (isDisposed())
+            throw new ModelRunnerException(DisposedMessage, ErrorCodes.ModelInference.Disposed);
+
+          T current;
+          try
+          {
+            if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
+              break;
+            current = enumerator.Current;
+          }
+          catch (ObjectDisposedException ode)
+          {
+            throw new ModelRunnerException(DisposedMessage, ErrorCodes.ModelInference.Disposed, ode);
+          }
+
+          yield return current;
+        }
+      }
+      finally
+      {
+        await enumerator.DisposeAsync().ConfigureAwait(false);
+      }
+    }
+
     public static async Task<string> ChatAsync(
         IModelInference inference, InferenceModelId? defaultInferenceId, string prompt,
         CancellationToken cancellationToken = default)

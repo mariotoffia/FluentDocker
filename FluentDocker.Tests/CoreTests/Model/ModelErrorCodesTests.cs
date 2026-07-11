@@ -69,6 +69,20 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void Disposed_HasExpectedCode()
+    {
+      Assert.Equal("MIN_008", ErrorCodes.ModelInference.Disposed);
+    }
+
+    [Fact]
+    public void Disposed_IsNotTransient()
+    {
+      // D-M2: a disposed runner/connection is terminal — retrying it is pointless, so
+      // Disposed must NOT join EndpointUnreachable/Timeout/ServiceUnavailable as transient.
+      Assert.False(ErrorCodes.IsTransientCode(ErrorCodes.ModelInference.Disposed));
+    }
+
+    [Fact]
     public void ModelRunnerException_IsDriverException()
     {
       var ex = new ModelRunnerException("boom");

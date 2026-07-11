@@ -360,6 +360,12 @@ namespace FluentDocker.Model.Drivers
       /// </summary>
       public const string ServiceUnavailable = "MIN_007";
 
+      /// <summary>
+      /// The model runner (or its owned connection) was disposed while a stream was being
+      /// enumerated; terminal — not retriable.
+      /// </summary>
+      public const string Disposed = "MIN_008";
+
       public const string Unauthorized = "MIN_401";
     }
   }

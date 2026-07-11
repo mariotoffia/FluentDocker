@@ -105,7 +105,9 @@ namespace FluentDocker.Services.Impl
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(request);
-      return _inference.ChatCompletionStreamAsync(Ctx, request, cancellationToken);
+      return ModelRunnerInferenceHelpers.GuardDisposalAsync(
+          _inference.ChatCompletionStreamAsync(Ctx, request, cancellationToken),
+          () => Volatile.Read(ref _disposed) != 0, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -121,7 +123,9 @@ namespace FluentDocker.Services.Impl
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(request);
-      return _inference.CompletionStreamAsync(Ctx, request, cancellationToken);
+      return ModelRunnerInferenceHelpers.GuardDisposalAsync(
+          _inference.CompletionStreamAsync(Ctx, request, cancellationToken),
+          () => Volatile.Read(ref _disposed) != 0, cancellationToken);
     }
 
     /// <inheritdoc />
