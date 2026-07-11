@@ -88,7 +88,7 @@ public class IsolatedRedisTests : XunitContainerTestBase
 
 ```csharp
 [TestClass]
-public class RedisTests : MsTestContainerFixtureBase
+public class RedisTests : MsTestPerTestContainerFixtureBase
 {
     protected override void ConfigureContainer(IContainerBuilder b) =>
         b.UseImage("redis:alpine").WaitForPort("6379/tcp");
@@ -126,7 +126,7 @@ public class RedisTests : NUnitContainerFixtureBase
 |---|---|
 | `XunitContainerTestBase` | One container per test method |
 | `XunitContainerFixtureBase` | One container per xUnit class/collection fixture |
-| `MsTestContainerFixtureBase` | One container per MSTest test method |
+| `MsTestPerTestContainerFixtureBase` | One container per MSTest test method |
 | `MsTestClassContainerFixtureBase<TFixture>` | One container shared by one MSTest test class |
 | `NUnitContainerFixtureBase` | One container per NUnit fixture |
 

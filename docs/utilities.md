@@ -239,10 +239,9 @@ await using var results = await new Builder()
 
 ## Logging
 
-FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. Logging is
-optional: `FluentDockerKernel.Create()` defaults to `NullLoggerFactory.Instance`
-(no output), and `FluentDockerKernel.Create(ILoggerFactory)` takes a custom provider.
-The `KernelBuilder` constructor itself requires a factory.
+FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. Logging is optional:
+`FluentDockerKernel.Create()` defaults to `NullLoggerFactory.Instance` (no output), and
+`FluentDockerKernel.Create(ILoggerFactory)` takes a custom provider. The `KernelBuilder` constructor itself requires a factory.
 
 ### Plug in any logging provider
 
@@ -341,9 +340,8 @@ await using var kernel = await FluentDockerKernel.Create()
 ```
 
 The command runs as `sudo -S docker …`. The `-S` flag makes `sudo` read the password from
-**stdin** — the library writes it to the child process's standard input, never on the
-command line or via an `echo … |` pipe. (Attach can't use password sudo since it needs
-stdin for the container; use passwordless sudo there.)
+**stdin** — the library writes it to the child process's standard input, never on the command
+line or via an `echo … |` pipe. (Attach can't use password sudo since it needs stdin for the container; use passwordless sudo there.)
 
 ## Model Extensions
 
@@ -590,7 +588,6 @@ public static class ContainerFactory
                 .WaitForPort("5432/tcp", 30000))
             .BuildAsync();
     }
-
 }
 
 // Usage

@@ -89,7 +89,7 @@ public sealed class RedisTests : NUnitContainerFixtureBase
 ```
 
 > **Note:** `NUnitContainerFixtureBase` gives one container **per test class**, via
-> `[OneTimeSetUp]`/`[OneTimeTearDown]`. MSTest's same-named `MsTestContainerFixtureBase`
+> `[OneTimeSetUp]`/`[OneTimeTearDown]`. MSTest's `MsTestPerTestContainerFixtureBase`
 > is per **test method** instead — check [MSTest per-test lifecycle](mstest.md#per-test-lifecycle)
 > before porting fixtures across frameworks.
 

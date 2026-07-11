@@ -8,9 +8,8 @@ nav_order: 3
 # Test Code Migration Guide
 
 How to migrate FluentDocker v2.x.x test **code** to v3 — the builder-level API changes.
-For migrating the legacy test **adapter packages** (`Ductus.FluentDocker.XUnit` /
-`.MsTest`) to `FluentDocker.Testing.*`, see
-[Legacy Test Adapter Migration](../testing/migration-from-legacy.md).
+For migrating the legacy test **adapter packages** (`Ductus.FluentDocker.XUnit` / `.MsTest`)
+to `FluentDocker.Testing.*`, see [Legacy Test Adapter Migration](../testing/migration-from-legacy.md).
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
 > it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
@@ -19,10 +18,9 @@ For migrating the legacy test **adapter packages** (`Ductus.FluentDocker.XUnit` 
 > **Note:** The legacy `Ductus.FluentDocker.MsTest` / `.XUnit` packages have been removed; use
 > the new `FluentDocker.Testing.*` packages. The examples below show the builder-level API changes.
 
-This guide covers the most common test patterns and shows side-by-side v2 vs v3
-code for each. The core change is that v3 requires a **kernel** with a registered
-driver, the builder uses **lambda-scoped** configuration, and `Build()` returns
-a `BuildResults` object instead of a service directly.
+This guide covers the most common test patterns and shows side-by-side v2 vs v3 code for each.
+The core change is that v3 requires a **kernel** with a registered driver, the builder uses
+**lambda-scoped** configuration, and `Build()` returns a `BuildResults` object instead of a service directly.
 
 ---
 
@@ -258,8 +256,7 @@ public class OrderRepoTests
 
 ## 3. MSTest with MsTestResourceHelpers
 
-The `FluentDockerTestBase` base class has been removed. Use
-`MsTestResourceHelpers` static methods instead.
+The `FluentDockerTestBase` base class has been removed. Use `MsTestResourceHelpers` static methods instead.
 
 ### v2
 
@@ -351,9 +348,8 @@ Pass a `kernelFactory` parameter for non-default configuration:
 
 ## 4. xUnit with XunitContainerFixture
 
-The `FluentDockerTestBase` base class has been removed. Use
-`XunitContainerFixture` instead. It implements `IAsyncDisposable` and manages
-the kernel and resource lifecycle.
+The `FluentDockerTestBase` base class has been removed. Use `XunitContainerFixture` instead.
+It implements `IAsyncDisposable` and manages the kernel and resource lifecycle.
 
 ### v2
 

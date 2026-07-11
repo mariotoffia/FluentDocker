@@ -28,7 +28,7 @@ namespace FluentDocker.Testing.MsTest
   /// Pass the most-derived class as <typeparamref name="TFixture"/>. If class
   /// <c>B</c> derives from class <c>A</c> and both close this base as <c>A</c>,
   /// they share the same static container and cleanup state.
-  /// Use <see cref="MsTestContainerFixtureBase"/> when each test method should get
+  /// Use <see cref="MsTestPerTestContainerFixtureBase"/> when each test method should get
   /// a fresh container.
   /// Treat the cleanup method as mandatory boilerplate; omitting it is a test
   /// infrastructure bug that keeps the container alive until process exit.

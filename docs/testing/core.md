@@ -467,11 +467,11 @@ across frameworks without adjusting for this runs slower (or shares state) silen
 | Adapter | Base class | Provisioning scope | Hook |
 |---|---|---|---|
 | xUnit | `XunitContainerFixtureBase` | per class/collection fixture | `IAsyncLifetime` |
-| MSTest | `MsTestContainerFixtureBase` | per **test method** | `[TestInitialize]`/`[TestCleanup]` |
+| MSTest | `MsTestPerTestContainerFixtureBase` | per **test method** | `[TestInitialize]`/`[TestCleanup]` |
 | MSTest | `MsTestClassContainerFixtureBase<T>` | per class | guarded `[TestInitialize]`/`[ClassCleanup]` |
 | NUnit | `NUnitContainerFixtureBase` | per class | `[OneTimeSetUp]`/`[OneTimeTearDown]` |
 
-`MsTestContainerFixtureBase` starts a fresh container for every test method; use
+`MsTestPerTestContainerFixtureBase` starts a fresh container for every test method; use
 `MsTestClassContainerFixtureBase<T>` for one container per class.
 
 ## Diagnostics

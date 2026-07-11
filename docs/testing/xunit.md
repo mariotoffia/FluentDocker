@@ -16,8 +16,8 @@ Package: `FluentDocker.Testing.Xunit`
 > **xUnit v3 only.** This package depends on `xunit.v3.extensibility.core` and
 > targets xUnit v3. It is not compatible with xUnit v2 (`xunit` 2.x) projects.
 
-Recommended entry point: use `XunitContainerFixtureBase` (or another `Xunit*FixtureBase`)
-with `IClassFixture<T>` for integration suites. Use `XunitContainerTestBase` only when each test method needs a fresh container.
+Recommended entry point: use `XunitContainerFixtureBase` (or another `Xunit*FixtureBase`) with `IClassFixture<T>`
+for integration suites. Use `XunitContainerTestBase` only when each test method needs a fresh container.
 
 The xUnit adapter offers three patterns:
 
@@ -71,9 +71,8 @@ Minimal consumer `.csproj` (target `net10.0`):
 
 ## Test Bases (Per-Test Lifecycle)
 
-Inherit from an abstract test base. xUnit calls `InitializeAsync` before
-each test and `DisposeAsync` after. Override `ConfigureContainer` (or
-`ConfigureCompose`, `ConfigureTopology`) to provide your setup.
+Inherit from an abstract test base. xUnit calls `InitializeAsync` before each test and
+`DisposeAsync` after. Override `ConfigureContainer` (or `ConfigureCompose`, `ConfigureTopology`) to provide your setup.
 
 ### Container
 
@@ -167,10 +166,9 @@ public class PodmanRedisTests : XunitContainerTestBase
 
 ## Fixture Bases (Shared Lifecycle)
 
-Inherit from an abstract fixture base and use it with `IClassFixture<T>` or
-`ICollectionFixture<T>`. xUnit creates one instance and calls
-`InitializeAsync` / `DisposeAsync` automatically via `IAsyncLifetime` -- no
-sync-over-async `GetAwaiter().GetResult()` needed.
+Inherit from an abstract fixture base and use it with `IClassFixture<T>` or `ICollectionFixture<T>`.
+xUnit creates one instance and calls `InitializeAsync` / `DisposeAsync` automatically via
+`IAsyncLifetime` -- no sync-over-async `GetAwaiter().GetResult()` needed.
 
 ### Container Fixture
 
@@ -274,9 +272,8 @@ public class RedisReadTests
 
 ## Concrete Fixtures (Advanced)
 
-Use concrete fixtures when you need programmatic control over
-initialization -- e.g., dynamic configuration, conditional setup, or
-runtime-computed parameters.
+Use concrete fixtures when you need programmatic control over initialization -- e.g., dynamic
+configuration, conditional setup, or runtime-computed parameters.
 
 ### Using `Configure` (Recommended)
 
@@ -584,9 +581,8 @@ resource
     .OnAfterDispose(async r =>      { /* after cleanup — log final state */ });
 ```
 
-Hooks are chainable and run in registration order. Init-phase hooks that
-throw will abort initialization with diagnostics captured. Dispose-phase
-hooks are best-effort (exceptions are suppressed to ensure cleanup proceeds).
+Hooks are chainable and run in registration order. Init-phase hooks that throw will abort
+initialization with diagnostics captured. Dispose-phase hooks are best-effort (exceptions are suppressed to ensure cleanup proceeds).
 
 ---
 

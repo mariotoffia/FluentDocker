@@ -143,7 +143,7 @@ Maintained driver notes and guides cover [Compose](docs/compose.md),
 `FluentDocker.Testing.Core` ships inside the main assembly; framework adapters are
 separate packages (`FluentDocker.Testing.Xunit` targets **xUnit v3**).
 Recommended entry points are `XunitContainerFixtureBase`,
-`NUnitContainerFixtureBase`, and `MsTestContainerFixtureBase` (or
+`NUnitContainerFixtureBase`, and `MsTestPerTestContainerFixtureBase` (or
 `MsTestClassContainerFixtureBase<T>` when a class-shared MSTest container is
 needed).
 

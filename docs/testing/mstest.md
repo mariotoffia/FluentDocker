@@ -118,14 +118,15 @@ public class RedisTests
 
 ### Per-Test Lifecycle
 
-`MsTestContainerFixtureBase` is intentionally per-test-method. Use it when each
+`MsTestPerTestContainerFixtureBase` is intentionally per-test-method. Use it when each
 test needs a fresh container. For a class-shared container, use the generic
 `MsTestClassContainerFixtureBase<TFixture>` pattern below.
 
 > **Note:** Watch the base-class names when porting from xUnit or NUnit. There,
 > `*ContainerFixtureBase` gives one container **per test class**. In MSTest,
-> `MsTestContainerFixtureBase` gives one **per test method**; the per-class equivalent is
-> `MsTestClassContainerFixtureBase<TFixture>`.
+> `MsTestPerTestContainerFixtureBase` gives one **per test method**; the per-class equivalent is
+> `MsTestClassContainerFixtureBase<TFixture>`. (`MsTestContainerFixtureBase` is a deprecated
+> alias for the same class; it will be removed in a future release.)
 
 ```csharp
 [TestClass]
