@@ -69,7 +69,6 @@ namespace FluentDocker.Kernel
     /// <returns>True if the interface was resolved</returns>
     /// <exception cref="FluentDocker.Common.DriverNotFoundException">If driver not found</exception>
     /// <exception cref="FluentDocker.Common.DriverException">If a driver or driver pack fails unexpectedly while resolving the interface</exception>
-    /// <exception cref="FluentDocker.Common.InterfaceNotSupportedException">If probing the driver pack's fallback resolver faults unexpectedly (original fault is the InnerException). A genuinely unsupported interface returns false instead of throwing.</exception>
     /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
     /// <exception cref="System.IO.IOException">If a driver or driver pack reports an I/O failure while resolving the interface</exception>
     /// <exception cref="ObjectDisposedException">If the kernel or driver pack has been disposed</exception>
@@ -92,11 +91,13 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <param name="driverId">Driver identifier; null/whitespace resolves the default driver.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
     Task<Model.Drivers.DriverCapabilities> GetCapabilitiesAsync(string driverId, CancellationToken cancellationToken = default);
 
     /// <summary>Whether the resolved driver/pack reports healthy.</summary>
     /// <param name="driverId">Driver identifier; null/whitespace resolves the default driver.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
     Task<bool> IsHealthyAsync(string driverId, CancellationToken cancellationToken = default);
 
     /// <summary>The configured default driver id, or <c>null</c>/empty when none is set.</summary>
