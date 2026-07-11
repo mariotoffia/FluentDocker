@@ -173,11 +173,23 @@ namespace FluentDocker.Kernel
     /// warrants investigation. Observable without a downcast so consumers can detect leaks after a
     /// timed-out teardown (KRN-MAJ-2).
     /// </summary>
+    /// <remarks>
+    /// Read alongside <see cref="IsDisposeComplete"/>: the disposal pass can finish
+    /// (<see cref="IsDisposeComplete"/> is <c>true</c>) while this is non-zero, because
+    /// budget-exhausted drivers/packs are abandoned rather than retried indefinitely.
+    /// </remarks>
     int AbandonedDriverCount { get; }
 
     /// <summary>
-    /// <c>true</c> once disposal has fully completed (no abandoned drivers, no in-flight teardown).
+    /// <c>true</c> once the disposal pass has completed and the registry is no longer mid-teardown.
+    /// This does <em>not</em> mean every driver/pack was cleanly disposed — budget-exhausted
+    /// instances are abandoned rather than retried, and disposal still completes around them.
     /// </summary>
+    /// <remarks>
+    /// Check <see cref="AbandonedDriverCount"/> alongside this property to detect that kind of
+    /// partial cleanup; <c>IsDisposeComplete == true</c> with a non-zero
+    /// <see cref="AbandonedDriverCount"/> means the pass finished but something leaked.
+    /// </remarks>
     bool IsDisposeComplete { get; }
 
     #endregion
