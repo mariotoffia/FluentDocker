@@ -80,6 +80,72 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
     [Trait("Category", "Unit")]
     [Fact]
+    public async Task RegisterAsync_WhenInitializeThrowsAfterInitStarted_DisposesFailingDriverWithinBudget()
+    {
+      // K-M1: the rollback path in RegisterAsync's catch block must dispose the failed driver
+      // through the same budgeted helper UnregisterAsync/DisposeAsync use, not the unbudgeted
+      // DisposeDriverSafelyAsync — otherwise a driver whose DisposeAsync hangs blocks the
+      // registration call (and its caller) forever.
+      var registry = new ShortBudgetRegistry();
+      var driver = new HangingDisposeDriver(failInitialize: true);
+
+      var register = registry.RegisterAsync(
+          "driver", driver, new DriverContext("driver"),
+          TestContext.Current.CancellationToken);
+
+      try
+      {
+        var completed = await Task.WhenAny(
+            register,
+            Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+
+        Assert.Same(register, completed);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => register);
+        Assert.Equal(1, registry.AbandonedDriverCount);
+        Assert.False(registry.IsRegistered("driver"));
+      }
+      finally
+      {
+        driver.CompleteDispose();
+        await Task.WhenAny(register, Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+        await registry.DisposeAsync();
+      }
+    }
+
+    [Trait("Category", "Unit")]
+    [Fact]
+    public async Task RegisterDriverPackAsync_WhenInitializeThrowsAfterInitStarted_DisposesFailingPackWithinBudget()
+    {
+      // K-M1 pack path: DriverRegistry.cs:300-311 has the same unbudgeted-rollback bug as the
+      // driver path above, via DisposeDriverPackSafelyAsync.
+      var registry = new ShortBudgetRegistry();
+      var pack = new HangingDisposePack();
+
+      var register = registry.RegisterDriverPackAsync(
+          "pack", pack, new DriverContext("pack"),
+          TestContext.Current.CancellationToken);
+
+      try
+      {
+        var completed = await Task.WhenAny(
+            register,
+            Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+
+        Assert.Same(register, completed);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => register);
+        Assert.Equal(1, registry.AbandonedDriverCount);
+        Assert.False(registry.IsRegistered("pack"));
+      }
+      finally
+      {
+        pack.CompleteDispose();
+        await Task.WhenAny(register, Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+        await registry.DisposeAsync();
+      }
+    }
+
+    [Trait("Category", "Unit")]
+    [Fact]
     public async Task SysCtl_WhenPackTryResolveThrowsUnexpected_WrapsDriverException()
     {
       await using var kernel = new FluentDockerKernel(
@@ -175,7 +241,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       protected override TimeSpan DisposeBudget => TimeSpan.FromMilliseconds(25);
     }
 
-    private sealed class HangingDisposeDriver : IDriver, IAsyncDisposable
+    private sealed class HangingDisposeDriver(bool failInitialize = false) : IDriver, IAsyncDisposable
     {
       private readonly TaskCompletionSource _dispose =
           new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -185,7 +251,9 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       public Task InitializeAsync(
           DriverContext context, CancellationToken cancellationToken = default) =>
-          Task.CompletedTask;
+          failInitialize
+              ? throw new OperationCanceledException("simulated cancellation after init started")
+              : Task.CompletedTask;
 
       public Task<DriverCapabilities> GetCapabilitiesAsync(
           CancellationToken cancellationToken = default) =>
@@ -193,6 +261,41 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
           Task.FromResult(true);
+
+      public ValueTask DisposeAsync() => new(_dispose.Task);
+
+      public void CompleteDispose()
+      {
+        _dispose.TrySetResult();
+      }
+    }
+
+    private sealed class HangingDisposePack : IDriverPack, IAsyncDisposable
+    {
+      private readonly TaskCompletionSource _dispose =
+          new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+      public DriverType Type => DriverType.Custom;
+      public RuntimeType Runtime => RuntimeType.Unknown;
+
+      public Task InitializeAsync(
+          DriverContext context, CancellationToken cancellationToken = default) =>
+          throw new OperationCanceledException("simulated cancellation after init started");
+
+      public Task<DriverCapabilities> GetCapabilitiesAsync(
+          CancellationToken cancellationToken = default) =>
+          Task.FromResult(DriverCapabilities.Default());
+
+      public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
+          Task.FromResult(true);
+
+      public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
+      {
+        implementation = null;
+        return false;
+      }
+
+      public IReadOnlyCollection<Type> GetSupportedInterfaces() => [];
 
       public ValueTask DisposeAsync() => new(_dispose.Task);
 

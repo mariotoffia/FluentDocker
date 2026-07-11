@@ -132,7 +132,13 @@ namespace FluentDocker.Kernel
           await RollbackReservationAsync(driverId, driver).ConfigureAwait(false);
         if (initStarted)
         {
-          await DisposeDriverSafelyAsync(driver, _logger).ConfigureAwait(false);
+          // Budgeted, same as UnregisterAsync/DisposeAsync: an unbounded dispose here would let a
+          // driver whose DisposeAsync hangs (e.g. a dead socket after InitializeAsync threw OCE)
+          // block this call forever. The caller token is not honored for the dispose itself —
+          // external cancellation must not abandon the driver both undisposed and uncounted.
+          var deadline = DateTimeOffset.UtcNow + DisposeBudget;
+          if (!await DisposeDriverWithinBudgetAsync(driver, _logger, driverId, Remaining(deadline)).ConfigureAwait(false))
+            Interlocked.Increment(ref _abandonedDriverCount);
           MarkFailureDisposedInstance(ex);
         }
         throw;
@@ -303,7 +309,11 @@ namespace FluentDocker.Kernel
           await RollbackReservationAsync(driverId, driverPack).ConfigureAwait(false);
         if (initStarted)
         {
-          await DisposeDriverPackSafelyAsync(driverPack, _logger).ConfigureAwait(false);
+          // Budgeted, same as UnregisterAsync/DisposeAsync — see RegisterAsync's catch block for
+          // why an unbounded dispose here (and honoring the caller token) is unsafe.
+          var deadline = DateTimeOffset.UtcNow + DisposeBudget;
+          if (!await DisposeDriverPackWithinBudgetAsync(driverPack, _logger, driverId, Remaining(deadline)).ConfigureAwait(false))
+            Interlocked.Increment(ref _abandonedDriverCount);
           MarkFailureDisposedInstance(ex);
         }
         throw;
