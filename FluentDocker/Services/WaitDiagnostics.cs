@@ -19,6 +19,7 @@ namespace FluentDocker.Services
   internal static class WaitDiagnostics
   {
     private const int LogTailLines = 100;
+    private const string LogTailMarker = "Container log tail:";
 
     /// <summary>
     /// True when <paramref name="state"/> reports a terminal (exited/dead) container state.
@@ -36,11 +37,17 @@ namespace FluentDocker.Services
           string.Equals(state.Status, "dead", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Appends a log tail to <paramref name="message"/> when one was captured.</summary>
+    /// <summary>
+    /// Appends a log tail to <paramref name="message"/> when one was captured. Idempotent: a
+    /// message that already carries a log tail (e.g. an exception thrown by
+    /// <see cref="ThrowIfTerminalAsync"/> or the start gate, then re-wrapped by a builder catch)
+    /// is returned unchanged so the tail is never duplicated.
+    /// </summary>
     internal static string AppendLogTail(string message, string logTail) =>
-        string.IsNullOrWhiteSpace(logTail)
+        string.IsNullOrWhiteSpace(logTail) ||
+        message?.Contains(LogTailMarker, StringComparison.Ordinal) == true
             ? message
-            : $"{message}{Environment.NewLine}Container log tail:{Environment.NewLine}{logTail}";
+            : $"{message}{Environment.NewLine}{LogTailMarker}{Environment.NewLine}{logTail}";
 
     /// <summary>Best-effort log tail read via a raw driver; returns null on any failure.</summary>
     internal static async Task<string> ReadLogTailAsync(

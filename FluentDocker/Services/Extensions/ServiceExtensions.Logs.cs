@@ -21,7 +21,11 @@ namespace FluentDocker.Services.Extensions
     /// <returns>True if the text was found, false if timeout.</returns>
     /// <remarks>
     /// Extension waits return false on timeout and throw cancellation or non-transient
-    /// driver errors. Builder waits throw <see cref="FluentDockerException"/>.
+    /// driver errors. Builder waits throw <see cref="FluentDockerException"/>. Fails fast
+    /// when the container reaches a terminal state (exited/dead) before the message is seen:
+    /// throws <see cref="FluentDockerException"/> with the exit code and a log tail rather
+    /// than polling to timeout. The log content is checked before the terminal-state check,
+    /// so a message logged by a short-lived container that then exits still returns true.
     /// </remarks>
     public static async Task<bool> WaitForLogMessageAsync(
         this IContainerService service,
@@ -56,9 +60,6 @@ namespace FluentDocker.Services.Extensions
 
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
-        // Fail fast on a dead container instead of burning the rest of the timeout (outside the
-        // catches below so the diagnostic exception is never mistaken for a transient failure).
-        await WaitDiagnostics.ThrowIfTerminalAsync(service, cancellationToken).ConfigureAwait(false);
         try
         {
           var containerService = service as ContainerService;
@@ -84,6 +85,11 @@ namespace FluentDocker.Services.Extensions
         {
           LogDebug(service, ex, "WaitForLogMessageAsync", text);
         }
+
+        // Message not yet present: fail fast if the container has died. Checked AFTER the content
+        // scan (unlike the port/http waits) so a message logged just before a short-lived container
+        // exits still returns true above. Outside the catches so the diagnostic exception propagates.
+        await WaitDiagnostics.ThrowIfTerminalAsync(service, cancellationToken).ConfigureAwait(false);
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }

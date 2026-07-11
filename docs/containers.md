@@ -182,10 +182,7 @@ await using var results = await new Builder()
 Builder wait methods (`WaitForPort`, `WaitForProcess`, `WaitForLogMessage`,
 `WaitForHealthy`, `WaitForHttp`, `Wait`) fail `BuildAsync()` with
 `FluentDockerException`; when logs are available, the exception includes a
-container log tail. Service extension waits (`container.WaitForPortAsync()`
-and siblings) return `false` on timeout and throw only for cancellation or
-non-transient driver errors; an unexposed or mistyped port burns the full
-timeout and returns `false` (late port bindings are legal).
+container log tail. Service extension waits (`container.WaitForPortAsync()` and siblings) return `false` on timeout and throw for cancellation or non-transient driver errors; an unexposed or mistyped port burns the full timeout and returns `false` (late port bindings are legal). They also fail fast: if the container reaches a terminal state (`exited`/`dead`) before becoming ready, the wait throws `FluentDockerException` carrying the exit code and a log tail instead of polling to timeout — except `WaitForLogMessageAsync`, which honors a message already in the logs (a short-lived container that logs the awaited line then exits still returns `true`).
 
 ### Wait for Port
 

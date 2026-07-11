@@ -86,6 +86,9 @@ namespace FluentDocker.Services.Extensions
     /// Extension waits return false on timeout; builder waits wrap false results in
     /// <see cref="FluentDockerException"/>. A TCP connect to a published port only
     /// proves Docker's default proxy accepts it, not that the app inside is ready.
+    /// Fails fast when the container reaches a terminal state (exited/dead) before the
+    /// port is ready: throws <see cref="FluentDockerException"/> with the exit code and a
+    /// log tail rather than polling to timeout.
     /// </remarks>
     public static async Task<bool> WaitForPortAsync(
         this IContainerService service,
@@ -323,7 +326,10 @@ namespace FluentDocker.Services.Extensions
     /// <returns>True if the endpoint responds successfully, false if timeout.</returns>
     /// <remarks>
     /// Extension waits return false on timeout and throw cancellation or non-transient
-    /// driver errors. Builder waits throw <see cref="FluentDockerException"/>.
+    /// driver errors. Builder waits throw <see cref="FluentDockerException"/>. Fails fast
+    /// when the container reaches a terminal state (exited/dead) before the endpoint is
+    /// ready: throws <see cref="FluentDockerException"/> with the exit code and a log tail
+    /// rather than polling to timeout.
     /// </remarks>
     [SuppressMessage("Design", "CA1068:CancellationToken parameters must come last",
         Justification = "Keeps existing positional CancellationToken calls source-compatible.")]

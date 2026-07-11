@@ -40,6 +40,12 @@ namespace FluentDocker.Tests.CoreTests.Service
       State = new ContainerState { Status = "running", Running = true }
     };
 
+    private static Container RestartingContainer() => new()
+    {
+      Id = "restarting-container",
+      State = new ContainerState { Status = "restarting", Running = true, Restarting = true }
+    };
+
     #region S-H1: WaitForPortAsync
 
     [Fact]
@@ -111,6 +117,26 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.Contains("137", ex.Message);
       Assert.Contains("oom-killed", ex.Message);
       Assert.Equal(0, probeCalls);
+    }
+
+    [Fact]
+    public async Task WaitForPortAsync_RestartingContainer_DoesNotFailFast_TimesOutToFalse()
+    {
+      // MINOR: a restarting (crash-looping) container is NOT terminal - the runtime still intends
+      // to restart it - so the wait must keep polling and time out to false, never fail-fast.
+      var mock = new Mock<IContainerService>();
+      mock.Setup(s => s.Id).Returns("restarting-container");
+      mock.Setup(s => s.InspectAsync(It.IsAny<CancellationToken>()))
+          .ReturnsAsync(RestartingContainer());
+      mock.Setup(s => s.ToHostExposedEndpointAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .ReturnsAsync((IPEndPoint)null!);
+
+      var result = await mock.Object.WaitForPortAsync(
+          "5432/tcp", timeout: 300, pollIntervalMs: 20,
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.False(result);
+      mock.Verify(s => s.InspectAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     #endregion
@@ -209,6 +235,26 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var result = await mock.Object.WaitForLogMessageAsync(
           "ready to accept connections", timeout: 5000, pollIntervalMs: 50,
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result);
+    }
+
+    [Fact]
+    public async Task WaitForLogMessageAsync_MessagePresentButContainerTerminal_ReturnsTrue()
+    {
+      // IMPORTANT-2: a short-lived container (e.g. a migration/init job) that logs the awaited
+      // message and THEN exits must still return true - the log-content scan runs before the
+      // terminal-state fail-fast, so the message is honored even though the container is dead.
+      var mock = new Mock<IContainerService>();
+      mock.Setup(s => s.Id).Returns("shortlived");
+      mock.Setup(s => s.InspectAsync(It.IsAny<CancellationToken>()))
+          .ReturnsAsync(TerminalContainer(exitCode: 0));
+      mock.Setup(s => s.GetLogsAsync(false, It.IsAny<CancellationToken>()))
+          .ReturnsAsync("init complete\nmigration applied successfully");
+
+      var result = await mock.Object.WaitForLogMessageAsync(
+          "migration applied successfully", timeout: 5000, pollIntervalMs: 50,
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result);
