@@ -266,9 +266,14 @@ namespace FluentDocker.Services.Impl
               response.ErrorContext);
         }
 
+        // `docker compose up/start` returns success even when a service crashes on boot, so
+        // Running hooks must not fire until reconcile confirms the project is genuinely running
+        // (S-H2, mirrors the RestartAsync fix at SVC-MAJ-3). Reconcile is best-effort: it
+        // corrects the optimistic state but leaves it if the ps probe fails.
         UpdateState(ServiceRunningState.Running);
-        await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
         await TryReconcileStateAsync(cancellationToken).ConfigureAwait(false);
+        if (_state == ServiceRunningState.Running)
+          await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
       }
       catch
       {
@@ -346,9 +351,13 @@ namespace FluentDocker.Services.Impl
               response.ErrorContext);
         }
 
+        // Same reordering as StartAsync (S-H2 / SVC-MAJ-3): reconcile before firing Stopped
+        // hooks, so a stop that didn't actually take (e.g. a restart policy revived it) doesn't
+        // fire Stopped hooks against a project that is still running.
         UpdateState(ServiceRunningState.Stopped);
-        await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
         await TryReconcileStateAsync(cancellationToken).ConfigureAwait(false);
+        if (_state == ServiceRunningState.Stopped)
+          await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
       }
       catch
       {

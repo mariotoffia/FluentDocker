@@ -53,6 +53,91 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.Equal(ServiceRunningState.Unknown, service.State);
     }
 
+    // S-H2: `docker compose up/start` returns success even when a service crashes on boot.
+    // Pre-fix, StartAsync fired Running hooks right after the optimistic UpdateState(Running),
+    // before reconcile ever ran, so hooks ran against a dead stack (this assertion was RED:
+    // hookCalled was true). Post-fix mirrors the already-correct RestartAsync (SVC-MAJ-3):
+    // reconcile runs first and hooks only fire if reconcile confirms Running.
+    [Fact]
+    public async Task ComposeStartAsync_ReconcileFindsStackDead_RunningHooksDoNotFireAndStateReflectsReconcile()
+    {
+      MockPack.SetupComposeStart();
+      MockPack.SetupComposeList(new ComposeServiceInfo { Name = "web", State = "exited" });
+      var service = new ComposeService(Kernel, DriverId, [], "project");
+      var runningHookCalled = false;
+      service.AddHook(ServiceRunningState.Running, _ =>
+      {
+        runningHookCalled = true;
+        return Task.CompletedTask;
+      }, "running-hook");
+
+      await service.StartAsync(TestContext.Current.CancellationToken);
+
+      Assert.False(runningHookCalled);
+      Assert.Equal(ServiceRunningState.Stopped, service.State);
+    }
+
+    [Fact]
+    public async Task ComposeStartAsync_ReconcileConfirmsRunning_RunningHooksFire()
+    {
+      MockPack.SetupComposeStart();
+      MockPack.SetupComposeList(new ComposeServiceInfo { Name = "web", State = "running" });
+      var service = new ComposeService(Kernel, DriverId, [], "project");
+      var runningHookCalled = false;
+      service.AddHook(ServiceRunningState.Running, _ =>
+      {
+        runningHookCalled = true;
+        return Task.CompletedTask;
+      }, "running-hook");
+
+      await service.StartAsync(TestContext.Current.CancellationToken);
+
+      Assert.True(runningHookCalled);
+      Assert.Equal(ServiceRunningState.Running, service.State);
+    }
+
+    [Fact]
+    public async Task ComposeStopAsync_ReconcileConfirmsStopped_StoppedHooksFire()
+    {
+      MockPack.SetupComposeStop();
+      MockPack.SetupComposeList(new ComposeServiceInfo { Name = "web", State = "exited" });
+      var service = new ComposeService(Kernel, DriverId, [], "project");
+      var stoppedHookCalled = false;
+      service.AddHook(ServiceRunningState.Stopped, _ =>
+      {
+        stoppedHookCalled = true;
+        return Task.CompletedTask;
+      }, "stopped-hook");
+
+      await service.StopAsync(TestContext.Current.CancellationToken);
+
+      Assert.True(stoppedHookCalled);
+      Assert.Equal(ServiceRunningState.Stopped, service.State);
+    }
+
+    // Mirrors the Start-side guard: `compose stop` can report success while the ps probe still
+    // shows the project running (e.g. a restart policy revived it). Pre-fix, Stopped hooks fired
+    // unconditionally right after the optimistic UpdateState(Stopped), before reconcile ever ran
+    // (this assertion was RED: stoppedHookCalled was true).
+    [Fact]
+    public async Task ComposeStopAsync_ReconcileFindsStillRunning_StoppedHooksDoNotFire()
+    {
+      MockPack.SetupComposeStop();
+      MockPack.SetupComposeList(new ComposeServiceInfo { Name = "web", State = "running" });
+      var service = new ComposeService(Kernel, DriverId, [], "project");
+      var stoppedHookCalled = false;
+      service.AddHook(ServiceRunningState.Stopped, _ =>
+      {
+        stoppedHookCalled = true;
+        return Task.CompletedTask;
+      }, "stopped-hook");
+
+      await service.StopAsync(TestContext.Current.CancellationToken);
+
+      Assert.False(stoppedHookCalled);
+      Assert.Equal(ServiceRunningState.Running, service.State);
+    }
+
     [Fact]
     public async Task ComposeRefreshStateAsync_WhenAllServicesPaused_SetsPaused()
     {
