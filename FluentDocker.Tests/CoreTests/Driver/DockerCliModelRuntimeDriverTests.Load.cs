@@ -49,6 +49,32 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.DoesNotContain("--all", cmd);
     }
 
+    // ---- C-M1: a null model must be a clear ArgumentNullException, not a raw NRE ----
+
+    [Fact]
+    public async Task LoadAsync_NullModel_ThrowsArgumentNullException()
+    {
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
+
+      var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+          driver.LoadAsync(Ctx, null!, cancellationToken: TestContext.Current.CancellationToken));
+
+      Assert.Equal("model", ex.ParamName);
+      Assert.Empty(driver.Commands);
+    }
+
+    [Fact]
+    public async Task UnloadAsync_NullModel_ThrowsArgumentNullException()
+    {
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
+
+      var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+          driver.UnloadAsync(Ctx, null!, TestContext.Current.CancellationToken));
+
+      Assert.Equal("model", ex.ParamName);
+      Assert.Empty(driver.Commands);
+    }
+
     // ---- NEW8: LoadAsync honors the full ModelRunOptions contract ----
 
     [Fact]

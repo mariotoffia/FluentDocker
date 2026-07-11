@@ -19,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// assembly + parsed results via a fake executor seam (no real <c>docker</c>).
   /// </summary>
   [Trait("Category", "Unit")]
-  public class DockerCliModelManagementDriverTests
+  public partial class DockerCliModelManagementDriverTests
   {
     private static DriverContext Ctx => new("docker");
 

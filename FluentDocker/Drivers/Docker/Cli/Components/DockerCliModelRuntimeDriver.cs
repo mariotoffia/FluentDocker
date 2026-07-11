@@ -103,9 +103,22 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         // The PROBE itself ended Canceled/Faulted (a seam fault, or its internal timeout
         // firing) — NOT merely this caller's wait. Evict it so a later call re-probes
-        // rather than inheriting the dead task, then rethrow as a clear cancellation.
+        // rather than inheriting the dead task.
         EvictBackendProbe(key, probe);
-        throw;
+
+        // A genuine caller cancellation is still a caller cancellation — honor it as OCE.
+        if (cancellationToken.IsCancellationRequested)
+          throw;
+
+        // Otherwise the PROBE's own internal timeout (or a seam fault) fired while this
+        // caller never cancelled (C-M2): surfacing OperationCanceledException here would
+        // let a retry loop mistake a wedged Docker model plugin for a transient
+        // cancellation and retry forever. Translate it into a typed, non-transient
+        // failure instead; the ConfigureAsync call site maps it to CommandResponse.Fail.
+        throw new DriverException(
+            $"Timed out probing 'docker model configure --help' after {FormatInvariant(BackendProbeTimeout.TotalSeconds, "0")}s; " +
+            "the Docker model plugin may be wedged — cannot determine '--backend' support. Retry or restart Docker Model Runner.",
+            ErrorCodes.Model.ConfigureFailed);
       }
     }
 
@@ -251,6 +264,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> LoadAsync(DriverContext context,
         ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(model);
+
       if (options is { Detach: false })
         return CommandResponse<Unit>.Fail(
             "ModelRunOptions.Detach=false would start an interactive 'docker model run' chat session that FluentDocker cannot consume. Use Detach=true (the default) to load the model for inference.",
@@ -294,6 +309,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> UnloadAsync(DriverContext context,
         ModelReference model, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(model);
+
       var args = $"model unload {QuoteArgumentIfNeeded(model.ToString())}";
       return await SimpleUnitAsync(context, args, "UnloadModel", ErrorCodes.Model.UnloadFailed, cancellationToken).ConfigureAwait(false);
     }
@@ -309,6 +326,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> ConfigureAsync(DriverContext context,
         ModelReference model, ModelConfigureOptions options, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(model);
+
       if (options == null)
         return CommandResponse<Unit>.Fail("configure options are required", ErrorCodes.Model.ConfigureFailed);
 
@@ -324,7 +343,20 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // `--backend` is auto/implicit on current DMR (engine chosen from model format).
         // Only emit an explicit backend when the installed CLI actually advertises the
         // flag — otherwise fail clearly rather than send a flag the CLI would reject.
-        if (!await SupportsConfigureBackendAsync(context, cancellationToken).ConfigureAwait(false))
+        bool backendSupported;
+        try
+        {
+          backendSupported = await SupportsConfigureBackendAsync(context, cancellationToken).ConfigureAwait(false);
+        }
+        catch (DriverException ex) when (ex.ErrorCode == ErrorCodes.Model.ConfigureFailed)
+        {
+          // The shared probe itself timed out or faulted (C-M2) — surface it as a typed
+          // Fail like every other failure this method returns, never a thrown exception.
+          // A genuine caller cancellation is a separate, unfiltered OperationCanceledException.
+          return CommandResponse<Unit>.Fail(ex.Message, ex.ErrorCode);
+        }
+
+        if (!backendSupported)
           return CommandResponse<Unit>.Fail(
               $"The installed 'docker model configure' does not support explicit backend selection ('--backend'); " +
               $"the backend is auto-selected from the model format. Use the default backend (\"auto\") or upgrade Docker Model Runner. (requested: '{options.Backend}')",

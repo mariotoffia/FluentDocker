@@ -29,6 +29,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         ModelReference model, IProgress<ModelPullProgress> progress = null,
         CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(model);
+
       try
       {
         // `docker model pull` writes its progress (the "X of Y" / percent lines) to
@@ -95,6 +97,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<ModelInfo>> InspectAsync(DriverContext context,
         ModelReference model, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(model);
+
       try
       {
         // DMR v1.2.1 `model inspect` outputs JSON by default and rejects `--json`.
@@ -130,6 +134,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> RemoveAsync(DriverContext context,
         ModelReference model, bool force = false, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(model);
+
       try
       {
         var args = "model rm";
@@ -161,6 +167,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> TagAsync(DriverContext context,
         ModelReference source, ModelReference target, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(source);
+      ArgumentNullException.ThrowIfNull(target);
+
       var args = $"model tag {QuoteArgumentIfNeeded(source.ToString())} {QuoteArgumentIfNeeded(target.ToString())}";
       return await SimpleUnitAsync(context, args, "TagModel", ErrorCodes.Model.TagFailed, cancellationToken).ConfigureAwait(false);
     }
@@ -169,6 +178,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> PushAsync(DriverContext context,
         ModelReference model, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(model);
+
       var args = $"model push {QuoteArgumentIfNeeded(model.ToString())}";
       return await SimpleUnitAsync(context, args, "PushModel", ErrorCodes.Model.PushFailed, cancellationToken, unbounded: true).ConfigureAwait(false);
     }
@@ -177,6 +188,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<ModelInfo>> PackageAsync(DriverContext context,
         ModelPackageRequest request, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(request);
+
       try
       {
         var sb = new StringBuilder("model package");

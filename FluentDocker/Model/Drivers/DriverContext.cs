@@ -120,8 +120,14 @@ namespace FluentDocker.Model.Drivers
     public TimeSpan? ConnectionTimeout { get; set; }
 
     /// <summary>
-    /// HTTP request timeout for Docker API driver long-running operations.
-    /// When null, the driver uses its default (5 minutes).
+    /// Request timeout that bounds BOTH the Docker API driver's HTTP requests AND every
+    /// buffered (non-streaming) Docker CLI command run by the CLI driver — e.g.
+    /// <c>docker inspect</c>, <c>docker compose config</c> — via
+    /// <see cref="FluentDocker.Drivers.Docker.Cli.DockerCliDriverBase"/>'s buffered-command
+    /// execution. A value tuned to fail API calls fast therefore also caps CLI buffered
+    /// commands on a loaded host; streaming/attach CLI operations (e.g. <c>logs -f</c>) are
+    /// exempt and run unbounded except by caller cancellation. When null, both drivers fall
+    /// back to their own default (5 minutes).
     /// </summary>
     public TimeSpan? RequestTimeout { get; set; }
 

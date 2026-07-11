@@ -145,10 +145,13 @@ namespace FluentDocker.Tests.CoreTests.Driver
         }
       };
 
-      // First call: the probe is cancelled, so awaiting it rethrows OperationCanceledException.
-      await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-          driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
-              new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken));
+      // First call: the probe faults as Canceled (a seam fault, not this caller cancelling —
+      // C-M2), so it must surface as a typed Fail, never OperationCanceledException, since
+      // THIS caller's token was never cancelled.
+      var first = await driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
+          new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken);
+      Assert.False(first.Success);
+      Assert.Equal(ErrorCodes.Model.ConfigureFailed, first.ErrorCode);
 
       // Second call: the cached cancelled task was evicted, so it re-probes and now succeeds.
       var second = await driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/y"),
@@ -195,6 +198,20 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Contains("--hf_overrides", driver.Commands.Single());
       Assert.Contains("max_model_len", driver.Commands.Single());
+    }
+
+    // ---- C-M1: a null model must be a clear ArgumentNullException, not a raw NRE ----
+
+    [Fact]
+    public async Task ConfigureAsync_NullModel_ThrowsArgumentNullException()
+    {
+      var driver = new FakeRuntimeDriver { Responder = _ => Ok() };
+
+      var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+          driver.ConfigureAsync(Ctx, null!, new ModelConfigureOptions(), TestContext.Current.CancellationToken));
+
+      Assert.Equal("model", ex.ParamName);
+      Assert.Empty(driver.Commands);
     }
 
     [Fact]
@@ -260,22 +277,29 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public async Task ConfigureAsync_ProbeTimesOut_FailsAndIsEvictedSoLaterCallReProbes()
+    public async Task ConfigureAsync_ProbeTimesOut_FailsWithConfigureFailed_NotOce_AndIsEvictedSoLaterCallReProbes()
     {
-      // A wedged probe must not hang forever and must not be cached permanently: after the
-      // short internal timeout fires the explicit-backend ConfigureAsync surfaces a failure,
-      // and the dead (cancelled) probe is evicted so a subsequent call re-probes.
+      // C-M2: a wedged probe must not hang forever, and its internal timeout must NOT
+      // surface as OperationCanceledException to a caller who never cancelled — a retry
+      // loop would otherwise mistake a wedged Docker model plugin for a transient
+      // cancellation and retry forever. It must translate into a typed, non-transient
+      // Fail(ConfigureFailed); the dead probe is still evicted so a later call re-probes.
       var driver = new BlockingProbeRuntimeDriver(TimeSpan.FromMilliseconds(150));
 
-      // First call: probe blocks, internal timeout fires → a clear failure (OCE), not a hang.
-      await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-          driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
-              new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken));
+      // First call: probe blocks, internal timeout fires. The CALLER's token here is never
+      // cancelled, so this must return a Fail, not throw.
+      var first = await driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/x"),
+          new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken);
+      Assert.False(first.Success);
+      Assert.Equal(ErrorCodes.Model.ConfigureFailed, first.ErrorCode);
+      Assert.Contains("timed out", first.Error, StringComparison.OrdinalIgnoreCase);
 
-      // Second call: the timed-out probe was evicted, so a fresh probe is spawned (re-probe).
-      await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-          driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/y"),
-              new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken));
+      // Second call: the timed-out probe was evicted, so a fresh probe is spawned (re-probe)
+      // and times out again the same way — proving eviction still happens post-fix.
+      var second = await driver.ConfigureAsync(Ctx, ModelReference.Parse("ai/y"),
+          new ModelConfigureOptions { Backend = "vllm" }, TestContext.Current.CancellationToken);
+      Assert.False(second.Success);
+      Assert.Equal(ErrorCodes.Model.ConfigureFailed, second.ErrorCode);
 
       Assert.Equal(2, driver.HelpCalls);
     }
