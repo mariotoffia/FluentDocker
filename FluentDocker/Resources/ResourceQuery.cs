@@ -8,18 +8,38 @@ using FluentDocker.Common;
 
 namespace FluentDocker.Resources
 {
+  /// <summary>
+  /// Fluent builder that queries an assembly's embedded manifest resources under a namespace.
+  /// Configure with <see cref="From"/>/<see cref="Namespace"/>/<see cref="Recursive"/>, then run the
+  /// query with <see cref="Query"/> (everything under the namespace) or <see cref="Include"/> (only
+  /// specific resource names).
+  /// </summary>
   public sealed class ResourceQuery
   {
     private string? _assembly;
     private string _namespace = null!;
     private bool _recursive;
 
+    /// <summary>Sets the assembly to search by simple name.</summary>
+    /// <param name="assembly">
+    /// The assembly's simple name (case-insensitive), resolved against the assemblies currently loaded
+    /// in <see cref="AppDomain.CurrentDomain"/>. When <c>null</c> or empty, the query falls back to the
+    /// caller's own assembly (see <see cref="Query"/>/<see cref="Include"/>).
+    /// </param>
+    /// <returns>This query, for chaining.</returns>
     public ResourceQuery From(string? assembly)
     {
       _assembly = assembly;
       return this;
     }
 
+    /// <summary>Sets the root namespace to query resources under.</summary>
+    /// <param name="ns">The namespace prefix embedded resources must fall under.</param>
+    /// <param name="recursive">
+    /// When <c>true</c> (default), also matches resources in sub-namespaces of <paramref name="ns"/>;
+    /// when <c>false</c>, only resources embedded directly at <paramref name="ns"/> match.
+    /// </param>
+    /// <returns>This query, for chaining.</returns>
     public ResourceQuery Namespace(string ns, bool recursive = true)
     {
       _namespace = ns;
@@ -27,18 +47,31 @@ namespace FluentDocker.Resources
       return this;
     }
 
+    /// <summary>Enables recursive matching into sub-namespaces of the queried namespace.</summary>
+    /// <returns>This query, for chaining.</returns>
     public ResourceQuery Recursive()
     {
       _recursive = true;
       return this;
     }
 
+    /// <summary>Runs the query and returns every embedded resource matching the configured namespace.</summary>
+    /// <returns>The matching resources.</returns>
+    /// <exception cref="FluentDockerException"><see cref="Namespace"/> was not called, or <see cref="From"/> named an assembly not currently loaded.</exception>
     [MethodImpl(MethodImplOptions.NoInlining)]
     public IEnumerable<ResourceInfo> Query()
     {
       return QueryCore(ResolveAssembly(Assembly.GetCallingAssembly()));
     }
 
+    /// <summary>
+    /// Runs the query and returns only the resources matching one of <paramref name="resources"/>, by
+    /// exact resource name, fully-qualified manifest name, or trailing-suffix (for multi-dot names like
+    /// "Dockerfile.template" that a plain manifest-name split cannot disambiguate).
+    /// </summary>
+    /// <param name="resources">The requested resource names to match.</param>
+    /// <returns>The matched resources, rewritten so each one's <see cref="ResourceInfo.Resource"/> is the requested name.</returns>
+    /// <exception cref="FluentDockerException"><see cref="Namespace"/> was not called, or <see cref="From"/> named an assembly not currently loaded.</exception>
     [MethodImpl(MethodImplOptions.NoInlining)]
     public IEnumerable<ResourceInfo> Include(params string[] resources)
     {

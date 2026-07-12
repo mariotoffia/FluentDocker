@@ -27,6 +27,15 @@ namespace FluentDocker.Common
   /// </remarks>
   public sealed class TolerantStringConverter : JsonConverter<string?>
   {
+    /// <summary>
+    /// Reads a string from a string/null token unchanged, or from a number/boolean token by decoding its
+    /// raw literal text (see <see cref="TolerantStringConverter"/>).
+    /// </summary>
+    /// <param name="reader">The reader positioned at the token to convert.</param>
+    /// <param name="typeToConvert">The type being converted.</param>
+    /// <param name="options">The serializer options in effect.</param>
+    /// <returns>The string value; <c>null</c> for a JSON null.</returns>
+    /// <exception cref="JsonException">The token is not a string, null, number, or boolean.</exception>
     public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
       switch (reader.TokenType)
@@ -49,6 +58,10 @@ namespace FluentDocker.Common
       }
     }
 
+    /// <summary>Writes the value as a JSON string, or JSON null when <paramref name="value"/> is <c>null</c>.</summary>
+    /// <param name="writer">The writer to write to.</param>
+    /// <param name="value">The value to write.</param>
+    /// <param name="options">The serializer options in effect.</param>
     public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
     {
       if (value is null)

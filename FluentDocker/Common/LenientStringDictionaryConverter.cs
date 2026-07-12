@@ -13,6 +13,15 @@ namespace FluentDocker.Common
   /// </summary>
   public sealed class LenientStringDictionaryConverter : JsonConverter<Dictionary<string, string>>
   {
+    /// <summary>
+    /// Reads a string dictionary from a JSON object, an empty JSON array (Docker sometimes emits <c>[]</c>
+    /// instead of <c>{}</c> for an empty map), or a compact <c>key=value,key=value</c> string.
+    /// </summary>
+    /// <param name="reader">The reader positioned at the token to convert.</param>
+    /// <param name="typeToConvert">The type being converted.</param>
+    /// <param name="options">The serializer options in effect.</param>
+    /// <returns>The parsed dictionary; empty for a JSON null, an empty array, or an empty/blank string.</returns>
+    /// <exception cref="JsonException">The token is not an object, array, or string, or an object entry is malformed.</exception>
     public override Dictionary<string, string> Read(
         ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -136,6 +145,10 @@ namespace FluentDocker.Common
       return comma < 0 || equals < comma;
     }
 
+    /// <summary>Writes the dictionary as a JSON object of string properties.</summary>
+    /// <param name="writer">The writer to write to.</param>
+    /// <param name="value">The value to write.</param>
+    /// <param name="options">The serializer options in effect.</param>
     public override void Write(
         Utf8JsonWriter writer, Dictionary<string, string> value, JsonSerializerOptions options)
     {

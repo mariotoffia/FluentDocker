@@ -7,10 +7,18 @@ using FluentDocker.Common;
 
 namespace FluentDocker.Resources
 {
+  /// <summary>
+  /// Lazily opens a <see cref="ResourceStream"/> for each <see cref="ResourceInfo"/> in
+  /// <paramref name="resources"/> as it is enumerated, via
+  /// <see cref="System.Reflection.Assembly.GetManifestResourceStream(string)"/>.
+  /// Each yielded <see cref="ResourceStream"/> should be disposed by the consumer once read.
+  /// </summary>
+  /// <param name="resources">The resources to open streams for, in enumeration order.</param>
   public sealed class ResourceReader(IEnumerable<ResourceInfo> resources) : IEnumerable<ResourceStream>
   {
     private readonly ResourceInfo[] _resources = [.. resources];
 
+    /// <summary>Returns an enumerator that opens one <see cref="ResourceStream"/> per resource on demand.</summary>
     public IEnumerator<ResourceStream> GetEnumerator()
     {
       return new ResourceStreamEnumerator(_resources);

@@ -5,10 +5,24 @@ using FluentDocker.Model.Common;
 
 namespace FluentDocker.Resources
 {
+  /// <summary>
+  /// Writes embedded resources out as files under <paramref name="basePath"/>, recreating each
+  /// resource's <see cref="ResourceInfo.RelativeRootNamespace"/> as subfolders. Writes are atomic:
+  /// content is staged to a randomly-named temp file in the target directory and moved into place,
+  /// so a reader never observes a partially-written file.
+  /// </summary>
+  /// <param name="basePath">The base directory resources are written under; created on demand.</param>
   public sealed class FileResourceWriter(TemplateString basePath) : IResourceWriter
   {
     private readonly TemplateString _basePath = basePath;
 
+    /// <summary>
+    /// Writes <paramref name="stream"/>'s content to a file under the configured base path, named after
+    /// <see cref="ResourceInfo.Resource"/> and nested per <see cref="ResourceInfo.RelativeRootNamespace"/>.
+    /// </summary>
+    /// <param name="stream">The resource stream to write; its content is copied, not disposed.</param>
+    /// <returns>This writer, for chaining.</returns>
+    /// <exception cref="ArgumentException"><see cref="ResourceInfo.Resource"/> is not a single relative file name.</exception>
     public IResourceWriter Write(ResourceStream stream)
     {
       var dir = string.IsNullOrEmpty(stream.Info.RelativeRootNamespace)
@@ -54,6 +68,9 @@ namespace FluentDocker.Resources
       return resource;
     }
 
+    /// <summary>Writes every resource in <paramref name="resources"/> to a file, disposing each stream as it completes.</summary>
+    /// <param name="resources">The resources to write.</param>
+    /// <returns>This writer, for chaining.</returns>
     public IResourceWriter Write(ResourceReader resources)
     {
       foreach (var resource in resources)

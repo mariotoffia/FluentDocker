@@ -27,6 +27,14 @@ namespace FluentDocker.Common
     /// </summary>
     public static Action<string?>? OnDrift { get; set; }
 
+    /// <summary>
+    /// Reads a <see cref="DateTimeOffset"/> from a string token; any other or unparseable value is
+    /// treated as drift and read as <c>default</c> instead of throwing (see <see cref="DriftCount"/>).
+    /// </summary>
+    /// <param name="reader">The reader positioned at the token to convert.</param>
+    /// <param name="typeToConvert">The type being converted (always <see cref="DateTimeOffset"/>).</param>
+    /// <param name="options">The serializer options in effect.</param>
+    /// <returns>The parsed value, or <c>default</c> (year 0001) when the token is present but not a parseable date.</returns>
     public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
       var raw = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
@@ -56,6 +64,10 @@ namespace FluentDocker.Common
       return default;
     }
 
+    /// <summary>Writes the value as an ISO-8601 JSON string.</summary>
+    /// <param name="writer">The writer to write to.</param>
+    /// <param name="value">The value to write.</param>
+    /// <param name="options">The serializer options in effect.</param>
     public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
     {
       writer.WriteStringValue(value);
@@ -73,6 +85,14 @@ namespace FluentDocker.Common
   {
     private static readonly TolerantDateTimeOffsetConverter Inner = new();
 
+    /// <summary>
+    /// Reads a nullable <see cref="DateTimeOffset"/>: JSON <c>null</c> reads as <c>null</c>; any other
+    /// token delegates to <see cref="TolerantDateTimeOffsetConverter.Read"/>.
+    /// </summary>
+    /// <param name="reader">The reader positioned at the token to convert.</param>
+    /// <param name="typeToConvert">The type being converted (always nullable <see cref="DateTimeOffset"/>).</param>
+    /// <param name="options">The serializer options in effect.</param>
+    /// <returns>The parsed value; <c>null</c> for JSON null, or <c>default</c> when present but unparseable.</returns>
     public override DateTimeOffset? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
       if (reader.TokenType == JsonTokenType.Null)
@@ -80,6 +100,10 @@ namespace FluentDocker.Common
       return Inner.Read(ref reader, typeof(DateTimeOffset), options);
     }
 
+    /// <summary>Writes the value as an ISO-8601 JSON string, or JSON null when unset.</summary>
+    /// <param name="writer">The writer to write to.</param>
+    /// <param name="value">The value to write.</param>
+    /// <param name="options">The serializer options in effect.</param>
     public override void Write(Utf8JsonWriter writer, DateTimeOffset? value, JsonSerializerOptions options)
     {
       if (value.HasValue)

@@ -1,48 +1,60 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+
 namespace FluentDocker.Testing.Core
 {
-  public static class SessionLabel
-  {
-    public const string Key = "fluentdocker.session";
-    public const string CreatedAtKey = "fluentdocker.created-at";
-    public const string ManagedKey = "fluentdocker.managed";
-    public const string SessionEnvironmentVariable = "FLUENTDOCKER_TEST_SESSION";
-    public const string ReaperEnvironmentVariable = "FLUENTDOCKER_TEST_REAPER_ON_EXIT";
-    public const string ReapRunningAfterEnvironmentVariable = "FLUENTDOCKER_REAP_RUNNING_AFTER";
-    public static string NewSessionId() => Guid.NewGuid().ToString("N");
-    internal static string SharedSessionId() =>
-        Environment.GetEnvironmentVariable(SessionEnvironmentVariable);
-    public static Dictionary<string, string> CreateLabels(string sessionId)
-    {
-      return new Dictionary<string, string>
-      {
-        [Key] = sessionId,
-        [CreatedAtKey] = DateTime.UtcNow.ToString("o"),
-        [ManagedKey] = "true"
-      };
-    }
-  }
-  public static class OrphanCleanup
+  /// <summary>
+  /// Sweeps up Docker/Podman containers, networks, and volumes that FluentDocker test resources
+  /// created (tagged via <see cref="SessionLabel"/>) but never got to remove themselves — typically
+  /// because a prior test process crashed, was killed, or was debugged past its normal lifetime. Only
+  /// resources labeled <see cref="SessionLabel.ManagedKey"/> are ever touched, and a resource still in
+  /// use (e.g. a network with attached containers, or a volume still mounted) is skipped even if it
+  /// otherwise matches. See <see cref="ProcessExitReaper"/> for automatic cleanup on process exit.
+  /// </summary>
+  public static partial class OrphanCleanup
   {
     private static readonly TimeSpan DefaultMinimumAge = TimeSpan.FromHours(1);
     private static readonly ConcurrentDictionary<string, byte> AbandonedLateProvisionNames = new();
+
+    /// <summary>The outcome of an orphan-cleanup sweep.</summary>
     public class CleanupResult
     {
+      /// <summary>Number of containers removed.</summary>
       public int ContainersRemoved { get; set; }
+      /// <summary>Number of networks removed.</summary>
       public int NetworksRemoved { get; set; }
+      /// <summary>Number of volumes removed.</summary>
       public int VolumesRemoved { get; set; }
+      /// <summary>
+      /// Human-readable messages for resources that failed to remove. A failure here does not stop the
+      /// sweep; other matching resources are still attempted.
+      /// </summary>
       public List<string> Errors { get; set; } = [];
+      /// <summary>The combined count of containers, networks, and volumes removed.</summary>
       public int TotalRemoved => ContainersRemoved + NetworksRemoved + VolumesRemoved;
     }
+
+    /// <summary>
+    /// Removes managed Docker/Podman resources belonging to sessions other than
+    /// <paramref name="currentSessionId"/> that are at least <paramref name="minimumAge"/> old.
+    /// </summary>
+    /// <param name="kernel">The kernel to resolve driver ports from.</param>
+    /// <param name="driverId">The driver id (pack) to sweep resources for.</param>
+    /// <param name="currentSessionId">
+    /// The calling session's id; its own resources are never removed. When <c>null</c>, only the
+    /// shared session id from <see cref="SessionLabel.SessionEnvironmentVariable"/> (if any) is protected.
+    /// </param>
+    /// <param name="minimumAge">
+    /// The minimum age a foreign-session resource must have before it is reclaimed; defaults to 1 hour
+    /// when <c>null</c>. A resource whose age cannot be determined is preserved rather than removed.
+    /// </param>
+    /// <param name="cancellationToken">Token used to cancel the sweep.</param>
+    /// <returns>A <see cref="CleanupResult"/> summarizing what was removed and any failures.</returns>
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -54,6 +66,17 @@ namespace FluentDocker.Testing.Core
           kernel, driverId, currentSessionId, minimumAge ?? DefaultMinimumAge,
           targetSessionId: null, cancellationToken);
     }
+
+    /// <summary>
+    /// Overload of <see cref="CleanupOrphanedResourcesAsync(FluentDockerKernel, string, string, TimeSpan?, CancellationToken)"/>
+    /// with no optional parameters.
+    /// </summary>
+    /// <param name="kernel">The kernel to resolve driver ports from.</param>
+    /// <param name="driverId">The driver id (pack) to sweep resources for.</param>
+    /// <param name="currentSessionId">The calling session's id; its own resources are never removed.</param>
+    /// <param name="minimumAge">The minimum age a foreign-session resource must have before it is reclaimed.</param>
+    /// <param name="cancellationToken">Token used to cancel the sweep.</param>
+    /// <returns>A <see cref="CleanupResult"/> summarizing what was removed and any failures.</returns>
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -65,6 +88,13 @@ namespace FluentDocker.Testing.Core
           kernel, driverId, currentSessionId, minimumAge,
           targetSessionId: null, cancellationToken);
     }
+
+    /// <summary>
+    /// Removes every OTHER session's managed resources, keyed to one specific <paramref name="sessionId"/> —
+    /// used by <see cref="ProcessExitReaper"/> to reap exactly its own session's resources on exit,
+    /// bypassing the age/current-session filtering that
+    /// <see cref="CleanupOrphanedResourcesAsync(FluentDockerKernel, string, string, TimeSpan?, CancellationToken)"/> applies.
+    /// </summary>
     internal static Task<CleanupResult> CleanupSessionResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -75,6 +105,7 @@ namespace FluentDocker.Testing.Core
           kernel, driverId, currentSessionId: null, minimumAge: TimeSpan.Zero,
           targetSessionId: sessionId, cancellationToken);
     }
+
     private static async Task<CleanupResult> CleanupResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -90,6 +121,14 @@ namespace FluentDocker.Testing.Core
       await CleanupVolumesAsync(kernel, driverId, context, currentSessionId, minimumAge, targetSessionId, containers, result, cancellationToken).ConfigureAwait(false);
       return result;
     }
+
+    /// <summary>
+    /// Overload of <see cref="CleanupOrphanedResourcesAsync(FluentDockerKernel, string, string, TimeSpan?, CancellationToken)"/>
+    /// using the default minimum age, no session filter, and no cancellation.
+    /// </summary>
+    /// <param name="kernel">The kernel to resolve driver ports from.</param>
+    /// <param name="driverId">The driver id (pack) to sweep resources for.</param>
+    /// <returns>A <see cref="CleanupResult"/> summarizing what was removed and any failures.</returns>
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId)
@@ -97,6 +136,15 @@ namespace FluentDocker.Testing.Core
       return CleanupOrphanedResourcesAsync(
           kernel, driverId, null, DefaultMinimumAge, CancellationToken.None);
     }
+
+    /// <summary>
+    /// Overload of <see cref="CleanupOrphanedResourcesAsync(FluentDockerKernel, string, string, TimeSpan?, CancellationToken)"/>
+    /// using the default minimum age and no cancellation.
+    /// </summary>
+    /// <param name="kernel">The kernel to resolve driver ports from.</param>
+    /// <param name="driverId">The driver id (pack) to sweep resources for.</param>
+    /// <param name="currentSessionId">The calling session's id; its own resources are never removed.</param>
+    /// <returns>A <see cref="CleanupResult"/> summarizing what was removed and any failures.</returns>
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -105,6 +153,16 @@ namespace FluentDocker.Testing.Core
       return CleanupOrphanedResourcesAsync(
           kernel, driverId, currentSessionId, DefaultMinimumAge, CancellationToken.None);
     }
+
+    /// <summary>
+    /// Overload of <see cref="CleanupOrphanedResourcesAsync(FluentDockerKernel, string, string, TimeSpan?, CancellationToken)"/>
+    /// using the default minimum age.
+    /// </summary>
+    /// <param name="kernel">The kernel to resolve driver ports from.</param>
+    /// <param name="driverId">The driver id (pack) to sweep resources for.</param>
+    /// <param name="currentSessionId">The calling session's id; its own resources are never removed.</param>
+    /// <param name="cancellationToken">Token used to cancel the sweep.</param>
+    /// <returns>A <see cref="CleanupResult"/> summarizing what was removed and any failures.</returns>
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
@@ -113,387 +171,6 @@ namespace FluentDocker.Testing.Core
     {
       return CleanupOrphanedResourcesAsync(
           kernel, driverId, currentSessionId, DefaultMinimumAge, cancellationToken);
-    }
-    private static async Task<IList<Model.Containers.Container>> CleanupContainersAsync(
-        FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
-        CleanupResult result, CancellationToken cancellationToken)
-    {
-      if (!kernel.TrySysCtl<IContainerDriver>(driverId, out var driver))
-        return null;
-      var filter = new ContainerListFilter
-      {
-        All = true,
-        Labels = { [SessionLabel.ManagedKey] = "true" }
-      };
-      var listResult = await driver.ListAsync(context, filter, cancellationToken).ConfigureAwait(false);
-      if (!listResult.Success)
-        return null;
-      var containers = listResult.Data ?? [];
-      foreach (var container in containers)
-      {
-        var containerLabels = container.Config?.Labels as IDictionary<string, string>;
-        Model.Containers.Container inspected = null;
-        if (containerLabels == null || containerLabels.Count == 0)
-        {
-          // ponytail: one inspect per managed CLI-listed container; upgrade path = map labels in list parsers.
-          inspected = await TryInspectContainerAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
-          containerLabels = inspected?.Config?.Labels as IDictionary<string, string>;
-        }
-        var targetCleanup = !string.IsNullOrEmpty(targetSessionId);
-        var isTargetSession = IsSession(containerLabels, targetSessionId);
-        if (targetCleanup && !isTargetSession)
-          continue;
-        var isAbandonedLateProvision = !targetCleanup &&
-            IsAbandonedLateProvision(containerLabels, container.Id, container.Name);
-        if (!targetCleanup &&
-            IsCurrentSession(containerLabels, currentSessionId) &&
-            !isAbandonedLateProvision)
-          continue;
-        if (!targetCleanup && !isAbandonedLateProvision)
-        {
-          inspected ??= await TryInspectContainerAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
-          var created = GetCreated(container, inspected);
-          if (IsRunning(container, inspected))
-          {
-            // Running foreign-session containers are preserved unless the opt-in FLUENTDOCKER_REAP_RUNNING_AFTER ceiling marks them old enough to reclaim.
-            if (!ShouldReapRunning(containerLabels, created))
-              continue;
-          }
-          else if (ShouldPreserveDueToAge(containerLabels, minimumAge, created))
-          {
-            continue;
-          }
-        }
-        try
-        {
-          var removed = await driver.RemoveAsync(context, container.Id, force: true,
-              removeVolumes: false, cancellationToken).ConfigureAwait(false);
-          if (!RemoveSucceeded(removed, "container", container.Id, result))
-            continue;
-          result.ContainersRemoved++;
-          container.Mounts = [];
-          if (isAbandonedLateProvision)
-            ClearAbandonedLateProvision(containerLabels, container.Id, container.Name);
-        }
-        catch (Exception ex)
-        {
-          result.Errors.Add($"Failed to remove container {container.Id}: {ex.Message}");
-        }
-      }
-      return containers;
-    }
-    private static async Task CleanupNetworksAsync(
-        FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
-        CleanupResult result, CancellationToken cancellationToken)
-    {
-      if (!kernel.TrySysCtl<INetworkDriver>(driverId, out var driver))
-        return;
-      var filter = new NetworkListFilter
-      {
-        Labels = { [SessionLabel.ManagedKey] = "true" }
-      };
-
-      var listResult = await driver.ListAsync(context, filter, cancellationToken).ConfigureAwait(false);
-      if (!listResult.Success)
-        return;
-
-      foreach (var network in listResult.Data ?? Enumerable.Empty<Network>())
-      {
-        var networkLabels = network.Labels as IDictionary<string, string>;
-        var targetCleanup = !string.IsNullOrEmpty(targetSessionId);
-        var isTargetSession = IsSession(networkLabels, targetSessionId);
-        if (targetCleanup && !isTargetSession)
-          continue;
-
-        var isAbandonedLateProvision = !targetCleanup &&
-            IsAbandonedLateProvision(networkLabels, network.Id, network.Name);
-
-        if (!targetCleanup &&
-            IsCurrentSession(networkLabels, currentSessionId) &&
-            !isAbandonedLateProvision)
-          continue;
-        if (!targetCleanup &&
-            !isAbandonedLateProvision &&
-            ShouldPreserveDueToAge(networkLabels, minimumAge))
-          continue;
-        // ponytail: keep default-on orphan cleanup; in-use guard is the shared-daemon safety net.
-        if (await IsNetworkInUseAsync(driver, context, network, cancellationToken)
-            .ConfigureAwait(false))
-          continue;
-
-        try
-        {
-          var removed = await driver.RemoveAsync(context, network.Id ?? network.Name, cancellationToken).ConfigureAwait(false);
-          if (!RemoveSucceeded(removed, "network", network.Name, result))
-            continue;
-          result.NetworksRemoved++;
-          if (isAbandonedLateProvision)
-            ClearAbandonedLateProvision(networkLabels, network.Id, network.Name);
-        }
-        catch (Exception ex)
-        {
-          result.Errors.Add($"Failed to remove network {network.Name}: {ex.Message}");
-        }
-      }
-    }
-
-    private static async Task CleanupVolumesAsync(
-        FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
-        IList<Model.Containers.Container> containers, CleanupResult result,
-        CancellationToken cancellationToken)
-    {
-      if (!kernel.TrySysCtl<IVolumeDriver>(driverId, out var driver))
-        return;
-
-      var filter = new VolumeListFilter
-      {
-        Labels = { [SessionLabel.ManagedKey] = "true" }
-      };
-
-      var listResult = await driver.ListAsync(context, filter, cancellationToken).ConfigureAwait(false);
-      if (!listResult.Success)
-        return;
-      var inUseVolumes = GetInUseVolumes(containers);
-
-      foreach (var volume in listResult.Data ?? Enumerable.Empty<Model.Volumes.Volume>())
-      {
-        var volumeLabels = volume.Labels as IDictionary<string, string>;
-        var targetCleanup = !string.IsNullOrEmpty(targetSessionId);
-        var isTargetSession = IsSession(volumeLabels, targetSessionId);
-        if (targetCleanup && !isTargetSession)
-          continue;
-
-        var isAbandonedLateProvision = !targetCleanup &&
-            IsAbandonedLateProvision(volumeLabels, volume.Name);
-
-        if (!targetCleanup &&
-            IsCurrentSession(volumeLabels, currentSessionId) &&
-            !isAbandonedLateProvision)
-          continue;
-        if (!targetCleanup &&
-            !isAbandonedLateProvision &&
-            ShouldPreserveDueToAge(volumeLabels, minimumAge, volume.Created))
-          continue;
-        if (string.IsNullOrWhiteSpace(volume.Name) ||
-            inUseVolumes == null ||
-            inUseVolumes.Contains(volume.Name))
-          continue;
-
-        try
-        {
-          var removed = await driver.RemoveAsync(context, volume.Name, force: true, cancellationToken).ConfigureAwait(false);
-          if (!RemoveSucceeded(removed, "volume", volume.Name, result))
-            continue;
-          result.VolumesRemoved++;
-          if (isAbandonedLateProvision)
-            ClearAbandonedLateProvision(volumeLabels, volume.Name);
-        }
-        catch (Exception ex)
-        {
-          result.Errors.Add($"Failed to remove volume {volume.Name}: {ex.Message}");
-        }
-      }
-    }
-
-    private static bool IsCurrentSession(
-        IDictionary<string, string> labels, string currentSessionId)
-    {
-      if (currentSessionId == null)
-        return IsSession(labels, SessionLabel.SharedSessionId());
-
-      return IsSession(labels, currentSessionId) ||
-             IsSession(labels, SessionLabel.SharedSessionId());
-    }
-
-    private static bool IsSession(IDictionary<string, string> labels, string sessionId)
-    {
-      if (labels == null || string.IsNullOrWhiteSpace(sessionId))
-        return false;
-      return labels.TryGetValue(SessionLabel.Key, out var resourceSessionId)
-             && resourceSessionId == sessionId;
-    }
-
-    internal static void MarkAbandonedLateProvision(string resourceName, string sessionId)
-    {
-      if (!string.IsNullOrWhiteSpace(resourceName) &&
-          !string.IsNullOrWhiteSpace(sessionId))
-        AbandonedLateProvisionNames.TryAdd(
-            AbandonedLateProvisionKey(resourceName, sessionId), 0);
-    }
-
-    private static bool IsAbandonedLateProvision(
-        IDictionary<string, string> labels,
-        params string[] names)
-    {
-      if (labels == null ||
-          !labels.TryGetValue(SessionLabel.Key, out var sessionId) ||
-          string.IsNullOrWhiteSpace(sessionId))
-        return false;
-
-      foreach (var name in names)
-      {
-        if (!string.IsNullOrWhiteSpace(name) &&
-            AbandonedLateProvisionNames.ContainsKey(
-                AbandonedLateProvisionKey(name, sessionId)))
-          return true;
-      }
-
-      return false;
-    }
-
-    private static void ClearAbandonedLateProvision(
-        IDictionary<string, string> labels,
-        params string[] names)
-    {
-      if (labels == null ||
-          !labels.TryGetValue(SessionLabel.Key, out var sessionId) ||
-          string.IsNullOrWhiteSpace(sessionId))
-        return;
-
-      foreach (var name in names)
-      {
-        if (!string.IsNullOrWhiteSpace(name))
-          AbandonedLateProvisionNames.TryRemove(
-              AbandonedLateProvisionKey(name, sessionId), out _);
-      }
-    }
-
-    private static string AbandonedLateProvisionKey(string name, string sessionId) =>
-        $"{sessionId}\u001f{NormalizeResourceName(name)}";
-
-    private static string NormalizeResourceName(string name) =>
-        name.Trim().TrimStart('/');
-
-    private static bool ShouldPreserveDueToAge(
-        IDictionary<string, string> labels,
-        TimeSpan minimumAge,
-        DateTimeOffset daemonCreated = default)
-    {
-      if (minimumAge <= TimeSpan.Zero)
-        return false;
-
-      if (daemonCreated != default)
-        return daemonCreated.ToUniversalTime() > DateTimeOffset.UtcNow - minimumAge;
-
-      if (labels == null ||
-          !labels.TryGetValue(SessionLabel.CreatedAtKey, out var createdAt) ||
-          !DateTimeOffset.TryParse(
-              createdAt,
-              CultureInfo.InvariantCulture,
-              DateTimeStyles.RoundtripKind,
-              out var created))
-        return true;
-
-      return created.ToUniversalTime() > DateTimeOffset.UtcNow - minimumAge;
-    }
-
-    private static bool ShouldReapRunning(IDictionary<string, string> labels, DateTimeOffset created) =>
-        RunningReapCeiling() is { } ceiling && ceiling > TimeSpan.Zero && !ShouldPreserveDueToAge(labels, ceiling, created);
-    private static TimeSpan? RunningReapCeiling() => ParseDuration(Environment.GetEnvironmentVariable(SessionLabel.ReapRunningAfterEnvironmentVariable));
-    private static TimeSpan? ParseDuration(string raw)
-    {
-      if (string.IsNullOrWhiteSpace(raw))
-        return null;
-      raw = raw.Trim();
-      var unit = char.ToLowerInvariant(raw[raw.Length - 1]);
-      var perUnit = unit switch { 'd' => TimeSpan.FromDays(1), 'h' => TimeSpan.FromHours(1), 'm' => TimeSpan.FromMinutes(1), 's' => TimeSpan.FromSeconds(1), _ => TimeSpan.Zero };
-      var number = perUnit == TimeSpan.Zero ? raw : raw.Substring(0, raw.Length - 1);
-      if (perUnit == TimeSpan.Zero)
-        perUnit = TimeSpan.FromHours(1);
-      return double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value > 0 && value < TimeSpan.MaxValue / perUnit ? perUnit * value : null;
-    }
-
-    private static async Task<Model.Containers.Container> TryInspectContainerAsync(
-        IContainerDriver driver,
-        DriverContext context,
-        string containerId,
-        CancellationToken cancellationToken)
-    {
-      try
-      {
-        var inspect = await driver.InspectAsync(context, containerId, cancellationToken).ConfigureAwait(false);
-        return inspect?.Success == true ? inspect.Data : null;
-      }
-      catch
-      {
-        return null;
-      }
-    }
-
-    private static async Task<bool> IsNetworkInUseAsync(
-        INetworkDriver driver,
-        DriverContext context,
-        Network network,
-        CancellationToken cancellationToken)
-    {
-      if (network?.Containers?.Count > 0)
-        return true;
-
-      var id = network?.Id ?? network?.Name;
-      if (string.IsNullOrWhiteSpace(id))
-        return false;
-
-      try
-      {
-        var inspect = await driver.InspectAsync(context, id, cancellationToken).ConfigureAwait(false);
-        return inspect.Success && inspect.Data?.Containers?.Count > 0;
-      }
-      catch
-      {
-        return false;
-      }
-    }
-
-    private static HashSet<string> GetInUseVolumes(
-        IList<Model.Containers.Container> containers)
-    {
-      if (containers == null)
-        return null;
-
-      var volumes = new HashSet<string>(StringComparer.Ordinal);
-      foreach (var container in containers)
-      {
-        foreach (var mount in container.Mounts ?? Enumerable.Empty<Model.Containers.ContainerMount>())
-        {
-          if (!string.IsNullOrWhiteSpace(mount.Name))
-            volumes.Add(mount.Name);
-          if (!string.IsNullOrWhiteSpace(mount.Source))
-            volumes.Add(mount.Source);
-        }
-      }
-      return volumes;
-    }
-
-    private static bool RemoveSucceeded(
-        CommandResponse<Unit> response,
-        string type,
-        string name,
-        CleanupResult result)
-    {
-      if (response?.Success == true)
-        return true;
-      result.Errors.Add($"Failed to remove {type} {name}: {response?.Error ?? "unknown error"}");
-      return false;
-    }
-
-    private static bool IsRunning(
-        Model.Containers.Container listed,
-        Model.Containers.Container inspected)
-    {
-      return inspected?.State?.Running == true ||
-             listed?.State?.Running == true;
-    }
-
-    private static DateTimeOffset GetCreated(
-        Model.Containers.Container listed,
-        Model.Containers.Container inspected)
-    {
-      if (inspected?.Created != default)
-        return inspected.Created;
-      return listed?.Created ?? default;
     }
   }
 }

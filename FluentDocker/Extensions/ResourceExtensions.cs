@@ -9,6 +9,10 @@ using FluentDocker.Resources;
 
 namespace FluentDocker.Extensions
 {
+  /// <summary>
+  /// Convenience entry points over <see cref="FluentDocker.Resources.ResourceQuery"/>/<see cref="FluentDocker.Resources.FileResourceWriter"/>
+  /// for querying and extracting a type's embedded resources.
+  /// </summary>
   public static class ResourceExtensions
   {
     /// <summary>

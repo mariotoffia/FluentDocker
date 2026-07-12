@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace FluentDocker.Extensions
 {
+  /// <summary>Legacy numeric/string conversion helpers.</summary>
   public static partial class ConversionExtension
   {
     private static readonly string[] DefaultUnits = ["b", "k", "m", "g"];

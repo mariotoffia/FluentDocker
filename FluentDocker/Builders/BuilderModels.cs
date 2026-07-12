@@ -46,9 +46,13 @@ namespace FluentDocker.Builders
   /// </summary>
   public enum LifecycleHookType
   {
+    /// <summary>Copies <see cref="LifecycleHook.HostPath"/> into the container at <see cref="LifecycleHook.ContainerPath"/>.</summary>
     CopyTo,
+    /// <summary>Copies <see cref="LifecycleHook.ContainerPath"/> out of the container to <see cref="LifecycleHook.HostPath"/>.</summary>
     CopyFrom,
+    /// <summary>Exports the container filesystem to <see cref="LifecycleHook.HostPath"/> (a tar file, or an exploded directory when <see cref="LifecycleHook.Explode"/> is set).</summary>
     Export,
+    /// <summary>Runs <see cref="LifecycleHook.Command"/> inside the container.</summary>
     Execute
   }
 
@@ -57,12 +61,25 @@ namespace FluentDocker.Builders
   /// </summary>
   public class LifecycleHook
   {
+    /// <summary>The kind of action this hook performs.</summary>
     public LifecycleHookType Type { get; set; }
+    /// <summary>The container state (e.g. Running, Removing) that fires this hook.</summary>
     public ServiceRunningState TriggerState { get; set; }
+    /// <summary>The host-side path for <see cref="LifecycleHookType.CopyTo"/>, <see cref="LifecycleHookType.CopyFrom"/>, and <see cref="LifecycleHookType.Export"/> hooks.</summary>
     public string HostPath { get; set; }
+    /// <summary>The container-side path for <see cref="LifecycleHookType.CopyTo"/> and <see cref="LifecycleHookType.CopyFrom"/> hooks.</summary>
     public string ContainerPath { get; set; }
+    /// <summary>The argv command run by an <see cref="LifecycleHookType.Execute"/> hook.</summary>
     public string[] Command { get; set; }
+    /// <summary>
+    /// For an <see cref="LifecycleHookType.Export"/> hook, extracts the exported tar archive into
+    /// <see cref="HostPath"/> as a directory instead of writing a single <c>.tar</c> file.
+    /// </summary>
     public bool Explode { get; set; }
+    /// <summary>
+    /// Optional predicate gating an <see cref="LifecycleHookType.Export"/> hook; the export is skipped
+    /// when this returns <c>false</c>.
+    /// </summary>
     public Func<IContainerService, bool> Condition { get; set; }
   }
 
@@ -84,7 +101,9 @@ namespace FluentDocker.Builders
   /// </summary>
   public class NetworkAlias
   {
+    /// <summary>The name of the existing Docker/Podman network the alias applies to.</summary>
     public string NetworkName { get; set; }
+    /// <summary>The DNS alias the container is reachable as on <see cref="NetworkName"/>.</summary>
     public string Alias { get; set; }
   }
 
