@@ -98,7 +98,8 @@ namespace FluentDocker.Drivers.Podman.Cli
           if (listResult.Data.Count > 1)
             throw new PodmanMachineNotRunningException(
                 "Multiple Podman machines exist and none is flagged default; set " +
-                "AutoStartMachineConfig.MachineName to choose which machine to start.");
+                "AutoStartMachineConfig.MachineName to choose which machine to start.",
+                isTransient: false);
           target = listResult.Data.FirstOrDefault(); // 0 or 1 machine: safe (null or the single one)
         }
       }

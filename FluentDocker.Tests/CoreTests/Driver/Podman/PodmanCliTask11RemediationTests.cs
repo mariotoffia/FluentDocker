@@ -62,6 +62,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           }, TestContext.Current.CancellationToken));
 
       Assert.Contains("AutoStartMachineConfig.MachineName", ex.Message);
+      Assert.False(ex.IsTransient);
       Assert.DoesNotContain("machine start", File.ReadAllText(record));
     }
 

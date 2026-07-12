@@ -24,5 +24,14 @@ namespace FluentDocker.Common
     /// </summary>
     public PodmanMachineNotRunningException(string message, Exception? innerException)
         : base(message, ErrorCodes.Machine.NotRunning, null, innerException, true) { }
+
+    /// <summary>
+    /// Creates a new instance with the specified message and explicit transiency. Use
+    /// <c>isTransient: false</c> for cases that reuse this exception's error code for a
+    /// permanent configuration error rather than a "machine stopped, retry" condition
+    /// (e.g. an ambiguous-machine auto-start failure).
+    /// </summary>
+    public PodmanMachineNotRunningException(string message, bool isTransient)
+        : base(message, ErrorCodes.Machine.NotRunning, isTransient) { }
   }
 }

@@ -7,8 +7,9 @@ using System.Text.Json.Serialization;
 namespace FluentDocker.Common
 {
   /// <summary>
-  /// Reads Int32 values from numbers or numeric strings, using 0 for null or unparsable runtime drift.
+  /// Reads Int32 values from JSON numbers or numeric strings.
   /// </summary>
+  /// <remarks>Returns <c>0</c> for a JSON null; throws <see cref="JsonException"/> for any other unparsable token.</remarks>
   public sealed class LenientInt32Converter : JsonConverter<int>
   {
     /// <summary>Reads an <see cref="int"/> per the lenient rules described on <see cref="LenientInt32Converter"/>.</summary>

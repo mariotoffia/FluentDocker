@@ -56,7 +56,10 @@ namespace FluentDocker.Model.Drivers
       /// <summary>
       /// The Podman machine is not running; the operation requires a running machine.
       /// Transient — start the machine and retry (see <see cref="IsTransientCode(string)"/>
-      /// and <see cref="FluentDocker.Common.PodmanMachineNotRunningException"/>).
+      /// and <see cref="FluentDocker.Common.PodmanMachineNotRunningException"/>). One exception:
+      /// the auto-start ambiguous-machine case (multiple machines exist, none flagged default)
+      /// also surfaces this code but is a non-transient config error — set
+      /// <c>AutoStartMachineConfig.MachineName</c> instead of blindly retrying.
       /// </summary>
       public const string NotRunning = "MACH_010";
     }
