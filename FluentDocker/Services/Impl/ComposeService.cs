@@ -83,15 +83,29 @@ namespace FluentDocker.Services.Impl
     }
 
     // ponytail: display-only fallback — compose derives the real name; Name is not used for lookups.
+    /// <inheritdoc />
     public string Name => _projectName ?? "compose";
+
+    /// <inheritdoc />
     public ServiceRunningState State => _state;
+
+    /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
+
+    /// <inheritdoc />
     public string DriverId => _driverId;
+
+    /// <inheritdoc />
     public string ProjectName => _projectName;
+
+    /// <inheritdoc />
     public IReadOnlyList<string> ComposeFiles => _composeFiles;
+
+    /// <inheritdoc />
     public bool IsBorrowed => !_downOnDispose;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
+    /// <inheritdoc />
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CA1710
 
@@ -128,6 +142,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<string> GetLogsAsync(bool follow = false, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -175,6 +190,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task RefreshStateAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -235,6 +251,7 @@ namespace FluentDocker.Services.Impl
                   : allPaused ? ServiceRunningState.Paused : ServiceRunningState.Unknown);
     }
 
+    /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -282,6 +299,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task PauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -320,6 +338,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -366,9 +385,11 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public Task RestartAsync(CancellationToken cancellationToken = default) =>
         RestartAsync(null, cancellationToken);
 
+    /// <inheritdoc />
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       ThrowIfDisposed();
@@ -377,6 +398,7 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    /// <inheritdoc />
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();

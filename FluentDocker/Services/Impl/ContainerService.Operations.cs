@@ -17,6 +17,7 @@ namespace FluentDocker.Services.Impl
   /// </summary>
   public partial class ContainerService
   {
+    /// <inheritdoc />
     public async Task<string> GetLogsAsync(bool follow = false, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -56,6 +57,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -64,6 +66,7 @@ namespace FluentDocker.Services.Impl
       return result?.StdOut;
     }
 
+    /// <inheritdoc />
     public async Task<ExecResult> ExecuteDetailedAsync(string command, CancellationToken cancellationToken = default)
     {
       return await ExecuteDetailedCoreAsync(command, throwIfDisposed: true, cancellationToken)
@@ -99,6 +102,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<string> ExecuteAsync(string[] command, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -107,6 +111,7 @@ namespace FluentDocker.Services.Impl
       return result?.StdOut;
     }
 
+    /// <inheritdoc />
     public async Task<ExecResult> ExecuteDetailedAsync(string[] command, CancellationToken cancellationToken = default)
     {
       return await ExecuteDetailedCoreAsync(command, throwIfDisposed: true, cancellationToken)
@@ -137,6 +142,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<byte[]> ExportAsync(CancellationToken cancellationToken = default)
     {
       return await ExportCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
@@ -159,6 +165,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task<byte[]> CopyFromAsync(string containerPath, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -339,6 +346,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task<ContainerStats> GetStatsAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();

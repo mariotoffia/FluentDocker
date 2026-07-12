@@ -94,8 +94,10 @@ namespace FluentDocker.Services.Impl
       return scope;
     }
 
+    /// <inheritdoc />
     public EngineScopeType Scope => _currentScope;
 
+    /// <inheritdoc />
     public async Task<bool> IsWindowsEngineAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -107,6 +109,7 @@ namespace FluentDocker.Services.Impl
       return response.Success && response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<bool> IsLinuxEngineAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -118,6 +121,7 @@ namespace FluentDocker.Services.Impl
       return response.Success && response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<bool> UseLinuxAsync(CancellationToken cancellationToken = default) =>
         await UseLinuxCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
 
@@ -145,6 +149,7 @@ namespace FluentDocker.Services.Impl
       return false;
     }
 
+    /// <inheritdoc />
     public async Task<bool> UseWindowsAsync(CancellationToken cancellationToken = default) =>
         await UseWindowsCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
 
@@ -172,6 +177,7 @@ namespace FluentDocker.Services.Impl
       return false;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -198,6 +204,7 @@ namespace FluentDocker.Services.Impl
       GC.SuppressFinalize(this);
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)

@@ -12,6 +12,7 @@ namespace FluentDocker.Services.Impl
 {
   public partial class ContainerService
   {
+    /// <inheritdoc />
     public async Task ExportToFileAsync(string path, CancellationToken cancellationToken = default)
     {
       ArgumentException.ThrowIfNullOrEmpty(path);

@@ -66,17 +66,30 @@ namespace FluentDocker.Services.Impl
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
 
+    /// <inheritdoc />
     public string Name => _networkName;
+
+    /// <inheritdoc />
     public ServiceRunningState State => _state;
+
+    /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
+
+    /// <inheritdoc />
     public string DriverId => _driverId;
+
+    /// <inheritdoc />
     public string Id => _networkId;
+
+    /// <inheritdoc />
     public string NetworkName => _networkName;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
+    /// <inheritdoc />
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CA1710
 
+    /// <inheritdoc />
     public async Task ConnectAsync(string containerId, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -95,6 +108,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task DisconnectAsync(string containerId, bool force = false, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -137,6 +151,7 @@ namespace FluentDocker.Services.Impl
       return containers;
     }
 
+    /// <inheritdoc />
     public async Task<Network> InspectAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -165,6 +180,8 @@ namespace FluentDocker.Services.Impl
       return Task.CompletedTask;
     }
 
+    /// <summary>Networks are static connectivity resources; pause is not a supported operation.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -172,6 +189,8 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Networks cannot be paused");
     }
 
+    /// <summary>Networks are static connectivity resources; stop is not a supported operation.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown; use <see cref="RemoveAsync"/> instead.</exception>
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -233,6 +252,7 @@ namespace FluentDocker.Services.Impl
         (response.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true &&
          response.Error.Contains(_networkId, StringComparison.OrdinalIgnoreCase));
 
+    /// <inheritdoc />
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       ThrowIfDisposed();
@@ -241,6 +261,7 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    /// <inheritdoc />
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();
@@ -251,6 +272,7 @@ namespace FluentDocker.Services.Impl
     private int _disposed;
     private int _disposeCompleted;
 
+    /// <inheritdoc />
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -267,6 +289,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)

@@ -21,6 +21,7 @@ namespace FluentDocker.Services.Impl
         "^[0-9a-f]{64}$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    /// <inheritdoc />
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       ThrowIfDisposed();
@@ -29,6 +30,7 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    /// <inheritdoc />
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();
@@ -36,6 +38,7 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -52,6 +55,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)

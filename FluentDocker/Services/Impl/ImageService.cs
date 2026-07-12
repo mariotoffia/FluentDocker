@@ -61,12 +61,25 @@ namespace FluentDocker.Services.Impl
       _tag = tag ?? "latest";
     }
 
+    /// <inheritdoc />
     public string Name => FullName;
+
+    /// <inheritdoc />
     public ServiceRunningState State => _state;
+
+    /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
+
+    /// <inheritdoc />
     public string DriverId => _driverId;
+
+    /// <inheritdoc />
     public string Id => _imageId;
+
+    /// <inheritdoc />
     public string Tag => _tag;
+
+    /// <inheritdoc />
     public string FullName => string.IsNullOrEmpty(_repository)
         ? _imageId
         : IsDigestTag(_tag) ? $"{_repository}@{_tag}" : $"{_repository}:{_tag}";
@@ -77,9 +90,11 @@ namespace FluentDocker.Services.Impl
     }
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
+    /// <inheritdoc />
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CA1710
 
+    /// <inheritdoc />
     public async Task<Image> InspectAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -100,6 +115,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<IList<ImageLayer>> GetHistoryAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -120,6 +136,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <inheritdoc />
     public async Task TagAsync(string repository, string tag, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -138,6 +155,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task PushAsync(IProgress<ImagePushProgress> progress = null, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -156,6 +174,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task SaveAsync(string outputPath, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -182,6 +201,8 @@ namespace FluentDocker.Services.Impl
       return Task.CompletedTask;
     }
 
+    /// <summary>Images are static artifacts; pause is not a supported operation.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -189,6 +210,8 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Images cannot be paused");
     }
 
+    /// <summary>Images are static artifacts; stop is not a supported operation.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown; use <see cref="RemoveAsync"/> instead.</exception>
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -196,6 +219,7 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Images cannot be stopped, use RemoveAsync instead");
     }
 
+    /// <inheritdoc />
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -245,6 +269,7 @@ namespace FluentDocker.Services.Impl
         response.ErrorCode == ErrorCodes.Image.NotFound ||
         response.Error?.Contains("no such image", StringComparison.OrdinalIgnoreCase) == true;
 
+    /// <inheritdoc />
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       ThrowIfDisposed();
@@ -253,6 +278,7 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    /// <inheritdoc />
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();
@@ -263,6 +289,7 @@ namespace FluentDocker.Services.Impl
     private int _disposed;
     private int _disposeCompleted;
 
+    /// <inheritdoc />
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -279,6 +306,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)

@@ -67,17 +67,30 @@ namespace FluentDocker.Services.Impl
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
 
+    /// <inheritdoc />
     public string Name => _volumeName;
+
+    /// <inheritdoc />
     public ServiceRunningState State => _state;
+
+    /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
+
+    /// <inheritdoc />
     public string DriverId => _driverId;
+
+    /// <inheritdoc />
     public string VolumeName => _volumeName;
+
+    /// <inheritdoc />
     public string Driver => _driver;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
+    /// <inheritdoc />
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CA1710
 
+    /// <inheritdoc />
     public async Task<Volume> InspectAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -106,6 +119,8 @@ namespace FluentDocker.Services.Impl
       return Task.CompletedTask;
     }
 
+    /// <summary>Volumes are static storage resources; pause is not a supported operation.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -113,6 +128,8 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Volumes cannot be paused");
     }
 
+    /// <summary>Volumes are static storage resources; stop is not a supported operation.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown; use <see cref="RemoveAsync"/> instead.</exception>
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -120,6 +137,7 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Volumes cannot be stopped, use RemoveAsync instead");
     }
 
+    /// <inheritdoc />
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -172,6 +190,7 @@ namespace FluentDocker.Services.Impl
         (response.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true &&
          response.Error.Contains(_volumeName, StringComparison.OrdinalIgnoreCase));
 
+    /// <inheritdoc />
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       ThrowIfDisposed();
@@ -180,6 +199,7 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    /// <inheritdoc />
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();
@@ -190,6 +210,7 @@ namespace FluentDocker.Services.Impl
     private int _disposed;
     private int _disposeCompleted;
 
+    /// <inheritdoc />
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -206,6 +227,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)

@@ -9,6 +9,7 @@ namespace FluentDocker.Services.Impl
 {
   public partial class ComposeService
   {
+    /// <inheritdoc />
     public async Task UnpauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();

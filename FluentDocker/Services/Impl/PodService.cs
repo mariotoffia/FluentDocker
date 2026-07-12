@@ -63,16 +63,27 @@ namespace FluentDocker.Services.Impl
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     }
 
+    /// <inheritdoc />
     public string Name => _podName;
+
+    /// <inheritdoc />
     public string Id => _podId;
+
+    /// <inheritdoc />
     public ServiceRunningState State => _state;
+
+    /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
+
+    /// <inheritdoc />
     public string DriverId => _driverId;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
+    /// <inheritdoc />
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CA1710
 
+    /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -109,6 +120,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
       await StopAsync(timeoutSeconds: 10, cancellationToken).ConfigureAwait(false);
@@ -158,6 +170,8 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <summary>Pausing a pod as a whole is not exposed by the builder surface.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -165,6 +179,7 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Pods cannot be paused via builder");
     }
 
+    /// <inheritdoc />
     public async Task RemoveAsync(
         bool force = false, CancellationToken cancellationToken = default)
     {
@@ -208,6 +223,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public IServiceAsync AddHook(
         ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
@@ -217,6 +233,7 @@ namespace FluentDocker.Services.Impl
       return this;
     }
 
+    /// <inheritdoc />
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();
@@ -227,6 +244,7 @@ namespace FluentDocker.Services.Impl
     private int _disposed;
     private int _disposeCompleted;
 
+    /// <inheritdoc />
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -243,6 +261,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)

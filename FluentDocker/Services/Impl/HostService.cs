@@ -51,20 +51,33 @@ namespace FluentDocker.Services.Impl
       _requireTls = requireTls;
     }
 
+    /// <inheritdoc />
     public string Name => _hostName;
+
+    /// <inheritdoc />
     public ServiceRunningState State => _state;
+
+    /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
+
+    /// <inheritdoc />
     public string DriverId => _driverId;
+
+    /// <inheritdoc />
     public bool IsNative => _isNative;
+
+    /// <inheritdoc />
     public bool RequireTls => _requireTls;
 
     // Host services have a fixed Running state — event is required by IServiceAsync but never raised.
 #pragma warning disable CS0067, CA1710
+    /// <inheritdoc />
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CS0067, CA1710
 
     #region System Information
 
+    /// <inheritdoc />
     public async Task<SystemInfo> GetSystemInfoAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -85,6 +98,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<VersionInfo> GetVersionAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -105,6 +119,7 @@ namespace FluentDocker.Services.Impl
       return response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<bool> PingAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -116,6 +131,7 @@ namespace FluentDocker.Services.Impl
       return response.Success;
     }
 
+    /// <inheritdoc />
     public async Task<DiskUsageInfo> GetDiskUsageAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -140,11 +156,13 @@ namespace FluentDocker.Services.Impl
 
     #region Container Management
 
+    /// <inheritdoc />
     public async Task<IList<IContainerService>> GetRunningContainersAsync(CancellationToken cancellationToken = default)
     {
       return await GetContainersAsync(false, null, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<IList<IContainerService>> GetContainersAsync(
         bool all = true,
         IDictionary<string, string> filters = null,
@@ -195,6 +213,7 @@ namespace FluentDocker.Services.Impl
       return services;
     }
 
+    /// <inheritdoc />
     public async Task<IContainerService> CreateContainerAsync(
         string image,
         ContainerCreateOptions config = null,
@@ -300,6 +319,8 @@ namespace FluentDocker.Services.Impl
       return Task.CompletedTask;
     }
 
+    /// <summary>The host itself cannot be paused.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public Task PauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -307,6 +328,8 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Docker hosts cannot be paused");
     }
 
+    /// <summary>A native Docker host cannot be stopped through this service.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -314,6 +337,8 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Native Docker hosts cannot be stopped");
     }
 
+    /// <summary>A native Docker host cannot be removed through this service.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -321,12 +346,16 @@ namespace FluentDocker.Services.Impl
       throw new FluentDockerNotSupportedException("Native Docker hosts cannot be removed");
     }
 
+    /// <summary>Hosts have a fixed <see cref="ServiceRunningState.Running"/> state, so hooks would never fire.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("HostService has a fixed Running state and does not support hooks.");
     }
 
+    /// <summary>Hosts have a fixed <see cref="ServiceRunningState.Running"/> state, so hooks would never fire.</summary>
+    /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();
@@ -335,6 +364,7 @@ namespace FluentDocker.Services.Impl
 
     private int _disposed;
 
+    /// <inheritdoc />
     public void Dispose()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
@@ -344,6 +374,7 @@ namespace FluentDocker.Services.Impl
       GC.SuppressFinalize(this);
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)

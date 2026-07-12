@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,27 +38,7 @@ namespace FluentDocker.Services.Impl
     private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Unknown;
 
-    // Short-lived inspect cache to avoid redundant API/CLI calls during wait polling.
-    // Thread-safety: Single immutable record reference ensures atomic read/write
-    // of both data and timestamp together, preventing torn reads.
-    // The _cacheVersion counter prevents stale writes: if a state change occurs
-    // while an InspectAsync is in-flight, the result is discarded rather than cached.
-    private volatile InspectCacheEntry _inspectCacheEntry;
-    private volatile int _cacheVersion;
     private int _disposeRemoveVersion;
-    private int _inspectSequence;
-    private int _lastAppliedInspectSequence;
-
-    /// <summary>
-    /// Immutable cache entry pairing inspect data with its timestamp.
-    /// Using a single reference ensures atomic reads/writes.
-    /// </summary>
-    private sealed record InspectCacheEntry(Container Data, long Timestamp);
-
-    /// <summary>
-    /// Time-to-live in milliseconds for the InspectAsync result cache.
-    /// </summary>
-    public const long InspectCacheTtlMs = 500;
 
     /// <summary>
     /// Default upper bound, in milliseconds, for the stop/remove cleanup performed during
@@ -129,11 +108,22 @@ namespace FluentDocker.Services.Impl
             "Dispose cleanup timeout must be a positive, finite duration.");
     }
 
+    /// <inheritdoc />
     public string Name => _name;
+
+    /// <inheritdoc />
     public ServiceRunningState State => _state;
+
+    /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
+
+    /// <inheritdoc />
     public string DriverId => _driverId;
+
+    /// <inheritdoc />
     public string Id => _containerId;
+
+    /// <inheritdoc />
     public string Image => _image;
 
     // IServiceCapabilities
@@ -144,9 +134,11 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanHook => true;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
+    /// <inheritdoc />
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CA1710
 
+    /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -198,6 +190,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task PauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -231,6 +224,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task UnpauseAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -273,6 +267,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
       await StopCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
@@ -322,6 +317,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -371,6 +367,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    /// <inheritdoc />
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
       await RemoveCoreAsync(
@@ -378,88 +375,19 @@ namespace FluentDocker.Services.Impl
           throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Removes the container, overriding the constructor's <c>deleteVolumeOnDispose</c> choice for
+    /// anonymous volume removal on this call only.
+    /// </summary>
+    /// <param name="force">When true, removes a running container without stopping it first.</param>
+    /// <param name="removeVolumes">When true, also removes anonymous volumes owned by the container.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task RemoveAsync(
         bool force, bool removeVolumes, CancellationToken cancellationToken = default)
     {
       await RemoveCoreAsync(
           force, skipExecuteLifecycleHooks: false, removeVolumes,
           throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<Container> InspectAsync(CancellationToken cancellationToken = default)
-    {
-      cancellationToken.ThrowIfCancellationRequested();
-      ThrowIfDisposed();
-      // Return cached result if still valid (reduces redundant calls during wait polling).
-      // Single volatile reference read ensures data and timestamp are always consistent.
-      var entry = _inspectCacheEntry;
-      var now = Stopwatch.GetTimestamp();
-      if (entry != null &&
-          Stopwatch.GetElapsedTime(entry.Timestamp, now).TotalMilliseconds < InspectCacheTtlMs)
-      {
-        return entry.Data;
-      }
-
-      // Capture the cache version before the async call. If a state change
-      // occurs during the fetch, the version will have incremented and we
-      // must not store the now-stale result in the cache.
-      var versionBefore = _cacheVersion;
-      var inspectSequence = Interlocked.Increment(ref _inspectSequence);
-
-      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
-      var context = new DriverContext(_driverId);
-
-      var response = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
-      {
-        if (IsContainerAlreadyGone(response))
-          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
-        throw new DriverException(
-            $"Failed to inspect container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
-
-      await ApplyInspectResultIfVersionCurrentAsync(versionBefore, inspectSequence, response.Data)
-          .ConfigureAwait(false);
-
-      return response.Data;
-    }
-
-    private async Task ApplyInspectResultIfVersionCurrentAsync(int versionBefore, int inspectSequence, Container data)
-    {
-      ServiceDelegates.StateChange stateChange = null;
-      StateChangeEventArgs args = null;
-      ServiceRunningState? changedState = null;
-      lock (_stateLock)
-      {
-        if (Volatile.Read(ref _disposeCompleted) != 0 ||
-            versionBefore != _cacheVersion ||
-            inspectSequence < _lastAppliedInspectSequence)
-          return;
-
-        _lastAppliedInspectSequence = inspectSequence;
-        if (data?.State != null)
-        {
-          var newState = ParseInspectState(data.State);
-          if (_state != newState)
-          {
-            _state = newState;
-            changedState = newState;
-            stateChange = StateChange;
-            args = stateChange == null ? null : new StateChangeEventArgs(this, newState);
-          }
-        }
-
-        _inspectCacheEntry = new InspectCacheEntry(data, Stopwatch.GetTimestamp());
-      }
-
-      if (stateChange != null)
-        StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
-
-      if (changedState.HasValue)
-        await ExecuteHooksAsync(changedState.Value).ConfigureAwait(false);
     }
 
     private static ServiceRunningState ParseInspectState(ContainerState? state) =>

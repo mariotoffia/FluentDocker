@@ -16,6 +16,7 @@ namespace FluentDocker.Services.Impl
   {
     #region Image Management
 
+    /// <inheritdoc />
     public async Task<IList<IImageService>> GetImagesAsync(
         bool all = true,
         ImageListFilter filter = null,
@@ -54,6 +55,11 @@ namespace FluentDocker.Services.Impl
       return services;
     }
 
+    /// <inheritdoc />
+    /// <exception cref="ArgumentException">
+    /// <paramref name="image"/> already carries an explicit tag that conflicts with a non-default
+    /// <paramref name="tag"/> argument.
+    /// </exception>
     public async Task<IImageService> PullImageAsync(
         string image,
         string tag = "latest",
@@ -113,6 +119,7 @@ namespace FluentDocker.Services.Impl
           isDigest ? image[(digestSeparator + 1)..] : pullTag);
     }
 
+    /// <inheritdoc />
     public async Task<IImageService> BuildImageAsync(
         ImageBuildConfig config,
         IProgress<ImageBuildProgress> progress = null,
@@ -147,6 +154,7 @@ namespace FluentDocker.Services.Impl
 
     #region Network Management
 
+    /// <inheritdoc />
     public async Task<IList<INetworkService>> GetNetworksAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -177,6 +185,7 @@ namespace FluentDocker.Services.Impl
       return services;
     }
 
+    /// <inheritdoc />
     public async Task<INetworkService> CreateNetworkAsync(
         string name,
         NetworkCreateConfig config = null,
@@ -211,6 +220,7 @@ namespace FluentDocker.Services.Impl
 
     #region Volume Management
 
+    /// <inheritdoc />
     public async Task<IList<IVolumeService>> GetVolumesAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -241,6 +251,7 @@ namespace FluentDocker.Services.Impl
       return services;
     }
 
+    /// <inheritdoc />
     public async Task<IVolumeService> CreateVolumeAsync(
         string name = null,
         string driver = "local",
@@ -282,6 +293,7 @@ namespace FluentDocker.Services.Impl
 
     #region Maintenance
 
+    /// <inheritdoc />
     public async Task<SystemPruneResult> PruneAsync(
         SystemPruneConfig config = null,
         CancellationToken cancellationToken = default)
