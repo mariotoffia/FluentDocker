@@ -9,6 +9,10 @@ namespace FluentDocker.Model.Events
   [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public sealed class NetworkDisconnectEvent : FdEvent<NetworkDisconnectEvent.NetworkDisconnectActor>
   {
+    /// <summary>
+    /// Creates the event with <see cref="FdEvent.Action"/> set to <see cref="EventAction.Disconnect"/> and
+    /// <see cref="FdEvent.Type"/> set to <see cref="EventType.Network"/>.
+    /// </summary>
     public NetworkDisconnectEvent()
     {
       Action = EventAction.Disconnect;

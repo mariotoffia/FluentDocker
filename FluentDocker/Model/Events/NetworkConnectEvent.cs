@@ -9,6 +9,10 @@ namespace FluentDocker.Model.Events
   [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public sealed class NetworkConnectEvent : FdEvent<NetworkConnectEvent.NetworkConnectActor>
   {
+    /// <summary>
+    /// Creates the event with <see cref="FdEvent.Action"/> set to <see cref="EventAction.Connect"/> and
+    /// <see cref="FdEvent.Type"/> set to <see cref="EventType.Network"/>.
+    /// </summary>
     public NetworkConnectEvent()
     {
       Action = EventAction.Connect;

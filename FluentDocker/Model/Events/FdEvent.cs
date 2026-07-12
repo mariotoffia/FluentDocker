@@ -3,6 +3,9 @@ using System;
 
 namespace FluentDocker.Model.Events
 {
+  /// <summary>
+  /// Non-generic base of a Docker event; holds the fields common to every event kind.
+  /// </summary>
   [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public abstract class FdEvent
   {

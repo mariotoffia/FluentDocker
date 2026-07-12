@@ -1,9 +1,13 @@
 #nullable enable
 namespace FluentDocker.Model.Stacks
 {
+  /// <summary>
+  /// A single row from <c>docker stack ps</c> output, describing one task instance of a deployed stack.
+  /// </summary>
   [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use IStackDriver task response models instead.")]
   public class StackPsResponse
   {
+    /// <summary>The task's unique ID.</summary>
     public string Id { get; set; } = null!;
     /// <summary>
     /// The stack that this <see cref="Name"/> belongs to.

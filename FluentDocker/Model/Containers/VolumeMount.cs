@@ -3,6 +3,10 @@ using System.Text;
 
 namespace FluentDocker.Model.Containers
 {
+  /// <summary>
+  /// A single bind-mount/volume specification, e.g. the <c>source:destination:mode</c> form
+  /// accepted by <c>docker run -v</c>.
+  /// </summary>
   public sealed class VolumeMount
   {
     /// <summary>
@@ -25,6 +29,10 @@ namespace FluentDocker.Model.Containers
     /// </summary>
     public bool Rw { get; set; }
 
+    /// <summary>
+    /// Renders the mount in <c>source:destination:mode,rw|ro</c> form, omitting empty segments.
+    /// </summary>
+    /// <returns>The Docker CLI-compatible volume specification string.</returns>
     public override string ToString()
     {
       var sb = new StringBuilder();

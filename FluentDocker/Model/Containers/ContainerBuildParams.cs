@@ -5,6 +5,9 @@ using FluentDocker.Extensions;
 
 namespace FluentDocker.Model.Containers
 {
+  /// <summary>
+  /// Legacy <c>docker build</c> command-line options, rendered via <see cref="ToString"/>.
+  /// </summary>
   [System.Obsolete("Test-only; unused by FluentDocker and scheduled for removal in a future release.")]
   public sealed class ContainerBuildParams
   {

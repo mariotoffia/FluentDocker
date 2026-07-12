@@ -12,6 +12,13 @@ namespace FluentDocker.Model.Events
   [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public sealed class UnknownEvent : FdEvent<UnknownEvent.UnknownActor>
   {
+    /// <summary>
+    /// Creates the event from the raw action/type strings gathered from the event stream, resolving them to
+    /// <see cref="EventAction"/>/<see cref="EventType"/> where possible (falling back to
+    /// <see cref="EventAction.Unspecified"/>/<see cref="EventType.Generic"/> otherwise).
+    /// </summary>
+    /// <param name="action">The raw, unparsed action string from the event stream.</param>
+    /// <param name="type">The raw, unparsed type string from the event stream.</param>
     public UnknownEvent(string action, string type)
     {
       if (!Enum.TryParse<EventAction>(action, true, out var enumAction) ||

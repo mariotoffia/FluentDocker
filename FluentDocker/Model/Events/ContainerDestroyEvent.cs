@@ -7,6 +7,10 @@ namespace FluentDocker.Model.Events
   [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public sealed class ContainerDestroyEvent : FdEvent<ContainerDestroyEvent.ContainerDestroyActor>
   {
+    /// <summary>
+    /// Creates the event with <see cref="FdEvent.Action"/> set to <see cref="EventAction.Destroy"/> and
+    /// <see cref="FdEvent.Type"/> set to <see cref="EventType.Container"/>.
+    /// </summary>
     public ContainerDestroyEvent()
     {
       Action = EventAction.Destroy;

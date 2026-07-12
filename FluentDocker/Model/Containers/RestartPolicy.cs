@@ -1,6 +1,9 @@
 #nullable enable
 namespace FluentDocker.Model.Containers
 {
+  /// <summary>
+  /// Container restart policy, equivalent to Docker's <c>--restart</c> run flag.
+  /// </summary>
   public enum RestartPolicy
   {
     /// <summary>
