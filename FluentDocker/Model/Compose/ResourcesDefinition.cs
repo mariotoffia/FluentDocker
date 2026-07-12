@@ -20,7 +20,9 @@ namespace FluentDocker.Model.Compose
   /// </remarks>
   public sealed class ResourcesDefinition
   {
+    /// <summary>The <c>limits</c> key: the upper bound on CPU/memory the service's containers may use.</summary>
     public ResourcesItemDefinition? Limits { get; set; }
+    /// <summary>The <c>reservations</c> key: the CPU/memory guaranteed to be available to the service's containers.</summary>
     public ResourcesItemDefinition? Reservations { get; set; }
   }
 }

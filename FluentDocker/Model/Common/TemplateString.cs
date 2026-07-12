@@ -42,6 +42,9 @@ namespace FluentDocker.Model.Common
           {"${PWD}", Directory.GetCurrentDirectory}
         };
 
+    /// <summary>Creates a <see cref="TemplateString"/>, expanding any recognized template tokens immediately.</summary>
+    /// <param name="str">The template source string.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="str"/> is <c>null</c>.</exception>
     public TemplateString(string str)
     {
       ArgumentNullException.ThrowIfNull(str);
@@ -88,25 +91,33 @@ namespace FluentDocker.Model.Common
       });
     }
 
+    /// <summary>Wraps a string as a <see cref="TemplateString"/>, rendering its templates; <c>null</c> input yields <c>null</c>.</summary>
     public static implicit operator TemplateString?(string? str) => null == str ? null : new TemplateString(str);
 
+    /// <summary>Unwraps a <see cref="TemplateString"/> to its <see cref="Rendered"/> value; <c>null</c> input yields <c>null</c>.</summary>
     public static implicit operator string?(TemplateString? str) => str?.Rendered;
 
+    /// <summary>Returns the <see cref="Rendered"/> string.</summary>
     public override string ToString()
     {
       return Rendered;
     }
 
+    /// <summary>Compares two template strings by their <see cref="Rendered"/> value (ordinal, case-sensitive).</summary>
     public bool Equals(TemplateString? other) =>
         other is not null && string.Equals(Rendered, other.Rendered, StringComparison.Ordinal);
 
+    /// <summary>Compares two template strings by their <see cref="Rendered"/> value; <c>false</c> if <paramref name="obj"/> is not a <see cref="TemplateString"/>.</summary>
     public override bool Equals(object? obj) => Equals(obj as TemplateString);
 
+    /// <summary>Returns the ordinal hash code of the <see cref="Rendered"/> value.</summary>
     public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Rendered);
 
+    /// <summary>Compares two template strings by their <see cref="Rendered"/> value; either side may be <c>null</c>.</summary>
     public static bool operator ==(TemplateString? left, TemplateString? right) =>
         left is null ? right is null : left.Equals(right);
 
+    /// <summary>Value inequality operator; the negation of <c>==</c>.</summary>
     public static bool operator !=(TemplateString? left, TemplateString? right) => !(left == right);
 
     [GeneratedRegex(@"\$\{E_(?<name>[^}]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant)]

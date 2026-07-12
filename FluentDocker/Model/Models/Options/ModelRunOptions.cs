@@ -42,13 +42,14 @@ namespace FluentDocker.Model.Models.Options
     /// <summary>Enable the web-search tool for the session (<c>--websearch</c>).</summary>
     public bool WebSearch { get; init; }
 
+    private int? _contextSize;
+
     /// <summary>
     /// Configure-only: persistent context window applied via <c>docker model configure
     /// --context-size N</c> BEFORE the run (there is no <c>run</c> flag for it). <c>null</c>
     /// leaves it unchanged.
     /// </summary>
-    private int? _contextSize;
-
+    /// <exception cref="ArgumentOutOfRangeException">The assigned value is zero or negative.</exception>
     public int? ContextSize
     {
       get => _contextSize;

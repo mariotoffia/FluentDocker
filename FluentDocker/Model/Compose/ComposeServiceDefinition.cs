@@ -26,8 +26,11 @@ namespace FluentDocker.Model.Compose
   /// </remarks>
   public sealed class ComposeServiceDefinition
   {
+    /// <summary>The compose service name (the key under the top-level <c>services</c> map).</summary>
     public string? Name { get; set; }
+    /// <summary>The <c>build</c> key: how to build this service's image from source; <c>null</c> when the service uses <see cref="Image"/> instead.</summary>
     public BuildDefinition? Build { get; set; }
+    /// <summary>The <c>restart</c> key: the container restart policy.</summary>
     public RestartPolicy Restart { get; set; }
     /// <summary>
     /// Add container capabilities. See man 7 capabilities for a full list.

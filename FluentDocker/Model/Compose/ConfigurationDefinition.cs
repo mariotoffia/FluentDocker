@@ -11,6 +11,7 @@ namespace FluentDocker.Model.Compose
   /// </remarks>
   public sealed class ConfigurationDefinition
   {
+    /// <summary>The named configs, keyed by config name (the entries under the top-level <c>configs</c> map).</summary>
     public IDictionary<string, ConfigurationItemDefinition> Items { get; set; } =
       new Dictionary<string, ConfigurationItemDefinition>();
   }

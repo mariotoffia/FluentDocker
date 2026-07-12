@@ -17,6 +17,8 @@ namespace FluentDocker.Model.Common
     private const string DockerHostUrlWindowsNativeCanonical = "npipe:////./pipe/docker_engine";
     private const string DockerHostUrlMacOrLinux = "unix:///var/run/docker.sock";
 
+    /// <summary>Creates a <see cref="DockerUri"/> from a Docker daemon URI string (e.g. <c>unix:///var/run/docker.sock</c>, <c>npipe://./pipe/docker_engine</c>, <c>tcp://host:2375</c>).</summary>
+    /// <param name="uriString">The daemon URI to parse.</param>
     public DockerUri(string uriString) : base(uriString)
     {
       if (uriString == DockerHostUrlMacOrLinux ||
@@ -55,6 +57,11 @@ namespace FluentDocker.Model.Common
     /// </remarks>
     public bool IsStandardDaemon { get; }
 
+    /// <summary>
+    /// Renders the URI back to its daemon-connection string form, preserving the quirks
+    /// <see cref="Uri"/> normalization would otherwise mangle (trailing slash on <c>ssh</c>,
+    /// <c>npipe</c> authority slashes and custom/Podman pipe names).
+    /// </summary>
     public override string ToString()
     {
       var baseString = base.ToString();

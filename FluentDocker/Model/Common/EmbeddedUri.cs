@@ -3,6 +3,10 @@ using System;
 
 namespace FluentDocker.Model.Common
 {
+  /// <summary>
+  /// Uri identifying a resource embedded in a .NET assembly, on the format
+  /// <c>emb:AssemblyName/namespace/resource</c>.
+  /// </summary>
   public sealed class EmbeddedUri : Uri
   {
     internal const string Prefix = "emb";
@@ -24,8 +28,11 @@ namespace FluentDocker.Model.Common
       Resource = parts.Resource;
     }
 
+    /// <summary>The assembly name segment of the embedded URI.</summary>
     public string Assembly => _assembly;
+    /// <summary>The namespace segment identifying where the resource is embedded.</summary>
     public string Namespace { get; }
+    /// <summary>The resource name segment; <c>null</c> when the URI only specifies assembly and namespace.</summary>
     public string? Resource { get; }
 
     /// <summary>Returns whether the value can be parsed as an embedded-resource URI.</summary>
@@ -34,6 +41,8 @@ namespace FluentDocker.Model.Common
       return TryParseParts(embedded, out _);
     }
 
+    /// <summary>Parses a string as an <see cref="EmbeddedUri"/>; <c>null</c> input yields <c>null</c>.</summary>
+    /// <exception cref="ArgumentException"><paramref name="uri"/> is not a valid <c>emb:</c> URI.</exception>
     public static implicit operator EmbeddedUri?(string? uri)
     {
       if (null == uri)

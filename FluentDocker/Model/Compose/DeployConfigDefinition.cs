@@ -1,6 +1,10 @@
 #nullable enable
 namespace FluentDocker.Model.Compose
 {
+  /// <summary>
+  /// Shared shape for the <c>deploy.update_config</c> and <c>deploy.rollback_config</c> keys: how a
+  /// swarm update or rollback is rolled out across a service's containers.
+  /// </summary>
   public sealed class DeployConfigDefinition
   {
     /// <summary>

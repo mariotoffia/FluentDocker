@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace FluentDocker.Model.Compose
 {
+  /// <summary>
+  /// Compose service <c>build</c> key: how to build an image from source instead of pulling one.
+  /// </summary>
   public sealed class BuildDefinition
   {
     /// <summary>

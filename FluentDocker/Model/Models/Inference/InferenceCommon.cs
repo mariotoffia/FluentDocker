@@ -73,14 +73,21 @@ namespace FluentDocker.Model.Models.Inference
     }
   }
 
+  /// <summary>
+  /// STJ converter backing <see cref="ChatMessage.RawContent"/>: reads/writes the <c>content</c> value
+  /// verbatim as a <see cref="JsonElement"/> regardless of whether it is a string, array, or object,
+  /// so multimodal/non-text content parts round-trip unchanged. (Preview)
+  /// </summary>
   public sealed class ChatMessageRawContentConverter : JsonConverter<JsonElement?>
   {
+    /// <summary>Clones the current JSON value (of any kind) into a standalone <see cref="JsonElement"/>.</summary>
     public override JsonElement? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
       using var doc = JsonDocument.ParseValue(ref reader);
       return doc.RootElement.Clone();
     }
 
+    /// <summary>Writes <paramref name="value"/> back out verbatim, or JSON <c>null</c> when unset.</summary>
     public override void Write(Utf8JsonWriter writer, JsonElement? value, JsonSerializerOptions options)
     {
       if (value is null)

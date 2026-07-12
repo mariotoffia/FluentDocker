@@ -61,9 +61,13 @@ namespace FluentDocker.Model.Compose
     /// </remarks>
     public int Replicas { get; set; } = 1;
 
+    /// <summary>The <c>resources</c> key: CPU and memory limits/reservations for the service's containers.</summary>
     public ResourcesDefinition? Resources { get; set; }
+    /// <summary>The <c>restart_policy</c> key: if and how to restart containers when they exit.</summary>
     public RestartPolicyDefinition? RestartPolicy { get; set; }
+    /// <summary>The <c>rollback_config</c> key: how to roll containers back to the previous version.</summary>
     public DeployConfigDefinition? RollbackConfig { get; set; }
+    /// <summary>The <c>update_config</c> key: how to roll out changes to the service's containers.</summary>
     public DeployConfigDefinition? UpdateConfig { get; set; }
   }
 }
