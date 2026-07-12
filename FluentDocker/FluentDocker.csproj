@@ -16,8 +16,9 @@
     <PackageTags>Docker;Podman;Docker Compose;Docker Swarm;Docker API;Kubernetes;Container;Linux;Windows;Mac;Fluent;NET</PackageTags>
     <Description>Fluent API to manage Docker and Podman containers, images, networks, and volumes via CLI or Docker Engine API. Supports Docker Compose, Docker Swarm, Podman Kubernetes YAML, multi-driver kernel architecture, and runs on Windows, Mac, and Linux.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Suppress CS1591 (missing XML doc) globally; non-Docker-API areas still need a docs pass. -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- CS1591 (missing XML doc) is promoted to a build ERROR: the public API is fully
+         documented (docs batches A-F); this keeps it that way. -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

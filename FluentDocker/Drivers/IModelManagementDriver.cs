@@ -23,6 +23,7 @@ namespace FluentDocker.Drivers
     /// <param name="progress">An optional progress sink.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The pulled model's info.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<ModelInfo>> PullAsync(DriverContext context,
         ModelReference model, IProgress<ModelPullProgress> progress = null,
         CancellationToken cancellationToken = default);
@@ -39,6 +40,7 @@ namespace FluentDocker.Drivers
     /// <param name="model">The model reference.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The model info.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<ModelInfo>> InspectAsync(DriverContext context,
         ModelReference model, CancellationToken cancellationToken = default);
 
@@ -48,6 +50,7 @@ namespace FluentDocker.Drivers
     /// <param name="force">Whether to force removal.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<Unit>> RemoveAsync(DriverContext context,
         ModelReference model, bool force = false,
         CancellationToken cancellationToken = default);
@@ -58,6 +61,9 @@ namespace FluentDocker.Drivers
     /// <param name="target">The target reference.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
+    /// <exception cref="System.ArgumentNullException">
+    /// <paramref name="source"/> or <paramref name="target"/> is null.
+    /// </exception>
     Task<CommandResponse<Unit>> TagAsync(DriverContext context,
         ModelReference source, ModelReference target,
         CancellationToken cancellationToken = default);
@@ -67,6 +73,7 @@ namespace FluentDocker.Drivers
     /// <param name="model">The model reference.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<Unit>> PushAsync(DriverContext context,
         ModelReference model, CancellationToken cancellationToken = default);
 
@@ -79,6 +86,7 @@ namespace FluentDocker.Drivers
     /// <see cref="ModelInfo.Reference"/> mirrors <see cref="ModelPackageRequest.Target"/>
     /// and may be <c>null</c> when the request omitted a target.
     /// </returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is null.</exception>
     Task<CommandResponse<ModelInfo>> PackageAsync(DriverContext context,
         ModelPackageRequest request, CancellationToken cancellationToken = default);
 

@@ -85,6 +85,7 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 - **`ModelApiConnectionConfig.CertificatePath` requires an `https` endpoint.** Configuring client certificates against a plaintext `http` model-runner endpoint now throws `ArgumentException` instead of silently rewriting the scheme to `https`.
 - **Chat message content is now multimodal-safe.** `ChatMessage.Content` (string) became a convenience text projection over a new `ChatMessage.RawContent` (`System.Text.Json.JsonElement?`, serialized as the `content` field). Inbound multimodal / array content (e.g. `image_url` parts) is preserved verbatim on round-trip instead of being flattened to text and dropped; set `RawContent` to send multimodal / non-text content. The `ChatMessageContentConverter` type was renamed `ChatMessageRawContentConverter`.
 - **Compose process listing.** `ComposeProcesses.ContainerId` may now be `null` (name-join fallback) and a new `ContainerName` field is populated. `ContainerListFilter.Limit` now implies all-states (via `--last`) and ignores values `<= 0` (Docker CLI and Podman).
+- **Missing XML docs now fail the build.** `CS1591` is no longer suppressed in `FluentDocker.csproj`; it is promoted to a build error (`WarningsAsErrors`), so an undocumented public member fails `make build` / `make check` instead of silently shipping without IntelliSense docs.
 
 ### Deprecated
 

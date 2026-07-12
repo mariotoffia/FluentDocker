@@ -42,6 +42,7 @@ namespace FluentDocker.Drivers
     /// <param name="options">Run options.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<Unit>> LoadAsync(DriverContext context,
         ModelReference model, ModelRunOptions options = null,
         CancellationToken cancellationToken = default);
@@ -51,6 +52,7 @@ namespace FluentDocker.Drivers
     /// <param name="model">The model reference.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<Unit>> UnloadAsync(DriverContext context,
         ModelReference model,
         CancellationToken cancellationToken = default);
@@ -68,6 +70,7 @@ namespace FluentDocker.Drivers
     /// <param name="options">The configuration options.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<Unit>> ConfigureAsync(DriverContext context,
         ModelReference model, ModelConfigureOptions options,
         CancellationToken cancellationToken = default);
