@@ -24,6 +24,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     private const int MaxStatsJsonBufferChars = 4 * 1024 * 1024;
     private int _detailsWarningLogged;
 
+    /// <summary>Creates a new instance with the specified binary resolver.</summary>
     public PodmanCliStreamDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
     }

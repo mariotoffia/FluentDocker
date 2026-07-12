@@ -15,6 +15,21 @@ namespace FluentDocker.Drivers.Docker.Cli
 {
   public abstract partial class DockerCliDriverBase
   {
+    /// <summary>
+    /// Executes a streaming Docker command using the given driver context, pumping stdout and
+    /// stderr concurrently and yielding each as a source-tagged <see cref="LogEntry"/> in
+    /// arrival order. Both pipes are always drained (so a chatty stream on the suppressed side
+    /// cannot deadlock the child), but only the streams selected by <paramref name="stdout"/> /
+    /// <paramref name="stderr"/> are yielded. A short tail of recent lines is retained to
+    /// enrich the exception message if the process exits non-zero.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="stdout">Whether stdout lines are yielded.</param>
+    /// <param name="stderr">Whether stderr lines are yielded.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Async enumerable of source-tagged log entries, in arrival order.</returns>
+    /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<LogEntry> ExecuteStreamingCommandWithSourcesAsync(
         DriverContext context,
         string arguments,

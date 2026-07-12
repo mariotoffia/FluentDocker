@@ -18,6 +18,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// </summary>
   public partial class DockerApiImageDriver : DockerApiDriverBase, IImageDriver
   {
+    /// <summary>Creates the driver over an existing Docker API connection.</summary>
     public DockerApiImageDriver(IDockerApiConnection connection) : base(connection) { }
     #region List/Inspect Operations
     /// <summary>Lists images via GET /images/json.</summary>

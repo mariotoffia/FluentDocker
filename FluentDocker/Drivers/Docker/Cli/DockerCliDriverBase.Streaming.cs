@@ -87,6 +87,16 @@ namespace FluentDocker.Drivers.Docker.Cli
         yield return line;
     }
 
+    /// <summary>
+    /// Executes a streaming Docker command using the given driver context, interleaving
+    /// stdout and stderr lines into a single arrival-ordered sequence so progress text on
+    /// stderr (e.g. <c>docker model pull</c>) is actually observed.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Async enumerable of stdout and stderr lines, in arrival order.</returns>
+    /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
         DriverContext context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {

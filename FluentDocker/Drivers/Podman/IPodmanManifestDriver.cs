@@ -187,8 +187,13 @@ namespace FluentDocker.Drivers.Podman
   /// </summary>
   public class ManifestInspectResult
   {
+    /// <summary>OCI image index schema version (the manifest list JSON's <c>schemaVersion</c> field; currently always 2).</summary>
     public int SchemaVersion { get; set; }
+
+    /// <summary>OCI/Docker media type of the manifest list itself (the JSON's <c>mediaType</c> field).</summary>
     public string MediaType { get; set; }
+
+    /// <summary>The platform-specific manifest entries this list points to (the JSON's <c>manifests</c> array).</summary>
     public List<ManifestEntry> Manifests { get; set; } = [];
   }
 
@@ -197,10 +202,19 @@ namespace FluentDocker.Drivers.Podman
   /// </summary>
   public class ManifestEntry
   {
+    /// <summary>Media type of the referenced image manifest (the entry's <c>mediaType</c> field).</summary>
     public string MediaType { get; set; }
+
+    /// <summary>Size in bytes of the referenced image manifest.</summary>
     public long Size { get; set; }
+
+    /// <summary>Content-addressable digest (e.g. <c>sha256:...</c>) of the referenced image manifest.</summary>
     public string Digest { get; set; }
+
+    /// <summary>The platform this entry targets.</summary>
     public ManifestPlatform Platform { get; set; }
+
+    /// <summary>OCI annotations attached to this entry.</summary>
     public Dictionary<string, string> Annotations { get; set; } = [];
   }
 
@@ -209,10 +223,19 @@ namespace FluentDocker.Drivers.Podman
   /// </summary>
   public class ManifestPlatform
   {
+    /// <summary>CPU architecture (e.g. <c>amd64</c>, <c>arm64</c>).</summary>
     public string Architecture { get; set; }
+
+    /// <summary>Target operating system (e.g. <c>linux</c>).</summary>
     public string Os { get; set; }
+
+    /// <summary>CPU variant, when applicable (e.g. <c>v7</c> for 32-bit ARM).</summary>
     public string Variant { get; set; }
+
+    /// <summary>Minimum target OS version, when specified.</summary>
     public string OsVersion { get; set; }
+
+    /// <summary>Required CPU/OS features, when specified.</summary>
     public List<string> Features { get; set; } = [];
   }
 

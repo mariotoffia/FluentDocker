@@ -3,6 +3,10 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace FluentDocker.Drivers.Models.Connection
 {
+  /// <summary>
+  /// Loads client (mTLS) certificates for the Model Runner API connection, working around
+  /// Windows SChannel's rejection of ephemeral-key certificates produced by PEM loading.
+  /// </summary>
   public static class ClientCertificateLoader
   {
     /// <summary>

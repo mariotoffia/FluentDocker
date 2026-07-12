@@ -21,6 +21,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// </summary>
   public partial class PodmanCliImageDriver : PodmanCliDriverBase, IImageDriver
   {
+    /// <summary>Creates a new instance with the specified binary resolver.</summary>
     public PodmanCliImageDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
     }
@@ -247,6 +248,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
     }
 
+    /// <summary>Builds the <c>podman images --format json</c> argument string for the given filter.</summary>
+    /// <param name="filter">List filter (reference, dangling, before, since, labels); null lists all images.</param>
+    /// <returns>The full <c>podman</c> argument string, including any <c>--filter</c> flags.</returns>
     public static string BuildImageListArgs(ImageListFilter filter)
     {
       var args = new StringBuilder("images --format json");

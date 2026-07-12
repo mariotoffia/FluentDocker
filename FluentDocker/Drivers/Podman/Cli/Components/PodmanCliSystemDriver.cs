@@ -13,6 +13,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// </summary>
   public partial class PodmanCliSystemDriver : PodmanCliDriverBase, ISystemDriver
   {
+    /// <summary>Creates a new instance with the specified binary resolver.</summary>
     public PodmanCliSystemDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
     }

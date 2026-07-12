@@ -13,6 +13,7 @@ namespace FluentDocker.Drivers.Docker.Api
 {
   public abstract partial class DockerApiDriverBase
   {
+    /// <summary>Extracts the HTTP status code from a transport exception, or 0 if none applies.</summary>
     protected static int HttpStatusCodeOrZero(Exception ex) =>
         ex switch
         {
@@ -21,9 +22,11 @@ namespace FluentDocker.Drivers.Docker.Api
           _ => 0
         };
 
+    /// <summary>Creates an empty <see cref="TailText"/> sized to the default CLI output tail.</summary>
     protected static TailText CreateOutputTail() =>
         new(CliOutputTruncation.DefaultTailChars);
 
+    /// <summary>Reads a stream to completion and returns its tail, truncated to the default size.</summary>
     protected static async Task<string> ReadTextTailAsync(
         Stream stream, CancellationToken cancellationToken)
     {
@@ -37,6 +40,7 @@ namespace FluentDocker.Drivers.Docker.Api
       return tail.ToText();
     }
 
+    /// <summary>Appends a line to <paramref name="output"/>, inserting a newline separator if it already has content.</summary>
     protected static void AppendOutputLine(TailText output, string line)
     {
       if (output.HasContent)
@@ -44,6 +48,7 @@ namespace FluentDocker.Drivers.Docker.Api
       output.Append(line.AsSpan());
     }
 
+    /// <summary>Splits the accumulated tail text into individual lines (normalizing CRLF to LF).</summary>
     protected static List<string> ToOutputLines(TailText output)
     {
       var text = output.ToText();
@@ -52,6 +57,12 @@ namespace FluentDocker.Drivers.Docker.Api
           : text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').ToList();
     }
 
+    /// <summary>
+    /// Fixed-capacity circular character buffer that retains only the most recent characters
+    /// appended to it, used to cap CLI/API output captured for error messages without
+    /// unbounded memory growth.
+    /// </summary>
+    /// <param name="maxChars">Maximum number of characters retained; older content is evicted first.</param>
     protected sealed class TailText(int maxChars)
     {
       private readonly char[] _buffer = new char[maxChars];
@@ -59,8 +70,10 @@ namespace FluentDocker.Drivers.Docker.Api
       private int _count;
       private bool _truncated;
 
+      /// <summary>True if any characters have been appended.</summary>
       public bool HasContent => _count > 0;
 
+      /// <summary>Appends characters, evicting the oldest content once capacity is exceeded.</summary>
       public void Append(ReadOnlySpan<char> chars)
       {
         if (chars.Length > _buffer.Length)
@@ -88,6 +101,7 @@ namespace FluentDocker.Drivers.Docker.Api
         }
       }
 
+      /// <summary>Renders the retained tail as text, prefixed with a truncation marker if content was evicted.</summary>
       public string ToText()
       {
         var chars = new char[_count];

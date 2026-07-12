@@ -212,6 +212,9 @@ namespace FluentDocker.Drivers
     public const string PlatformName = "platformName";
   }
 
+  /// <summary>
+  /// Cross-driver system information, mapped from <c>docker info</c> / <c>podman info</c>.
+  /// </summary>
   public class SystemInfo : RuntimeInfoBase
   {
     /// <summary>Operating system name (e.g., "Docker Desktop").</summary>
@@ -312,6 +315,9 @@ namespace FluentDocker.Drivers
     }
   }
 
+  /// <summary>
+  /// Cross-driver version information, mapped from <c>docker version</c> / <c>podman version</c>.
+  /// </summary>
   public class VersionInfo : RuntimeInfoBase
   {
     /// <summary>Client version.</summary>
@@ -370,6 +376,7 @@ namespace FluentDocker.Drivers
     }
   }
 
+  /// <summary>Disk usage breakdown by resource kind, returned by <see cref="ISystemDriver.GetDiskUsageAsync"/>.</summary>
   public class DiskUsageInfo
   {
     /// <summary>Disk space used by images.</summary>
@@ -391,6 +398,7 @@ namespace FluentDocker.Drivers
     public long Reclaimable { get; set; }
   }
 
+  /// <summary>Disk usage counters for a single resource kind (images, containers, volumes, or build cache).</summary>
   public class DiskUsageItem
   {
     /// <summary>Total count.</summary>
@@ -410,6 +418,7 @@ namespace FluentDocker.Drivers
 
   #region Config Types
 
+  /// <summary>Options for <see cref="ISystemDriver.PruneAsync"/>.</summary>
   public class SystemPruneConfig
   {
     /// <summary>Remove all unused images, not just dangling.</summary>
@@ -426,6 +435,7 @@ namespace FluentDocker.Drivers
 
   #region Result Types
 
+  /// <summary>Resources removed by a <see cref="ISystemDriver.PruneAsync"/> call.</summary>
   public class SystemPruneResult
   {
     /// <summary>Deleted container IDs.</summary>

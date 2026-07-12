@@ -75,6 +75,14 @@ namespace FluentDocker.Drivers.Docker.Cli
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
         => await ExecuteCommandAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Executes a Docker command asynchronously: spawns the process, buffers stdout/stderr
+    /// up to <see cref="MaxNonStreamingOutputBytes"/>, and waits for exit or the buffered timeout.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings and timeout.</param>
+    /// <param name="arguments">Command arguments (without the docker binary name).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         DriverContext context, string arguments, CancellationToken cancellationToken)
     {
@@ -92,6 +100,12 @@ namespace FluentDocker.Drivers.Docker.Cli
         string arguments, string stdinData, CancellationToken cancellationToken)
         => await ExecuteCommandAsync((DriverContext)null, arguments, stdinData, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>Executes a Docker command asynchronously with data piped to stdin, using the given driver context.</summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings and timeout.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="stdinData">Data written to the process's standard input after it starts.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         DriverContext context, string arguments, string stdinData, CancellationToken cancellationToken)
     {
@@ -111,6 +125,12 @@ namespace FluentDocker.Drivers.Docker.Cli
         CancellationToken cancellationToken)
         => await ExecuteCommandAsync((DriverContext)null, arguments, environment, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>Executes a Docker command asynchronously with additional environment variables, using the given driver context.</summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings and timeout.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="environment">Extra environment variables merged into the child process.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         DriverContext context,
         string arguments,
@@ -134,6 +154,18 @@ namespace FluentDocker.Drivers.Docker.Cli
         string arguments, TimeSpan timeout, CancellationToken cancellationToken)
         => await ExecuteCommandAsync((DriverContext)null, arguments, timeout, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Executes a Docker command asynchronously using the given driver context and an explicit
+    /// buffered timeout instead of the context-resolved default.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="timeout">
+    /// Wall-clock timeout; pass <see cref="Timeout.InfiniteTimeSpan"/> to bound only by
+    /// <paramref name="cancellationToken"/>.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         DriverContext context, string arguments, TimeSpan timeout, CancellationToken cancellationToken)
     {
@@ -152,10 +184,27 @@ namespace FluentDocker.Drivers.Docker.Cli
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(string arguments, CancellationToken cancellationToken)
         => ExecuteUnboundedProcessAsync(null, arguments, null, cancellationToken);
 
+    /// <summary>
+    /// Executes an unbounded Docker command using the given driver context: honors only
+    /// <paramref name="cancellationToken"/>, never the buffered-command default timeout.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The command result.</returns>
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(
         DriverContext context, string arguments, CancellationToken cancellationToken)
         => ExecuteUnboundedProcessAsync(context, arguments, null, cancellationToken);
 
+    /// <summary>
+    /// Executes an unbounded Docker command with additional environment variables, using the
+    /// given driver context; honors only <paramref name="cancellationToken"/>.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="environment">Extra environment variables merged into the child process.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The command result.</returns>
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(
         DriverContext context,
         string arguments,
@@ -311,6 +360,16 @@ namespace FluentDocker.Drivers.Docker.Cli
         yield return line;
     }
 
+    /// <summary>
+    /// Executes a streaming Docker command using the given driver context: yields stdout lines
+    /// as they arrive (stderr is drained concurrently, not yielded) and throws a
+    /// <see cref="DriverException"/> if the process exits non-zero.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/TLS/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An async stream of stdout lines.</returns>
+    /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(
         DriverContext context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {

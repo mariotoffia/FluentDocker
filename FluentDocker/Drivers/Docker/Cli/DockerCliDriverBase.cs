@@ -159,15 +159,18 @@ namespace FluentDocker.Drivers.Docker.Cli
       return CreateErrorContext(Context, operation, result);
     }
 
+    /// <summary>Returns the command's captured stderr if non-empty; otherwise <paramref name="fallback"/>.</summary>
     protected static string ErrorOrDefault(SimpleCommandResult result, string fallback)
     {
       return string.IsNullOrEmpty(result?.Error) ? fallback : result.Error;
     }
 
+    /// <summary>Formats a value using invariant culture, ignoring the current thread's locale.</summary>
     protected static string FormatInvariant<T>(T value)
         where T : IFormattable
         => value.ToString(null, CultureInfo.InvariantCulture);
 
+    /// <summary>Formats a value with the given format string using invariant culture.</summary>
     protected static string FormatInvariant<T>(T value, string format)
         where T : IFormattable
         => value.ToString(format, CultureInfo.InvariantCulture);
@@ -189,6 +192,13 @@ namespace FluentDocker.Drivers.Docker.Cli
       return output.EndsWith('\n') || error.StartsWith('\n') ? output + error : output + "\n" + error;
     }
 
+    /// <summary>
+    /// Resolves an error code for a failed CLI command from an exception: reuses an existing
+    /// <see cref="DriverException.ErrorCode"/> or falls back to classifying the exception's message.
+    /// </summary>
+    /// <param name="ex">The exception raised while running the command.</param>
+    /// <param name="fallbackCode">Code to use if the message does not indicate a known failure.</param>
+    /// <returns>An error code.</returns>
     protected static string FailureCode(Exception ex, string fallbackCode)
     {
       if (ex is DriverException driverException && !string.IsNullOrEmpty(driverException.ErrorCode))
@@ -196,6 +206,14 @@ namespace FluentDocker.Drivers.Docker.Cli
       return FailureCode(ex?.Message, fallbackCode);
     }
 
+    /// <summary>
+    /// Resolves an error code for a failed CLI command from its captured error text:
+    /// <see cref="ErrorCodes.Api.ConnectionFailed"/> when the daemon is unreachable,
+    /// otherwise <paramref name="fallbackCode"/>.
+    /// </summary>
+    /// <param name="error">The captured error text.</param>
+    /// <param name="fallbackCode">Code to use if the text does not indicate a connection failure.</param>
+    /// <returns>An error code.</returns>
     protected static string FailureCode(string error, string fallbackCode)
     {
       if (IsDaemonConnectionError(error))
@@ -203,6 +221,10 @@ namespace FluentDocker.Drivers.Docker.Cli
       return fallbackCode;
     }
 
+    /// <summary>
+    /// True if <paramref name="error"/> matches one of the Docker CLI's known
+    /// daemon-unreachable messages (e.g. "Cannot connect to the Docker daemon").
+    /// </summary>
     protected static bool IsDaemonConnectionError(string error)
     {
       if (string.IsNullOrEmpty(error))
@@ -212,6 +234,10 @@ namespace FluentDocker.Drivers.Docker.Cli
           || error.Contains("failed to connect to the docker API", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Builds a failed <see cref="CommandResponse{T}"/> for an argument that starts with
+    /// '-' and would therefore be misparsed by Docker as a CLI option rather than a value.
+    /// </summary>
     protected static CommandResponse<T> FailInvalidLeadingDash<T>(string argumentName)
     {
       return CommandResponse<T>.Fail(
@@ -219,9 +245,17 @@ namespace FluentDocker.Drivers.Docker.Cli
           ErrorCodes.General.InvalidArgument);
     }
 
+    /// <summary>True if <paramref name="value"/> is non-empty and its first character is '-'.</summary>
     protected static bool StartsWithDash(string value) =>
         !string.IsNullOrEmpty(value) && value[0] == '-';
 
+    /// <summary>
+    /// Quotes a positional CLI argument, throwing a <see cref="DriverException"/> if it starts
+    /// with '-' (which Docker would otherwise misparse as an option rather than a value).
+    /// </summary>
+    /// <param name="argument">The positional argument value.</param>
+    /// <param name="argumentName">Argument name used in the exception message.</param>
+    /// <exception cref="DriverException">The argument starts with '-'.</exception>
     protected static string QuotePositionalArgument(string argument, string argumentName)
     {
       if (StartsWithDash(argument))

@@ -32,6 +32,16 @@ namespace FluentDocker.Drivers.Podman.Cli
         yield return line;
     }
 
+    /// <summary>
+    /// Executes a streaming Podman command using the given driver context, yielding stdout
+    /// lines as they arrive. stderr is drained concurrently (bounded, not yielded) so a chatty
+    /// child cannot deadlock, and a non-zero exit is surfaced as a <see cref="DriverException"/>.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An async stream of stdout lines.</returns>
+    /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(
         DriverContext context,
         string arguments,
@@ -118,6 +128,13 @@ namespace FluentDocker.Drivers.Podman.Cli
             });
     }
 
+    /// <summary>
+    /// Executes a streaming Podman command, interleaving stdout and stderr lines into a single
+    /// arrival-ordered sequence so progress text on stderr is actually observed.
+    /// </summary>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Async enumerable of stdout and stderr lines, in arrival order.</returns>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
         string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -126,6 +143,16 @@ namespace FluentDocker.Drivers.Podman.Cli
         yield return line;
     }
 
+    /// <summary>
+    /// Executes a streaming Podman command using the given driver context, interleaving stdout
+    /// and stderr lines into a single arrival-ordered sequence so progress text on stderr
+    /// (e.g. pull/push progress) is actually observed.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Async enumerable of stdout and stderr lines, in arrival order.</returns>
+    /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
         DriverContext context,
         string arguments,
@@ -212,6 +239,21 @@ namespace FluentDocker.Drivers.Podman.Cli
             });
     }
 
+    /// <summary>
+    /// Executes a streaming Podman command using the given driver context, pumping stdout and
+    /// stderr concurrently and yielding each as a source-tagged <see cref="LogEntry"/> in
+    /// arrival order. Both pipes are always drained (so a chatty stream on the suppressed side
+    /// cannot deadlock the child), but only the streams selected by <paramref name="stdout"/> /
+    /// <paramref name="stderr"/> are yielded. A short tail of recent lines is retained to
+    /// enrich the exception message if the process exits non-zero.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="stdout">Whether stdout lines are yielded.</param>
+    /// <param name="stderr">Whether stderr lines are yielded.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Async enumerable of source-tagged log entries, in arrival order.</returns>
+    /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<LogEntry> ExecuteStreamingCommandWithSourcesAsync(
         DriverContext context,
         string arguments,

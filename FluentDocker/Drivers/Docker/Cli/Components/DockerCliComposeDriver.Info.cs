@@ -11,7 +11,8 @@ using Microsoft.Extensions.Logging;
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
   /// <summary>
-  /// Docker CLI compose driver: information, build/pull, execution, scale/copy, and create operations.
+  /// Docker CLI compose driver: information, build/pull, execution, and scale/copy operations.
+  /// Create operations and exec-failure classification are in the <c>Create</c> partial file.
   /// </summary>
   public partial class DockerCliComposeDriver
   {
@@ -459,41 +460,5 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     }
 
     #endregion
-
-    #region Create Operations
-
-    /// <inheritdoc />
-    public async Task<CommandResponse<Unit>> CreateAsync(
-        DriverContext context,
-        ComposeCreateConfig config,
-        CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var args = BuildComposeArgs(config) + " " + BuildCreateSubArgs(config);
-        if (config.Services.Count > 0)
-          args += " " + QuoteServices(config.Services);
-
-        var result = await ExecuteUnboundedCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                ErrorOrDefault(result, "Compose create failed"), FailureCode(result.Error, ErrorCodes.Compose.CreateFailed));
-      }
-      catch (OperationCanceledException)
-      {
-        throw;
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Compose.CreateFailed));
-      }
-    }
-
-    #endregion
-
-    public static bool IsComposeExecInfrastructureFailure(int exitCode, string stdOut, string stdErr) =>
-        DockerCliContainerDriver.IsExecInfrastructureFailure(exitCode, stdOut, stdErr);
-
   }
 }
