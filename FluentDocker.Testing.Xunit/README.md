@@ -45,9 +45,9 @@ not the class name.
 | --- | --- | --- | --- |
 | **xUnit** | per test **class** | `XunitContainerTestBase` | `XunitContainerFixtureBase` (`IClassFixture<T>`) |
 | **NUnit** | per test **class** | subclass with `[SetUp]`/`[TearDown]` | `NUnitContainerFixtureBase` (`[OneTimeSetUp]`) |
-| **MSTest** | per test **method** ⚠️ | `MsTestContainerFixtureBase` | `MsTestClassContainerFixtureBase<T>` |
+| **MSTest** | per test **method** ⚠️ | `MsTestPerTestContainerFixtureBase` | `MsTestClassContainerFixtureBase<T>` |
 
-MSTest's `MsTestContainerFixtureBase` is per **method** — the opposite of the like-named xUnit/NUnit
+MSTest's `MsTestPerTestContainerFixtureBase` is per **method** — the opposite of the like-named xUnit/NUnit
 bases (per class).
 
 ```csharp
