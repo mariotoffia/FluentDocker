@@ -96,27 +96,26 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     // --- Idle eviction (task-2 brief: ref-counted gate must not leak process-lifetime memory) ---
-    // TrackedGateCount assertions are baseline-relative (captured at the top of each test), not
-    // absolute zero: this static gate is process-wide and other test classes exercise it with
-    // their own unique keys concurrently (xUnit parallelizes across test classes by default), so
-    // an absolute-zero assertion would be flaky under suite-wide parallelism even though the fix
-    // is correct. Baseline-relative assertions isolate this test's own keys from that noise.
+    // Assertions are per-key via IsTracked: this static gate is process-wide and other test
+    // classes exercise it with their own unique keys concurrently (xUnit parallelizes across test
+    // classes by default), so asserting on the global TrackedGateCount would race their churn.
+    // IsTracked + GUID-unique keys make each assertion observationally private to this test.
 
     [Fact]
     public async Task Release_EvictsGate_AfterSequentialAcquireReleaseOfManyKeys()
     {
       var ct = TestContext.Current.CancellationToken;
-      var baseline = ModelOperationGate.TrackedGateCount;
 
       for (var i = 0; i < 20; i++)
       {
-        var handle = await ModelOperationGate.AcquireAsync(UniqueKey(), ct);
+        var key = UniqueKey();
+        var handle = await ModelOperationGate.AcquireAsync(key, ct);
+        Assert.True(ModelOperationGate.IsTracked(key));
         await handle.DisposeAsync();
-      }
 
-      // Pre-fix this fails: nothing ever evicts, so the count grows by 20 instead of returning
-      // to baseline.
-      Assert.Equal(baseline, ModelOperationGate.TrackedGateCount);
+        // Pre-fix this fails: nothing ever evicts, so every key stays tracked forever.
+        Assert.False(ModelOperationGate.IsTracked(key));
+      }
     }
 
     [Fact]
@@ -124,7 +123,6 @@ namespace FluentDocker.Tests.CoreTests.Common
     {
       var key = UniqueKey();
       var ct = TestContext.Current.CancellationToken;
-      var baseline = ModelOperationGate.TrackedGateCount;
       var concurrent = 0;
       var maxObserved = 0;
       var maxLock = new object();
@@ -153,7 +151,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       await Task.WhenAll(tasks);
 
       Assert.Equal(1, maxObserved);
-      Assert.Equal(baseline, ModelOperationGate.TrackedGateCount);
+      Assert.False(ModelOperationGate.IsTracked(key));
     }
 
     [Fact]
@@ -161,10 +159,9 @@ namespace FluentDocker.Tests.CoreTests.Common
     {
       var key = UniqueKey();
       var ct = TestContext.Current.CancellationToken;
-      var baseline = ModelOperationGate.TrackedGateCount;
 
       var a = await ModelOperationGate.AcquireAsync(key, ct);
-      Assert.Equal(baseline + 1, ModelOperationGate.TrackedGateCount);
+      Assert.True(ModelOperationGate.IsTracked(key));
 
       // Not awaited: AcquireAsync runs synchronously up to its first real suspension point
       // (gate.Semaphore.WaitAsync, which cannot complete synchronously while A holds it), so by
@@ -172,16 +169,16 @@ namespace FluentDocker.Tests.CoreTests.Common
       // lock — no Task.Yield/TCS needed to order this deterministically.
       var bTask = ModelOperationGate.AcquireAsync(key, ct);
       Assert.False(bTask.IsCompleted);
-      Assert.Equal(baseline + 1, ModelOperationGate.TrackedGateCount);
+      Assert.True(ModelOperationGate.IsTracked(key));
 
       await a.DisposeAsync();
       // B still holds a reservation on the SAME gate: releasing A must not evict it out from
       // under B (the mutual-exclusion race the naive "CurrentCount == 1" fix would hit).
-      Assert.Equal(baseline + 1, ModelOperationGate.TrackedGateCount);
+      Assert.True(ModelOperationGate.IsTracked(key));
 
       var b = await bTask;
       await b.DisposeAsync();
-      Assert.Equal(baseline, ModelOperationGate.TrackedGateCount);
+      Assert.False(ModelOperationGate.IsTracked(key));
     }
 
     [Fact]
@@ -189,7 +186,6 @@ namespace FluentDocker.Tests.CoreTests.Common
     {
       var key = UniqueKey();
       var ct = TestContext.Current.CancellationToken;
-      var baseline = ModelOperationGate.TrackedGateCount;
 
       var a = await ModelOperationGate.AcquireAsync(key, ct);
 
@@ -199,10 +195,10 @@ namespace FluentDocker.Tests.CoreTests.Common
       await Assert.ThrowsAnyAsync<OperationCanceledException>(() => bTask);
 
       // B's canceled reservation must be undone; A's is still live.
-      Assert.Equal(baseline + 1, ModelOperationGate.TrackedGateCount);
+      Assert.True(ModelOperationGate.IsTracked(key));
 
       await a.DisposeAsync();
-      Assert.Equal(baseline, ModelOperationGate.TrackedGateCount);
+      Assert.False(ModelOperationGate.IsTracked(key));
     }
   }
 }

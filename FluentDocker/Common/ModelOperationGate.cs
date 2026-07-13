@@ -65,6 +65,19 @@ namespace FluentDocker.Common
     }
 
     /// <summary>
+    /// Whether <paramref name="key"/> currently has a live gate (held or with queued waiters).
+    /// Per-key companion to <see cref="TrackedGateCount"/>: lets diagnostics/tests pin one key's
+    /// eviction exactly, immune to unrelated keys churning the global count in parallel.
+    /// </summary>
+    /// <param name="key">The gate key (see <see cref="KeyFor(ModelReference)"/>); null normalizes to the empty string.</param>
+    /// <returns><c>true</c> while the key's gate is live; <c>false</c> once evicted (or never acquired).</returns>
+    public static bool IsTracked(string key)
+    {
+      lock (GatesLock)
+        return Gates.ContainsKey(key ?? string.Empty);
+    }
+
+    /// <summary>
     /// Acquires the gate for <paramref name="key"/>, honoring cancellation while waiting.
     /// Dispose (preferably <c>await using</c>) the returned handle to release exactly once.
     /// </summary>

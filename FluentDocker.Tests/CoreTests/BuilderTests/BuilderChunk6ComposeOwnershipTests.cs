@@ -173,6 +173,57 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
+    public async Task BuildAsync_ConsecutiveFailedRetries_CreatedMarkerSurvivesCascade_FinalRetryReownsAndTearsDown()
+    {
+      // N>=2 failure cascade: attempt 1 creates the project and fails (up + cleanup down both
+      // fail); attempt 2 re-owns the leftover and fails the same way; attempt 3 re-owns and
+      // succeeds. The created-marker must survive EVERY ResetForRetry in the cascade — losing it
+      // on the second reset would silently downgrade attempt 3 to "borrowed" and leak the stack.
+      var listCalls = 0;
+      MockPack.ComposeDriver
+          .Setup(d => d.ListAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ComposeListConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(() => CommandResponse<IList<ComposeServiceInfo>>.Ok(listCalls++ == 0
+              ? []
+              : [new ComposeServiceInfo { Name = "web", Project = "cascade-project" }]));
+      MockPack.ComposeDriver
+          .SetupSequence(d => d.UpAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ComposeUpConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<ComposeUpResult>.Fail("up failed (attempt 1)"))
+          .ReturnsAsync(CommandResponse<ComposeUpResult>.Fail("up failed (attempt 2)"))
+          .ReturnsAsync(CommandResponse<ComposeUpResult>.Ok(new ComposeUpResult { ProjectName = "cascade-project" }));
+      MockPack.ComposeDriver
+          .SetupSequence(d => d.DownAsync(
+              It.IsAny<DriverContext>(), It.IsAny<ComposeDownConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("down failed (attempt 1)"))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("down failed (attempt 2)"))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+
+      var builder = new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseCompose(c => c.WithProjectName("cascade-project"));
+
+      await Assert.ThrowsAsync<DriverException>(
+          () => builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+      await Assert.ThrowsAsync<DriverException>(
+          () => builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+      await using (var results = await builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken))
+      {
+        var compose = Assert.Single(results.ComposeServices);
+        Assert.False(compose.IsBorrowed);
+      }
+
+      // Two failed cleanup downs (attempts 1-2) + the successful dispose-time teardown.
+      MockPack.ComposeDriver.Verify(d => d.DownAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ComposeDownConfig>(),
+          It.IsAny<CancellationToken>()), Times.Exactly(3));
+    }
+
+    [Fact]
     public async Task BuildAsync_RetryWithGenuinePreExistingComposeProject_NeverReownsOrTearsDown()
     {
       MockPack

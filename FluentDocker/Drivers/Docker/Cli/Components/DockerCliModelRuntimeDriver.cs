@@ -116,7 +116,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         // cancellation and retry forever. Translate it into a typed, non-transient
         // failure instead; the ConfigureAsync call site maps it to CommandResponse.Fail.
         throw new DriverException(
-            $"Timed out probing 'docker model configure --help' after {FormatInvariant(BackendProbeTimeout.TotalSeconds, "0")}s; " +
+            $"Timed out probing 'docker model configure --help' after {FormatInvariant(BackendProbeTimeout.TotalSeconds, "0.###")}s; " +
             "the Docker model plugin may be wedged — cannot determine '--backend' support. Retry or restart Docker Model Runner.",
             ErrorCodes.Model.ConfigureFailed);
       }

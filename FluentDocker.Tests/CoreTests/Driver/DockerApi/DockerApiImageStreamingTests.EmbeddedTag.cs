@@ -125,8 +125,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public void EmbeddedTagDetection_MatchesCliShouldAppendTag(string image)
     {
       // Parity check: the API driver's embedded-tag split must agree with the CLI driver's
-      // ShouldAppendTag classifier for every non-digest input, or the two drivers would pull
-      // different images for the same reference. ShouldAppendTag is a private pure classifier;
+      // ShouldAppendTag classifier for every non-digest input reachable by PullAsync, or the two
+      // drivers would pull different images for the same reference. ShouldAppendTag is a private pure classifier;
       // exercising it through the CLI's public PullAsync would need a live docker binary, so it
       // is reflected into directly per the documented internal-parser test exception.
       var shouldAppendTag = (bool)typeof(DockerCliImageDriver)

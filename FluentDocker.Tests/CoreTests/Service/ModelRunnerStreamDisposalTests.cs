@@ -5,9 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
+using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using FluentDocker.Model.Models.Inference;
+using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
 using Xunit;
@@ -17,30 +19,41 @@ namespace FluentDocker.Tests.CoreTests.Service
   /// <summary>
   /// D-M2: a runner (or its owned connection) disposed WHILE a consumer is still iterating a
   /// stream must surface a typed <see cref="ModelRunnerException"/> (<see cref="ErrorCodes.ModelInference.Disposed"/>),
-  /// never a raw <see cref="ObjectDisposedException"/> from inside the driver. Covers all four
-  /// streaming call sites (<see cref="GenericOpenAiModelRunner"/> and <see cref="ModelRunnerService"/>,
-  /// chat + completion) via the shared <c>ModelRunnerInferenceHelpers.GuardDisposalAsync</c> wrapper.
+  /// never a raw <see cref="ObjectDisposedException"/> from inside the driver. Every scenario
+  /// (mid-enumeration disposal, underlying-ODE translation, eager already-disposed check, and the
+  /// unaffected happy path) runs against the full cross-product of the four streaming call sites
+  /// (<see cref="GenericOpenAiModelRunner"/> and <see cref="ModelRunnerService"/>, chat + completion),
+  /// all backed by the shared <c>ModelRunnerInferenceHelpers.GuardDisposalAsync</c> wrapper.
   /// </summary>
   [Trait("Category", "Unit")]
   public class ModelRunnerStreamDisposalTests
   {
-    // ==================== GenericOpenAiModelRunner: ChatCompletionStreamAsync ====================
+    public enum Site
+    {
+      GenericChat,
+      GenericCompletion,
+      ServiceChat,
+      ServiceCompletion
+    }
 
-    [Fact]
-    public async Task ChatCompletionStream_DisposedMidEnumeration_ThrowsModelRunnerExceptionDisposed()
+    [Theory]
+    [InlineData(Site.GenericChat)]
+    [InlineData(Site.GenericCompletion)]
+    [InlineData(Site.ServiceChat)]
+    [InlineData(Site.ServiceCompletion)]
+    public async Task Stream_DisposedMidEnumeration_ThrowsModelRunnerExceptionDisposed(Site site)
     {
       var driver = new GatedStreamingInferenceDriver();
       // The driver is ALSO the owned resource, so runner.DisposeAsync() disposes it — exactly like a
       // real owned connection whose disposal makes the in-flight HttpClient enumeration throw ODE.
-      var runner = new GenericOpenAiModelRunner(
-          ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver, ownedResource: driver);
+      var (runner, kernel) = await CreateRunnerAsync(site, driver, ownsDriver: true);
+      await using var _ = kernel;
       var ct = TestContext.Current.CancellationToken;
 
-      await using var enumerator = runner.ChatCompletionStreamAsync(
-          new ChatCompletionRequest { Model = "ai/smollm2" }, ct).GetAsyncEnumerator(ct);
+      await using var enumerator = StreamTexts(runner, site, ct).GetAsyncEnumerator(ct);
       Assert.True(await enumerator.MoveNextAsync()); // chunk 1 arrives before disposal.
 
-      await runner.DisposeAsync();
+      await ((IAsyncDisposable)runner).DisposeAsync();
 
       var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
       {
@@ -50,18 +63,22 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.IsNotType<ObjectDisposedException>(ex);
     }
 
-    [Fact]
-    public async Task ChatCompletionStream_UnderlyingObjectDisposedException_TranslatedWithInnerException()
+    [Theory]
+    [InlineData(Site.GenericChat)]
+    [InlineData(Site.GenericCompletion)]
+    [InlineData(Site.ServiceChat)]
+    [InlineData(Site.ServiceCompletion)]
+    public async Task Stream_UnderlyingObjectDisposedException_TranslatedWithInnerException(Site site)
     {
       // The runner is NOT disposed; the driver's own enumeration throws ODE mid-flight (as a live
       // HttpClient would). The per-MoveNext catch must translate it into the typed Disposed error.
       var driver = new GatedStreamingInferenceDriver { ThrowDisposedAfterGate = true };
-      await using var runner = new GenericOpenAiModelRunner(
-          ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver);
+      var (runner, kernel) = await CreateRunnerAsync(site, driver, ownsDriver: false);
+      await using var _ = kernel;
+      await using var __ = (IAsyncDisposable)runner;
       var ct = TestContext.Current.CancellationToken;
 
-      await using var enumerator = runner.ChatCompletionStreamAsync(
-          new ChatCompletionRequest { Model = "ai/smollm2" }, ct).GetAsyncEnumerator(ct);
+      await using var enumerator = StreamTexts(runner, site, ct).GetAsyncEnumerator(ct);
       Assert.True(await enumerator.MoveNextAsync()); // chunk 1; runner is NOT disposed here.
 
       driver.ReleaseGate(); // let the fake's own MoveNextAsync throw ODE on resume.
@@ -74,113 +91,83 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.IsType<ObjectDisposedException>(ex.InnerException);
     }
 
-    [Fact]
-    public async Task ChatCompletionStream_DisposedBeforeCall_StillThrowsObjectDisposedExceptionSynchronously()
+    [Theory]
+    [InlineData(Site.GenericChat)]
+    [InlineData(Site.GenericCompletion)]
+    [InlineData(Site.ServiceChat)]
+    [InlineData(Site.ServiceCompletion)]
+    public async Task Stream_DisposedBeforeCall_StillThrowsObjectDisposedExceptionSynchronously(Site site)
     {
       var driver = new GatedStreamingInferenceDriver();
-      var runner = new GenericOpenAiModelRunner(
-          ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver);
-      await runner.DisposeAsync();
+      var (runner, kernel) = await CreateRunnerAsync(site, driver, ownsDriver: false);
+      await using var _ = kernel;
+      await ((IAsyncDisposable)runner).DisposeAsync();
 
       // Eager call-time ThrowIfDisposed() is preserved: calling a stream method on an already-disposed
       // runner throws ObjectDisposedException synchronously (direct misuse), NOT the typed Disposed error.
       await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
       {
-        await foreach (var _ in runner.ChatCompletionStreamAsync(
-            new ChatCompletionRequest { Model = "ai/smollm2" }, TestContext.Current.CancellationToken))
+        await foreach (var __ in StreamTexts(runner, site, TestContext.Current.CancellationToken))
         {
         }
       });
     }
 
-    [Fact]
-    public async Task ChatCompletionStream_NotDisposed_YieldsAllChunksUnaffected()
+    [Theory]
+    [InlineData(Site.GenericChat)]
+    [InlineData(Site.GenericCompletion)]
+    [InlineData(Site.ServiceChat)]
+    [InlineData(Site.ServiceCompletion)]
+    public async Task Stream_NotDisposed_YieldsAllChunksUnaffected(Site site)
     {
       var driver = new GatedStreamingInferenceDriver();
       driver.ReleaseGate(); // stream runs straight through, like the pre-guard behavior.
-      await using var runner = new GenericOpenAiModelRunner(
-          ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver);
+      var (runner, kernel) = await CreateRunnerAsync(site, driver, ownsDriver: false);
+      await using var _ = kernel;
+      await using var __ = (IAsyncDisposable)runner;
 
       var texts = new List<string>();
-      await foreach (var chunk in runner.ChatCompletionStreamAsync(
-          new ChatCompletionRequest { Model = "ai/smollm2" }, TestContext.Current.CancellationToken))
-        texts.Add(chunk.Choices[0].Delta.Content);
+      await foreach (var text in StreamTexts(runner, site, TestContext.Current.CancellationToken))
+        texts.Add(text);
 
       Assert.Equal(new[] { "one", "two" }, texts);
     }
 
-    // ==================== GenericOpenAiModelRunner: CompletionStreamAsync (2nd call site) ========
-
-    [Fact]
-    public async Task CompletionStream_DisposedMidEnumeration_ThrowsModelRunnerExceptionDisposed()
+    /// <summary>
+    /// Builds the runner under test for <paramref name="site"/>. Service sites need a live mock
+    /// kernel (returned for the caller to dispose; null for the Generic sites, which
+    /// <c>await using</c> tolerates). With <paramref name="ownsDriver"/> the driver doubles as
+    /// the runner's owned resource so disposing the runner faults the in-flight stream.
+    /// </summary>
+    private static async Task<(IModelInference Runner, FluentDockerKernel? Kernel)> CreateRunnerAsync(
+        Site site, GatedStreamingInferenceDriver driver, bool ownsDriver)
     {
-      var driver = new GatedStreamingInferenceDriver();
-      var runner = new GenericOpenAiModelRunner(
-          ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver, ownedResource: driver);
-      var ct = TestContext.Current.CancellationToken;
-
-      await using var enumerator = runner.CompletionStreamAsync(
-          new CompletionRequest { Model = "ai/smollm2" }, ct).GetAsyncEnumerator(ct);
-      Assert.True(await enumerator.MoveNextAsync());
-
-      await runner.DisposeAsync();
-
-      var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
+      var owned = ownsDriver ? driver : null;
+      if (site is Site.GenericChat or Site.GenericCompletion)
       {
-        await enumerator.MoveNextAsync();
-      });
-      Assert.Equal(ErrorCodes.ModelInference.Disposed, ex.ErrorCode);
-    }
-
-    // ==================== ModelRunnerService: both stream call sites =============================
-
-    [Fact]
-    public async Task ModelRunnerService_ChatCompletionStream_DisposedMidEnumeration_ThrowsModelRunnerExceptionDisposed()
-    {
-      var driver = new GatedStreamingInferenceDriver();
-      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", new MockDriverPack());
-      await using (kernel)
-      {
-        var runner = new ModelRunnerService(
-            kernel, "docker", ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver, ownedResource: driver);
-        var ct = TestContext.Current.CancellationToken;
-
-        await using var enumerator = runner.ChatCompletionStreamAsync(
-            new ChatCompletionRequest { Model = "ai/smollm2" }, ct).GetAsyncEnumerator(ct);
-        Assert.True(await enumerator.MoveNextAsync());
-
-        await runner.DisposeAsync();
-
-        var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
-        {
-          await enumerator.MoveNextAsync();
-        });
-        Assert.Equal(ErrorCodes.ModelInference.Disposed, ex.ErrorCode);
+        return (new GenericOpenAiModelRunner(
+            ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver, ownedResource: owned!), null);
       }
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", new MockDriverPack());
+      return (new ModelRunnerService(
+          kernel, "docker", ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver, ownedResource: owned!), kernel);
     }
 
-    [Fact]
-    public async Task ModelRunnerService_CompletionStream_DisposedMidEnumeration_ThrowsModelRunnerExceptionDisposed()
+    private static async IAsyncEnumerable<string> StreamTexts(
+        IModelInference runner, Site site, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-      var driver = new GatedStreamingInferenceDriver();
-      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", new MockDriverPack());
-      await using (kernel)
+      if (site is Site.GenericChat or Site.ServiceChat)
       {
-        var runner = new ModelRunnerService(
-            kernel, "docker", ModelRunnerEndpoint.HostTcp(), ModelReference.Parse("ai/smollm2"), driver, ownedResource: driver);
-        var ct = TestContext.Current.CancellationToken;
-
-        await using var enumerator = runner.CompletionStreamAsync(
-            new CompletionRequest { Model = "ai/smollm2" }, ct).GetAsyncEnumerator(ct);
-        Assert.True(await enumerator.MoveNextAsync());
-
-        await runner.DisposeAsync();
-
-        var ex = await Assert.ThrowsAsync<ModelRunnerException>(async () =>
-        {
-          await enumerator.MoveNextAsync();
-        });
-        Assert.Equal(ErrorCodes.ModelInference.Disposed, ex.ErrorCode);
+        await foreach (var chunk in runner.ChatCompletionStreamAsync(
+            new ChatCompletionRequest { Model = "ai/smollm2" }, cancellationToken))
+          yield return chunk.Choices![0].Delta!.Content!; // fake always populates these
+      }
+      else
+      {
+        await foreach (var chunk in runner.CompletionStreamAsync(
+            new CompletionRequest { Model = "ai/smollm2" }, cancellationToken))
+          yield return chunk.Choices![0].Text!; // fake always populates these
       }
     }
 

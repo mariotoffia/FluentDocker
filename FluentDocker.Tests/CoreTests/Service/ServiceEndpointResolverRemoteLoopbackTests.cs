@@ -22,11 +22,14 @@ namespace FluentDocker.Tests.CoreTests.Service
       await InitializeMockKernelAsync();
     }
 
-    [Fact]
-    public async Task ToHostExposedEndpointAsync_LoopbackBindingRemoteTcpDaemon_ResolvesToDaemonHostNotClientLoopback()
+    [Theory]
+    [InlineData("127.0.0.1")]
+    [InlineData("::1")] // IPAddress.IsLoopback is address-family-agnostic; pin the IPv6 form too.
+    public async Task ToHostExposedEndpointAsync_LoopbackBindingRemoteTcpDaemon_ResolvesToDaemonHostNotClientLoopback(
+        string loopbackBinding)
     {
       var mockPack = new MockDriverPack();
-      SetupPortBinding(mockPack, hostIp: "127.0.0.1");
+      SetupPortBinding(mockPack, hostIp: loopbackBinding);
       await using var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync(
           DriverId,
           mockPack,
@@ -37,7 +40,7 @@ namespace FluentDocker.Tests.CoreTests.Service
           "5432/tcp",
           TestContext.Current.CancellationToken);
 
-      Assert.NotEqual(IPAddress.Loopback, endpoint.Address);
+      Assert.NotEqual(IPAddress.Parse(loopbackBinding), endpoint.Address);
       Assert.Equal(IPAddress.Parse("192.0.2.10"), endpoint.Address);
       Assert.Equal(5432, endpoint.Port);
     }

@@ -70,7 +70,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           Ctx, ["a", "b"], cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
-      Assert.Contains("2", result.Error);
+      Assert.Contains("2 of 2", result.Error);
       Assert.Contains("a:", result.Error);
       Assert.Contains("b:", result.Error);
     }

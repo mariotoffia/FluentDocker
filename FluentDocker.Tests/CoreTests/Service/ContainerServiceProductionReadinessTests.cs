@@ -21,7 +21,7 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.Service
 {
   [Trait("Category", "Unit")]
-  public class ContainerServiceProductionReadinessTests : MockKernelTestBase, IAsyncLifetime
+  public partial class ContainerServiceProductionReadinessTests : MockKernelTestBase, IAsyncLifetime
   {
     public async ValueTask InitializeAsync()
     {

@@ -314,8 +314,9 @@ namespace FluentDocker.Drivers.Docker.Cli
         // surfaces as a clear DriverException.
         cancellationToken.ThrowIfCancellationRequested();
 
+        // "0.###" so a caller-set sub-second timeout reads "0.5s", not a baffling "0s".
         throw new DriverException(
-            $"Docker CLI command timed out after {FormatInvariant(timeout.TotalSeconds, "0")}s.",
+            $"Docker CLI command timed out after {FormatInvariant(timeout.TotalSeconds, "0.###")}s.",
             ErrorCodes.General.Timeout);
       }
       catch (Exception ex) when (processStarted || ex is not DriverException)
