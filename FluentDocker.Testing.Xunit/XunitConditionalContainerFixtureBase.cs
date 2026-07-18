@@ -67,6 +67,14 @@ namespace FluentDocker.Testing.Xunit
             ? kernel.DefaultDriverId
             : options.Driver.DriverId;
         driverId ??= kernel.DefaultDriverId;
+        if (driverId == null)
+        {
+          // No selected driver and no default registered: nothing to probe — skip with an
+          // actionable reason instead of erroring on a null driver id.
+          await SkipAsync(kernel, "No driver is registered on the kernel (no default driver id).").ConfigureAwait(false);
+          return;
+        }
+
         bool healthy;
         using (var healthCts = new CancellationTokenSource())
         {
@@ -108,6 +116,16 @@ namespace FluentDocker.Testing.Xunit
         await ResourceLifecycle.DisposeAsync(resource, kernel).ConfigureAwait(false);
         IsSkipped = true;
         SkipReason = ex.Message;
+      }
+      catch (ResourceInitializationException ex)
+          when (ex.InnerException is FluentDockerUnavailableException)
+      {
+        // The daemon can die between the health probe and resource init: the unavailability
+        // then arrives WRAPPED by the resource layer. Skip (mirroring the MSTest/NUnit
+        // adapters) instead of erroring the whole class on a flaky CI daemon.
+        await ResourceLifecycle.DisposeAsync(resource, kernel).ConfigureAwait(false);
+        IsSkipped = true;
+        SkipReason = ex.InnerException.Message;
       }
       catch
       {

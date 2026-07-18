@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Net;
@@ -30,6 +31,16 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private readonly HttpClient _longRunningHttpClient;
     private readonly DockerApiConnectionConfig _config;
     private readonly SemaphoreSlim _negotiationLock = new(1, 1);
+    // Shared in-flight negotiation: concurrent un-negotiated requests JOIN one attempt
+    // instead of each running its own /_ping serially behind the lock (a daemon outage
+    // otherwise costs request N about N x ConnectionTimeout). Guarded by _negotiationLock.
+    private Task _negotiationTask;
+    // Negative cache for the terminal unsupported-daemon-version failure: re-probing an
+    // incompatible daemon on every request is pointless, but a cooldown (not a permanent
+    // cache) lets the client recover when the daemon is live-upgraded. Guarded by _negotiationLock.
+    private volatile DriverException _unsupportedDaemonFailure;
+    private long _unsupportedDaemonTimestamp;
+    private static readonly TimeSpan UnsupportedDaemonRetryCooldown = TimeSpan.FromSeconds(30);
     // X509Certificate2 instances we created (client cert + custom CA) — they own
     // native handles and must be disposed when the connection is. They are kept alive
     // for the lifetime of the connection because the CA cert is captured by the TLS
@@ -131,7 +142,13 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
-      return await _httpClient.PutAsync(versionedPath, content, ct).ConfigureAwait(false);
+      // Archive uploads (PUT /containers/{id}/archive) can legitimately stream multi-GB
+      // bodies for longer than the buffered client's whole-request timeout. Send via the
+      // upload watchdog: the body phase is bounded by write-progress stalls
+      // (ConnectionTimeout of no progress), not wall clock, and the response-header wait by
+      // RequestTimeout — the same protection the heavy POST uploads get.
+      using var request = new HttpRequestMessage(HttpMethod.Put, versionedPath) { Content = content };
+      return await SendForHeadersAsync(request, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -206,28 +223,34 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     /// <summary>
     /// Throws a descriptive <see cref="HttpRequestException"/> for a non-success stream
-    /// response, preserving Docker's <c>{"message":"..."}</c> error body (bounded to 32 KiB)
-    /// instead of discarding it like <c>EnsureSuccessStatusCode()</c> would. Disposes the
-    /// response on failure so the connection is not leaked.
+    /// response, preserving Docker's <c>{"message":"..."}</c> error body (bounded to 32 KiB,
+    /// and in time by <see cref="DockerApiConnectionConfig.ConnectionTimeout"/>) instead of
+    /// discarding it like <c>EnsureSuccessStatusCode()</c> would. Disposes the response on
+    /// failure so the connection is not leaked.
     /// </summary>
-    private static async Task EnsureStreamSuccessAsync(
+    private async Task EnsureStreamSuccessAsync(
         HttpResponseMessage response, CancellationToken ct)
     {
       if (response.IsSuccessStatusCode)
         return;
 
       const int maxBytes = 32 * 1024;
-      var body = string.Empty;
+      var buffer = new byte[maxBytes];
+      var total = 0;
       try
       {
-        var s = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        var buffer = new byte[maxBytes];
-        var total = 0;
+        // The TTFB watchdog bounds only the header phase; a daemon that sends the non-2xx
+        // status line and then stalls would otherwise keep this body read pending forever
+        // under CancellationToken.None. Bound it by ConnectionTimeout; on timeout proceed
+        // with whatever was read — the HTTP status is the primary signal, the body only
+        // enriches the message.
+        using var bodyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        bodyCts.CancelAfter(_config.ConnectionTimeout);
+        var s = await response.Content.ReadAsStreamAsync(bodyCts.Token).ConfigureAwait(false);
         int read;
         while (total < maxBytes &&
-               (read = await s.ReadAsync(buffer.AsMemory(total, maxBytes - total), ct).ConfigureAwait(false)) > 0)
+               (read = await s.ReadAsync(buffer.AsMemory(total, maxBytes - total), bodyCts.Token).ConfigureAwait(false)) > 0)
           total += read;
-        body = Encoding.UTF8.GetString(buffer, 0, total);
       }
       catch (OperationCanceledException) when (ct.IsCancellationRequested)
       {
@@ -236,8 +259,10 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       }
       catch (Exception)
       {
-        // Body unavailable — fall back to the status line below.
+        // Body unavailable or the bounded read timed out — keep the partial body (if any)
+        // and fall back to the status line below.
       }
+      var body = Encoding.UTF8.GetString(buffer, 0, total);
 
       var statusEnum = response.StatusCode;
       var status = (int)statusEnum;
@@ -334,9 +359,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// Ensures the request path carries the negotiated Docker API version.
     /// </summary>
     /// <remarks>
-    /// Negotiation is retried on every request until it succeeds. That favors fast recovery
-    /// when the daemon returns, at the cost of one extra <c>/_ping</c> per request during a
-    /// total outage; a negative-cache cooldown is deliberately omitted.
+    /// Negotiation is retried on every request until it succeeds, favoring fast recovery when
+    /// the daemon returns. Concurrent un-negotiated requests share ONE in-flight negotiation
+    /// attempt (each still honors its own cancellation token) so a daemon outage costs the
+    /// whole batch one <c>ConnectionTimeout</c>, not one per queued request. The terminal
+    /// unsupported-daemon-version failure is negatively cached for a short cooldown.
     /// </remarks>
     private async Task<string> GetVersionedPathAsync(string path, CancellationToken ct)
     {
@@ -344,6 +371,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var state = _negotiation;
       if (!state.Negotiated)
       {
+        Task negotiation = null;
         await _negotiationLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -352,19 +380,70 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           state = _negotiation;
           if (!state.Negotiated)
           {
-            await NegotiateApiVersionAsync(ct).ConfigureAwait(false);
-            state = _negotiation;
+            if (_unsupportedDaemonFailure != null &&
+                Stopwatch.GetElapsedTime(_unsupportedDaemonTimestamp) < UnsupportedDaemonRetryCooldown)
+            {
+              // Chain (not rethrow) the cached instance so each surfaced exception owns its
+              // stack trace while keeping the dedicated error code.
+              throw new DriverException(
+                  _unsupportedDaemonFailure.Message, _unsupportedDaemonFailure.ErrorCode,
+                  context: null, _unsupportedDaemonFailure, isTransient: false);
+            }
+
+            if (_negotiationTask is not { IsCompleted: false })
+            {
+              var attempt = NegotiateAndRecordAsync();
+              // Observe the fault out-of-band: if every joiner cancels before awaiting, the
+              // typed failure must not surface as an UnobservedTaskException.
+              _ = attempt.ContinueWith(
+                  t => _ = t.Exception,
+                  CancellationToken.None,
+                  TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                  TaskScheduler.Default);
+              _negotiationTask = attempt;
+            }
+
+            negotiation = _negotiationTask;
           }
         }
         finally
         {
           _negotiationLock.Release();
         }
+
+        if (negotiation != null)
+        {
+          // Join the shared attempt; WaitAsync honors THIS caller's token without
+          // cancelling the shared work (which is bounded internally by ConnectionTimeout).
+          await negotiation.WaitAsync(ct).ConfigureAwait(false);
+          state = _negotiation;
+        }
       }
 
       return string.IsNullOrEmpty(state.ApiVersion)
           ? path
           : $"/v{state.ApiVersion}{path}";
+    }
+
+    /// <summary>
+    /// Runs one negotiation attempt detached from any single caller's cancellation and
+    /// records/clears the unsupported-daemon negative cache.
+    /// </summary>
+    private async Task NegotiateAndRecordAsync()
+    {
+      try
+      {
+        await NegotiateApiVersionAsync(CancellationToken.None).ConfigureAwait(false);
+        _unsupportedDaemonFailure = null;
+      }
+      catch (DriverException ex) when (
+          string.Equals(ex.ErrorCode, Model.Drivers.ErrorCodes.Api.UnsupportedVersion, StringComparison.Ordinal))
+      {
+        // Timestamp first: the volatile write of the exception field publishes it.
+        _unsupportedDaemonTimestamp = Stopwatch.GetTimestamp();
+        _unsupportedDaemonFailure = ex;
+        throw;
+      }
     }
 
     private void ThrowIfDisposed()
@@ -414,7 +493,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         "http" => CreateTcpHandler(uri, config, useTls: false, ownedCertificates),
         "https" => CreateTcpHandler(uri, config, useTls: true, ownedCertificates),
         _ => throw new ArgumentException($"Unsupported URI scheme: {uri.Scheme}. " +
-            "Use unix://, npipe://, tcp://, or https://", nameof(host))
+            "Use unix://, npipe://, tcp://, http://, or https://", nameof(host))
       };
     }
 

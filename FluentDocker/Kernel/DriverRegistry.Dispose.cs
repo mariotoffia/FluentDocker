@@ -15,6 +15,10 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Synchronously disposes the registry and its registered drivers/packs.
     /// Disposal order follows the registry dictionaries' enumeration order and is not ordered.
+    /// A registration-lock timeout is retried once (a later <see cref="DisposeAsync"/> retry
+    /// still proceeds — see its remarks); if the retry also times out, the remaining live
+    /// drivers are counted in <see cref="AbandonedDriverCount"/> and an error is logged so
+    /// the leak is observable rather than silent.
     /// </summary>
     public void Dispose()
     {
@@ -22,9 +26,26 @@ namespace FluentDocker.Kernel
       {
         Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
       }
-      catch (TimeoutException ex)
+      catch (TimeoutException)
       {
-        _logger.LogWarning(ex, "Driver registry sync disposal timed out");
+        // One retry: the lock holder (a concurrent registration or disposer) usually
+        // finishes within a second budget window — mirrors the kernel-level retry idiom.
+        try
+        {
+          Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
+        }
+        catch (TimeoutException ex)
+        {
+          // Surface the incomplete state loudly: every remaining driver is left alive while
+          // registry methods throw ObjectDisposedException. Account them as abandoned so
+          // AbandonedDriverCount reflects reality for leak monitors.
+          var leaked = _driverPacks.Count + _drivers.Count;
+          if (leaked > 0)
+            Interlocked.Add(ref _abandonedDriverCount, leaked);
+          _logger.LogError(ex,
+              "Driver registry sync disposal timed out twice; {LeakedCount} driver(s)/pack(s) left undisposed",
+              leaked);
+        }
       }
     }
 #pragma warning restore CA1816

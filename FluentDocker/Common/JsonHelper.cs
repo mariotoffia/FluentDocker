@@ -23,17 +23,9 @@ namespace FluentDocker.Common
   /// </remarks>
   public static class JsonHelper
   {
-    private const string ContainerNetworkSettingsTypeName = "FluentDocker.Model.Containers.ContainerNetworkSettings";
-    private static readonly JsonConverter<string?> TolerantNetworkPrefixConverter = new TolerantStringConverter();
     private static readonly JsonConverter<DateTimeOffset> TolerantDateTimeOffsetConverterInstance = new TolerantDateTimeOffsetConverter();
     private static readonly JsonConverter<DateTimeOffset?> TolerantNullableDateTimeOffsetConverterInstance = new TolerantNullableDateTimeOffsetConverter();
-    private static readonly HashSet<string> TolerantNetworkPrefixProperties =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-          "LinkLocalIPv6PrefixLen",
-          "GlobalIPv6PrefixLen",
-          "IPPrefixLen"
-        };
+    private static readonly JsonConverter<bool> LenientBoolConverterInstance = new LenientBoolConverter();
 
     /// <summary>
     /// Default serializer options matching Docker/Podman JSON conventions.
@@ -272,21 +264,33 @@ namespace FluentDocker.Common
 
     private static IJsonTypeInfoResolver CreateTypeInfoResolver()
     {
+      // The former ContainerNetworkSettings prefix-length string modifier is gone: those
+      // properties are now lenient ints with [JsonConverter(typeof(LenientInt32Converter))]
+      // directly on the DTO (one shape for prefix lengths across the inspect surface).
       var resolver = new DefaultJsonTypeInfoResolver();
-      resolver.Modifiers.Add(ApplyTolerantNetworkPrefixConverters);
       resolver.Modifiers.Add(ApplyTolerantDateTimeOffsetConverters);
+      resolver.Modifiers.Add(ApplyLenientBoolConverters);
       return resolver;
     }
 
-    private static void ApplyTolerantNetworkPrefixConverters(JsonTypeInfo typeInfo)
+    /// <summary>
+    /// Applies <see cref="LenientBoolConverter"/> to every non-nullable <see cref="bool"/>
+    /// property of FluentDocker's own model DTOs, so one drifting daemon-emitted boolean
+    /// (JSON null, numeric 0/1, or string form) degrades to a parsed value instead of failing
+    /// the entire inspect deserialization. Nullable booleans are left untouched: they already
+    /// tolerate JSON null, and null must remain observable as "not set" for options DTOs.
+    /// Scoped like the <see cref="DateTimeOffset"/> modifier — user types deserialized through
+    /// the shared options are not rewritten (MC-MAJ-1).
+    /// </summary>
+    private static void ApplyLenientBoolConverters(JsonTypeInfo typeInfo)
     {
-      if (!string.Equals(typeInfo.Type.FullName, ContainerNetworkSettingsTypeName, StringComparison.Ordinal))
+      if (typeInfo.Type.Namespace?.StartsWith("FluentDocker.Model", StringComparison.Ordinal) != true)
         return;
 
       foreach (var property in typeInfo.Properties)
       {
-        if (TolerantNetworkPrefixProperties.Contains(property.Name))
-          property.CustomConverter = TolerantNetworkPrefixConverter;
+        if (property.PropertyType == typeof(bool))
+          property.CustomConverter = LenientBoolConverterInstance;
       }
     }
 

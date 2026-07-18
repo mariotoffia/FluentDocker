@@ -45,7 +45,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.Timestamps)
         args += " --timestamps";
       if (config.Tail.HasValue)
-        args += $" --tail {config.Tail.Value}";
+        args += $" --tail {config.Tail.Value.ToString(CultureInfo.InvariantCulture)}";
       if (!string.IsNullOrEmpty(config.Since))
         args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
@@ -234,11 +234,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     }
 
     #region Parsing
-
-    private static ContainerEvent ParseEvent(string json)
-    {
-      return ParseEventCore(json, NullLogger.Instance);
-    }
 
     private static ContainerEvent ParseEventCore(string json, ILogger logger)
     {

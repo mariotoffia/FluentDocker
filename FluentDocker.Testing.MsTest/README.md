@@ -10,6 +10,10 @@ resource lifecycle managed for you.
 ```bash
 dotnet add package FluentDocker.Testing.MsTest
 ```
+> **Requires .NET 10.** All FluentDocker 3.2 packages (including this one) target
+> `net10.0` only — a test project on .NET 8/9 LTS cannot reference them. Retarget the
+> TEST project to `net10.0`; the production code under test can stay on its own TFM.
+
 
 ## Project setup / requirements
 
@@ -33,6 +37,7 @@ Minimal consumer `.csproj`:
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
@@ -92,6 +97,8 @@ them running. Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=0` (or `false`) to opt out. 
 and hard CI termination cannot run in-process cleanup.
 
 ```csharp
+using System;
+using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Testing.MsTest;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -123,6 +130,8 @@ unique container name when you set one explicitly; fixed names collide under
 parallel runs.
 
 ```csharp
+using System;
+using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Testing.MsTest;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

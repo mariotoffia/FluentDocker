@@ -242,12 +242,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void Resolve_UnknownBinary_ThrowsArgumentException()
+    public void Resolve_UnknownBinary_ThrowsFluentDockerException()
     {
       var resolver = CreateResolverWithFakeBinary();
 
-      // DockerBinary.Translate throws ArgumentException for unknown names
-      Assert.Throws<ArgumentException>(() => resolver.Resolve("podman"));
+      // Unknown names surface as the documented FluentDockerException (the raw
+      // ArgumentException from DockerBinary.Translate is wrapped — DC-5).
+      var ex = Assert.Throws<FluentDockerException>(() => resolver.Resolve("podman"));
+      Assert.IsType<ArgumentException>(ex.InnerException);
     }
 
     #endregion

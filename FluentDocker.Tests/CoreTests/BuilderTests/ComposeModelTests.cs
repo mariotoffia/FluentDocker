@@ -67,6 +67,61 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.Contains("        model_var: AI_MODEL_NAME", yaml);
     }
 
+    // ---- BF-8: fluent-call validation ----
+
+    [Fact]
+    public void AddModel_DuplicateKey_ThrowsAtTheFluentCall()
+    {
+      var b = new ComposeModelBuilder();
+      b.AddModel("llm", m => m.WithModel("ai/smollm2"));
+
+      var ex = Assert.Throws<ArgumentException>(() =>
+          b.AddModel("llm", m => m.WithModel("ai/other")));
+
+      Assert.Contains("llm", ex.Message);
+      Assert.Equal("key", ex.ParamName);
+    }
+
+    [Fact]
+    public void BindToService_SameModelKeyTwiceForOneService_ThrowsAtTheFluentCall()
+    {
+      var b = new ComposeModelBuilder();
+      b.AddModel("llm", m => m.WithModel("ai/smollm2"));
+      b.BindToService("app", "llm");
+
+      // Mixing short and long form for the same key would emit the key twice in one models: map.
+      var ex = Assert.Throws<ArgumentException>(() =>
+          b.BindToService("app", "llm", endpointVar: "AI_URL"));
+
+      Assert.Contains("llm", ex.Message);
+      Assert.Contains("app", ex.Message);
+    }
+
+    [Fact]
+    public void BindToService_SameModelKeyOnDifferentServices_IsAllowed()
+    {
+      var b = new ComposeModelBuilder();
+      b.AddModel("llm", m => m.WithModel("ai/smollm2"));
+      b.BindToService("app", "llm");
+      b.BindToService("api", "llm");
+
+      var yaml = b.EmitOverlay();
+
+      Assert.Contains("  app:", yaml);
+      Assert.Contains("  api:", yaml);
+    }
+
+    [Fact]
+    public void AddModel_WithoutWithModel_ThrowsAtTheFluentCall()
+    {
+      var b = new ComposeModelBuilder();
+
+      var ex = Assert.Throws<ArgumentException>(() =>
+          b.AddModel("llm", m => m.WithContextSize(2048)));
+
+      Assert.Contains("WithModel", ex.Message);
+    }
+
     // ---- K3: env binding ----
 
     [Fact]

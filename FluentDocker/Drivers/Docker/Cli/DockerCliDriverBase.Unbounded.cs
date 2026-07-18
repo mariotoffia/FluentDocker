@@ -23,8 +23,11 @@ namespace FluentDocker.Drivers.Docker.Cli
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
       var globalArgs = BuildGlobalArgs(effectiveContext);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+      // Environment names are forwarded through sudo via --preserve-env — sudo's env_reset
+      // would otherwise silently strip variables set on the spawned sudo process (DC-2).
       var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
+          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword,
+              ValidatedPreserveEnvNames(environment, sudo));
 
       Process process = null;
       Task outTask = null;

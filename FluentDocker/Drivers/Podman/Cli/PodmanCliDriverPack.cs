@@ -28,6 +28,11 @@ namespace FluentDocker.Drivers.Podman.Cli
     private DriverContext _context;
     private IPodmanBinaryResolver _binaryResolver;
     private ILogger<PodmanCliDriverPack> _logger = NullLogger<PodmanCliDriverPack>.Instance;
+    // Written with Volatile.Write after all driver fields/_drivers entries are assigned and read
+    // with Volatile.Read on lock-free paths (mirrors _disposed), so the release/acquire pairing
+    // publishes those writes to readers on weakly ordered hardware (ARM64). _drivers itself is a
+    // readonly dictionary fully populated before that volatile publication, so its lock-free
+    // readers need no further synchronization.
     private bool _initialized;
     private int _disposed;
 
@@ -121,7 +126,7 @@ namespace FluentDocker.Drivers.Podman.Cli
           await AutoStartMachineAsync(context, cancellationToken).ConfigureAwait(false);
 
         ThrowIfDisposed();
-        _initialized = true;
+        Volatile.Write(ref _initialized, true);
       }
       finally
       {
@@ -155,7 +160,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      if (!_initialized || _systemDriver == null)
+      if (!Volatile.Read(ref _initialized) || _systemDriver == null)
         return false;
 
       try

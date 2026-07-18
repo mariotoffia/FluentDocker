@@ -74,8 +74,16 @@ namespace FluentDocker.Services.Impl
 
     internal void InvalidateInspectCache()
     {
-      Interlocked.Increment(ref _cacheVersion);
-      _inspectCacheEntry = null;
+      // Must serialize with ApplyInspectResultIfVersionCurrentAsync (ContainerService.Inspect.cs),
+      // which checks _cacheVersion and writes _inspectCacheEntry under _stateLock: without the
+      // lock, an invalidation landing between that check and write would be overwritten by the
+      // stale inspect result. Monitor is reentrant, so UpdateStateCore invoking this while already
+      // holding _stateLock is safe.
+      lock (_stateLock)
+      {
+        Interlocked.Increment(ref _cacheVersion);
+        _inspectCacheEntry = null;
+      }
     }
 
     private async ValueTask DisposeCoreAsync()
@@ -105,7 +113,10 @@ namespace FluentDocker.Services.Impl
         ObserveAbandonedCleanup(preStopHookTask);
       }
 
-      if (_stopOnDispose && _state != ServiceRunningState.Stopped && _state != ServiceRunningState.Removed)
+      // Only skip the stop on the terminal Removed state. A cached "Stopped" may be stale
+      // (restart policy / external `docker start`), and StopCoreAsync is daemon-idempotent
+      // (IsAlreadyNotRunning maps to success) — mirroring StopCoreAsync's own SVC-MAJ-4 rule.
+      if (_stopOnDispose && _state != ServiceRunningState.Removed)
       {
         var stopTask = StopCoreAsync(throwIfDisposed: false, cleanupCts.Token);
         try

@@ -41,9 +41,12 @@ namespace FluentDocker.Model.Common
       return TryParseParts(embedded, out _);
     }
 
-    /// <summary>Parses a string as an <see cref="EmbeddedUri"/>; <c>null</c> input yields <c>null</c>.</summary>
+    /// <summary>
+    /// Parses a string as an <see cref="EmbeddedUri"/>; <c>null</c> input yields <c>null</c>.
+    /// Explicit (not implicit) because the conversion throws on malformed input.
+    /// </summary>
     /// <exception cref="ArgumentException"><paramref name="uri"/> is not a valid <c>emb:</c> URI.</exception>
-    public static implicit operator EmbeddedUri?(string? uri)
+    public static explicit operator EmbeddedUri?(string? uri)
     {
       if (null == uri)
       {

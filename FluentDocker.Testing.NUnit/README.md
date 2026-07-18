@@ -10,6 +10,10 @@ lifecycle managed for you.
 ```bash
 dotnet add package FluentDocker.Testing.NUnit
 ```
+> **Requires .NET 10.** All FluentDocker 3.2 packages (including this one) target
+> `net10.0` only — a test project on .NET 8/9 LTS cannot reference them. Retarget the
+> TEST project to `net10.0`; the production code under test can stay on its own TFM.
+
 
 ## Base-class fixture
 
@@ -50,6 +54,8 @@ them running. Set `FLUENTDOCKER_TEST_REAPER_ON_EXIT=0` (or `false`) to opt out. 
 and hard CI termination cannot run in-process cleanup.
 
 ```csharp
+using System;
+using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Testing.NUnit;
 using NUnit.Framework;

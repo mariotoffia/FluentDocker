@@ -235,7 +235,9 @@ namespace FluentDocker.Drivers.Podman.Cli
               DriverId = effectiveContext.DriverId,
               Host = effectiveContext.Host,
               ExitCode = failureExitCode,
-              StdErr = FormatTail(tail)
+              // The tail interleaves stdout and stderr lines; label it so consumers do not
+              // mistake it for pure stderr (mirrors the Docker CLI streaming path).
+              StdErr = $"merged output{FormatTail(tail)}"
             });
     }
 
@@ -333,7 +335,9 @@ namespace FluentDocker.Drivers.Podman.Cli
               DriverId = effectiveContext.DriverId,
               Host = effectiveContext.Host,
               ExitCode = failureExitCode,
-              StdErr = FormatTail(tail)
+              // The tail interleaves stdout and stderr lines; label it so consumers do not
+              // mistake it for pure stderr (mirrors the Docker CLI streaming path).
+              StdErr = $"merged output{FormatTail(tail)}"
             });
     }
 

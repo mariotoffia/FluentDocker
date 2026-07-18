@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
-using FluentDocker.Kernel;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -77,7 +76,7 @@ namespace FluentDocker.Tests.Documentation
         CancellationToken cancellationToken)
     {
       // Mirrors docs/compose.md "Use in Test Base Classes" exactly — keep in sync.
-      var api = (await results.ComposeServices.First().ListServicesAsync(cancellationToken))
+      var api = (await results.ComposeServices[0].ListServicesAsync(cancellationToken))
         .First(s => s.Name == "api");
       var port = api.Publishers.First(p => p.TargetPort == 8080).PublishedPort;
 

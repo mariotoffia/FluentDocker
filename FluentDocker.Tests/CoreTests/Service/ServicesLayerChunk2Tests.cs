@@ -56,6 +56,25 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task ContainerDispose_WithStopOnDisposeAndStaleStoppedState_StillIssuesStop()
+    {
+      // SVC-1: a cached "Stopped" may be stale (restart policy / external `docker start`),
+      // so dispose with stopOnDispose=true must still issue the daemon-idempotent stop
+      // instead of short-circuiting on the client-side state.
+      MockPack.SetupContainerStop();
+      var service = new ContainerService(
+          Kernel, DriverId, "container-123", "alpine", "test",
+          stopOnDispose: true, deleteOnDispose: false);
+      await service.StopAsync(TestContext.Current.CancellationToken);
+
+      await service.DisposeAsync();
+
+      MockPack.ContainerDriver.Verify(d => d.StopAsync(
+          It.IsAny<DriverContext>(), "container-123", It.IsAny<int?>(),
+          It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
     public async Task ContainerKillAsync_WhenAlreadyStopped_StillInvokesDriver()
     {
       MockPack.SetupContainerStop();
@@ -402,6 +421,74 @@ namespace FluentDocker.Tests.CoreTests.Service
       await service.UnpauseAsync(TestContext.Current.CancellationToken);
 
       Assert.Equal(ServiceRunningState.Stopped, service.State);
+    }
+
+    [Fact]
+    public async Task ContainerPauseAsync_WhenNotRunningAndInspectExited_KeepsStoppedInsteadOfUnknown()
+    {
+      // SVC-5: pausing a stopped container fails "is not running"; the daemon still knows the real
+      // state, so the failure path must re-inspect (like UnpauseAsync) instead of clobbering an
+      // accurate Stopped to Unknown and firing Unknown-state hooks.
+      MockPack.ContainerDriver
+          .Setup(d => d.PauseAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("Container container-123 is not running", exitCode: 1));
+      MockPack.SetupContainerInspect("container-123", running: false);
+      var service = new ContainerService(
+          Kernel, DriverId, "container-123", "alpine", "test",
+          initialState: ServiceRunningState.Stopped);
+      var unknownHookFired = false;
+      service.AddHook(ServiceRunningState.Unknown, _ =>
+      {
+        unknownHookFired = true;
+        return Task.CompletedTask;
+      });
+
+      await Assert.ThrowsAsync<DriverException>(() =>
+          service.PauseAsync(TestContext.Current.CancellationToken));
+
+      Assert.Equal(ServiceRunningState.Stopped, service.State);
+      Assert.False(unknownHookFired);
+    }
+
+    [Fact]
+    public async Task ContainerPauseAsync_WhenPauseFailsAndInspectCannotDetermineState_SetsUnknown()
+    {
+      // SVC-5 companion: Unknown remains only when the post-failure inspect cannot determine the
+      // real state (the mock pack's default inspect fails with NotFound).
+      MockPack.ContainerDriver
+          .Setup(d => d.PauseAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("Container container-123 is not running", exitCode: 1));
+      var service = new ContainerService(
+          Kernel, DriverId, "container-123", "alpine", "test",
+          initialState: ServiceRunningState.Stopped);
+
+      await Assert.ThrowsAsync<DriverException>(() =>
+          service.PauseAsync(TestContext.Current.CancellationToken));
+
+      Assert.Equal(ServiceRunningState.Unknown, service.State);
+    }
+
+    [Fact]
+    public async Task GetContainersAsync_WhenListedContainerCreatedStatusText_SeedsCreatedState()
+    {
+      // SVC-7: the fallback "created …" status text must seed Created — not Starting — so a later
+      // start still transitions to Starting and fires its hooks (see ServiceRunningState.Created).
+      MockPack.SetupContainerList(new Container
+      {
+        Id = "container-created",
+        Name = "api",
+        Image = "alpine",
+        State = new ContainerState { Running = false, Status = "Created 3 seconds ago" }
+      });
+      var service = new HostService(Kernel, DriverId, "host");
+
+      var containers = await service.GetContainersAsync(
+          all: true, cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.Single(containers);
+      Assert.Equal(ServiceRunningState.Created, containers[0].State);
     }
   }
 }

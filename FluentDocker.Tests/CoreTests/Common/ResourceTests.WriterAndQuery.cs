@@ -239,6 +239,39 @@ namespace FluentDocker.Tests.CoreTests.Common
       }
     }
 
+    // CE-9: a crafted RelativeRootNamespace must not map to a rooted fragment (a leading dot
+    // becomes a leading separator, making Path.Combine discard the base path) or contain
+    // empty/dot/dot-dot segments that would traverse out of it.
+    [Theory]
+    [InlineData(".hack")]         // leading dot -> rooted fragment, discards the base path
+    [InlineData("..")]            // maps to separators only
+    [InlineData("a..b")]          // empty segment
+    [InlineData("a.")]            // trailing empty segment
+    [InlineData("a/../b")]        // literal traversal segment in an unusual manifest name
+    public void Write_ResourceStream_RejectsRootedOrTraversalNamespaces(string relativeRootNamespace)
+    {
+      var outputDir = Path.Combine(Environment.CurrentDirectory, ".out", "resource-tests", Guid.NewGuid().ToString("N"));
+
+      try
+      {
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes("escape"));
+        var info = new ResourceInfo
+        {
+          Resource = "file.txt",
+          RelativeRootNamespace = relativeRootNamespace
+        };
+        using var resourceStream = new ResourceStream(stream, info);
+
+        Assert.Throws<FluentDocker.Common.FluentDockerException>(
+          () => new FileResourceWriter(outputDir).Write(resourceStream));
+      }
+      finally
+      {
+        if (Directory.Exists(outputDir))
+          Directory.Delete(outputDir, true);
+      }
+    }
+
     #endregion
 
     #region FileResourceWriter - Write(ResourceReader)

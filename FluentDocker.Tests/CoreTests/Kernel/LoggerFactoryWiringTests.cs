@@ -140,10 +140,6 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       public Task<bool> IsHealthyAsync(CancellationToken ct = default) => Task.FromResult(true);
 
-      public T SysCtl<T>(string driverId) where T : class => null!;
-      public object SysCtl(string driverId, Type interfaceType) => null!;
-      public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-      { instance = null!; return false; }
       public bool TryResolve(Type t, out object impl) { impl = null!; return false; }
       public System.Collections.Generic.IReadOnlyCollection<Type> GetSupportedInterfaces()
           => [];
@@ -162,10 +158,6 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       public Task<bool> IsHealthyAsync(CancellationToken ct = default) => Task.FromResult(true);
 
-      public T SysCtl<T>(string driverId) where T : class => null!;
-      public object SysCtl(string driverId, Type interfaceType) => null!;
-      public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-      { instance = null!; return false; }
       public bool TryResolve(Type t, out object impl) { impl = null!; return false; }
       public System.Collections.Generic.IReadOnlyCollection<Type> GetSupportedInterfaces()
           => [];

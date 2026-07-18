@@ -238,7 +238,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       await using var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance),
           NullLoggerFactory.Instance);
-      await kernel.RegisterDriverPackAsync(DriverId, pack, new DriverContext(DriverId));
+      await kernel.RegisterDriverPackAsync(DriverId, pack, new DriverContext(DriverId), TestContext.Current.CancellationToken);
       kernel.SetDefaultDriver(DriverId);
       pack.ContainerDriver
           .Setup(d => d.RemoveAsync(
@@ -300,12 +300,12 @@ namespace FluentDocker.Tests.CoreTests.Service
         }
 
         for (var i = 0; i < 500 && Volatile.Read(ref enteredStop) < Callers; i++)
-          await Task.Delay(10, TestContext.Current.CancellationToken).ConfigureAwait(false);
+          await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.Equal(Callers, Volatile.Read(ref enteredStop));
 
         releaseStop.SetResult();
         await Task.WhenAll(tasks).WaitAsync(
-            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken).ConfigureAwait(false);
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.Equal(1, Volatile.Read(ref stopping));
         Assert.Equal(1, Volatile.Read(ref stopped));

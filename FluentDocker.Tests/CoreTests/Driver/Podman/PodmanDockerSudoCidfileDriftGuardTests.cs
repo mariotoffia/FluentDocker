@@ -52,7 +52,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     private static (string FileName, string Arguments, string PasswordForStdin) InvokeSudoCommand(
         Type driverBaseType, SudoMechanism sudo)
     {
-      var method = driverBaseType.GetMethod("BuildSudoCommand", BindingFlags.NonPublic | BindingFlags.Static);
+      // Bind the 4-arg overload explicitly: the Docker side also has a 5-arg overload that
+      // forwards caller environment names through sudo (--preserve-env, DC-2), which a
+      // name-only lookup would make ambiguous.
+      var method = driverBaseType.GetMethod(
+          "BuildSudoCommand",
+          BindingFlags.NonPublic | BindingFlags.Static,
+          [typeof(string), typeof(string), typeof(SudoMechanism), typeof(string)]);
       Assert.NotNull(method);
       return ((string FileName, string Arguments, string PasswordForStdin))method.Invoke(
           null,

@@ -70,19 +70,6 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
 
     public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(false);
-
-    public T SysCtl<T>(string driverId) where T : class =>
-        throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
-
-    public object SysCtl(string driverId, Type interfaceType) =>
-        throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-
-    public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-    {
-      instance = null!;
-      return false;
-    }
-
     public bool TryResolve(Type interfaceType, out object implementation)
     {
       implementation = null!;

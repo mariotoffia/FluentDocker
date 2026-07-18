@@ -83,5 +83,64 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
       Assert.Contains(@"RUN echo one \ && echo two", dockerfile);
     }
+
+    // BF-6: the guard's remedy must be achievable — a line continuation contains a newline,
+    // which this very guard rejects, so the message may only suggest multiple Run() calls.
+    [Fact]
+    public void RunCommand_WithEmbeddedNewline_MessageDoesNotSuggestLineContinuations()
+    {
+      var ex = Assert.Throws<FluentDockerException>(() => new RunCommand("x\nRUN evil"));
+
+      Assert.DoesNotContain("line continuation", ex.Message, StringComparison.OrdinalIgnoreCase);
+      Assert.Contains("multiple Run() calls", ex.Message);
+    }
+
+    // BF-5: empty EXPOSE/VOLUME argument lists would render invalid Dockerfile instructions
+    // ("EXPOSE " / "VOLUME []"), so they are rejected at the fluent call.
+    [Fact]
+    public void ExposeCommand_EmptyOrNullPorts_ThrowsArgumentException()
+    {
+      Assert.Throws<ArgumentException>(() => new ExposeCommand(Array.Empty<int>()));
+      Assert.Throws<ArgumentException>(() => new ExposeCommand((int[])null!));
+      Assert.Throws<ArgumentException>(() => new ExposeCommand((string[])null!));
+      Assert.Throws<ArgumentException>(() => new ExposeCommand(Array.Empty<string>()));
+    }
+
+    [Fact]
+    public void VolumeCommand_EmptyOrNullMountpoints_ThrowsArgumentException()
+    {
+      Assert.Throws<ArgumentException>(() => new VolumeCommand());
+      Assert.Throws<ArgumentException>(() =>
+          new VolumeCommand((FluentDocker.Model.Common.TemplateString[])null!));
+    }
+
+    // BF-7: rendering must not contain double spaces and negative retries are rejected.
+    [Fact]
+    public void HealthCheckCommand_DefaultOptions_RendersWithoutDoubleSpaces()
+    {
+      var rendered = new HealthCheckCommand("curl -f http://localhost/ || exit 1").ToString();
+
+      Assert.Equal(
+          "HEALTHCHECK --interval=30s --timeout=30s --start-period=0s CMD curl -f http://localhost/ || exit 1",
+          rendered);
+      Assert.DoesNotContain("  ", rendered);
+    }
+
+    [Fact]
+    public void HealthCheckCommand_NonDefaultRetries_RendersRetriesOption()
+    {
+      var rendered = new HealthCheckCommand("ping", retries: 5).ToString();
+
+      Assert.Contains("--retries=5", rendered);
+      Assert.DoesNotContain("  ", rendered);
+    }
+
+    [Fact]
+    public void HealthCheckCommand_NegativeRetries_ThrowsArgumentOutOfRangeException()
+    {
+      var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new HealthCheckCommand("ping", retries: -1));
+
+      Assert.Equal("retries", ex.ParamName);
+    }
   }
 }

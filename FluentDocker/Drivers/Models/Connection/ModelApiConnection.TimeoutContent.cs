@@ -99,7 +99,7 @@ namespace FluentDocker.Drivers.Models.Connection
     {
       public override bool CanRead => inner.CanRead;
       public override bool CanSeek => inner.CanSeek;
-      public override bool CanWrite => inner.CanWrite;
+      public override bool CanWrite => false;
       public override long Length => inner.Length;
       public override long Position { get => inner.Position; set => inner.Position = value; }
 
@@ -133,10 +133,14 @@ namespace FluentDocker.Drivers.Models.Connection
 
       public override int Read(byte[] buffer, int offset, int count) =>
           throw new NotSupportedException("Synchronous model API response body reads are not supported; use ReadAsync.");
-      public override void Flush() => inner.Flush();
+      public override void Flush()
+      {
+      }
+
       public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
-      public override void SetLength(long value) => inner.SetLength(value);
-      public override void Write(byte[] buffer, int offset, int count) => inner.Write(buffer, offset, count);
+      public override void SetLength(long value) => throw new NotSupportedException();
+      public override void Write(byte[] buffer, int offset, int count) =>
+          throw new NotSupportedException("Model API response body streams are read-only.");
       protected override void Dispose(bool disposing)
       {
         if (disposing)

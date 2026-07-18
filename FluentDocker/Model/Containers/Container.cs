@@ -1,4 +1,8 @@
 #nullable enable
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace FluentDocker.Model.Containers
 {
   /// <summary>
@@ -50,5 +54,12 @@ namespace FluentDocker.Model.Containers
 
     /// <summary>Network settings from inspect.</summary>
     public ContainerNetworkSettings? NetworkSettings { get; set; }
+
+    /// <summary>
+    /// Inspect fields not modeled by this DTO (e.g. <c>HostConfig</c>, <c>GraphDriver</c>),
+    /// captured verbatim so consumers can reach them without re-parsing the raw inspect output.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalData { get; set; }
   }
 }

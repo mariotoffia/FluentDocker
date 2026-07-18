@@ -52,21 +52,41 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         // fires, inner.ReadAsync is abandoned but still owns whatever buffer we handed it; the caller
         // recycles its buffer to ArrayPool the moment we throw, so the abandoned read must never hold it.
         var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
+        Task<int> readTask = null;
         try
         {
-          var read = await inner.ReadAsync(rented.AsMemory(0, buffer.Length), cancellationToken)
-              .AsTask().WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+          readTask = inner.ReadAsync(rented.AsMemory(0, buffer.Length), cancellationToken).AsTask();
+          var read = await readTask.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
           rented.AsMemory(0, read).CopyTo(buffer);
-          ArrayPool<byte>.Shared.Return(rented);
           return read;
         }
         catch (TimeoutException)
         {
           Volatile.Write(ref _timedOut, 1);
-          // ponytail: intentionally do NOT return `rented` to the pool — the abandoned inner read may
-          // still write into it. Leaking one buffer per timed-out stream (the stream is dead after) is
-          // the safe trade vs. corrupting a recycled segment.
           throw CreateTimeoutException();
+        }
+        finally
+        {
+          // DAPI-8: the pool gets `rented` back exactly once on every path (success,
+          // cancellation, IOException, timeout). When WaitAsync abandoned a still-pending
+          // inner read (idle timeout or caller cancellation), returning immediately could
+          // recycle a segment the abandoned read later writes into (DAPI-1), so ownership
+          // passes to a continuation that returns the buffer once that read settles.
+          if (readTask is { IsCompleted: false })
+          {
+            _ = readTask.ContinueWith(
+                static (task, state) =>
+                {
+                  _ = task.Exception; // observe a late fault so it is never unobserved
+                  ArrayPool<byte>.Shared.Return((byte[])state);
+                },
+                rented, CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+          }
+          else
+          {
+            ArrayPool<byte>.Shared.Return(rented);
+          }
         }
       }
 

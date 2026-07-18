@@ -24,7 +24,7 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
   {
     private static readonly MockContainerDriverPack Pack = new();
     internal static readonly string ContainerName = $"mstest-class-fixture-{Guid.NewGuid():N}";
-    private static string? _firstContainerId;
+    private static string? _observedContainerId;
     internal static bool CleanupCompleted { get; private set; }
     internal static int RemoveCallsAfterCleanup { get; private set; }
 
@@ -40,28 +40,30 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
     }
 
     [TestMethod]
-    public void FirstTest_InitializesSharedContainerOnce()
-    {
-      Assert.AreEqual("class-container", Container.Id);
-      Assert.AreEqual(1, Pack.CreateCalls);
-      _firstContainerId = Container.Id;
-    }
+    public void FirstTest_SharesOneContainer() => AssertSharedContainer();
 
     [TestMethod]
-    public void SecondTest_ReusesSharedContainer()
+    public void SecondTest_SharesOneContainer() => AssertSharedContainer();
+
+    // Order-independent sharing proof: whichever test runs first records the id; the other
+    // ALWAYS compares against it (no conditional assertions that silently never run under
+    // parallel/randomized ordering).
+    private void AssertSharedContainer()
     {
       Assert.AreEqual("class-container", Container.Id);
       Assert.AreEqual(1, Pack.CreateCalls);
-      if (_firstContainerId != null)
-        Assert.AreEqual(_firstContainerId, Container.Id);
+      var first = Interlocked.CompareExchange(ref _observedContainerId, Container.Id, null);
+      Assert.AreEqual(first ?? Container.Id, Container.Id);
     }
 
     [ClassCleanup(ClassCleanupBehavior.EndOfClass)]
     public static async Task Cleanup()
     {
       await CleanupClassAsync().ConfigureAwait(false);
-      if (Pack.CreateCalls > 0)
-        Assert.IsTrue(Pack.RemoveCalls >= 1, "ClassCleanup did not dispose the shared container");
+      // Unconditional: this class's tests always create the shared container, so a guarded
+      // assertion here would silently prove nothing under reordering/filtering.
+      Assert.IsTrue(Pack.CreateCalls >= 1, "shared container was never created");
+      Assert.IsTrue(Pack.RemoveCalls >= 1, "ClassCleanup did not dispose the shared container");
       RemoveCallsAfterCleanup = Pack.RemoveCalls;
       CleanupCompleted = true;
     }
@@ -88,8 +90,8 @@ namespace FluentDocker.Testing.MsTest.RunnerTests
     [TestMethod]
     public void ClassContainer_IsSharedWithinThisClass()
     {
-      if (ClassContainerFixtureRunnerTests.CleanupCompleted)
-        Assert.IsTrue(ClassContainerFixtureRunnerTests.RemoveCallsAfterCleanup >= 1);
+      // Cross-class ordering is runner-defined; the first class's cleanup accounting is
+      // asserted unconditionally in ITS OWN Cleanup, not conditionally here.
       Assert.AreEqual("class-container", Container.Id);
       Assert.AreEqual(1, Pack.CreateCalls);
     }

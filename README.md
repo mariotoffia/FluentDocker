@@ -28,6 +28,14 @@ CI/CD.
 
 ## Install
 
+> **Caveat — read before installing:** 3.2.0-preview.2 is **not on NuGet yet**, so
+> `dotnet add package … --prerelease` currently resolves the latest published package,
+> **3.1.0** — whose `WithPort` is container-first while every doc here teaches the
+> host-first 3.2 semantics. Until the preview ships, build it from the
+> `featrure/model-support` branch into a local feed and reference `3.2.0-preview.2` from
+> there: see **[Consume the preview](docs/getting-started.md#consume-the-preview)** for the
+> copy-paste recipe. Don't run these samples against 3.1.0.
+
 ```bash
 dotnet add package FluentDocker
 dotnet add package FluentDocker.Testing.Xunit   # xUnit adapter (optional)
@@ -35,12 +43,22 @@ dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter (optional)
 dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter (optional)
 ```
 
-**Caveat:** 3.2.0-preview.2 is **not on NuGet yet**, so `dotnet add package … --prerelease`
-currently resolves the latest published package, **3.1.0** — whose `WithPort` is container-first
-while every doc here teaches the host-first 3.2 semantics. Until the preview ships, build it from
-the `featrure/model-support` branch into a local feed and reference `3.2.0-preview.2` from there:
-see **[Consume the preview](docs/getting-started.md#consume-the-preview)** for the copy-paste recipe.
-Don't run these samples against 3.1.0.
+### Coming from Ductus.FluentDocker 2.x?
+
+The package IDs changed in 3.0 — the `Ductus.` prefix is gone:
+
+| 2.x package (legacy) | 3.x package |
+|---|---|
+| `Ductus.FluentDocker` | `FluentDocker` |
+| `Ductus.FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` (xUnit **v3** only) |
+| `Ductus.FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
+| — | `FluentDocker.Testing.NUnit` (new) |
+
+The old `Ductus.*` packages stay on NuGet for existing 2.x users but receive no further
+feature releases; new development happens only under the new IDs. The 3.x API is a
+redesign (async-first, kernel/driver architecture), not a drop-in swap — follow the
+**[migration guide](docs/migration.md)** and the
+**[testing migration guide](docs/testing/migration-from-legacy.md)** when upgrading.
 
 ## Quick Start
 

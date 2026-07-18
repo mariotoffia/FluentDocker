@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 
@@ -49,13 +50,48 @@ namespace FluentDocker.Drivers.Docker.Cli
         => context?.RequestTimeout ?? DefaultBufferedCommandTimeout;
 
     /// <summary>
+    /// Returns the last few KiB of captured process output for attaching to a diagnostic
+    /// <see cref="ErrorContext"/> — enough to see why a command hung/timed out without
+    /// dragging a multi-MiB buffer into the exception.
+    /// </summary>
+    private static string DiagnosticTail(string text, int maxChars = 4096) =>
+        string.IsNullOrEmpty(text) || text.Length <= maxChars ? text : text[^maxChars..];
+
+    /// <summary>
+    /// Snapshot of a reader sink after its (possibly cancelled) task has been awaited:
+    /// the reader no longer appends at that point, so the read is race-free.
+    /// </summary>
+    private static string SinkSnapshot(StringBuilder sink) =>
+        sink is { Length: > 0 } ? sink.ToString() : null;
+
+    /// <summary>
     /// Resolves the binary info for the Docker command, extracting
     /// the binary path and sudo configuration separately for safe execution.
+    /// A per-operation <see cref="DriverContext.BinaryName"/>/<see cref="DriverContext.SearchPaths"/>
+    /// differing from the component's own context resolves a one-shot binary for this call —
+    /// the merged values are honored, not silently ignored in favor of the pack-init resolver.
     /// </summary>
     private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo(DriverContext context)
     {
       var contextSudo = context?.Sudo ?? SudoMechanism.None;
       var contextPassword = context?.SudoPassword;
+
+      if (HasPerOperationBinaryOverride(context))
+      {
+        var overrideResolver = new DockerBinariesResolver(new BinaryConfiguration
+        {
+          Sudo = contextSudo,
+          SudoPassword = contextPassword,
+          DefaultShell = context.DefaultShell,
+          BinaryName = context.BinaryName,
+          SearchPaths = context.SearchPaths
+        });
+        var overrideBinary = overrideResolver.Resolve(
+            string.IsNullOrWhiteSpace(context.BinaryName) ? DockerCommand : context.BinaryName);
+        return (overrideBinary.FqPath,
+            contextSudo != SudoMechanism.None ? contextSudo : overrideBinary.Sudo,
+            contextPassword ?? overrideBinary.SudoPassword);
+      }
 
       if (BinaryResolver == null)
         return (DockerCommand, contextSudo, contextPassword);
@@ -64,6 +100,25 @@ namespace FluentDocker.Drivers.Docker.Cli
       return (binary.FqPath,
           contextSudo != SudoMechanism.None ? contextSudo : binary.Sudo,
           contextPassword ?? binary.SudoPassword);
+    }
+
+    /// <summary>
+    /// True when the merged per-operation context carries a binary name or search-path set
+    /// that differs from the component's initialization context (i.e. the caller overrode
+    /// them for this call). String/reference comparison suffices because
+    /// <see cref="CreateEffectiveContext"/> passes component values through unchanged.
+    /// </summary>
+    private bool HasPerOperationBinaryOverride(DriverContext context)
+    {
+      if (context == null || BinaryResolver == null)
+        return false;
+
+      var component = Context;
+      var binaryDiffers = !string.IsNullOrWhiteSpace(context.BinaryName)
+          && !string.Equals(context.BinaryName, component?.BinaryName, StringComparison.Ordinal);
+      var pathsDiffer = context.SearchPaths is { Length: > 0 }
+          && !ReferenceEquals(context.SearchPaths, component?.SearchPaths);
+      return binaryDiffers || pathsDiffer;
     }
 
     /// <summary>
@@ -227,9 +282,12 @@ namespace FluentDocker.Drivers.Docker.Cli
         CancellationToken cancellationToken)
     {
       // Build the actual process command based on sudo mechanism.
-      // The password is NEVER placed on the command line.
+      // The password is NEVER placed on the command line. Caller environment variables are
+      // forwarded through sudo via --preserve-env (names only) — sudo's env_reset would
+      // otherwise silently strip them from the child docker process.
       var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(fileName, arguments, sudo, sudoPassword);
+          BuildSudoCommand(fileName, arguments, sudo, sudoPassword,
+              ValidatedPreserveEnvNames(environment, sudo));
 
       var needsStdin = stdinData != null || passwordForStdin != null;
 
@@ -245,6 +303,8 @@ namespace FluentDocker.Drivers.Docker.Cli
       Process process = null;
       Task<string> outputTask = null;
       Task<string> errorTask = null;
+      var outputSink = new StringBuilder();
+      var errorSink = new StringBuilder();
       var processStarted = false;
       try
       {
@@ -278,9 +338,10 @@ namespace FluentDocker.Drivers.Docker.Cli
           process.StandardInput.Close();
 
         // Start readers before writing stdin so a child that immediately writes enough
-        // output cannot deadlock while this side is still feeding stdin.
-        outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
-        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, linkedToken);
+        // output cannot deadlock while this side is still feeding stdin. The sinks are
+        // caller-owned so a timeout still has the partial output for diagnostics.
+        outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken, outputSink);
+        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, linkedToken, errorSink);
 
         var stdinFailure = needsStdin
             ? await TryWriteStandardInputAsync(process, passwordForStdin, stdinData, linkedToken).ConfigureAwait(false)
@@ -305,9 +366,14 @@ namespace FluentDocker.Drivers.Docker.Cli
         // Kill the child process on cancellation to prevent orphans.
         KillProcessSafely(process);
 
-        // Drain the readers so `finally` doesn't dispose the process under an in-flight read.
-        await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);
-        await TryReadStringTaskAsync(errorTask).ConfigureAwait(false);
+        // Drain the readers so `finally` doesn't dispose the process under an in-flight read;
+        // keep what was captured so the timeout is diagnosable (DC-6). A cancelled reader
+        // yields null from its task — the caller-owned sink still holds the partials
+        // accumulated before cancellation (safe to read: the awaited task no longer appends).
+        var partialOutput = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false)
+            ?? SinkSnapshot(outputSink);
+        var partialError = await TryReadStringTaskAsync(errorTask).ConfigureAwait(false)
+            ?? SinkSnapshot(errorSink);
 
         // Distinguish caller-driven cancellation from the buffered-command timeout firing:
         // the caller's intent is rethrown as an OCE bound to the caller's token; a timeout
@@ -317,7 +383,13 @@ namespace FluentDocker.Drivers.Docker.Cli
         // "0.###" so a caller-set sub-second timeout reads "0.5s", not a baffling "0s".
         throw new DriverException(
             $"Docker CLI command timed out after {FormatInvariant(timeout.TotalSeconds, "0.###")}s.",
-            ErrorCodes.General.Timeout);
+            ErrorCodes.General.Timeout,
+            new ErrorContext("BufferedCommand")
+            {
+              ExitCode = GetExitCodeOrDefault(process),
+              StdOut = DiagnosticTail(partialOutput),
+              StdErr = DiagnosticTail(partialError)
+            });
       }
       catch (Exception ex) when (processStarted || ex is not DriverException)
       {
@@ -331,8 +403,10 @@ namespace FluentDocker.Drivers.Docker.Cli
             await Task.WhenAny(process.WaitForExitAsync(CancellationToken.None), Task.Delay(2000, CancellationToken.None)).ConfigureAwait(false);
         }
         catch { /* best effort — process may have exited between the check and the kill */ }
-        var output = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);
-        var error = await TryReadStringTaskAsync(errorTask).ConfigureAwait(false);
+        var output = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false)
+            ?? SinkSnapshot(outputSink);
+        var error = await TryReadStringTaskAsync(errorTask).ConfigureAwait(false)
+            ?? SinkSnapshot(errorSink);
         return new SimpleCommandResult
         {
           Success = false,

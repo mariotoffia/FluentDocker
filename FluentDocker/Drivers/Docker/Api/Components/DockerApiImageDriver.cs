@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 using Image = FluentDocker.Drivers.Image;
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -156,18 +157,27 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var removeResult = new ImageRemoveResult();
       if (!string.IsNullOrWhiteSpace(body))
       {
-        var items = JsonHelper.ParseElement(body);
-        if (items.ValueKind == JsonValueKind.Array)
+        // The daemon already committed the delete (2xx); a malformed summary body only costs
+        // the Deleted/Untagged detail, so it must not turn the success into a raw JsonException.
+        try
         {
-          foreach (var item in items.EnumerateArray())
+          var items = JsonHelper.ParseElement(body);
+          if (items.ValueKind == JsonValueKind.Array)
           {
-            var deleted = item.GetStringOrDefault("Deleted");
-            var untagged = item.GetStringOrDefault("Untagged");
-            if (!string.IsNullOrEmpty(deleted))
-              removeResult.Deleted.Add(deleted);
-            if (!string.IsNullOrEmpty(untagged))
-              removeResult.Untagged.Add(untagged);
+            foreach (var item in items.EnumerateArray())
+            {
+              var deleted = item.GetStringOrDefault("Deleted");
+              var untagged = item.GetStringOrDefault("Untagged");
+              if (!string.IsNullOrEmpty(deleted))
+                removeResult.Deleted.Add(deleted);
+              if (!string.IsNullOrEmpty(untagged))
+                removeResult.Untagged.Add(untagged);
+            }
           }
+        }
+        catch (JsonException ex)
+        {
+          Logger.LogDebug(ex, "Ignoring malformed body of successful DELETE /images response");
         }
       }
 
@@ -322,6 +332,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return CommandResponse<IList<string>>.Fail(ex.Message,
             ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", HttpStatusCodeOrZero(ex)));
       }
+      catch (JsonException ex)
+      {
+        // A daemon crash mid-stream can truncate the final NDJSON line; surface it as a
+        // typed failure instead of letting a raw JsonException escape the CommandResponse
+        // contract.
+        return CommandResponse<IList<string>>.Fail(
+            $"Malformed NDJSON line in docker load stream (truncated daemon response?): {ex.Message}",
+            ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", 0));
+      }
 
       // A successful load emits at least one "Loaded image[: | ID:]" line. None means the
       // stream completed without evidence of success (incomplete/streamed failure).
@@ -379,6 +398,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         return CommandResponse<string>.Fail(ex.Message,
             ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", HttpStatusCodeOrZero(ex)));
+      }
+      catch (JsonException ex)
+      {
+        // A daemon crash mid-stream can truncate the final NDJSON line; surface it as a
+        // typed failure instead of letting a raw JsonException escape the CommandResponse
+        // contract.
+        return CommandResponse<string>.Fail(
+            $"Malformed NDJSON line in docker import stream (truncated daemon response?): {ex.Message}",
+            ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", 0));
       }
 
       // A successful import emits a status line carrying the new image id.

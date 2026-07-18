@@ -228,8 +228,12 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ContainerWaitResult
   {
-    /// <summary>Exit code from the container.</summary>
-    public int ExitCode { get; set; }
+    /// <summary>
+    /// Exit code from the container. <see cref="long"/> because the Docker API reports
+    /// int64 status codes — Windows containers routinely exit with values above
+    /// <see cref="int.MaxValue"/> (e.g. 0xC0000005).
+    /// </summary>
+    public long ExitCode { get; set; }
 
     /// <summary>Error message if any.</summary>
     public string Error { get; set; }
@@ -240,8 +244,11 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ExecResult
   {
-    /// <summary>Exit code from the command.</summary>
-    public int ExitCode { get; set; }
+    /// <summary>
+    /// Exit code from the command. <see cref="long"/> for the same int64 API contract as
+    /// <see cref="ContainerWaitResult.ExitCode"/>.
+    /// </summary>
+    public long ExitCode { get; set; }
 
     /// <summary>Standard output from the command; Docker CLI marks it when only a tail was kept.</summary>
     public string StdOut { get; set; }

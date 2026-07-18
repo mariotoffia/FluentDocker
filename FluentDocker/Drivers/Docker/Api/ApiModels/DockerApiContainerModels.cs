@@ -206,7 +206,9 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   /// </summary>
   internal sealed class ExecInspectResponse
   {
-    [JsonPropertyName("ExitCode")] public int? ExitCode { get; set; }
+    // int64 in the Docker API contract: Windows containers exit with values like
+    // 3221225477 (0xC0000005) that overflow Int32 and would fail deserialization.
+    [JsonPropertyName("ExitCode")] public long? ExitCode { get; set; }
     [JsonPropertyName("Running")] public bool Running { get; set; }
   }
 
@@ -248,7 +250,8 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   /// </summary>
   internal sealed class WaitContainerResponse
   {
-    [JsonPropertyName("StatusCode")] public int StatusCode { get; set; }
+    // int64 in the Docker API contract (see ExecInspectResponse.ExitCode).
+    [JsonPropertyName("StatusCode")] public long StatusCode { get; set; }
 
     [JsonPropertyName("Error")]
     public WaitContainerError Error { get; set; }

@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman.Cli.Components;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Podman
@@ -251,11 +252,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
     private static ContainerEvent InvokeParseEvent(string json)
     {
+      // POD-12 removed the dead single-arg ParseEvent(string) wrapper; the tests now target
+      // the real parser and supply the logger the wrapper used to default.
       var method = typeof(PodmanCliStreamDriver).GetMethod(
-        "ParseEvent",
+        "ParseEventCore",
         BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (ContainerEvent)method.Invoke(null, [json])!;
+      return (ContainerEvent)method.Invoke(null, [json, NullLogger.Instance])!;
     }
 
     [Fact]

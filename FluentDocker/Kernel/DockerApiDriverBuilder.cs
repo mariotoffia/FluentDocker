@@ -12,7 +12,6 @@ namespace FluentDocker.Kernel
   internal sealed class DockerApiDriverBuilder(string driverId) : IDockerApiDriverBuilder
   {
     private readonly string _driverId = driverId;
-    private const string StreamIdleTimeoutMetadataKey = "DockerApi.StreamIdleTimeoutTicks";
     private string _host;
     private string _certificatePath;
     private bool _isDefault;
@@ -102,7 +101,7 @@ namespace FluentDocker.Kernel
       if (_streamIdleTimeout.HasValue)
       {
         context.Metadata ??= [];
-        context.Metadata[StreamIdleTimeoutMetadataKey] =
+        context.Metadata[DockerApiDriverMetadataKeys.StreamIdleTimeoutTicks] =
             _streamIdleTimeout.Value.Ticks.ToString(CultureInfo.InvariantCulture);
       }
 

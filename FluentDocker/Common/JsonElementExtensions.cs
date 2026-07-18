@@ -150,7 +150,15 @@ namespace FluentDocker.Common
         JsonValueKind.Number => p.TryGetInt64(out var n)
             ? n != 0
             : p.TryGetDouble(out var d) ? d != 0 : defaultValue,
-        JsonValueKind.String => bool.TryParse(p.GetString(), out var b) ? b : defaultValue,
+        // "0"/"1" accepted to match LenientBoolConverter — the same daemon quirk must parse
+        // identically regardless of navigation path.
+        JsonValueKind.String => p.GetString()?.Trim() switch
+        {
+          "0" => false,
+          "1" => true,
+          var s when bool.TryParse(s, out var b) => b,
+          _ => defaultValue
+        },
         _ => defaultValue
       };
     }

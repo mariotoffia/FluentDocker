@@ -17,7 +17,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       // ponytail: no containers -> no join needed; skip the extra compose ps spawn on the hot path.
       if (string.IsNullOrWhiteSpace(topOutput))
-        return ParseTopOutput(topOutput);
+        return ParseTopOutput(topOutput, logger: Logger);
 
       try
       {
@@ -27,14 +27,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         {
           if (Logger.IsEnabled(LogLevel.Debug))
             Logger.LogDebug("Compose ps join for top failed: {Error}", ErrorOrDefault(result, "Compose ps failed"));
-          return ParseTopOutput(topOutput);
+          return ParseTopOutput(topOutput, logger: Logger);
         }
 
         if (!TryParseServiceList(result.Output, Logger, out var services, out var parseError))
         {
           if (Logger.IsEnabled(LogLevel.Debug))
             Logger.LogDebug("Compose ps join for top parse failed: {Error}", parseError);
-          return ParseTopOutput(topOutput);
+          return ParseTopOutput(topOutput, logger: Logger);
         }
 
         var containersByName = new Dictionary<string, ComposeServiceInfo>(StringComparer.Ordinal);
@@ -44,7 +44,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             containersByName[service.ContainerName] = service;
         }
 
-        return ParseTopOutput(topOutput, containersByName);
+        return ParseTopOutput(topOutput, containersByName, Logger);
       }
       catch (OperationCanceledException)
       {
@@ -53,7 +53,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       catch (Exception ex)
       {
         Logger.LogDebug(ex, "Compose ps join for top threw");
-        return ParseTopOutput(topOutput);
+        return ParseTopOutput(topOutput, logger: Logger);
       }
     }
   }

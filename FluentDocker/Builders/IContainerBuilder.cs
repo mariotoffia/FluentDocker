@@ -88,12 +88,22 @@ namespace FluentDocker.Builders
     /// The container port with optional protocol (e.g. "8080/tcp", "53/udp").
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// WARNING (v2-heritage trap): unlike <see cref="ExposePort(int, int)"/>, this overload does
+    /// NOT publish a fixed host port — the runtime picks a random free host port. Use
+    /// <see cref="ExposePort(int, int)"/> or <see cref="WithPort"/> for a fixed host binding.
+    /// </remarks>
     IContainerBuilder ExposePort(string containerPort);
 
     /// <summary>Exposes host→container: <c>ExposePort(8080, 80)</c>.</summary>
     /// <param name="hostPort">The port on the host to bind to.</param>
     /// <param name="containerPort">The port inside the container to expose.</param>
     /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// WARNING (v2-heritage trap): unlike <see cref="ExposePort(string)"/>, this overload
+    /// publishes a FIXED host port — it is an alias of <see cref="WithPort"/>, not a random-port
+    /// exposure. Use <see cref="ExposePort(string)"/> for a runtime-assigned host port.
+    /// </remarks>
     IContainerBuilder ExposePort(int hostPort, int containerPort);
 
     /// <summary>Appends command arguments to run in the container, overriding the image's default CMD.</summary>
@@ -420,7 +430,9 @@ namespace FluentDocker.Builders
     /// </summary>
     /// <param name="resolver">
     /// A function that receives the port mapping dictionary, the requested port/protocol string,
-    /// the Docker host URI, and returns the resolved <see cref="IPEndPoint"/>.
+    /// the Docker host URI, and returns the resolved <see cref="IPEndPoint"/>. The resolver is
+    /// consulted even when the container exposes no port map (e.g. host-network containers); the
+    /// port mapping dictionary is then null.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder UseCustomResolver(

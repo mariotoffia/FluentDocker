@@ -180,8 +180,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         return ("", hostPort);
 
       var lastColon = hostPort.LastIndexOf(':');
-      if (lastColon <= 0)
+      if (lastColon < 0)
         return ("", hostPort);
+      // ":8080" — empty host with a leading colon separator; strip the colon so the daemon
+      // receives HostPort "8080" instead of the bogus ":8080".
+      if (lastColon == 0)
+        return ("", hostPort[1..]);
 
       var hostIp = hostPort[..lastColon];
       if (hostIp.Length >= 2 && hostIp[0] == '[' && hostIp[^1] == ']')

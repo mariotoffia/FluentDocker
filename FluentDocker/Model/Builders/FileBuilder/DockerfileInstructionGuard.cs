@@ -39,7 +39,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
         if (char.IsControl(c))
           throw new FluentDockerException(
               $"Dockerfile {instruction} {field} cannot contain control characters/newlines; " +
-              "use multiple Run() calls or line continuations.");
+              "use multiple Run() calls instead (each Run() creates a separate image layer).");
       }
       return value;
     }

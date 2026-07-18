@@ -284,6 +284,87 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task AttachAsync_StreamOpenFailure_UsesHttpRequestStatusCode()
+    {
+      // DAPI-10: the attach failure path must surface the real HTTP status instead of 0.
+      var mock = new MockDockerApiConnection();
+      mock.SetupStreamThrows("/containers/ctr/attach",
+          new HttpRequestException("no such container", null, HttpStatusCode.NotFound));
+      var driver = new DockerApiStreamDriver(mock);
+      driver.Initialize(Ctx);
+
+      var result = await driver.AttachAsync(Ctx, "ctr",
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Container.AttachFailed, result.ErrorCode);
+      Assert.Equal(404, result.ExitCode);
+      Assert.Equal("404", result.ErrorContext!.Metadata["HttpStatusCode"]);
+    }
+
+    [Fact]
+    public async Task GetLogsAsync_TruncatedTailSplitsMultibyteChar_StripsLeadingReplacementChar()
+    {
+      // DAPI-14: the tail ring buffer evicts bytes, not characters, so a truncated tail can
+      // start mid multi-byte sequence; the decoded tail must not begin with U+FFFD.
+      var payload = new byte[CliOutputTruncation.DefaultTailChars + 2];
+      payload[0] = (byte)'x';
+      payload[1] = 0xC3; // 'e-acute' lead byte — evicted together with 'x', splitting the pair
+      payload[2] = 0xA9; // orphaned continuation byte heading the retained window
+      Array.Fill(payload, (byte)'a', 3, payload.Length - 3);
+      var mock = new MockDockerApiConnection();
+      mock.SetupGet("/containers/ctr/json", 200, @"{""Config"":{""Tty"":true}}");
+      mock.SetupStreamBytes("/containers/ctr/logs", payload);
+      var driver = new DockerApiContainerDriver(mock);
+      driver.Initialize(Ctx);
+
+      var result = await driver.GetLogsAsync(Ctx, "ctr",
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.StartsWith(CliOutputTruncation.Marker(CliOutputTruncation.DefaultTailChars),
+          result.Data, StringComparison.Ordinal);
+      var newlineEnd = result.Data!.IndexOf(Environment.NewLine, StringComparison.Ordinal)
+          + Environment.NewLine.Length;
+      var tail = result.Data[newlineEnd..];
+      Assert.StartsWith("aaa", tail, StringComparison.Ordinal);
+      Assert.DoesNotContain('\uFFFD', tail);
+    }
+
+    [Fact]
+    public async Task GetStreamAsync_NonSuccessThenStalledBody_ThrowsWithinConnectionTimeout()
+    {
+      // DAPI-15: a daemon that sends a non-2xx status line and then stalls must not keep the
+      // 32 KiB error-body read pending forever; it is bounded by ConnectionTimeout and the
+      // HTTP status still surfaces.
+      using var listener = new TcpListener(IPAddress.Loopback, 0);
+      listener.Start();
+      var endpoint = (IPEndPoint)listener.LocalEndpoint;
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(
+          TestContext.Current.CancellationToken);
+      var server = ServeErrorHeadersThenStallAsync(listener, cts.Token);
+      await using var connection = new DockerApiConnection(new DockerApiConnectionConfig
+      {
+        Host = $"tcp://127.0.0.1:{endpoint.Port}",
+        ApiVersion = "1.45",
+        ConnectionTimeout = TimeSpan.FromMilliseconds(200),
+        RequestTimeout = TimeSpan.FromSeconds(30)
+      });
+      var sw = Stopwatch.StartNew();
+
+      var ex = await Assert.ThrowsAsync<HttpRequestException>(() =>
+          connection.GetStreamAsync("/events", TestContext.Current.CancellationToken));
+      sw.Stop();
+      cts.Cancel();
+      await server;
+
+      Assert.Equal(HttpStatusCode.InternalServerError, ex.StatusCode);
+      Assert.Contains("Docker API 500", ex.Message, StringComparison.Ordinal);
+      Assert.True(sw.Elapsed < TimeSpan.FromSeconds(10),
+          $"error-body read was not bounded by ConnectionTimeout; elapsed {sw.Elapsed}");
+    }
+
+    [Fact]
     public async Task StreamEventsAsync_MissingTime_UsesReceiptTimeInsteadOfUnixEpoch()
     {
       var before = DateTime.UtcNow.AddSeconds(-1);
@@ -412,6 +493,29 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         await pingTask.ConfigureAwait(false);
       }
       catch (OperationCanceledException)
+      {
+      }
+    }
+
+    private static async Task ServeErrorHeadersThenStallAsync(TcpListener listener, CancellationToken ct)
+    {
+      try
+      {
+        using var client = await listener.AcceptTcpClientAsync(ct).ConfigureAwait(false);
+        await using var stream = client.GetStream();
+        await ReadHeadersAsync(stream, ct).ConfigureAwait(false);
+        var response = Encoding.ASCII.GetBytes(
+            "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 4096\r\nContent-Type: application/json\r\n\r\n");
+        await stream.WriteAsync(response, ct).ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException)
+      {
+      }
+      catch (SocketException)
+      {
+      }
+      catch (ObjectDisposedException)
       {
       }
     }

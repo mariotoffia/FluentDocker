@@ -193,18 +193,6 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
           Task.FromResult(true);
 
-      public T SysCtl<T>(string driverId) where T : class =>
-          throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
-
-      public object SysCtl(string driverId, Type interfaceType) =>
-          throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-
-      public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-      {
-        instance = null!;
-        return false;
-      }
-
       public virtual bool TryResolve(Type interfaceType, out object implementation)
       {
         implementation = null!;
@@ -236,11 +224,13 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         return false;
       }
 
+#pragma warning disable CA2215 // Deliberate: the mock records disposal itself; base teardown is not under test.
       public override ValueTask DisposeAsync()
       {
         Disposed = true;
         return ValueTask.CompletedTask;
       }
+#pragma warning restore CA2215
     }
 
     private sealed class ThrowingResolverDriver : IDriver, IDriverInterfaceResolver

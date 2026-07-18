@@ -64,23 +64,31 @@ namespace FluentDocker.Drivers.Docker.Cli
         process.StartInfo.StandardInputEncoding = Utf8NoBom;
 
       StartProcessOrThrow(process, binaryPath);
-      if (passwordForStdin != null)
-        _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken).ConfigureAwait(false);
 
       var channel = Channel.CreateBounded<LogEntry>(
           new BoundedChannelOptions(256) { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
       var tail = new Queue<string>();
       var pump = PumpSourceStreamsAsync(process, channel.Writer, stdout, stderr, tail, cancellationToken);
       string failure = null;
+      var failureExitCode = 0;
 
       try
       {
+        // Write the sudo password inside the guarded region so a broken-pipe write still hits
+        // KillProcessSafely in finally instead of orphaning the child (DCLI-MAJ-1).
+        if (passwordForStdin != null)
+          _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken)
+              .ConfigureAwait(false);
+
         await foreach (var entry in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
           yield return entry;
 
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
         if (process.ExitCode != 0)
+        {
+          failureExitCode = process.ExitCode;
           failure = $"exit code {FormatInvariant(process.ExitCode)}{FormatTail(tail)}";
+        }
       }
       finally
       {
@@ -90,7 +98,15 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
 
       if (failure != null)
-        throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
+      {
+        string tailText;
+        lock (tail)
+          tailText = FormatTail(tail);
+        throw new DriverException(
+            $"Streaming command failed ({failure}).",
+            ErrorCodes.Driver.CommandExecutionFailed,
+            new ErrorContext("StreamingCommand") { ExitCode = failureExitCode, StdErr = $"merged output{tailText}" });
+      }
     }
 
     private static async Task PumpSourceStreamsAsync(

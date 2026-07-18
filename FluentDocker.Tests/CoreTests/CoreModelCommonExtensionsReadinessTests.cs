@@ -20,12 +20,21 @@ namespace FluentDocker.Tests.CoreTests
   [Trait("Category", "Unit")]
   public sealed class CoreModelCommonExtensionsReadinessTests
   {
+    // CA1869: one cached options instance for the LenientStringDictionaryConverter tests.
+    private static readonly JsonSerializerOptions LenientDictionaryOptions = CreateLenientDictionaryOptions();
+
+    private static JsonSerializerOptions CreateLenientDictionaryOptions()
+    {
+      var options = new JsonSerializerOptions();
+      options.Converters.Add(new LenientStringDictionaryConverter());
+      return options;
+    }
+
     [Fact]
     [Trait("Category", "Unit")]
     public void LenientStringDictionaryConverter_WhenRegisteredInOptions_ReadsObjectWithoutRecursion()
     {
-      var options = new JsonSerializerOptions();
-      options.Converters.Add(new LenientStringDictionaryConverter());
+      var options = LenientDictionaryOptions;
 
       var value = JsonSerializer.Deserialize<Dictionary<string, string>>("""{"a":"b"}""", options);
 
@@ -51,8 +60,7 @@ namespace FluentDocker.Tests.CoreTests
     [Trait("Category", "Unit")]
     public void LenientStringDictionaryConverter_CompactValueWithCommas_KeepsSingleEntry()
     {
-      var options = new JsonSerializerOptions();
-      options.Converters.Add(new LenientStringDictionaryConverter());
+      var options = LenientDictionaryOptions;
 
       var value = JsonSerializer.Deserialize<Dictionary<string, string>>(
         "\"org.opencontainers.image.description=a,b,c\"",
@@ -68,8 +76,7 @@ namespace FluentDocker.Tests.CoreTests
     [Trait("Category", "Unit")]
     public void LenientStringDictionaryConverter_CompactValueWithTrailingComma_DropsDanglingSeparator()
     {
-      var options = new JsonSerializerOptions();
-      options.Converters.Add(new LenientStringDictionaryConverter());
+      var options = LenientDictionaryOptions;
 
       var value = JsonSerializer.Deserialize<Dictionary<string, string>>("\"a=1,\"", options);
 
@@ -83,8 +90,7 @@ namespace FluentDocker.Tests.CoreTests
     [Trait("Category", "Unit")]
     public void LenientStringDictionaryConverter_EmptyArray_ReturnsEmptyDictionary()
     {
-      var options = new JsonSerializerOptions();
-      options.Converters.Add(new LenientStringDictionaryConverter());
+      var options = LenientDictionaryOptions;
 
       var value = JsonSerializer.Deserialize<Dictionary<string, string>>("[]", options);
 
@@ -107,6 +113,47 @@ namespace FluentDocker.Tests.CoreTests
 
       Assert.NotNull(dto);
       Assert.Equal(expected, dto.Value);
+    }
+
+    [Theory]
+    [Trait("Category", "Unit")]
+    [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":null}}]""")]
+    [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":"true","OOMKilled":null}}]""")]
+    [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":1,"Dead":0}}]""")]
+    public void ContainerInspect_DriftingStateBooleans_DoNotFailWholeDeserialization(string json)
+    {
+      // One drifting daemon-emitted boolean (null / "true" / 0/1) in one container must not
+      // fail the entire inspect for all containers: every non-nullable bool on model DTOs
+      // goes through LenientBoolConverter via the JsonHelper type-info modifier.
+      var ok = JsonHelper.TryDeserialize<List<Container>>(json, out var containers, out var error);
+
+      Assert.True(ok, error?.Message);
+      Assert.NotNull(containers);
+      var state = Assert.Single(containers!).State;
+      Assert.NotNull(state);
+      Assert.Equal("running", state!.Status);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ContainerInspect_NullMountRwAndConfigBooleans_ReadAsFalse()
+    {
+      var json = """
+        {
+          "Id": "abc",
+          "Mounts": [{"Destination":"/data","RW":null}],
+          "Config": {"Tty":null,"OpenStdin":"false"}
+        }
+        """;
+
+      var ok = JsonHelper.TryDeserialize<Container>(json, out var container, out var error);
+
+      Assert.True(ok, error?.Message);
+      Assert.NotNull(container?.Mounts);
+      Assert.False(container!.Mounts![0].RW);
+      Assert.NotNull(container.Config);
+      Assert.False(container.Config!.Tty);
+      Assert.False(container.Config.OpenStdin);
     }
 
     [Fact]
@@ -150,6 +197,25 @@ namespace FluentDocker.Tests.CoreTests
       var ex = Assert.Throws<FluentDockerException>(() => uri.ToFile(".out/missing-resource-segment"));
 
       Assert.Contains(uri.ToString(), ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ResourceQuery_IncludeOverlappingNamespaceBoundary_ReturnsNoMatchInsteadOfThrowing()
+    {
+      // CE-1: the requested name overlaps the query root ("Foo.Bar" + "Bar.child.txt" vs the
+      // manifest resource "Foo.Bar.child.txt"): the suffix-match prefix falls SHORT of the
+      // root and previously sliced below it (ArgumentOutOfRangeException). It must simply
+      // not match.
+      var assembly = typeof(CoreModelCommonExtensionsReadinessTests).Assembly.GetName().Name;
+
+      var resources = new ResourceQuery()
+        .From(assembly)
+        .Namespace("Foo.Bar")
+        .Include("Bar.child.txt")
+        .ToArray();
+
+      Assert.Empty(resources);
     }
 
     [Fact]

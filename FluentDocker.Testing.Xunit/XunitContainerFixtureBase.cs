@@ -93,6 +93,15 @@ namespace FluentDocker.Testing.Xunit
     /// the kernel's default driver when none is selected — so Podman/custom-id fixtures
     /// probe the right daemon instead of hard-coding Docker.
     /// </summary>
+    /// <remarks>
+    /// <c>false</c> means "runtime unreachable" — a skippable environmental condition. A
+    /// FIXTURE MISCONFIGURATION is deliberately not mapped to <c>false</c>: selecting a
+    /// specific driver id (e.g. <c>DriverSelection.Specific("podman-cli")</c>) without also
+    /// overriding <see cref="KernelFactory"/> to register that driver throws
+    /// <c>DriverNotFoundException</c> from <c>Assert.SkipWhen</c> instead of silently
+    /// skipping the suite forever. Override <see cref="KernelFactory"/> together with any
+    /// custom driver id.
+    /// </remarks>
     public Task<bool> IsDockerAvailableAsync(CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();

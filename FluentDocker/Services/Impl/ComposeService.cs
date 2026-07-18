@@ -106,6 +106,13 @@ namespace FluentDocker.Services.Impl
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     /// <inheritdoc />
+    /// <remarks>
+    /// State-change events publish optimistic transitions immediately: Start/Restart/Unpause raise
+    /// a <see cref="ServiceRunningState.Running"/> event before the post-operation reconcile probe,
+    /// so a Running event may be followed by Stopped/Unknown when reconciliation corrects the
+    /// state. Lifecycle hooks registered via <see cref="AddHook"/> for Running fire only after
+    /// reconciliation confirms the project is genuinely running.
+    /// </remarks>
     public event ServiceDelegates.StateChange StateChange;
 #pragma warning restore CA1710
 

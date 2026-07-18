@@ -77,6 +77,53 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.True(configured);
     }
 
+    // BF-9: null values must fail at the fluent call (matching WithPort/WithVolume style)
+    // instead of passing Validate() and failing inside the driver.
+    [Fact]
+    public void WithEnvironment_NullValue_ThrowsArgumentNullException()
+    {
+      new Builder()
+          .WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
+          .UseContainer(c =>
+              Assert.Throws<ArgumentNullException>(() => c.WithEnvironment("KEY", null)));
+    }
+
+    [Fact]
+    public void WithHealthCheck_NullCmd_ThrowsArgumentNullException()
+    {
+      new Builder()
+          .WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
+          .UseContainer(c =>
+              Assert.Throws<ArgumentNullException>(() => c.WithHealthCheck(null)));
+    }
+
+    // BF-10: UseImage(imageName, configure) must reject a null/whitespace image name eagerly.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void BuilderUseImage_NullOrWhitespaceImageName_ThrowsArgumentException(string? imageName)
+    {
+      var builder = new Builder()
+          .WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance));
+
+      Assert.ThrowsAny<ArgumentException>(() => builder.UseImage(imageName, _ => { }));
+    }
+
+    // BF-10: ImageBuilder.From(imageAndTag, asName) must throw instead of silently discarding
+    // the stage alias when the image is null/empty.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void ImageBuilderFrom_WithAlias_NullOrEmptyImage_ThrowsArgumentException(string? imageAndTag)
+    {
+      var imageBuilder = new ImageBuilder(
+          new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance),
+          "test");
+
+      Assert.ThrowsAny<ArgumentException>(() => imageBuilder.From(imageAndTag, "builder-stage"));
+    }
+
     [Fact]
     public void WithPort_SetsPortMapping()
     {

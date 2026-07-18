@@ -104,6 +104,77 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void ParseStatsOutput_GoMarshaledNumericForm_ParsesAllFields()
+    {
+      // podman 4/5 marshals define.ContainerStats directly: Go field names, numeric values.
+      var json = @"[
+                {
+                  ""AvgCPU"": 0.85,
+                  ""ContainerID"": ""ghi789"",
+                  ""Name"": ""numeric"",
+                  ""PerCPU"": null,
+                  ""CPU"": 1.42,
+                  ""CPUNano"": 1234567,
+                  ""SystemNano"": 987654321,
+                  ""MemUsage"": 104857600,
+                  ""MemLimit"": 2147483648,
+                  ""MemPerc"": 4.88,
+                  ""NetInput"": 1500,
+                  ""NetOutput"": 2300,
+                  ""BlockInput"": 4194304,
+                  ""BlockOutput"": 8388608,
+                  ""PIDs"": 5,
+                  ""UpTime"": 12000000000,
+                  ""Duration"": 12000000000
+                }
+            ]";
+
+      var result = PodmanCliContainerDriver.ParseStatsOutput(json);
+
+      Assert.Equal("ghi789", result.ContainerId);
+      Assert.Equal("numeric", result.Name);
+      Assert.Equal(1.42, result.CpuPercent, 2);
+      Assert.Equal(104857600, result.MemoryUsage);
+      Assert.Equal(2147483648, result.MemoryLimit);
+      Assert.Equal(4.88, result.MemoryPercent, 2);
+      Assert.Equal(1500, result.NetworkRxBytes);
+      Assert.Equal(2300, result.NetworkTxBytes);
+      Assert.Equal(4194304, result.BlockReadBytes);
+      Assert.Equal(8388608, result.BlockWriteBytes);
+      Assert.Equal(5, result.Pids);
+    }
+
+    [Fact]
+    public void ParseStatsOutput_Podman5NetworkInterfaceMap_SumsRxTxBytes()
+    {
+      var json = @"{
+                ""ContainerID"": ""net555"",
+                ""Name"": ""ifaces"",
+                ""CPU"": 0.5,
+                ""MemUsage"": 1024,
+                ""MemLimit"": 4096,
+                ""MemPerc"": 25.0,
+                ""Network"": {
+                  ""eth0"": { ""RxBytes"": 100, ""TxBytes"": 200 },
+                  ""eth1"": { ""RxBytes"": 11, ""TxBytes"": 22 }
+                },
+                ""BlockInput"": 0,
+                ""BlockOutput"": 0,
+                ""PIDs"": 2
+            }";
+
+      var result = PodmanCliContainerDriver.ParseStatsOutput(json);
+
+      Assert.Equal("net555", result.ContainerId);
+      Assert.Equal(111, result.NetworkRxBytes);
+      Assert.Equal(222, result.NetworkTxBytes);
+      Assert.Equal(0.5, result.CpuPercent, 2);
+      Assert.Equal(1024, result.MemoryUsage);
+      Assert.Equal(4096, result.MemoryLimit);
+      Assert.Equal(2, result.Pids);
+    }
+
+    [Fact]
     public void ParseStatsOutput_EmptyString_ReturnsEmpty()
     {
       var result = PodmanCliContainerDriver.ParseStatsOutput("");

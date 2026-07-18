@@ -110,7 +110,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var driver = new DockerApiStreamDriver(new MockDockerApiConnection());
       driver.Initialize(Ctx);
 
-      Assert.Throws<ArgumentException>(() => driver.StreamStatsAsync(Ctx, null));
+      Assert.Throws<ArgumentException>(() => driver.StreamStatsAsync(Ctx, null, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -331,7 +331,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           conn.GetStreamAsync("/events", TestContext.Current.CancellationToken));
 
       listener.Stop();
-      await accepted.ConfigureAwait(false);
+      await accepted;
     }
 
     private static async Task AcceptAndWedgeAsync(TcpListener listener)

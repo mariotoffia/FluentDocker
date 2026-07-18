@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
@@ -112,6 +113,31 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               It.IsAny<ContainerCreateConfig>(),
               It.IsAny<CancellationToken>()),
           Times.Never);
+      await fixture.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ConditionalFixture_WrappedUnavailableDuringProvision_SkipsInsteadOfThrowing()
+    {
+      // TSTX-3: the daemon can die BETWEEN the health probe and resource init — the
+      // unavailability then arrives wrapped in ResourceInitializationException. The fixture
+      // must convert that to a skip (like the MSTest/NUnit adapters), not error the class.
+      var pack = new MockDriverPack();
+      pack.SetHealthy(true);
+      pack.ContainerDriver
+          .Setup(d => d.CreateAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerCreateConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new FluentDockerUnavailableException("daemon went away mid-init"));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("xunit-wrapped", pack);
+      var fixture = new UnavailableConditionalFixture(() => Task.FromResult(kernel));
+
+      await fixture.InitializeAsync();
+
+      Assert.True(fixture.IsSkipped);
+      Assert.Contains("daemon went away mid-init", fixture.SkipReason);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
       await fixture.DisposeAsync();
     }
 

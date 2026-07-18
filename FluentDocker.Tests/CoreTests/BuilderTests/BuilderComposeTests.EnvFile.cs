@@ -170,6 +170,46 @@ EQUALS_IN_VALUE=key=value=more
       }
     }
 
+    // BF-11: double-quoted env-file values process \" and \\ escapes (compose-go/godotenv
+    // parity); single-quoted values stay verbatim.
+    [Fact]
+    public async Task WithEnvFile_DoubleQuotedEscapes_AreUnescaped()
+    {
+      var (kernel, mockPack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+      mockPack.SetupComposeUpAsync(new ComposeUpResult { ProjectName = "test" });
+
+      var tempEnvFile = TestEnvFilePath("escapes");
+      try
+      {
+        await File.WriteAllTextAsync(tempEnvFile, """
+DQ_QUOTE="a\"b"
+DQ_BACKSLASH="C:\\temp"
+SQ_LITERAL='a\"b'
+""", cancellationToken: TestContext.Current.CancellationToken);
+
+        await using var scope = await new Builder()
+            .WithinDriver("docker", kernel)
+            .UseCompose(c => c
+                .WithComposeFile("/compose.yml")
+                .WithEnvFile(tempEnvFile))
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        mockPack.ComposeDriver.Verify(d => d.UpAsync(
+            It.IsAny<DriverContext>(),
+            It.Is<ComposeUpConfig>(c =>
+                c.Environment["DQ_QUOTE"] == "a\"b" &&
+                c.Environment["DQ_BACKSLASH"] == "C:\\temp" &&
+                c.Environment["SQ_LITERAL"] == "a\\\"b"),
+            It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+      }
+      finally
+      {
+        kernel.Dispose();
+        if (File.Exists(tempEnvFile))
+          File.Delete(tempEnvFile);
+      }
+    }
+
     private static string TestEnvFilePath(string name)
     {
       var directory = Path.GetFullPath(Path.Combine(".out", "compose-env"));

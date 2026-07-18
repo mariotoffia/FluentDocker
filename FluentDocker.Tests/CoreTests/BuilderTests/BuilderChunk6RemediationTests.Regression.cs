@@ -55,7 +55,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
       sw.Stop();
       listener.Close();
-      await server.ConfigureAwait(false);
+      await server;
 
       Assert.Equal(targetAttempts, attempts);
       Assert.True(sw.ElapsedMilliseconds < 4000,
@@ -67,9 +67,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var loggerFactory = new CapturingLoggerFactory();
       var pack = new MockDriverPack();
-      await pack.InitializeAsync(new DriverContext("docker"));
+      await pack.InitializeAsync(new DriverContext("docker"), TestContext.Current.CancellationToken);
       var kernel = new FluentDockerKernel(new DriverRegistry(loggerFactory), loggerFactory);
-      await kernel.RegisterDriverPackAsync("docker", pack, new DriverContext("docker"));
+      await kernel.RegisterDriverPackAsync("docker", pack, new DriverContext("docker"), TestContext.Current.CancellationToken);
       pack.SetupNetworkList(new Network { Id = "net-id", Name = "shared-net" });
       pack.VolumeDriver
           .Setup(d => d.InspectAsync(It.IsAny<DriverContext>(), "shared-vol", It.IsAny<CancellationToken>()))
@@ -90,9 +90,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var loggerFactory = new CapturingLoggerFactory();
       var pack = new MockDriverPack();
-      await pack.InitializeAsync(new DriverContext("docker"));
+      await pack.InitializeAsync(new DriverContext("docker"), TestContext.Current.CancellationToken);
       var kernel = new FluentDockerKernel(new DriverRegistry(loggerFactory), loggerFactory);
-      await kernel.RegisterDriverPackAsync("docker", pack, new DriverContext("docker"));
+      await kernel.RegisterDriverPackAsync("docker", pack, new DriverContext("docker"), TestContext.Current.CancellationToken);
       var lists = 0;
       pack.NetworkDriver
           .Setup(d => d.ListAsync(It.IsAny<DriverContext>(), null, It.IsAny<CancellationToken>()))
@@ -124,6 +124,23 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.Contains("references image 'app' which is declared after it", ex.Message);
+      MockPack.ContainerDriver.Verify(d => d.CreateAsync(
+          It.IsAny<DriverContext>(), It.IsAny<ContainerCreateConfig>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BuildAsync_ContainerBeforeDeclaredImage_TagNotationVariant_StillThrowsOrderingError()
+    {
+      // BF-3: `app:latest` and `app` are the SAME image — ordering validation must compare
+      // normalized references, not literal strings, so the misorder fails at Validate()
+      // instead of surfacing mid-build after earlier resources were created.
+      var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseContainer(c => c.UseImage("app:latest").WithName("web"))
+          .UseImage("app", d => d.FromString("FROM scratch"))
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+      Assert.Contains("declared after it", ex.Message);
       MockPack.ContainerDriver.Verify(d => d.CreateAsync(
           It.IsAny<DriverContext>(), It.IsAny<ContainerCreateConfig>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -278,7 +295,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Theory]
     [InlineData(null)]
     [InlineData("  ")]
-    public void WithinDriver_NullOrWhitespaceDriverId_Throws(string driverId)
+    public void WithinDriver_NullOrWhitespaceDriverId_Throws(string? driverId)
     {
       Assert.IsAssignableFrom<ArgumentException>(
           Record.Exception(() => new Builder().WithinDriver(driverId!, Kernel)));
@@ -297,7 +314,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var envFile = Path.Combine(AppContext.BaseDirectory, "BuilderChunk6RemediationTests.env");
       await File.WriteAllTextAsync(envFile, "KEY = file-value\nOTHER = value\n", TestContext.Current.CancellationToken)
-          .ConfigureAwait(false);
+          ;
       try
       {
         MockPack.SetupComposeUp("env-project");

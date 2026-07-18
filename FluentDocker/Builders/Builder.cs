@@ -83,10 +83,9 @@ namespace FluentDocker.Builders
         string driverId, FluentDockerKernel kernel = null)
     {
       SetScope(driverId, kernel);
-      // Fail fast when the scoped driver is not actually Docker-CLI-capable: otherwise a later
-      // UseCompose queues happily and fails deep inside BuildAsync, possibly after other resources
-      // were created. Matches the model-builder fail-fast (BLD-MAJ-6).
-      RequireScopedPort<Drivers.IComposeDriver>();
+      // Deliberately no IComposeDriver probe here: containers/networks/volumes/images do not
+      // need compose, so a compose-less Docker-CLI-shaped pack may still use the typed builder.
+      // UseCompose performs the capability check at the fluent call instead (BF-13).
       return new DockerCliFluentBuilder(this, _currentKernel, _currentDriverId);
     }
 
@@ -206,10 +205,16 @@ namespace FluentDocker.Builders
     /// Prefer using <see cref="DockerCliFluentBuilder.UseCompose"/> via
     /// <see cref="WithinDockerCli"/> for type-safe access.
     /// </summary>
+    /// <exception cref="Common.InterfaceNotSupportedException">
+    /// The scoped driver does not support compose (<see cref="Drivers.IComposeDriver"/>).
+    /// </exception>
     public Builder UseCompose(Action<IComposeBuilder> configure)
     {
       ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
+      // Fail fast when the scoped driver is not compose-capable: otherwise the operation queues
+      // happily and fails deep inside BuildAsync, possibly after other resources were created.
+      RequireScopedPort<Drivers.IComposeDriver>();
       var builder = new ComposeBuilder(_currentKernel, _currentDriverId);
       configure(builder);
       _operations.Add(new BuildOperation
@@ -257,6 +262,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public Builder UseImage(string imageName, Action<DockerfileBuilder> configure)
     {
+      ArgumentException.ThrowIfNullOrWhiteSpace(imageName);
       ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
       var imageBuilder = new ImageBuilder(_currentKernel, _currentDriverId, imageName);

@@ -57,8 +57,8 @@ namespace FluentDocker.Services.Impl
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">
-    /// <paramref name="image"/> already carries an explicit tag that conflicts with a non-default
-    /// <paramref name="tag"/> argument.
+    /// <paramref name="image"/> already carries an explicit tag or a digest that conflicts with a
+    /// non-default <paramref name="tag"/> argument.
     /// </exception>
     public async Task<IImageService> PullImageAsync(
         string image,
@@ -75,6 +75,16 @@ namespace FluentDocker.Services.Impl
       {
         throw new ArgumentException(
             $"Image '{image}' already includes a tag; remove it or omit {nameof(tag)}.",
+            nameof(tag));
+      }
+
+      // HasExplicitImageTag deliberately returns false for digest refs ("repo@sha256:…"), so guard
+      // them here: the driver pulls a digest ref by the full reference and would silently drop the
+      // conflicting tag argument.
+      if (tag != "latest" && image?.Contains('@') == true)
+      {
+        throw new ArgumentException(
+            $"Image '{image}' already includes a digest; remove it or omit {nameof(tag)}.",
             nameof(tag));
       }
 

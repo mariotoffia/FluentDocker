@@ -15,9 +15,13 @@ namespace FluentDocker.Common
     /// Splits a command string into individual arguments using shell-like
     /// quoting rules. Single-quoted and double-quoted substrings are kept
     /// as single arguments with the surrounding quotes removed. Content
-    /// inside single quotes is taken literally (double quotes are
-    /// preserved). Content inside double quotes is taken literally
-    /// (single quotes are preserved).
+    /// inside single quotes is taken literally (no escapes; double quotes are
+    /// preserved). Inside double quotes, <c>\"</c> and <c>\\</c> are escape
+    /// sequences yielding <c>"</c> and <c>\</c>; any other backslash is kept
+    /// literally, and single quotes are preserved. Outside quotes a backslash
+    /// escapes a following quote, backslash or whitespace character; before
+    /// any other character it is kept literally (unlike POSIX, which would
+    /// drop it).
     /// </summary>
     /// <param name="command">The command string to parse.</param>
     /// <returns>

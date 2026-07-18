@@ -43,6 +43,19 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("4096", back.Config["context_size"]);
     }
 
+    // ML-7: Fraction promises [0,1]; daemon glitches (Current > Total) must clamp, not exceed 1.
+    [Theory]
+    [InlineData(50, 100, 0.5d)]
+    [InlineData(150, 100, 1.0d)]
+    [InlineData(-10, 100, 0.0d)]
+    [InlineData(10, 0, 0.0d)]
+    public void ModelPullProgress_Fraction_IsClampedToUnitInterval(long current, long total, double expected)
+    {
+      var progress = new ModelPullProgress { Current = current, Total = total };
+
+      Assert.Equal(expected, progress.Fraction);
+    }
+
     [Fact]
     public void RunningModel_RoundTrips()
     {

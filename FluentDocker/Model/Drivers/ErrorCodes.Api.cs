@@ -42,6 +42,13 @@ namespace FluentDocker.Model.Drivers
       /// The HTTP connection to the Docker Engine API could not be established.
       /// </summary>
       public const string ConnectionFailed = "API_CONN";
+
+      /// <summary>
+      /// The daemon's supported API version range does not overlap the client's
+      /// (daemon too old, or daemon requires a newer API than this client speaks).
+      /// Non-transient: retrying without upgrading the daemon or the library cannot succeed.
+      /// </summary>
+      public const string UnsupportedVersion = "API_VERSION";
       /// <summary>
       /// A boundless streaming response (e.g. <c>/events</c> without an <c>until</c> bound)
       /// ended cleanly because the daemon closed the connection — an unexpected EOF, not a

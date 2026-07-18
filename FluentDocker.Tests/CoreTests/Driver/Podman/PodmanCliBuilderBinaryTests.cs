@@ -190,6 +190,68 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       }
     }
 
+    [Fact]
+    public void Resolve_ConfiguredCustomBinaryName_ReturnsMainClient()
+    {
+      // POD-10: a renamed client the configuration explicitly selected (e.g. "podman5")
+      // must be resolvable by that name instead of being rejected by Translate.
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("File-based client discovery uses .exe on Windows; covered on POSIX");
+
+      var dir = Path.Combine(AppContext.BaseDirectory, ".out", $"podman-resolver-{Guid.NewGuid():N}");
+      Directory.CreateDirectory(dir);
+      try
+      {
+        WriteExecutableFile(Path.Combine(dir, "podman5"));
+
+        var resolver = new PodmanBinariesResolver(new PodmanBinaryConfiguration
+        {
+          BinaryName = "podman5",
+          SearchPaths = [dir]
+        });
+
+        Assert.Same(resolver.MainPodmanClient, resolver.Resolve("podman5"));
+        // Case-insensitive and .exe-suffix tolerant, mirroring the Docker-side resolver.
+        Assert.Same(resolver.MainPodmanClient, resolver.Resolve("PODMAN5.exe"));
+        // The conventional name still resolves to the configured client binary.
+        Assert.Same(resolver.MainPodmanClient, resolver.Resolve("podman"));
+        Assert.Equal(Path.Combine(dir, "podman5"), resolver.ResolveBinaryPath("podman5"));
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
+    [Fact]
+    public void Resolve_UnknownBinaryName_ThrowsFluentDockerExceptionNotArgumentException()
+    {
+      // POD-10: the documented exception surface for unknown names is FluentDockerException;
+      // Translate's raw ArgumentException must be wrapped, not leaked.
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("File-based client discovery uses .exe on Windows; covered on POSIX");
+
+      var dir = Path.Combine(AppContext.BaseDirectory, ".out", $"podman-resolver-{Guid.NewGuid():N}");
+      Directory.CreateDirectory(dir);
+      try
+      {
+        WriteExecutableFile(Path.Combine(dir, "podman"));
+
+        var resolver = new PodmanBinariesResolver(new PodmanBinaryConfiguration
+        {
+          SearchPaths = [dir]
+        });
+
+        var ex = Assert.Throws<FluentDockerException>(() => resolver.Resolve("weird-name"));
+        Assert.Contains("weird-name", ex.Message);
+        Assert.IsType<ArgumentException>(ex.InnerException);
+      }
+      finally
+      {
+        Directory.Delete(dir, recursive: true);
+      }
+    }
+
     private static void WriteExecutableFile(string path)
     {
       File.WriteAllText(path, string.Empty);

@@ -32,6 +32,9 @@ namespace FluentDocker.Drivers.Docker.Cli
     private IBinaryResolver _binaryResolver;
     private ILogger<DockerCliDriverPack> _logger = NullLogger<DockerCliDriverPack>.Instance;
     // ponytail: init-then-read discipline; use immutable dictionary if runtime registration appears.
+    // Written with Volatile.Write after all driver fields/_drivers entries are assigned and read
+    // with Volatile.Read on lock-free paths (mirrors _disposed), so the release/acquire pairing
+    // publishes those writes to readers on weakly ordered hardware (ARM64).
     private bool _initialized;
     private IReadOnlyCollection<Type> _supportedInterfaces;
 
@@ -147,7 +150,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         _drivers[typeof(IModelRuntimeDriver)] = _modelRuntimeDriver;
 
         _supportedInterfaces = BuildSupportedInterfaces();
-        _initialized = true;
+        Volatile.Write(ref _initialized, true);
         await Task.CompletedTask;
       }
       finally
@@ -203,7 +206,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      if (!_initialized || _systemDriver == null)
+      if (!Volatile.Read(ref _initialized) || _systemDriver == null)
         return false;
 
       try

@@ -335,10 +335,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       // M2: a non-success stream response must surface Docker's {"message":...} body, not be
       // discarded by EnsureSuccessStatusCode(). Exercised via the private helper by reflection
-      // (the public GetStreamAsync/PostStreamAsync paths require a live socket).
+      // (the public GetStreamAsync/PostStreamAsync paths require a live socket). The helper is
+      // an instance method since DAPI-15 (the body read is bounded by ConnectionTimeout).
       var method = typeof(DockerApiConnection).GetMethod(
-          "EnsureStreamSuccessAsync", BindingFlags.Static | BindingFlags.NonPublic);
+          "EnsureStreamSuccessAsync", BindingFlags.Instance | BindingFlags.NonPublic);
       Assert.NotNull(method);
+      await using var conn = new DockerApiConnection(new DockerApiConnectionConfig
+      {
+        Host = "tcp://localhost:2375",
+        ApiVersion = "1.45"
+      });
 
       using var response = new HttpResponseMessage(HttpStatusCode.InternalServerError)
       {
@@ -347,7 +353,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       };
 
       var task = (Task)method!.Invoke(
-          null, new object[] { response, CancellationToken.None })!;
+          conn, new object[] { response, CancellationToken.None })!;
       var ex = await Assert.ThrowsAsync<HttpRequestException>(async () => await task);
 
       Assert.Contains("boom", ex.Message);
@@ -358,8 +364,13 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task EnsureStreamSuccess_SuccessResponse_DoesNotThrow()
     {
       var method = typeof(DockerApiConnection).GetMethod(
-          "EnsureStreamSuccessAsync", BindingFlags.Static | BindingFlags.NonPublic);
+          "EnsureStreamSuccessAsync", BindingFlags.Instance | BindingFlags.NonPublic);
       Assert.NotNull(method);
+      await using var conn = new DockerApiConnection(new DockerApiConnectionConfig
+      {
+        Host = "tcp://localhost:2375",
+        ApiVersion = "1.45"
+      });
 
       using var response = new HttpResponseMessage(HttpStatusCode.OK)
       {
@@ -367,7 +378,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       };
 
       var task = (Task)method!.Invoke(
-          null, new object[] { response, CancellationToken.None })!;
+          conn, new object[] { response, CancellationToken.None })!;
       await task; // must complete without throwing
     }
 

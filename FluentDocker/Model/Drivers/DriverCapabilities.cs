@@ -49,6 +49,11 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Driver supports machine management (Podman machine init/start/stop/etc.).
     /// </summary>
+    /// <remarks>
+    /// The Podman CLI pack reports <c>true</c> on every platform because <c>podman machine</c>
+    /// exists on Linux too. The library's machine <b>auto-start</b> is narrower: it only runs
+    /// on macOS/Windows; on native Linux a machine must be started externally.
+    /// </remarks>
     public bool SupportsMachines { get; set; }
 
     /// <summary>

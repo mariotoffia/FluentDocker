@@ -21,6 +21,10 @@ and hard CI termination cannot run in-process cleanup.
 ```bash
 dotnet add package FluentDocker.Testing.Xunit
 ```
+> **Requires .NET 10.** All FluentDocker 3.2 packages (including this one) target
+> `net10.0` only — a test project on .NET 8/9 LTS cannot reference them. Retarget the
+> TEST project to `net10.0`; the production code under test can stay on its own TFM.
+
 
 ## Fixture base
 
@@ -51,6 +55,8 @@ MSTest's `MsTestPerTestContainerFixtureBase` is per **method** — the opposite 
 bases (per class).
 
 ```csharp
+using System;
+using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Testing.Xunit;
 using Xunit;
@@ -85,6 +91,8 @@ concrete fixture and call `Configure(...)` in the constructor, then share it
 with `IClassFixture<T>`:
 
 ```csharp
+using System;
+using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Testing.Xunit;
 using Xunit;

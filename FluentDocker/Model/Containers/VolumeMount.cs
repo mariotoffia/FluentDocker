@@ -30,40 +30,36 @@ namespace FluentDocker.Model.Containers
     public bool Rw { get; set; }
 
     /// <summary>
-    /// Renders the mount in <c>source:destination:mode,rw|ro</c> form, omitting empty segments.
+    /// Renders the mount in <c>source:destination[:mode],rw|ro</c> form, omitting empty segments.
     /// </summary>
-    /// <returns>The Docker CLI-compatible volume specification string.</returns>
+    /// <returns>
+    /// The Docker CLI-compatible volume specification string, or <see cref="string.Empty"/> when
+    /// <see cref="Destination"/> is unset — such a partial DTO cannot produce a valid mount spec.
+    /// </returns>
+    /// <remarks>
+    /// <see cref="Rw"/> is a plain <see cref="bool"/>, so an absent value is indistinguishable from
+    /// an explicit read-only mount; the access suffix (<c>rw</c>/<c>ro</c>) is rendered whenever a
+    /// destination exists, defaulting to <c>ro</c> when <see cref="Rw"/> is <c>false</c>.
+    /// </remarks>
     public override string ToString()
     {
+      if (string.IsNullOrEmpty(Destination))
+        return string.Empty;
+
       var sb = new StringBuilder();
       if (!string.IsNullOrEmpty(Source))
       {
-        sb.Append(Source);
+        sb.Append(Source).Append(':');
       }
 
-      if (!string.IsNullOrEmpty(Destination))
-      {
-        if (sb.Length > 0)
-        {
-          sb.Append(':');
-        }
-        sb.Append(Destination);
-      }
+      sb.Append(Destination);
 
       if (!string.IsNullOrEmpty(Mode))
       {
-        if (sb.Length > 0)
-        {
-          sb.Append(':');
-        }
-        sb.Append(Mode);
+        sb.Append(':').Append(Mode);
       }
 
-      if (sb.Length > 0)
-      {
-        sb.Append(string.IsNullOrEmpty(Mode) ? ':' : ',');
-      }
-      sb.Append(Rw ? "rw" : "ro");
+      sb.Append(string.IsNullOrEmpty(Mode) ? ':' : ',').Append(Rw ? "rw" : "ro");
 
       return sb.ToString();
     }

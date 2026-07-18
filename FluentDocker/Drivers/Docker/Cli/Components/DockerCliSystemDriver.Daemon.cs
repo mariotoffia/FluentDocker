@@ -13,6 +13,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   /// </summary>
   public partial class DockerCliSystemDriver
   {
+    // Appended to Switch* exception failures: the dominant cause is the dockercli binary being
+    // absent (it only ships with Docker Desktop for Windows), which surfaces here as a resolver
+    // or process-start exception.
+    private const string DockerCliRequirement =
+        " Engine switching requires Docker Desktop's dockercli, which is only available with Docker Desktop on Windows.";
+
     #region Daemon Operations (Docker Desktop specific)
 
     /// <inheritdoc />
@@ -33,7 +39,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
+        return CommandResponse<Unit>.Fail(
+            ex.Message + DockerCliRequirement, FailureCode(ex, ErrorCodes.Driver.NotAvailable));
       }
     }
 
@@ -55,7 +62,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
+        return CommandResponse<Unit>.Fail(
+            ex.Message + DockerCliRequirement, FailureCode(ex, ErrorCodes.Driver.NotAvailable));
       }
     }
 
@@ -77,7 +85,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
+        return CommandResponse<Unit>.Fail(
+            ex.Message + DockerCliRequirement, FailureCode(ex, ErrorCodes.Driver.NotAvailable));
       }
     }
 

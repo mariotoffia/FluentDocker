@@ -60,7 +60,22 @@ namespace FluentDocker.Drivers.Models.Connection
       ValidateApiKeyTransport(endpoint, config, apiKey);
 
       var ownedCertificates = new List<X509Certificate2>();
-      var (handler, baseAddress) = CreateHandler(endpoint, config, ownedCertificates);
+      SocketsHttpHandler handler;
+      Uri baseAddress;
+      try
+      {
+        (handler, baseAddress) = CreateHandler(endpoint, config, ownedCertificates);
+      }
+      catch
+      {
+        // Handler construction can fail PARTWAY (client cert loaded, then a malformed
+        // ca.pem import throws) — dispose whatever was already collected so the native
+        // handles (and any Windows temp key container) are not leaked on throw.
+        foreach (var certificate in ownedCertificates)
+          certificate.Dispose();
+        throw;
+      }
+
       _ownedCertificates = ownedCertificates;
       _httpClient = new HttpClient(handler, disposeHandler: true)
       {
@@ -199,6 +214,12 @@ namespace FluentDocker.Drivers.Models.Connection
       catch (OperationCanceledException) when (ct.IsCancellationRequested)
       {
         // Caller-requested cancellation is not a "ping failed" signal — propagate it.
+        throw;
+      }
+      catch (ObjectDisposedException)
+      {
+        // Pinging a disposed connection is a programming error, not an unreachable
+        // endpoint — never mask use-after-dispose as "down".
         throw;
       }
       catch (Exception ex)
@@ -383,7 +404,8 @@ namespace FluentDocker.Drivers.Models.Connection
             "ModelApiConnectionConfig.CertificatePath requires an https model runner endpoint; plaintext http cannot use client certificates.",
             nameof(config));
 
-      if (useTls || hasCerts)
+      // hasCerts alone is unreachable here: cert-without-https already threw above.
+      if (useTls)
         handler.SslOptions = BuildSslOptions(config, ownedCertificates);
 
       var scheme = useTls ? "https" : "http";

@@ -217,7 +217,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       var service = new Mock<IContainerService>();
       service
           .Setup(s => s.ExecuteAsync(It.IsAny<string[]>(), It.IsAny<CancellationToken>()))
+#pragma warning disable CA2201 // Deliberate: proves a runtime-reserved fatal exception propagates unwrapped.
           .ThrowsAsync(new NullReferenceException("bug"));
+#pragma warning restore CA2201
 
       await Assert.ThrowsAsync<NullReferenceException>(() =>
           service.Object.WaitForProcessAsync(

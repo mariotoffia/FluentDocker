@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Linq;
 using FluentDocker.Model.Common;
 
@@ -9,8 +10,15 @@ namespace FluentDocker.Model.Builders.FileBuilder
   {
     /// <summary>Creates volume mount points.</summary>
     /// <param name="mountpoints">Mount points.</param>
+    /// <exception cref="ArgumentException"><paramref name="mountpoints"/> is null or empty (<c>VOLUME []</c> is not a valid instruction).</exception>
     public VolumeCommand(params TemplateString[] mountpoints)
-      => Mountpoints = [.. (mountpoints ?? []).Select(s => s.Rendered)];
+    {
+      if (mountpoints is null || mountpoints.Length == 0)
+        throw new ArgumentException(
+            "VOLUME requires at least one mount point; an empty list would render an invalid Dockerfile instruction.",
+            nameof(mountpoints));
+      Mountpoints = [.. mountpoints.Select(s => s.Rendered)];
+    }
 
     /// <summary>Gets the mount points.</summary>
     public string[] Mountpoints { get; }

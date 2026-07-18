@@ -106,9 +106,22 @@ namespace FluentDocker.Extensions
 
     private static Assembly GetAssembly(string assemblyName)
     {
-      return AppDomain.CurrentDomain.GetAssemblies()
-          .FirstOrDefault(x => x.GetName().Name!.Equals(assemblyName, StringComparison.OrdinalIgnoreCase))
-          ?? throw new FluentDockerException($"Assembly '{assemblyName}' was not found in the current AppDomain.");
+      var loaded = AppDomain.CurrentDomain.GetAssemblies()
+          .FirstOrDefault(x => x.GetName().Name!.Equals(assemblyName, StringComparison.OrdinalIgnoreCase));
+      if (loaded != null)
+        return loaded;
+
+      // .NET loads assemblies lazily — an `emb:` URI can reference an assembly no type of
+      // which has been touched yet. Try an explicit load by simple name before failing.
+      try
+      {
+        return Assembly.Load(new AssemblyName(assemblyName));
+      }
+      catch (Exception ex)
+      {
+        throw new FluentDockerException(
+            $"Assembly '{assemblyName}' was not found in the current AppDomain and could not be loaded.", ex);
+      }
     }
   }
 }

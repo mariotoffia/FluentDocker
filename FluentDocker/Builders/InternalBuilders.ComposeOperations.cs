@@ -111,10 +111,34 @@ namespace FluentDocker.Builders
 
     private static string StripEnvValueQuotes(string value)
     {
-      if (value.Length >= 2 &&
-          ((value[0] == '"' && value[^1] == '"') || (value[0] == '\'' && value[^1] == '\'')))
+      // compose-go/godotenv-style quote handling: double-quoted values process \" and \\
+      // escapes (control-sequence expansion like \n is intentionally NOT performed; single-quoted
+      // values stay verbatim), so stripping the quotes must also unescape the interior.
+      if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+        return UnescapeDoubleQuoted(value[1..^1]);
+      if (value.Length >= 2 && value[0] == '\'' && value[^1] == '\'')
         return value[1..^1];
       return value;
+    }
+
+    private static string UnescapeDoubleQuoted(string value)
+    {
+      if (!value.Contains('\\'))
+        return value;
+
+      var sb = new System.Text.StringBuilder(value.Length);
+      for (var i = 0; i < value.Length; i++)
+      {
+        if (value[i] == '\\' && i + 1 < value.Length && (value[i + 1] == '"' || value[i + 1] == '\\'))
+        {
+          sb.Append(value[i + 1]);
+          i++;
+          continue;
+        }
+        sb.Append(value[i]);
+      }
+
+      return sb.ToString();
     }
 
     private static string StripUnquotedInlineComment(string value)

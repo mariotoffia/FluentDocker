@@ -330,22 +330,22 @@ namespace FluentDocker.Tests.CoreTests.Service
             disposeCleanupTimeout: TimeSpan.FromMilliseconds(200));
         await service.StartAsync(TestContext.Current.CancellationToken);
         var heldGate = await ModelOperationGate.AcquireAsync(
-            model, TestContext.Current.CancellationToken).ConfigureAwait(false);
+            model, TestContext.Current.CancellationToken);
         var disposeTask = service.DisposeAsync().AsTask();
         var completed = false;
         try
         {
           completed = await Task.WhenAny(
               disposeTask,
-              Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)).ConfigureAwait(false) == disposeTask;
+              Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)) == disposeTask;
         }
         finally
         {
-          await heldGate.DisposeAsync().ConfigureAwait(false);
+          await heldGate.DisposeAsync();
         }
 
         Assert.True(completed, "DisposeAsync did not honor the cleanup timeout while waiting for the model gate.");
-        await disposeTask.ConfigureAwait(false);
+        await disposeTask;
       }
     }
 

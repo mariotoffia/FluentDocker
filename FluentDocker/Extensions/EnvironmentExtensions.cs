@@ -1,6 +1,7 @@
 #nullable enable
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using FluentDocker.Common;
 using FluentDocker.Model.Common;
 
@@ -39,8 +40,13 @@ namespace FluentDocker.Extensions
             );
         ValidateName(name);
         var rawValue = s[(index + 1)..];
-        var unwrapped = rawValue.Length >= 2 && rawValue.StartsWith('"') && IsBalancedWrap(rawValue)
-            ? rawValue[1..^1]
+        // A value counts as pre-wrapped only when the outer quotes are balanced around the WHOLE
+        // value (no unescaped interior '"' closing the wrap early, closing quote not escaped).
+        // Unwrapping also unescapes \" and \\ so re-escaping below is semantically
+        // lossless under the documented grammar (a lone backslash re-escapes to \\,
+        // which parses back to the same value).
+        var unwrapped = IsBalancedWrap(rawValue)
+            ? Unescape(rawValue[1..^1])
             : rawValue;
         ValidateValue(unwrapped);
         var value = $"\"{unwrapped.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
@@ -73,13 +79,51 @@ namespace FluentDocker.Extensions
 
     private static bool IsBalancedWrap(string value)
     {
-      if (!value.EndsWith('"'))
+      if (value.Length < 2 || value[0] != '"' || value[^1] != '"')
         return false;
-      var backslashes = 0;
-      for (var i = value.Length - 2; i >= 0 && value[i] == '\\'; i--)
-        backslashes++;
-      // ponytail: even backslashes means the final quote closes the wrap, not an escaped value quote.
-      return backslashes % 2 == 0;
+
+      var escaped = false;
+      for (var i = 1; i < value.Length - 1; i++)
+      {
+        if (escaped)
+        {
+          escaped = false;
+          continue;
+        }
+        if (value[i] == '\\')
+        {
+          escaped = true;
+          continue;
+        }
+        // An unescaped interior quote means the leading quote closes early — the outer quotes do
+        // not wrap the whole value (e.g. "x" y="z"), so the value must be treated as literal.
+        if (value[i] == '"')
+          return false;
+      }
+
+      // A trailing active escape would make the closing quote part of the value, not the wrap.
+      return !escaped;
+    }
+
+    /// <summary>Inverse of the wrap-escaping: <c>\\</c> → <c>\</c> and <c>\"</c> → <c>"</c>; other sequences are kept verbatim.</summary>
+    private static string Unescape(string value)
+    {
+      if (!value.Contains('\\'))
+        return value;
+
+      var sb = new StringBuilder(value.Length);
+      for (var i = 0; i < value.Length; i++)
+      {
+        if (value[i] == '\\' && i + 1 < value.Length && (value[i + 1] == '\\' || value[i + 1] == '"'))
+        {
+          sb.Append(value[i + 1]);
+          i++;
+          continue;
+        }
+        sb.Append(value[i]);
+      }
+
+      return sb.ToString();
     }
   }
 }

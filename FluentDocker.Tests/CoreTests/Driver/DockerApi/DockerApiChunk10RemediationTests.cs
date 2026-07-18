@@ -379,6 +379,28 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task CreateAsync_LeadingColonHostBinding_YieldsBarePortWithoutHostIp()
+    {
+      // DAPI-11: ":8080" means "any host IP, port 8080"; the leading colon separator must be
+      // stripped so the daemon receives HostPort "8080", not the bogus ":8080".
+      var mock = new MockDockerApiConnection();
+      mock.SetupPost("/containers/create", 201, @"{""Id"":""ctr1""}");
+      var driver = new DockerApiContainerDriver(mock);
+      driver.Initialize(Ctx);
+
+      var result = await driver.CreateAsync(Ctx, new ContainerCreateConfig
+      {
+        Image = "busybox",
+        PortBindings = { ["80/tcp"] = ":8080" }
+      }, TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      var body = mock.GetRequests().Single(r => r.Method == "POST").Body;
+      Assert.Contains(@"""HostPort"":""8080""", body);
+      Assert.DoesNotContain(@"""HostPort"":"":8080""", body);
+    }
+
+    [Fact]
     public async Task BuildAsync_Pre1970Mtime_ClampsTarHeaderTimeToZero()
     {
       var dir = CreateScratchDirectory("build-mtime");

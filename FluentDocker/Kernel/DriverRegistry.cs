@@ -448,8 +448,10 @@ namespace FluentDocker.Kernel
     #region Default Driver
 
     /// <summary>
-    /// Gets the default driver ID.
-    /// If the current default is unregistered, the first registered driver still present becomes default.
+    /// Gets the default driver ID exactly as currently recorded (null when none is set);
+    /// the getter performs no healing. When the default driver is removed,
+    /// <see cref="UnregisterAsync"/> promotes the first registered driver still present
+    /// (or clears the default when none remain) before this getter can observe a stale value.
     /// </summary>
     public string GetDefaultDriverId()
     {

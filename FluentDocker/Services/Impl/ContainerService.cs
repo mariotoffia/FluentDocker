@@ -61,8 +61,8 @@ namespace FluentDocker.Services.Impl
     /// <param name="stopOnDispose">When true, dispose tries to stop the owned container before removal.</param>
     /// <param name="deleteOnDispose">When true, dispose removes the owned container.</param>
     /// <param name="deleteVolumeOnDispose">When true, remove also deletes anonymous volumes.</param>
-    /// <param name="deleteNamedVolumeOnDispose">When true, dispose removes named volume mounts after container removal.</param>
-    /// <param name="customResolver">Optional host endpoint resolver for published ports.</param>
+    /// <param name="deleteNamedVolumeOnDispose">When true, named volume mounts are deleted on removal (including dispose), after the container itself is removed.</param>
+    /// <param name="customResolver">Optional host endpoint resolver for published ports. Consulted even when the container exposes no port map (the port dictionary passed to it is then null), e.g. host-network containers.</param>
     /// <param name="lifecycleHooks">Lifecycle hooks owned by this service instance.</param>
     /// <param name="disposeCleanupTimeout">Maximum best-effort stop/remove cleanup time during dispose.</param>
     /// <param name="initialState">Initial client-side lifecycle state.</param>
@@ -219,7 +219,23 @@ namespace FluentDocker.Services.Impl
       }
       catch
       {
-        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
+        // Pausing a non-running (e.g. stopped) container fails "is not running" — the daemon still
+        // knows the accurate state, so inspect for it instead of clobbering the cached state to
+        // Unknown (mirrors UnpauseAsync's "is not paused" path). Unknown is kept only when the
+        // inspection itself cannot determine the state.
+        var actual = ServiceRunningState.Unknown;
+        try
+        {
+          var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+          if (inspect?.Success == true)
+            actual = ParseInspectState(inspect.Data?.State);
+        }
+        catch (Exception)
+        {
+          // Best-effort: the original pause failure is rethrown below with Unknown state.
+        }
+
+        await UpdateStateAndExecuteHooksAsync(actual).ConfigureAwait(false);
         throw;
       }
     }

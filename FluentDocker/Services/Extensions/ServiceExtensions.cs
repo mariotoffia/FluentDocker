@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Containers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services.Impl;
 using Microsoft.Extensions.Logging;
 
@@ -253,7 +254,10 @@ namespace FluentDocker.Services.Extensions
     /// <returns>True if the process is running, false if timeout.</returns>
     /// <remarks>
     /// Uses <c>pgrep -f</c> inside the container; minimal images may not include it.
-    /// Non-transient driver errors are thrown immediately.
+    /// Non-transient driver errors are thrown immediately, except exec failures caused by the
+    /// container being momentarily not running (mid-restart), which are retried. Fails fast
+    /// with a diagnostic <see cref="FluentDockerException"/> (exit code + log tail) when the
+    /// container reaches a terminal state, matching the other wait extensions.
     /// </remarks>
     public static async Task<bool> WaitForProcessAsync(
         this IContainerService service,
@@ -286,6 +290,10 @@ namespace FluentDocker.Services.Extensions
 
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
+        // Fail fast on a dead container instead of burning the rest of the timeout (outside the
+        // catches below so the diagnostic exception is never mistaken for a transient failure) —
+        // same contract as WaitForPortAsync/WaitForHttpAsync/WaitForLogMessageAsync.
+        await WaitDiagnostics.ThrowIfTerminalAsync(service, cancellationToken).ConfigureAwait(false);
         try
         {
           // Uses pgrep inside the container; distroless/scratch images often lack it.
@@ -299,8 +307,12 @@ namespace FluentDocker.Services.Extensions
         {
           throw;
         }
-        catch (DriverException ex) when (ex.IsTransient)
+        catch (DriverException ex) when (ex.IsTransient || IsExecAgainstStoppedContainer(ex))
         {
+          // An exec failing because the container is momentarily "not running" (mid-restart)
+          // is retriable: the terminal check above throws once the container is genuinely dead,
+          // so this cannot loop past a real exit.
+          LogDebug(service, ex, "WaitForProcessAsync", processName);
         }
         catch (Exception ex) when (IsRetriableWaitException(ex, cancellationToken))
         {
@@ -313,6 +325,17 @@ namespace FluentDocker.Services.Extensions
       cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
+
+    /// <summary>
+    /// True when an exec-class failure is caused by the container not being in a runnable
+    /// state RIGHT NOW ("is not running"-style daemon messages, e.g. mid-restart). Such
+    /// failures are retriable inside wait loops because the terminal-state check converts a
+    /// genuinely dead container into a diagnostic failure on the next poll. Other
+    /// non-transient exec failures (bad command, missing pgrep) still rethrow immediately.
+    /// </summary>
+    private static bool IsExecAgainstStoppedContainer(DriverException ex) =>
+        ex.Message.Contains("not running", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("container state improper", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Waits for a HTTP endpoint to return a successful response.

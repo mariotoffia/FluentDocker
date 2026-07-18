@@ -35,7 +35,7 @@ namespace FluentDocker.Model.Models
     public long Size { get; init; }
 
     /// <summary>The creation timestamp.</summary>
-    public DateTime Created { get; init; }
+    public DateTimeOffset Created { get; init; }
 
     /// <summary>Effective configuration (context size, etc.).</summary>
     public IReadOnlyDictionary<string, string>? Config { get; init; }

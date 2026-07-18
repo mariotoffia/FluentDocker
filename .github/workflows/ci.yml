@@ -8,12 +8,18 @@ on:
       - fdv3
       - 'support/**'
     tags:
+      # Canonical release tags are v-prefixed (v3.2.0); bare numeric tags (3.2.0 —
+      # the pre-3.2 historical scheme) also trigger the release job so a maintainer
+      # pushing an old-style tag gets a LOUD failure from the tag-verify step instead
+      # of a silent no-op. See DEVELOPMENT.md "Release checklist".
       - 'v*'
+      - '[0-9]*'
   pull_request:
   # Disabled: the weekly scheduled integration-test run fails every time (no Docker
   # daemon available on the hosted runners for the full OS matrix). Run integration
-  # tests on demand via workflow_dispatch (run_integration: true) instead. Re-enable
-  # by uncommenting once the scheduled run is reliable.
+  # tests on demand via workflow_dispatch (run_integration: true) instead. When
+  # re-adding, also restore `github.event_name == 'schedule'` arms in the
+  # integration-tests matrix/if and model-runner-benchmarks if (removed as dead code).
   # schedule:
   #   - cron: '0 6 * * 1'  # Monday 06:00 UTC
   workflow_dispatch:
@@ -96,6 +102,14 @@ jobs:
             ls "packages/${pkg}".*.nupkg 1>/dev/null 2>&1 || { echo "MISSING: ${pkg}"; exit 1; }
             echo "OK: ${pkg}"
           done
+          # Inverse check: nothing EXTRA may be packed — a future packable project must not
+          # get auto-published without review.
+          COUNT=$(ls packages/*.nupkg | wc -l)
+          if [ "$COUNT" -ne "${#EXPECTED[@]}" ]; then
+            echo "ERROR: expected exactly ${#EXPECTED[@]} packages, found $COUNT:"
+            ls packages/*.nupkg
+            exit 1
+          fi
 
       - name: List NuGet packages
         if: matrix.os == 'ubuntu-latest'
@@ -178,13 +192,17 @@ jobs:
 
   release:
     name: Publish & Tag
-    needs: [build, unit-tests]
+    needs: [build, unit-tests, integration-tests]
     # Configure required reviewers on the 'nuget-release' environment (repo Settings → Environments) to require manual approval before publish.
     environment: nuget-release
-    # Publish ONLY on a version-tag push (e.g. v3.2.0-preview.1). Merging to a branch
-    # no longer publishes; a maintainer releases by pushing a matching v<version> tag.
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # Publish ONLY on a version-tag push. Merging to a branch no longer publishes; a
+    # maintainer releases by pushing the matching v<version> tag (canonical scheme).
+    # Bare numeric tags (old scheme) reach this job too and fail loudly in the
+    # tag-verify step below instead of silently publishing nothing.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       DOTNET_NOLOGO: 'true'
       DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
@@ -199,11 +217,63 @@ jobs:
         run: |
           VERSION=$(dotnet msbuild FluentDocker/FluentDocker.csproj -getProperty:Version -nologo -verbosity:quiet | tr -d '[:space:]')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Verify tag matches <Version>
+        shell: bash
+        run: |
+          # The pushed tag MUST equal v<Version> from Directory.Build.props. This blocks
+          # (a) publishing a version that does not match the tag (e.g. tagging v3.2.0
+          # while props still say 3.2.0-preview.2) and (b) old-style unprefixed tags
+          # (3.2.0) silently releasing nothing.
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' does not match <Version> '${VERSION}' in Directory.Build.props (expected tag 'v${VERSION}')."
+            echo "::error::Fix <Version> or delete the tag and push the canonical 'v${VERSION}' tag. See DEVELOPMENT.md 'Release checklist'."
+            exit 1
+          fi
+          echo "OK: tag ${GITHUB_REF_NAME} matches <Version> ${VERSION}"
+      - name: Check release docs
+        # The docs/README sweep gate: no temporary branch links, no stale/preview
+        # version strings at GA. Blocks tagging a release whose docs still say the
+        # release does not exist.
+        run: make check-release-docs
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
       - run: dotnet pack --configuration Release --no-build --output packages
+      - name: Validate NuGet packages
+        run: |
+          EXPECTED=("FluentDocker" "FluentDocker.Testing.Xunit" "FluentDocker.Testing.MsTest" "FluentDocker.Testing.NUnit")
+          for pkg in "${EXPECTED[@]}"; do
+            ls "packages/${pkg}.${{ steps.version.outputs.version }}.nupkg" 1>/dev/null 2>&1 || { echo "MISSING: ${pkg} at ${{ steps.version.outputs.version }}"; exit 1; }
+            echo "OK: ${pkg}"
+          done
+          COUNT=$(ls packages/*.nupkg | wc -l)
+          if [ "$COUNT" -ne "${#EXPECTED[@]}" ]; then
+            echo "ERROR: expected exactly ${#EXPECTED[@]} packages, found $COUNT:"
+            ls packages/*.nupkg
+            exit 1
+          fi
       - name: Publish NuGet packages
         run: dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Keep the Releases page in lockstep with NuGet (the README badge and release
+          # links depend on it). --verify-tag: never create a release for a missing tag.
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            echo "GitHub release ${GITHUB_REF_NAME} already exists — skipping creation."
+          else
+            PRERELEASE_FLAG=""
+            case "${{ steps.version.outputs.version }}" in
+              *-*) PRERELEASE_FLAG="--prerelease" ;;
+            esac
+            gh release create "${GITHUB_REF_NAME}" \
+              --verify-tag \
+              --title "FluentDocker ${{ steps.version.outputs.version }}" \
+              --generate-notes \
+              ${PRERELEASE_FLAG} \
+              packages/*.nupkg
+          fi
 
   # CodeQL Security Analysis
   codeql:
@@ -239,22 +309,25 @@ jobs:
         with:
           category: "/language:csharp"
 
-  # Integration tests — run only with the `test-integration` PR label, or on schedule/dispatch.
+  # Integration tests — run with the `test-integration` PR label, on release-tag pushes
+  # (the release job depends on this lane, so a release requires it to have run; note the
+  # docker-check step below soft-skips the suite when the runner has no Docker daemon),
+  # or on manual dispatch.
   # Real DMR coverage now lives in the dedicated `dmr-tests` job on a self-hosted runner;
   # this hosted lane self-skips DMR tests by design (no `docker model` on hosted runners).
-  # Integration tests do NOT run on merge to main (push) — only units do.
+  # Integration tests do NOT run on merge to main (push to a branch) — only units do.
   integration-tests:
     name: Integration Tests (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        # PRs: ubuntu only (fast feedback). Schedule/dispatch: full matrix.
-        os: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)) && fromJson('["ubuntu-latest","macos-latest","windows-latest"]') || fromJson('["ubuntu-latest"]') }}
+        # PRs/tags: ubuntu only (fast feedback). Dispatch: full matrix.
+        os: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_integration == true) && fromJson('["ubuntu-latest","macos-latest","windows-latest"]') || fromJson('["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     if: >
       (github.event_name == 'pull_request' &&
        contains(github.event.pull_request.labels.*.name, 'test-integration')) ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
       (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)
     env:
       DOTNET_NOLOGO: 'true'
@@ -358,14 +431,12 @@ jobs:
           fi
 
   # Model Runner benchmarks — deterministic (no DMR), so they run anywhere. Kept off
-  # PRs to keep them fast; runs on schedule or manual dispatch only. A perf blip must
+  # PRs to keep them fast; runs on manual dispatch only. A perf blip must
   # never fail CI, so this job is non-gating (continue-on-error) and uploads results.
   model-runner-benchmarks:
     name: Model Runner Benchmarks
     runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     continue-on-error: true
     env:
       DOTNET_NOLOGO: 'true'

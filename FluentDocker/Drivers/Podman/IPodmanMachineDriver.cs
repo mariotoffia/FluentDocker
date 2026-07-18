@@ -34,8 +34,13 @@ namespace FluentDocker.Drivers.Podman
     /// <summary>Removes a machine VM.</summary>
     /// <remarks>
     /// Non-force removal first inspects the machine. Stopped machines are removed with
-    /// <c>-f</c> to avoid Podman's interactive prompt; running machines fail clearly and
+    /// <c>-f</c> to avoid Podman's interactive prompt (a plain <c>rm</c> would always abort
+    /// non-interactively at the confirmation prompt); running machines fail clearly and
     /// must be stopped first or removed with <paramref name="force"/> set to <c>true</c>.
+    /// This is inherently inspect-then-remove: a machine started by another process in the
+    /// window between the state check and the <c>rm -f</c> is still force-removed. When
+    /// concurrent external machine starts are possible, coordinate machine lifecycle
+    /// externally rather than relying on the non-force check.
     /// </remarks>
     Task<CommandResponse<Unit>> RemoveAsync(
         DriverContext context, string name = null, bool force = false,

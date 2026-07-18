@@ -30,6 +30,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       public IAsyncEnumerable<string> Stream(string args, CancellationToken ct) =>
           ExecuteStreamingCommandAsync(args, ct);
+
+      public IAsyncEnumerable<string> StreamWithProgress(string args, CancellationToken ct) =>
+          ExecuteStreamingCommandWithProgressAsync(args, ct);
+
+      public IAsyncEnumerable<FluentDocker.Drivers.LogEntry> StreamWithSources(string args, CancellationToken ct) =>
+          ExecuteStreamingCommandWithSourcesAsync(new DriverContext("podman"), args, stdout: true, stderr: true, ct);
     }
 
     private static ShellStreamDriver CreateShellDriver()
@@ -66,6 +72,56 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal(ErrorCodes.Driver.CommandExecutionFailed, ex.ErrorCode);
       Assert.Contains("errpadding", ex.Message); // stderr was captured and surfaced
       Assert.Contains("exit code 3", ex.Message);
+      // This path drains stderr separately, so its ErrorContext carries pure stderr and must
+      // NOT carry the "merged output" label used by the interleaving paths (POD-11).
+      Assert.NotNull(ex.Context);
+      Assert.StartsWith("errpadding", ex.Context!.StdErr);
+    }
+
+    [Fact]
+    public async Task StreamingWithProgress_NonZeroExit_LabelsTailAsMergedOutput()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell/signal streaming semantics; not applicable on Windows");
+
+      var driver = CreateShellDriver();
+      var args = "-c \"echo out; echo err 1>&2; exit 4\"";
+
+      var ex = await Assert.ThrowsAsync<DriverException>(async () =>
+      {
+        await foreach (var _ in driver.StreamWithProgress(args, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      // POD-11: the tail interleaves stdout and stderr, so the ErrorContext must label it as
+      // merged output rather than presenting it as pure stderr.
+      Assert.Equal(ErrorCodes.Driver.CommandExecutionFailed, ex.ErrorCode);
+      Assert.NotNull(ex.Context);
+      Assert.StartsWith("merged output", ex.Context!.StdErr);
+      Assert.Contains("exit code 4", ex.Message);
+    }
+
+    [Fact]
+    public async Task StreamingWithSources_NonZeroExit_LabelsTailAsMergedOutput()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("POSIX shell/signal streaming semantics; not applicable on Windows");
+
+      var driver = CreateShellDriver();
+      var args = "-c \"echo out; echo err 1>&2; exit 5\"";
+
+      var ex = await Assert.ThrowsAsync<DriverException>(async () =>
+      {
+        await foreach (var _ in driver.StreamWithSources(args, TestContext.Current.CancellationToken))
+        {
+        }
+      });
+
+      Assert.Equal(ErrorCodes.Driver.CommandExecutionFailed, ex.ErrorCode);
+      Assert.NotNull(ex.Context);
+      Assert.StartsWith("merged output", ex.Context!.StdErr);
+      Assert.Contains("exit code 5", ex.Message);
     }
 
     [Fact]

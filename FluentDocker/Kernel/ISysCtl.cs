@@ -100,7 +100,7 @@ namespace FluentDocker.Kernel
     /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
     Task<bool> IsHealthyAsync(string driverId, CancellationToken cancellationToken = default);
 
-    /// <summary>The configured default driver id, or <c>null</c>/empty when none is set.</summary>
-    string DefaultDriverId { get; }
+    /// <summary>The configured default driver id, or <c>null</c> when none is set.</summary>
+    string? DefaultDriverId { get; }
   }
 }

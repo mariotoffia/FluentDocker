@@ -8,7 +8,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
   public class DockerApiConnectionConfig
   {
     /// <summary>
-    /// Docker daemon host URI. Supported schemes: unix://, npipe://, tcp://, https://.
+    /// Docker daemon host URI. Supported schemes: unix://, npipe://, tcp://, http://, https://.
     /// Default: auto-detected based on platform.
     /// </summary>
     public string Host { get; set; }
@@ -43,11 +43,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// stream (e.g. an events feed with no activity, or a container that is quiet for a while)
     /// is torn down every time this window elapses without a byte arriving — set it well above
     /// the longest expected legitimate idle gap, or leave it disabled for long-lived streams.
-    /// Each time the timeout fires, the in-flight read's rented <see cref="System.Buffers.ArrayPool{T}"/>
-    /// buffer is intentionally leaked rather than returned to the pool, because the abandoned
-    /// inner read may still be writing into it; the stream is unusable after timing out, so this
-    /// trades one leaked buffer per timeout for avoiding a corrupted pooled segment. Enable only
-    /// once both trade-offs are acceptable for your streams.
+    /// When the timeout fires, the abandoned in-flight read briefly retains its rented
+    /// <see cref="System.Buffers.ArrayPool{T}"/> buffer (it may still be writing into it); the
+    /// buffer is returned to the pool only once that read settles, so a fully wedged connection
+    /// can pin one buffer until its socket dies. Enable only once these trade-offs are acceptable
+    /// for your streams.
     /// </remarks>
     public TimeSpan? StreamIdleTimeout { get; set; }
 

@@ -1,5 +1,7 @@
 #nullable enable
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using FluentDocker.Common;
 
 // ReSharper disable InconsistentNaming
 
@@ -22,8 +24,13 @@ namespace FluentDocker.Model.Containers
     /// <summary>Link-local IPv6 address.</summary>
     public string? LinkLocalIPv6Address { get; set; }
 
-    /// <summary>Link-local IPv6 prefix length.</summary>
-    public string? LinkLocalIPv6PrefixLen { get; set; }
+    /// <summary>
+    /// Link-local IPv6 prefix length. Lenient <see cref="int"/> (one shape for prefix
+    /// lengths across the inspect surface): engines emit numbers or numeric strings;
+    /// null or unparsable drift reads as 0.
+    /// </summary>
+    [JsonConverter(typeof(LenientInt32Converter))]
+    public int LinkLocalIPv6PrefixLen { get; set; }
 
     /// <summary>Path to the network namespace sandbox key.</summary>
     public string? SandboxKey { get; set; }
@@ -43,14 +50,22 @@ namespace FluentDocker.Model.Containers
     /// <summary>Global IPv6 address.</summary>
     public string? GlobalIPv6Address { get; set; }
 
-    /// <summary>Global IPv6 prefix length.</summary>
-    public string? GlobalIPv6PrefixLen { get; set; }
+    /// <summary>
+    /// Global IPv6 prefix length. Lenient <see cref="int"/> — see
+    /// <see cref="LinkLocalIPv6PrefixLen"/> for the tolerance contract.
+    /// </summary>
+    [JsonConverter(typeof(LenientInt32Converter))]
+    public int GlobalIPv6PrefixLen { get; set; }
 
     /// <summary>IPv4 address.</summary>
     public string? IPAddress { get; set; }
 
-    /// <summary>IPv4 prefix length.</summary>
-    public string? IPPrefixLen { get; set; }
+    /// <summary>
+    /// IPv4 prefix length. Lenient <see cref="int"/> — see
+    /// <see cref="LinkLocalIPv6PrefixLen"/> for the tolerance contract.
+    /// </summary>
+    [JsonConverter(typeof(LenientInt32Converter))]
+    public int IPPrefixLen { get; set; }
 
     /// <summary>IPv6 gateway.</summary>
     public string? IPv6Gateway { get; set; }

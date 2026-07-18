@@ -199,6 +199,27 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.True(el.GetBoolOrDefault("running", true));
     }
 
+    // CE-11: string "0"/"1" must parse like LenientBoolConverter — the same daemon quirk has to
+    // yield the same value regardless of navigation path.
+    [Theory]
+    [InlineData(""" {"running":"1"} """, true)]
+    [InlineData(""" {"running":"0"} """, false)]
+    [InlineData(""" {"running":" 1 "} """, true)]
+    [InlineData(""" {"running":" false "} """, false)]
+    public void GetBoolOrDefault_NumericStringForms_MatchLenientBoolConverter(string json, bool expected)
+    {
+      var el = JsonHelper.ParseElement(json);
+      Assert.Equal(expected, el.GetBoolOrDefault("running", !expected));
+    }
+
+    [Fact]
+    public void GetBoolOrDefault_UnrecognizedString_ReturnsDefault()
+    {
+      var el = JsonHelper.ParseElement("""{"running":"2"}""");
+      Assert.False(el.GetBoolOrDefault("running"));
+      Assert.True(el.GetBoolOrDefault("running", true));
+    }
+
     #endregion
 
     #region GetDateTimeOrDefault

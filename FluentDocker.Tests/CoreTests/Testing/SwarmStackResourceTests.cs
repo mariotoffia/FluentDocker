@@ -62,6 +62,63 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public void Constructor_NeverMutatesCallerConfig_NoDoubleScoping()
+    {
+      // A shared (e.g. static readonly) config used by two fixtures, or fixture re-init,
+      // must not have its StackName session-scoped in place: the second resource would
+      // scope the already-scoped name and teardown would target the wrong stack.
+      var options = new DockerResourceOptions { SessionId = "abcdef1234567890" };
+      var shared = new StackDeployConfig { StackName = "app" };
+
+      var first = new SwarmStackResource(Kernel, shared, options);
+      var second = new SwarmStackResource(Kernel, shared, options);
+
+      Assert.Equal("app", shared.StackName);
+      Assert.Equal("app-abcdef123456", first.StackName);
+      Assert.Equal("app-abcdef123456", second.StackName);
+    }
+
+    [Fact]
+    public async Task Deploy_UsesScopedName_WithoutTouchingCallerConfig()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = true,
+        SupportsStacks = true
+      });
+      MockPack.EnableStackDriver();
+      MockPack.SetupStackRemove();
+
+      StackDeployConfig observed = null;
+      MockPack.StackDriver
+          .Setup(d => d.DeployAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<StackDeployConfig>(),
+              It.IsAny<CancellationToken>()))
+          .Callback<DriverContext, StackDeployConfig, CancellationToken>((_, cfg, _) => observed = cfg)
+          .ReturnsAsync((DriverContext _, StackDeployConfig cfg, CancellationToken _) =>
+              CommandResponse<StackDeployResult>.Ok(new StackDeployResult { StackName = cfg.StackName }));
+
+      var options = new DockerResourceOptions { SessionId = "abcdef1234567890" };
+      var caller = new StackDeployConfig
+      {
+        StackName = "app",
+        ComposeFiles = { "docker-compose.yml" }
+      };
+      var resource = new SwarmStackResource(Kernel, caller, options);
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.NotNull(observed);
+      Assert.NotSame(caller, observed);
+      Assert.Equal("app-abcdef123456", observed.StackName);
+      Assert.Equal(caller.ComposeFiles, observed.ComposeFiles);
+      Assert.Equal("app", caller.StackName);
+
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
     public void StackName_IsExact_WhenSessionLabelsDisabled()
     {
       var options = new DockerResourceOptions { SessionId = "abcdef1234567890", EnableSessionLabels = false };

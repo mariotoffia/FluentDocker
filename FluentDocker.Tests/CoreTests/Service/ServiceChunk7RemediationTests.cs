@@ -294,6 +294,9 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task PauseAsync_WhenDriverThrows_NormalizesStateToUnknown()
     {
+      // SVC-5 refined this contract: a pause failure re-inspects for the real state, and Unknown
+      // is kept only when inspection cannot determine it — so "daemon gone" makes the follow-up
+      // inspect unavailable too.
       MockPack.SetupContainerStart()
           .SetupContainerInspect("container-123", running: true);
       MockPack.ContainerDriver
@@ -301,6 +304,9 @@ namespace FluentDocker.Tests.CoreTests.Service
           .ThrowsAsync(new InvalidOperationException("daemon gone"));
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
       await service.StartAsync(TestContext.Current.CancellationToken);
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new InvalidOperationException("daemon gone"));
 
       await Assert.ThrowsAsync<InvalidOperationException>(() => service.PauseAsync(TestContext.Current.CancellationToken));
 

@@ -347,7 +347,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .FromString("FROM scratch");
       dockerfile.WorkingFolder(".out/image-registry-tag-test");
 
-      await using var image = await dockerfile.BuildAsync();
+      await using var image = await dockerfile.BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       MockPack.ImageDriver.Verify(d => d.BuildAsync(
           It.IsAny<DriverContext>(),

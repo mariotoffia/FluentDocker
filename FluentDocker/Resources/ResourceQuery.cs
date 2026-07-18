@@ -56,6 +56,17 @@ namespace FluentDocker.Resources
     }
 
     /// <summary>Runs the query and returns every embedded resource matching the configured namespace.</summary>
+    /// <remarks>
+    /// Manifest resource names use dots for BOTH namespace separators and filename dots, so
+    /// filenames are reconstructed heuristically (see the private <c>ExtractFile</c> notes).
+    /// Two shapes remain ambiguous on this no-request path: a short (≤4 chars, dotless)
+    /// filename in a sub-namespace (<c>Root.Sub.app</c>) extracts as a single file
+    /// <c>Sub.app</c> at the target root rather than <c>Sub/app</c>, and a long dotless
+    /// filename under a recursive query (<c>Root.Sub.README</c>) re-anchors to a root-level
+    /// file <c>Sub.README</c>. When the on-disk name/location must be exact, use
+    /// <see cref="Include"/> with the exact requested name — it rewrites the match from the
+    /// request instead of relying on the heuristic.
+    /// </remarks>
     /// <returns>The matching resources.</returns>
     /// <exception cref="FluentDockerException"><see cref="Namespace"/> was not called, or <see cref="From"/> named an assembly not currently loaded.</exception>
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -120,6 +131,15 @@ namespace FluentDocker.Resources
         // name (and its separating dot) is removed, so the resource writes to the correct file at the
         // correct folder regardless of how ExtractFile originally split it (Co-M1).
         var prefix = fq[..(fq.Length - name.Length - 1)];
+
+        // The requested name may overlap the NAMESPACE boundary (e.g. Namespace("Res.Sub") with
+        // Include("Sub.x.y") against resource "Res.Sub.x.y"): the remaining prefix then falls
+        // short of the query root. That is no match — never slice below Root (it would throw),
+        // and never resolve a resource that sits outside the queried root.
+        if (!string.Equals(prefix, info.Root, StringComparison.Ordinal) &&
+            !prefix.StartsWith(info.Root + ".", StringComparison.Ordinal))
+          continue;
+
         return new ResourceInfo
         {
           Assembly = info.Assembly,
@@ -138,9 +158,23 @@ namespace FluentDocker.Resources
       if (string.IsNullOrEmpty(_assembly))
         return caller;
 
-      return AppDomain.CurrentDomain.GetAssemblies()
-        .FirstOrDefault(x => x.GetName().Name!.Equals(_assembly, StringComparison.OrdinalIgnoreCase))
-        ?? throw new FluentDockerException($"Assembly '{_assembly}' was not found in the current AppDomain.");
+      var loaded = AppDomain.CurrentDomain.GetAssemblies()
+        .FirstOrDefault(x => x.GetName().Name!.Equals(_assembly, StringComparison.OrdinalIgnoreCase));
+      if (loaded != null)
+        return loaded;
+
+      // .NET loads assemblies lazily — the target may simply not be loaded yet when no type
+      // from it has been touched (a startup-order heisenbug). Try an explicit load by simple
+      // name before failing.
+      try
+      {
+        return Assembly.Load(new AssemblyName(_assembly));
+      }
+      catch (Exception ex)
+      {
+        throw new FluentDockerException(
+            $"Assembly '{_assembly}' was not found in the current AppDomain and could not be loaded.", ex);
+      }
     }
 
     private IEnumerable<ResourceInfo> QueryCore(Assembly assembly)

@@ -73,7 +73,8 @@ namespace FluentDocker.Benchmarks
         Detach = true
       });
 
-      _containerId = runResult.Data.Id;
+      _containerId = runResult.Data?.Id
+          ?? throw new InvalidOperationException("Container run returned no id.");
     }
 
     [GlobalCleanup]

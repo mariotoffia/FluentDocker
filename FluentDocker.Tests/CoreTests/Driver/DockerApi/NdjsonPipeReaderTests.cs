@@ -42,15 +42,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   public class NdjsonPipeReaderTests
   {
     /// <summary>
-    /// Testable wrapper that exposes the protected static ReadNdjsonLinesAsync.
+    /// Testable wrapper that exposes the protected ReadNdjsonLinesAsync through a
+    /// shared instance (the reader logs dropped lines via the base Logger).
     /// </summary>
     private sealed class TestableDriverBase : DockerApiDriverBase
     {
+      private static readonly TestableDriverBase Instance = new();
+
       public TestableDriverBase() : base(new MockDockerApiConnection()) { }
 
       public static IAsyncEnumerable<T> TestReadNdjsonLines<T>(
           Stream stream, JsonTypeInfo<T> typeInfo, CancellationToken ct) where T : class
-          => ReadNdjsonLinesAsync(stream, typeInfo, ct);
+          => Instance.ReadNdjsonLinesAsync(stream, typeInfo, ct);
     }
 
     private static JsonTypeInfo<NdjsonTestItem> TypeInfo =>

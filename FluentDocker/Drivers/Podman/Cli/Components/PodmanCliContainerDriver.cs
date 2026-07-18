@@ -151,7 +151,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = "stop";
         if (timeout.HasValue)
-          args += $" -t {timeout.Value}";
+          args += $" -t {timeout.Value.ToString(CultureInfo.InvariantCulture)}";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         // stop waits up to the grace period for the container to exit — inherently long.
@@ -182,7 +182,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = "restart";
         if (timeout.HasValue)
-          args += $" -t {timeout.Value}";
+          args += $" -t {timeout.Value.ToString(CultureInfo.InvariantCulture)}";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         // restart waits up to the grace period for the container to stop — inherently long.

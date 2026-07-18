@@ -145,7 +145,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           context.Response.StatusCode = 503;
           context.Response.Close();
         }
-      });
+      }, TestContext.Current.CancellationToken);
 
       var elapsed = Stopwatch.StartNew();
       await using var results = await new Builder()
@@ -160,7 +160,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
       elapsed.Stop();
 
-      await server.ConfigureAwait(false);
+      await server;
       Assert.Single(results.Containers);
       Assert.Equal(3, requests);
       Assert.True(elapsed.ElapsedMilliseconds >= 80, $"Expected poll delay, elapsed {elapsed.ElapsedMilliseconds}ms.");

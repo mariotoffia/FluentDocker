@@ -78,7 +78,7 @@ namespace FluentDocker.Benchmarks
     public ModelReference ParseModelReference() => ModelReference.Parse("hf.co/bartowski/Llama-3.2:Q4_K_M");
 
     [Benchmark(Description = "Deserialize chat completion response")]
-    public ChatCompletionResponse DeserializeChatResponse() => JsonHelper.TryDeserialize<ChatCompletionResponse>(ChatJson);
+    public ChatCompletionResponse? DeserializeChatResponse() => JsonHelper.TryDeserialize<ChatCompletionResponse>(ChatJson);
 
     [Benchmark(Description = "Serialize chat completion request")]
     public string SerializeChatRequest() => JsonHelper.Serialize(_request);

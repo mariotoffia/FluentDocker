@@ -119,9 +119,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       mockPack.SetupSystemSwitchToWindows();
       mockPack.SetupSystemSwitchToLinux();
       var context = new DriverContext("docker");
-      await mockPack.InitializeAsync(context);
+      await mockPack.InitializeAsync(context, TestContext.Current.CancellationToken);
       await using var kernel = new FluentDockerKernel(new DriverRegistry(loggerFactory), loggerFactory);
-      await kernel.RegisterDriverPackAsync("docker", mockPack, context);
+      await kernel.RegisterDriverPackAsync("docker", mockPack, context, TestContext.Current.CancellationToken);
       kernel.SetDefaultDriver("docker");
       var scope = await EngineScope.CreateAsync(
           kernel, "docker", EngineScopeType.Windows, TestContext.Current.CancellationToken);

@@ -29,7 +29,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     // ── EscapePath(string) ──────────────────────────────────────────────
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_NullString_ReturnsNull()
     {
       // Arrange
@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_EmptyString_ReturnsEmpty()
     {
       // Arrange
@@ -57,7 +57,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_PathWithoutSpaces_ReturnsSamePath()
     {
       // Arrange
@@ -71,7 +71,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_PathWithSpaces_WrapsInQuotes()
     {
       // Arrange
@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_AlreadyQuoted_DoesNotDoubleQuote()
     {
       // Arrange
@@ -101,7 +101,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     // ── EscapePath(TemplateString) ──────────────────────────────────────
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePathTemplate_NullOrEmpty_ReturnsSame()
     {
       // Arrange
@@ -115,7 +115,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePathTemplate_NoSpaces_ReturnsSame()
     {
       // Arrange
@@ -129,7 +129,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePathTemplate_WithSpaces_WrapsInQuotes()
     {
       // Arrange
@@ -143,7 +143,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePathTemplate_AlreadyQuoted_DoesNotDoubleQuote()
     {
       // Arrange

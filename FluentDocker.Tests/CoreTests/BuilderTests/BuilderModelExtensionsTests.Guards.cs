@@ -301,7 +301,12 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     public async Task PodmanCliPack_Capabilities_NoModels()
     {
       var pack = new PodmanCliDriverPack();
-      await pack.InitializeAsync(new DriverContext("podman"), TestContext.Current.CancellationToken);
+      // Hermetic: pack init resolves (never executes) the binary — a fake executable keeps
+      // this unit test green on machines without podman (GATE-1).
+      var fakeBinDir = FluentDocker.Tests.Utilities.FakeBinaryDirectory.Create("podman");
+      await pack.InitializeAsync(
+          new DriverContext("podman") { SearchPaths = [fakeBinDir] },
+          TestContext.Current.CancellationToken);
       var interfaces = pack.GetSupportedInterfaces();
       Assert.DoesNotContain(typeof(IModelManagementDriver), interfaces);
       Assert.DoesNotContain(typeof(IModelRuntimeDriver), interfaces);

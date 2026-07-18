@@ -66,6 +66,21 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
     }
 
+    /// <summary>
+    /// Returns the last few KiB of captured process output for attaching to a diagnostic
+    /// <see cref="FluentDocker.Model.Drivers.ErrorContext"/> — enough to see why a command
+    /// hung/timed out without dragging a multi-MiB buffer into the exception.
+    /// </summary>
+    private static string DiagnosticTail(string text, int maxChars = 4096) =>
+        string.IsNullOrEmpty(text) || text.Length <= maxChars ? text : text[^maxChars..];
+
+    /// <summary>
+    /// Snapshot of a reader sink after its (possibly cancelled) task has been awaited:
+    /// the reader no longer appends at that point, so the read is race-free.
+    /// </summary>
+    private static string SinkSnapshot(System.Text.StringBuilder sink) =>
+        sink is { Length: > 0 } ? sink.ToString() : null;
+
     private static int GetExitCodeOrDefault(Process process)
     {
       try

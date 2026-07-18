@@ -140,7 +140,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void SpacesInPath_AreEscapedCorrectly()
     {
       var path = new TemplateString(@"${TEMP}/folder with space/${RND}");
@@ -152,7 +152,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    [Obsolete]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void NoSpacesInPath_NotEscaped()
     {
       var path = new TemplateString(@"${TEMP}/folder/${RND}");

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Drivers.Docker.Api
 {
@@ -29,7 +30,7 @@ namespace FluentDocker.Drivers.Docker.Api
     ///
     /// Skips empty, whitespace-only, and malformed JSON lines.
     /// </summary>
-    protected static async IAsyncEnumerable<T> ReadNdjsonLinesAsync<T>(
+    protected async IAsyncEnumerable<T> ReadNdjsonLinesAsync<T>(
         Stream stream, JsonTypeInfo<T> typeInfo,
         [EnumeratorCancellation] CancellationToken ct) where T : class
     {
@@ -125,7 +126,7 @@ namespace FluentDocker.Drivers.Docker.Api
     /// of UTF-8 bytes. Returns <c>null</c> for empty, whitespace-only, or invalid JSON.
     /// Trims \r if present (handles \r\n line endings).
     /// </summary>
-    private static T TryDeserializeLine<T>(
+    private T TryDeserializeLine<T>(
         ReadOnlySequence<byte> lineBytes, JsonTypeInfo<T> typeInfo) where T : class
     {
       // Trim trailing \r for \r\n line endings
@@ -148,10 +149,29 @@ namespace FluentDocker.Drivers.Docker.Api
         var utf8Reader = new Utf8JsonReader(lineBytes);
         return JsonSerializer.Deserialize(ref utf8Reader, typeInfo);
       }
-      catch (JsonException)
+      catch (JsonException ex)
       {
+        LogDroppedNdjsonLine(lineBytes, ex);
         return null;
       }
+    }
+
+    /// <summary>
+    /// Debug-logs a malformed NDJSON line that is being dropped, with its byte length,
+    /// a bounded prefix, and the parse error, so silent drops remain diagnosable.
+    /// </summary>
+    private void LogDroppedNdjsonLine(in ReadOnlySequence<byte> lineBytes, JsonException ex)
+    {
+      if (!Logger.IsEnabled(LogLevel.Debug))
+        return;
+
+      const int maxPrefixBytes = 200;
+      var prefix = lineBytes.Length > maxPrefixBytes
+          ? lineBytes.Slice(0, maxPrefixBytes)
+          : lineBytes;
+      Logger.LogDebug(
+          "Dropped malformed NDJSON line ({LineLength} bytes): {ParseError}. Line prefix: {LinePrefix}",
+          lineBytes.Length, ex.Message, Encoding.UTF8.GetString(in prefix));
     }
 
     private static bool IsWhitespaceOnly(ReadOnlySequence<byte> bytes)

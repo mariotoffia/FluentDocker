@@ -57,5 +57,44 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
 
       Assert.Contains("missing equal sign", ex.Message);
     }
+
+    // BF-11: quotes count as a wrap only when balanced around the WHOLE value. Here the interior
+    // contains unescaped quotes ("x" y="z"), so the value is literal and must survive unchanged
+    // (previously the outer quotes were stripped, altering the value).
+    [Fact]
+    public void WrapValue_InteriorUnescapedQuotes_TreatsValueAsLiteral()
+    {
+      var result = new TemplateString[] { "V=\"x\" y=\"z\"" }.WrapValue();
+
+      // Escaped whole-value wrap: "\"x\" y=\"z\"" decodes back to the original "x" y="z".
+      Assert.Equal("V=\"\\\"x\\\" y=\\\"z\\\"\"", Assert.Single(result));
+    }
+
+    // CE-7: a balanced pre-wrapped value with escaped interior quotes must unescape on unwrap so
+    // re-wrapping is lossless: wrap(unwrap(x)) == x (previously FOO="a\"b" re-escaped to "a\\\"b").
+    [Fact]
+    public void WrapValue_PreWrappedWithEscapedQuote_RoundTripsUnchanged()
+    {
+      var result = new TemplateString[] { "FOO=\"a\\\"b\"" }.WrapValue();
+
+      Assert.Equal("FOO=\"a\\\"b\"", Assert.Single(result));
+    }
+
+    [Fact]
+    public void WrapValue_PreWrappedWithEscapedBackslash_RoundTripsUnchanged()
+    {
+      var result = new TemplateString[] { "P=\"C:\\\\temp\"" }.WrapValue();
+
+      Assert.Equal("P=\"C:\\\\temp\"", Assert.Single(result));
+    }
+
+    [Fact]
+    public void WrapValue_IsIdempotentForItsOwnOutput()
+    {
+      var once = new TemplateString[] { "QUOTE=a\"b" }.WrapValue();
+      var twice = new TemplateString[] { Assert.Single(once) }.WrapValue();
+
+      Assert.Equal(Assert.Single(once), Assert.Single(twice));
+    }
   }
 }

@@ -99,6 +99,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder WithEnvironment(string key, string value)
     {
+      ArgumentNullException.ThrowIfNull(value);
       ValidateEnvironmentName(key, $"Expected format name=value, empty name in the name value string: '{key}={value}'");
       _environment[key] = value;
       return this;
@@ -183,6 +184,7 @@ namespace FluentDocker.Builders
         string cmd, string interval = null, string timeout = null,
         int retries = 0, string startPeriod = null)
     {
+      ArgumentNullException.ThrowIfNull(cmd);
       _healthCheck = new Drivers.HealthCheckConfig
       {
         Test = ["CMD-SHELL", cmd],

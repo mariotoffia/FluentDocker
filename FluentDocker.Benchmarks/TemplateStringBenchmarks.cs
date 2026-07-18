@@ -74,8 +74,8 @@ namespace FluentDocker.Benchmarks
     [Benchmark(Description = "Implicit string to TemplateString conversion")]
     public TemplateString ImplicitConversion()
     {
-      TemplateString ts = "/some/path/${TEMP}/file.txt";
-      return ts;
+      TemplateString? ts = "/some/path/${TEMP}/file.txt";
+      return ts!;
     }
 
     [Benchmark(Description = "TemplateString ToString")]

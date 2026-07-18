@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -11,13 +12,15 @@ namespace FluentDocker.Model.Builders.FileBuilder
   {
     /// <summary>Creates EXPOSE entries from numeric ports.</summary>
     /// <param name="ports">Ports to expose.</param>
+    /// <exception cref="ArgumentException"><paramref name="ports"/> is null or empty (a bare <c>EXPOSE</c> is not a valid instruction).</exception>
     public ExposeCommand(params int[] ports)
-      => Ports = (ports ?? []).Select(ValidatePort).ToArray();
+      => Ports = RequirePorts(ports).Select(ValidatePort).ToArray();
 
     /// <summary>Creates EXPOSE entries from numeric ports, ranges, or port/protocol strings.</summary>
     /// <param name="ports">Ports to expose.</param>
+    /// <exception cref="ArgumentException"><paramref name="ports"/> is null or empty (a bare <c>EXPOSE</c> is not a valid instruction).</exception>
     public ExposeCommand(params string[] ports)
-      => Ports = (ports ?? []).Select(ValidatePort).ToArray();
+      => Ports = RequirePorts(ports).Select(ValidatePort).ToArray();
 
     /// <summary>Gets the exposed ports.</summary>
     public IEnumerable<string> Ports { get; }
@@ -26,6 +29,15 @@ namespace FluentDocker.Model.Builders.FileBuilder
     public override string ToString()
     {
       return $"EXPOSE {string.Join(" ", Ports)}";
+    }
+
+    private static T[] RequirePorts<T>(T[]? ports)
+    {
+      if (ports is null || ports.Length == 0)
+        throw new ArgumentException(
+            "EXPOSE requires at least one port; an empty port list would render an invalid Dockerfile instruction.",
+            nameof(ports));
+      return ports;
     }
 
     private static string ValidatePort(int port)

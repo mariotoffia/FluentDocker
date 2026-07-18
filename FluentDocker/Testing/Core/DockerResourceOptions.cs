@@ -108,6 +108,11 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Whether to clean up orphaned resources from previous sessions
     /// during <see cref="ResourceBase.InitializeAsync"/>. Default: true.
+    /// The sweep runs once per (driver id, session id) per PROCESS — a deliberate
+    /// de-duplication so per-test fixtures do not pay O(tests) sweeps. Consequence:
+    /// two kernels registering the SAME driver id against DIFFERENT daemon endpoints
+    /// share one sweep slot, and only the first endpoint is swept. Register a distinct
+    /// driver id per endpoint when per-endpoint sweeps matter.
     /// Set <c>FLUENTDOCKER_TEST_REAPER_ON_EXIT=1</c> to also run best-effort
     /// cleanup for the current session on process exit, SIGINT, and SIGTERM.
     /// Shared <c>FLUENTDOCKER_TEST_SESSION</c> sessions skip exit reaping so one

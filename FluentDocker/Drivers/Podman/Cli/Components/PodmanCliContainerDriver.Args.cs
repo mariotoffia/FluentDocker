@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
@@ -41,7 +42,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       // ponytail: --last implies all-states and treats non-positive as "no limit"/"none"; ignore <= 0.
       if (filter.Limit is int limit && limit > 0)
-        args += $" --last {limit}";
+        args += $" --last {limit.ToString(CultureInfo.InvariantCulture)}";
 
       return args;
     }
@@ -71,7 +72,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (!string.IsNullOrEmpty(config.StopSignal))
         args += $" --stop-signal {QuoteArgumentIfNeeded(config.StopSignal)}";
       if (config.StopTimeout.HasValue)
-        args += $" --stop-timeout {config.StopTimeout.Value}";
+        args += $" --stop-timeout {config.StopTimeout.Value.ToString(CultureInfo.InvariantCulture)}";
       if (config.Privileged)
         args += " --privileged";
       if (config.AutoRemove)
@@ -81,11 +82,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.Interactive)
         args += " -i";
       if (config.MemoryLimit.HasValue && config.MemoryLimit.Value > 0)
-        args += $" --memory {config.MemoryLimit.Value}";
+        args += $" --memory {config.MemoryLimit.Value.ToString(CultureInfo.InvariantCulture)}";
       if (config.CpuShares.HasValue && config.CpuShares.Value > 0)
-        args += $" --cpu-shares {config.CpuShares.Value}";
+        args += $" --cpu-shares {config.CpuShares.Value.ToString(CultureInfo.InvariantCulture)}";
       if (config.CpuQuota.HasValue && config.CpuQuota.Value > 0)
-        args += $" --cpu-quota {config.CpuQuota.Value}";
+        args += $" --cpu-quota {config.CpuQuota.Value.ToString(CultureInfo.InvariantCulture)}";
       if (!string.IsNullOrEmpty(config.Ipv4Address))
         args += $" --ip {QuoteArgumentIfNeeded(config.Ipv4Address)}";
       if (!string.IsNullOrEmpty(config.Ipv6Address))
@@ -95,7 +96,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.ReadonlyRootfs)
         args += " --read-only";
       if (config.ShmSize.HasValue && config.ShmSize.Value > 0)
-        args += $" --shm-size {config.ShmSize.Value}";
+        args += $" --shm-size {config.ShmSize.Value.ToString(CultureInfo.InvariantCulture)}";
       if (!string.IsNullOrEmpty(cidFile))
         args += $" --cidfile {QuoteArgumentIfNeeded(cidFile)}";
       if (!string.IsNullOrEmpty(config.Platform))
@@ -164,7 +165,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!string.IsNullOrEmpty(config.HealthCheck.Timeout))
           args += $" --health-timeout {QuoteArgumentIfNeeded(config.HealthCheck.Timeout)}";
         if (config.HealthCheck.Retries > 0)
-          args += $" --health-retries {config.HealthCheck.Retries}";
+          args += $" --health-retries {config.HealthCheck.Retries.ToString(CultureInfo.InvariantCulture)}";
         if (!string.IsNullOrEmpty(config.HealthCheck.StartPeriod))
           args += $" --health-start-period {QuoteArgumentIfNeeded(config.HealthCheck.StartPeriod)}";
       }

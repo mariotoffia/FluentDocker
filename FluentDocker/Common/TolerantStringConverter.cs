@@ -8,22 +8,20 @@ using System.Text.Json.Serialization;
 namespace FluentDocker.Common
 {
   /// <summary>
-  /// A <see cref="JsonConverter{T}"/> for specific <see cref="string"/> properties that
-  /// tolerate JSON values which are not string tokens. Docker and Podman <c>inspect</c>
-  /// output is inconsistent: <c>NetworkSettings.LinkLocalIPv6PrefixLen</c>,
-  /// <c>GlobalIPv6PrefixLen</c>, and <c>IPPrefixLen</c> are emitted by some engines as
-  /// JSON <em>numbers</em>.
+  /// A <see cref="JsonConverter{T}"/> for <see cref="string"/> properties that tolerate JSON
+  /// values which are not string tokens — Docker and Podman <c>inspect</c> output emits some
+  /// nominally-string fields as JSON <em>numbers</em> or booleans depending on engine version.
   /// </summary>
   /// <remarks>
   /// System.Text.Json throws when a JSON number (or boolean) is deserialized into a
-  /// <see cref="string"/> property. Newtonsoft.Json (used in FluentDocker v2) silently
-  /// coerced these, so the v3 switch to System.Text.Json regressed inspect parsing for
-  /// those containers. <see cref="JsonHelper"/> applies this converter only to the known
-  /// drifting network-prefix properties; other string properties still surface schema
-  /// drift as <see cref="JsonException"/>. The converter reads the raw literal text of
-  /// <c>Number</c>, <c>True</c> and <c>False</c> tokens into the string, preserving the
-  /// exact representation (e.g. <c>0</c> stays <c>"0"</c>). Genuine string and null
-  /// tokens are passed through unchanged.
+  /// <see cref="string"/> property; Newtonsoft.Json (used in FluentDocker v2) silently
+  /// coerced these. Apply this converter via <c>[JsonConverter]</c> to string properties
+  /// that must survive that drift. (The network prefix-length fields that originally
+  /// motivated it are now lenient <see cref="int"/>s via <see cref="LenientInt32Converter"/>.)
+  /// The converter reads the raw literal text of <c>Number</c>, <c>True</c> and <c>False</c>
+  /// tokens into the string, preserving the exact representation (e.g. <c>0</c> stays
+  /// <c>"0"</c>); structured tokens (object/array) are skipped whole and read as
+  /// <c>null</c>. Genuine string and null tokens are passed through unchanged.
   /// </remarks>
   public sealed class TolerantStringConverter : JsonConverter<string?>
   {
@@ -34,8 +32,7 @@ namespace FluentDocker.Common
     /// <param name="reader">The reader positioned at the token to convert.</param>
     /// <param name="typeToConvert">The type being converted.</param>
     /// <param name="options">The serializer options in effect.</param>
-    /// <returns>The string value; <c>null</c> for a JSON null.</returns>
-    /// <exception cref="JsonException">The token is not a string, null, number, or boolean.</exception>
+    /// <returns>The string value; <c>null</c> for a JSON null or a skipped structured token.</returns>
     public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
       switch (reader.TokenType)
@@ -53,8 +50,10 @@ namespace FluentDocker.Common
               ? Encoding.UTF8.GetString(reader.ValueSequence.ToArray())
               : Encoding.UTF8.GetString(reader.ValueSpan);
         default:
-          throw new JsonException(
-              $"Cannot convert JSON token '{reader.TokenType}' to System.String.");
+          // Structured drift (object/array) degrades to null instead of poisoning the whole
+          // inspect — same skip-and-default policy as the sibling tolerant converters.
+          reader.Skip();
+          return null;
       }
     }
 

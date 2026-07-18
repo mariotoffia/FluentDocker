@@ -181,6 +181,12 @@ namespace FluentDocker.Drivers.Docker.Api
     }
 
     /// <summary>Sends PUT with stream content and returns the API result.</summary>
+    /// <remarks>
+    /// The upload rides the stall watchdog (bounded by write progress, not wall clock);
+    /// the small response BODY read is separately bounded here — the headers-read response
+    /// carries no client timeout, and a daemon that returns headers then stalls the body
+    /// must not hang callers using <see cref="CancellationToken.None"/>.
+    /// </remarks>
     protected async Task<ApiResult> PutStreamAsync(
         string path, Stream stream, string contentType, CancellationToken ct)
     {
@@ -190,7 +196,9 @@ namespace FluentDocker.Drivers.Docker.Api
         content.Headers.ContentType =
             new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
         var response = await Connection.PutAsync(path, content, ct).ConfigureAwait(false);
-        return await HandleResponseAsync(response, ct).ConfigureAwait(false);
+        using var bodyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        bodyCts.CancelAfter(Context?.RequestTimeout ?? TimeSpan.FromMinutes(5));
+        return await HandleResponseAsync(response, bodyCts.Token).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
       {

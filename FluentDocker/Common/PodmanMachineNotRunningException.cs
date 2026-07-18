@@ -32,6 +32,10 @@ namespace FluentDocker.Common
     /// (e.g. an ambiguous-machine auto-start failure).
     /// </summary>
     public PodmanMachineNotRunningException(string message, bool isTransient)
-        : base(message, ErrorCodes.Machine.NotRunning, isTransient) { }
+        : base(message, ErrorCodes.Machine.NotRunning, isTransient)
+        // Deliberate override of the base OR-with-code-classification rule: this overload's
+        // parameter is genuinely explicit, and `false` marks a permanent configuration error
+        // that merely reuses the transient machine code — retrying cannot fix it.
+        => IsTransient = isTransient;
   }
 }

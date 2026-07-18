@@ -15,10 +15,11 @@ namespace FluentDocker.Kernel
     /// Resolves a driver interface by driver ID and runtime type.
     /// This is the unified resolution path used by all other SysCtl overloads.
     /// Resolution order:
-    /// 1. Driver pack's IDriverInterfaceResolver.TryResolve.
-    /// 2. Else delegate to the driver pack's ISysCtl.
-    /// 3. If regular driver implements IDriverInterfaceResolver, ask it.
-    /// 4. Else fallback to direct cast (driver is T).
+    /// 1. Registered driver PACK: the pack's IDriverInterfaceResolver.TryResolve is the single
+    ///    resolution path — packs never fall back to a direct cast (KRN-MAJ-7 removed the
+    ///    pack-level ISysCtl delegation).
+    /// 2. Plain driver: if it implements IDriverInterfaceResolver, ask it; otherwise fall back
+    ///    to a direct cast (driver is T).
     /// </summary>
     private bool TryResolveCore(
         string driverId,

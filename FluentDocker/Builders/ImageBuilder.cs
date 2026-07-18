@@ -32,6 +32,7 @@ namespace FluentDocker.Builders
     /// <param name="imageAndTag">Base image reference.</param>
     /// <param name="asName">Stage alias.</param>
     /// <returns>The Dockerfile builder for defining image contents.</returns>
+    /// <exception cref="ArgumentException"><paramref name="imageAndTag"/> is null or empty (the stage alias would otherwise be silently discarded).</exception>
     DockerfileBuilder From(string imageAndTag, string asName);
 
     /// <summary>
@@ -188,9 +189,9 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     public DockerfileBuilder From(string imageAndTag, string asName)
     {
-      _dockerfileBuilder = string.IsNullOrEmpty(imageAndTag)
-          ? new DockerfileBuilder(this)
-          : new DockerfileBuilder(this).From(imageAndTag, asName);
+      // Unlike From(string), an empty image here would silently discard the stage alias.
+      ArgumentException.ThrowIfNullOrEmpty(imageAndTag);
+      _dockerfileBuilder = new DockerfileBuilder(this).From(imageAndTag, asName);
       return _dockerfileBuilder;
     }
 

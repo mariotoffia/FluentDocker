@@ -263,6 +263,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.Equal("OOM killed", result.Data.Error);
     }
 
+    [Fact]
+    public async Task WaitAsync_WindowsInt64ExitCode_DoesNotOverflow()
+    {
+      // DAPI-4: the API contract is int64 — Windows containers exit with values like
+      // 0xC0000005 (3221225477) that overflow Int32 and previously failed deserialization.
+      var (driver, mock) = CreateDriver();
+      mock.SetupPost("/wait", 200, @"{""StatusCode"":3221225477}");
+
+      var result = await driver.WaitAsync(Ctx, "abc123", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal(3221225477L, result.Data.ExitCode);
+    }
+
     // ── InspectAsync ────────────────────────────────────────────────
 
     [Fact]

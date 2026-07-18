@@ -21,8 +21,17 @@ namespace FluentDocker.Common
 
     /// <summary>
     /// Indicates if this error is transient and may succeed on retry.
+    /// One rule applies on every constructor: the flag is
+    /// <c>isTransient || ErrorCodes.IsTransientCode(errorCode)</c> — a caller can force an
+    /// error to be treated as transient, but cannot mask an error code the library
+    /// classifies as transient (optional-parameter defaults cannot distinguish "explicitly
+    /// false" from "unspecified"). Retry policies therefore behave identically whether or
+    /// not diagnostic context was attached. Derived exception types with a GENUINELY
+    /// explicit transiency contract (e.g. a permanent configuration error that reuses a
+    /// transient error code) may deliberately override the classification from their own
+    /// constructor via the protected setter.
     /// </summary>
-    public bool IsTransient { get; }
+    public bool IsTransient { get; protected set; }
 
     /// <summary>
     /// Initializes a new instance with the specified error message and an unknown error code.
@@ -50,12 +59,12 @@ namespace FluentDocker.Common
     /// </summary>
     /// <param name="message">The error message.</param>
     /// <param name="errorCode">The error code for programmatic handling.</param>
-    /// <param name="isTransient">Whether the error is transient and may succeed on retry.</param>
+    /// <param name="isTransient">Whether the error is transient and may succeed on retry (combined with the code classification — see <see cref="IsTransient"/>).</param>
     public DriverException(string message, string errorCode, bool isTransient)
         : base(message)
     {
       ErrorCode = errorCode;
-      IsTransient = isTransient;
+      IsTransient = isTransient || ErrorCodes.IsTransientCode(errorCode);
     }
 
     /// <summary>

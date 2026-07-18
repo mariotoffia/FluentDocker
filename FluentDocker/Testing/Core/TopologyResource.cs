@@ -104,7 +104,9 @@ namespace FluentDocker.Testing.Core
       if (TryCommitProvision(generation, () =>
       {
         _services = services;
-        ResourceName = $"topology-{services.Length}-services";
+        // Unique per instance (ResourceName contract) — a count-based name collides across
+        // parallel topologies and degrades diagnostics.
+        ResourceName = GenerateUniqueName("topology");
       }))
       {
         return;

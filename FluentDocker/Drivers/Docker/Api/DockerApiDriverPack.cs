@@ -23,13 +23,15 @@ namespace FluentDocker.Drivers.Docker.Api
   {
     private readonly Dictionary<Type, object> _drivers = [];
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
-    private const string StreamIdleTimeoutMetadataKey = "DockerApi.StreamIdleTimeoutTicks";
     private DriverContext _context;
     // CA1859: Must stay as interface — tests inject MockDockerApiConnection via reflection.
 #pragma warning disable CA1859
     private IDockerApiConnection _connection;
 #pragma warning restore CA1859
     private ILogger<DockerApiDriverPack> _logger = NullLogger<DockerApiDriverPack>.Instance;
+    // Written under the init/dispose locks but read lock-free (IsHealthyAsync,
+    // ThrowIfNotInitialized): Volatile.Write/Read gives the ARM64 acquire/release pairing
+    // for the driver-field writes published before it (same pattern as the CLI packs).
     private bool _initialized;
 
     private DockerApiContainerDriver _containerDriver;
@@ -112,7 +114,7 @@ namespace FluentDocker.Drivers.Docker.Api
         _drivers[typeof(IStreamDriver)] = _streamDriver;
         _drivers[typeof(IServiceDriver)] = _serviceDriver;
 
-        _initialized = true;
+        Volatile.Write(ref _initialized, true);
         await Task.CompletedTask;
       }
       finally
@@ -148,7 +150,7 @@ namespace FluentDocker.Drivers.Docker.Api
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
-      if (!_initialized || _connection == null)
+      if (!Volatile.Read(ref _initialized) || _connection == null)
         return false;
 
       try
@@ -286,7 +288,7 @@ namespace FluentDocker.Drivers.Docker.Api
         // Do not Clear() _drivers: resolution reads it lock-free (IDriverPack contract),
         // so mutating it here is a torn-read data race with an in-flight resolver. The
         // _disposed guard fences new callers; the dictionary stays immutable after init.
-        _initialized = false;
+        Volatile.Write(ref _initialized, false);
         _context = null;
       }
       finally
@@ -308,7 +310,7 @@ namespace FluentDocker.Drivers.Docker.Api
     private void ThrowIfNotInitialized()
     {
       ThrowIfDisposed();
-      if (!_initialized)
+      if (!Volatile.Read(ref _initialized))
         throw new InvalidOperationException(
             "DockerApiDriverPack has not been initialized. Call InitializeAsync first.");
     }
@@ -320,7 +322,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
     private static TimeSpan? ParseStreamIdleTimeout(DriverContext context)
     {
-      if (context.Metadata?.TryGetValue(StreamIdleTimeoutMetadataKey, out var ticksText) == true &&
+      if (context.Metadata?.TryGetValue(DockerApiDriverMetadataKeys.StreamIdleTimeoutTicks, out var ticksText) == true &&
           long.TryParse(ticksText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ticks) &&
           ticks > 0)
         return TimeSpan.FromTicks(ticks);

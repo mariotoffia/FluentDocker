@@ -127,9 +127,11 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .UseCompose(c => c.WithEnvFile(envFile))
             .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
+        // BF-11 (compose-go/godotenv parity): the escaped quote inside the double-quoted value is
+        // unescaped to '"' after quote stripping; the '#' stays literal (it is inside the quotes).
         MockPack.ComposeDriver.Verify(d => d.UpAsync(
             It.IsAny<DriverContext>(),
-            It.Is<ComposeUpConfig>(cfg => cfg.Environment["ESCAPED"] == "value \\\" # literal"),
+            It.Is<ComposeUpConfig>(cfg => cfg.Environment["ESCAPED"] == "value \" # literal"),
             It.IsAny<CancellationToken>()), Times.Once);
       }
       finally

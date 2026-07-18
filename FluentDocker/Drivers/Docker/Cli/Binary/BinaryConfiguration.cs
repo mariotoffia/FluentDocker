@@ -34,6 +34,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// Defaults to <c>docker</c>; set to a docker-compatible CLI such as
     /// <c>finch</c> or <c>nerdctl</c> to drive that engine.
     /// </summary>
+    /// <remarks>
+    /// On Windows, discovery looks for a literal <c>&lt;name&gt;.exe</c> only;
+    /// <c>.cmd</c>/<c>.bat</c> shims (as installed by scoop/chocolatey) and extensionless
+    /// launchers are never discovered. Point <see cref="SearchPaths"/> at the shim's target
+    /// directory — the directory containing the real <c>.exe</c> — instead.
+    /// </remarks>
     public string BinaryName { get; set; } = "docker";
 
     /// <summary>

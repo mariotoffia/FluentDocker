@@ -52,12 +52,38 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (OperationCanceledException)
       {
+        // `podman kube play` may already have created pods/infra containers before the
+        // cancellation killed it, and no handle is returned to the caller — tear them down
+        // best-effort so a cancelled play does not leak running pods (mirrors the cidfile
+        // cleanup on cancelled container runs).
+        await TryKubeDownOnCancellationAsync(context, config.YamlPath).ConfigureAwait(false);
         throw;
       }
       catch (Exception ex)
       {
         return CommandResponse<KubePlayResult>.Fail(
             ex.Message, FailureCode(ex, ErrorCodes.Kubernetes.PlayFailed));
+      }
+    }
+
+    /// <summary>
+    /// Best-effort <c>kube down</c> for a cancelled <c>kube play</c>. Failures are swallowed:
+    /// cleanup must never mask the caller's cancellation.
+    /// </summary>
+    private async Task TryKubeDownOnCancellationAsync(DriverContext context, string yamlPath)
+    {
+      try
+      {
+        // ponytail: 5s cleanup budget on cancel; raise if slow daemons legitimately need longer.
+        using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await ExecuteCommandAsync(
+            context,
+            $"kube down {QuotePositionalArgument(yamlPath, nameof(yamlPath))}",
+            cleanupCts.Token).ConfigureAwait(false);
+      }
+      catch
+      {
+        // Best-effort only.
       }
     }
 

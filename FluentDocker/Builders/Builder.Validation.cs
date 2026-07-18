@@ -99,17 +99,45 @@ namespace FluentDocker.Builders
     private int FindOperationInScope(
         string kind, string name, FluentDockerKernel kernel, string driverId)
     {
+      var normalizedName = NormalizeReferenceForComparison(kind, name);
       for (var i = 0; i < _operations.Count; i++)
       {
         var candidate = _operations[i];
         if (string.Equals(candidate.ResourceKind, kind, StringComparison.Ordinal) &&
-            string.Equals(candidate.ResourceName, name, StringComparison.Ordinal) &&
+            string.Equals(
+                NormalizeReferenceForComparison(kind, candidate.ResourceName),
+                normalizedName,
+                StringComparison.Ordinal) &&
             candidate.Kernel == kernel &&
             string.Equals(candidate.DriverId, driverId, StringComparison.Ordinal))
           return i;
       }
 
       return -1;
+    }
+
+    /// <summary>
+    /// Canonicalizes an image reference for ordering validation so <c>img</c>,
+    /// <c>img:latest</c>, and other tag-notation variants of the same image compare equal
+    /// (both the referencing container and the referenced image operation are normalized via
+    /// <see cref="ContainerBuilder.ParseImageReference"/>). Non-image kinds compare raw.
+    /// </summary>
+    private static string NormalizeReferenceForComparison(string kind, string name)
+    {
+      if (!string.Equals(kind, "image", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(name))
+        return name;
+
+      try
+      {
+        var (image, tag) = ContainerBuilder.ParseImageReference(name);
+        return tag == null ? image : $"{image}:{tag}";
+      }
+      catch (FluentDockerException)
+      {
+        // A malformed reference (e.g. empty tag) gets its dedicated error at build time;
+        // for ordering purposes compare it verbatim.
+        return name;
+      }
     }
 
     private static void ThrowReferenceOrderError(

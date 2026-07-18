@@ -256,9 +256,44 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       {
         listener.Close();
       }
-      await response.ConfigureAwait(false);
+      await response;
 
-      Assert.False(File.Exists(Path.Combine(workingFolder, "___fluentdockerdl", "file.bin")));
+      Assert.False(File.Exists(Path.Combine(workingFolder, "___fluentdockerdl", "0", "file.bin")));
+    }
+
+    [Fact]
+    public async Task DockerfileBuilder_TwoUrlCopiesWithSameBasename_StageDistinctFiles()
+    {
+      var workingFolder = Path.Combine(".out", "prod-ready-url-same-basename");
+      if (Directory.Exists(workingFolder))
+        Directory.Delete(workingFolder, recursive: true);
+      using var listener = StartHttpListener(out var url);
+      var responses = RespondWithRequestPathAsync(listener, 2);
+
+      string dockerfile;
+      try
+      {
+        dockerfile = await new DockerfileBuilder()
+            .WorkingFolder(workingFolder)
+            .UseParent("alpine")
+            .Copy(url + "a/data.bin", "/app/a/")
+            .Copy(url + "b/data.bin", "/app/b/")
+            .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
+      }
+      finally
+      {
+        listener.Close();
+      }
+      await responses;
+
+      // Each URL download stages in its own numbered subdirectory, so equal basenames
+      // cannot overwrite each other and each COPY references its own bytes.
+      var first = Path.Combine(workingFolder, "___fluentdockerdl", "0", "data.bin");
+      var second = Path.Combine(workingFolder, "___fluentdockerdl", "1", "data.bin");
+      Assert.EndsWith("/a/data.bin", await File.ReadAllTextAsync(first, TestContext.Current.CancellationToken));
+      Assert.EndsWith("/b/data.bin", await File.ReadAllTextAsync(second, TestContext.Current.CancellationToken));
+      Assert.Contains(@"COPY [""___fluentdockerdl/0/data.bin"", ""/app/a/""]", dockerfile);
+      Assert.Contains(@"COPY [""___fluentdockerdl/1/data.bin"", ""/app/b/""]", dockerfile);
     }
 
     [Fact]
@@ -296,7 +331,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         listener.Close();
       }
       Assert.True(continuationCalled);
-      await response.ConfigureAwait(false);
+      await response;
     }
 
     private static HttpListener StartHttpListener(out string url)
@@ -321,6 +356,27 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       }
     }
 
+    private static async Task RespondWithRequestPathAsync(HttpListener listener, int count)
+    {
+      try
+      {
+        for (var i = 0; i < count; i++)
+        {
+          var context = await listener.GetContextAsync().ConfigureAwait(false);
+          var bytes = System.Text.Encoding.UTF8.GetBytes(context.Request.Url!.AbsolutePath);
+          context.Response.ContentLength64 = bytes.Length;
+          await context.Response.OutputStream.WriteAsync(bytes).ConfigureAwait(false);
+          context.Response.Close();
+        }
+      }
+      catch (ObjectDisposedException)
+      {
+      }
+      catch (HttpListenerException)
+      {
+      }
+    }
+
     private static async Task RespondPartialThenCloseAsync(HttpListener listener)
     {
       try
@@ -328,7 +384,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         var context = await listener.GetContextAsync().ConfigureAwait(false);
         context.Response.ContentLength64 = 1024;
         var bytes = new byte[] { 1, 2, 3, 4 };
-        await context.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
+        await context.Response.OutputStream.WriteAsync(bytes).ConfigureAwait(false);
         await context.Response.OutputStream.FlushAsync().ConfigureAwait(false);
         context.Response.Abort();
       }

@@ -321,7 +321,11 @@ namespace FluentDocker.Builders
         var fileName = Path.GetFileName(uri.LocalPath);
         if (string.IsNullOrWhiteSpace(fileName))
           throw new FluentDockerException("COPY URL source must include a filename path segment.");
-        var tmp = Path.Combine("___fluentdockerdl", fileName);
+        // Stage each URL download in its own numbered subdirectory so two URLs whose paths
+        // end in the same basename cannot overwrite each other in the build context (both
+        // COPY instructions would otherwise silently ship the second URL's bytes).
+        var ordinal = _config.Commands.Count(x => x is CopyURLCommand);
+        var tmp = Path.Combine("___fluentdockerdl", ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture), fileName);
         _config.Commands.Add(new CopyURLCommand(uri, tmp, dest, chownUserAndGroup, fromAlias));
         return this;
       }
@@ -408,14 +412,17 @@ namespace FluentDocker.Builders
     /// <param name="cmd">Health check command</param>
     /// <param name="interval">Check interval (e.g., "30s")</param>
     /// <param name="timeout">Check timeout (e.g., "30s")</param>
-    /// <param name="startPeriod">Start period before checks begin</param>
     /// <param name="retries">Number of retries before marking unhealthy</param>
+    /// <param name="startPeriod">Start period before checks begin</param>
     /// <remarks>
-    /// Dockerfile health checks emit <c>--retries</c> only when the value differs from
-    /// Docker's explicit default of 3.
+    /// Parameter order matches <see cref="IContainerBuilder.WithHealthCheck"/>
+    /// (<c>cmd, interval, timeout, retries, startPeriod</c>). The defaults differ by design:
+    /// here <c>retries</c> defaults to 3 — Docker's literal Dockerfile default — and
+    /// <c>--retries</c> is emitted only when the value differs from 3, while the container
+    /// builder uses 0 to mean "not specified" (nothing emitted; daemon default applies).
     /// </remarks>
     public DockerfileBuilder WithHealthCheck(string cmd, string interval = null,
-        string timeout = null, string startPeriod = null, int retries = 3)
+        string timeout = null, int retries = 3, string startPeriod = null)
     {
       _config.Commands.Add(new HealthCheckCommand(cmd, interval, timeout, startPeriod, retries));
       return this;

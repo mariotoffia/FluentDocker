@@ -78,8 +78,9 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     /// <summary>
     /// Executes a Podman command asynchronously using the given driver context: spawns the
-    /// process, buffers stdout/stderr up to <see cref="MaxNonStreamingOutputBytes"/>, and waits
-    /// for exit or the buffered timeout.
+    /// process, buffers stdout up to <see cref="MaxNonStreamingOutputBytes"/> (failing the
+    /// command when exceeded) and stderr up to a separate 4 MiB cap that truncates with a
+    /// marker but never fails the command, and waits for exit or the buffered timeout.
     /// </summary>
     /// <param name="context">Driver context supplying host/sudo settings and timeout.</param>
     /// <param name="arguments">Command arguments (without the podman binary name).</param>
@@ -173,6 +174,8 @@ namespace FluentDocker.Drivers.Podman.Cli
       Process process = null;
       Task<string> outputTask = null;
       Task<string> errorTask = null;
+      var outputSink = new StringBuilder();
+      var errorSink = new StringBuilder();
       try
       {
         process = new Process
@@ -204,8 +207,8 @@ namespace FluentDocker.Drivers.Podman.Cli
         // up. Both streams are bounded by a sanity cap so a pathological child cannot force
         // unbounded buffering; stdout fails the command on exceeding the cap, while stderr
         // (the error message itself) is truncated and kept.
-        outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken);
-        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, linkedToken);
+        outputTask = ReadBoundedAsync(process.StandardOutput, MaxNonStreamingOutputBytes, linkedToken, outputSink);
+        errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, linkedToken, errorSink);
 
         var stdinFailure = needsStdin
             ? await TryWriteStandardInputAsync(process, passwordForStdin, stdinData, linkedToken).ConfigureAwait(false)
@@ -219,7 +222,12 @@ namespace FluentDocker.Drivers.Podman.Cli
 
         return new SimpleCommandResult
         {
-          Success = process.ExitCode == 0 && stdinFailure == null,
+          // The exit code is authoritative: a broken-pipe stdin write against a child that
+          // exited 0 (e.g. `podman login` succeeding from cached credentials and closing
+          // stdin without reading it) is a success — not a contradictory Success=false with
+          // ExitCode=0. The stdin failure only enriches the error text for genuine failures
+          // (matching the Docker CLI driver's semantics).
+          Success = process.ExitCode == 0,
           Output = output,
           Error = string.IsNullOrEmpty(error) && stdinFailure != null ? stdinFailure.Message : error,
           ExitCode = process.ExitCode
@@ -230,8 +238,13 @@ namespace FluentDocker.Drivers.Podman.Cli
         // Kill the child process on cancellation to prevent orphans.
         KillProcessSafely(process, null);
 
-        await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);
-        await TryReadStringTaskAsync(errorTask).ConfigureAwait(false);
+        // Drain the readers; keep what was captured so the timeout is diagnosable. A
+        // cancelled reader yields null from its task — the caller-owned sink still holds
+        // the partials accumulated before cancellation (race-free after the await).
+        var partialOutput = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false)
+            ?? SinkSnapshot(outputSink);
+        var partialError = await TryReadStringTaskAsync(errorTask).ConfigureAwait(false)
+            ?? SinkSnapshot(errorSink);
 
         // Distinguish caller-driven cancellation from the buffered-command timeout firing:
         // the caller's intent is rethrown as an OCE bound to the caller's token; a timeout
@@ -240,7 +253,13 @@ namespace FluentDocker.Drivers.Podman.Cli
 
         throw new DriverException(
             $"Podman CLI command timed out after {timeout.TotalSeconds:0}s.",
-            ErrorCodes.General.Timeout);
+            ErrorCodes.General.Timeout,
+            new ErrorContext("BufferedCommand")
+            {
+              ExitCode = GetExitCodeOrDefault(process),
+              StdOut = DiagnosticTail(partialOutput),
+              StdErr = DiagnosticTail(partialError)
+            });
       }
       catch (Exception ex)
       {
@@ -254,8 +273,10 @@ namespace FluentDocker.Drivers.Podman.Cli
             await Task.WhenAny(process.WaitForExitAsync(CancellationToken.None), Task.Delay(2000, CancellationToken.None)).ConfigureAwait(false);
         }
         catch { /* best effort — process may have exited between the check and the kill */ }
-        var output = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false);
-        var error = await TryReadStringTaskAsync(errorTask).ConfigureAwait(false);
+        var output = await TryReadStringTaskAsync(outputTask).ConfigureAwait(false)
+            ?? SinkSnapshot(outputSink);
+        var error = await TryReadStringTaskAsync(errorTask).ConfigureAwait(false)
+            ?? SinkSnapshot(errorSink);
         return new SimpleCommandResult
         {
           Success = false,

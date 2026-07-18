@@ -207,8 +207,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
+        // --protocol is optional; an explicitly null/empty Protocol must not emit `--protocol ""`.
+        var protocolArgs = string.IsNullOrEmpty(config.Protocol)
+            ? string.Empty
+            : $" --protocol {QuoteArgumentIfNeeded(config.Protocol)}";
         var args = BuildComposeArgs(config) +
-            $" port --protocol {QuoteArgumentIfNeeded(config.Protocol)} {QuotePositionalArgument(config.Service, nameof(config.Service))} {FormatInvariant(config.PrivatePort)}";
+            $" port{protocolArgs} {QuotePositionalArgument(config.Service, nameof(config.Service))} {FormatInvariant(config.PrivatePort)}";
         var result = await ExecuteCommandAsync(context, args, config.Environment, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<string>.Ok(result.Output.Trim())

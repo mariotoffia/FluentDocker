@@ -10,6 +10,12 @@
     <NoWarn>$(NoWarn);CA1707;CA1852;CA1861</NoWarn>
     <!-- CA1711: xUnit [CollectionDefinition] classes conventionally end in 'Collection' -->
     <NoWarn>$(NoWarn);CA1711</NoWarn>
+    <!-- Nullable-flow warnings are suppressed in TEST code only: xUnit asserts already
+         guard these dereferences at runtime, and ~750 null-forgiving operators would add
+         noise without safety. The shipped FluentDocker/Testing.* projects keep full
+         nullable enforcement. Every other analyzer rule remains active (and is an error
+         via TreatWarningsAsErrors). -->
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8619;CS8625;CS8597;CS8765;CS8767</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />

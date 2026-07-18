@@ -50,7 +50,7 @@ namespace FluentDocker.Model.Models.Inference
     /// </summary>
     /// <param name="reference">The Docker model reference.</param>
     /// <returns>The derived inference id, or <c>null</c> when <paramref name="reference"/> is null.</returns>
-    public static InferenceModelId? FromModelReference(ModelReference reference)
+    public static InferenceModelId? FromModelReference(ModelReference? reference)
     {
       if (reference is null)
         return null;

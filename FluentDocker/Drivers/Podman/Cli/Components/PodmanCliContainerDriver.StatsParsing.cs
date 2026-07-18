@@ -64,7 +64,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <summary>
     /// Parses Podman stats JSON output into a <see cref="ContainerStatsResult"/>.
-    /// Handles both single object and JSON array formats, plus alternate lowercase keys.
+    /// Handles both single object and JSON array formats, and both output shapes podman
+    /// emits: the human/table form with string values (<c>"cpu_percent": "5.23%"</c>,
+    /// <c>"mem_usage": "100MiB / 2GiB"</c>) and the Go-marshaled
+    /// <c>define.ContainerStats</c> form of podman 4/5 with numeric values and Go field
+    /// names (<c>CPU</c>, <c>MemUsage</c>/<c>MemLimit</c> in bytes,
+    /// <c>NetInput</c>/<c>NetOutput</c>, <c>BlockInput</c>/<c>BlockOutput</c>,
+    /// <c>PIDs</c>, plus the podman 5 per-interface <c>Network</c> map).
     /// Empty/whitespace output is a legitimately empty result; non-empty but unparseable
     /// output throws a <see cref="FluentDockerException"/> with diagnostics rather than
     /// silently yielding a zeroed result.
@@ -110,17 +116,56 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var pidsStr = token.GetStringOrDefault("PIDs")
                       ?? token.GetStringOrDefault("pids");
 
-        var (memUsage, memLimit) = ParseMemoryUsage(memUsageStr);
-        var (netRx, netTx) = string.IsNullOrEmpty(netIoStr)
-            ? (ParseByteValue(token.GetStringOrDefault("net_input")),
-               ParseByteValue(token.GetStringOrDefault("net_output")))
-            : ParseIOPair(netIoStr);
-        var (blockRead, blockWrite) = string.IsNullOrEmpty(blockIoStr)
-            ? (ParseByteValue(token.GetStringOrDefault("block_input")),
-               ParseByteValue(token.GetStringOrDefault("block_output")))
-            : ParseIOPair(blockIoStr);
+        // CPU/memory percentages: table form carries "5.23%" strings; the Go form carries
+        // numeric CPU / MemPerc fields (already percentages).
+        var cpuPercent = !string.IsNullOrEmpty(cpuStr)
+            ? ParsePercent(cpuStr)
+            : token.GetDoubleOrDefault("CPU", token.GetDoubleOrDefault("AvgCPU"));
+        var memPercent = !string.IsNullOrEmpty(memPercStr)
+            ? ParsePercent(memPercStr)
+            : token.GetDoubleOrDefault("MemPerc");
 
-        int.TryParse(pidsStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pids);
+        long memUsage, memLimit;
+        if (!string.IsNullOrEmpty(memUsageStr))
+        {
+          (memUsage, memLimit) = ParseMemoryUsage(memUsageStr);
+        }
+        else
+        {
+          // Go-marshaled form: MemUsage/MemLimit are raw byte counts.
+          memUsage = token.GetInt64OrDefault("MemUsage");
+          memLimit = token.GetInt64OrDefault("MemLimit", token.GetInt64OrDefault("mem_limit"));
+        }
+
+        long netRx, netTx;
+        if (!string.IsNullOrEmpty(netIoStr))
+        {
+          (netRx, netTx) = ParseIOPair(netIoStr);
+        }
+        else
+        {
+          netRx = GetByteCountOrDefault(token, "NetInput", "net_input");
+          netTx = GetByteCountOrDefault(token, "NetOutput", "net_output");
+          if (netRx == 0 && netTx == 0)
+            (netRx, netTx) = SumNetworkInterfaceStats(token);
+        }
+
+        long blockRead, blockWrite;
+        if (!string.IsNullOrEmpty(blockIoStr))
+        {
+          (blockRead, blockWrite) = ParseIOPair(blockIoStr);
+        }
+        else
+        {
+          blockRead = GetByteCountOrDefault(token, "BlockInput", "block_input");
+          blockWrite = GetByteCountOrDefault(token, "BlockOutput", "block_output");
+        }
+
+        var pids = 0;
+        if (!string.IsNullOrEmpty(pidsStr))
+          int.TryParse(pidsStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out pids);
+        else
+          pids = token.GetInt32OrDefault("PIDs", token.GetInt32OrDefault("pids"));
 
         return new ContainerStatsResult
         {
@@ -129,10 +174,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
                           ?? token.GetStringOrDefault("container_id"),
           Name = token.GetStringOrDefault("Name")
                    ?? token.GetStringOrDefault("name"),
-          CpuPercent = ParsePercent(cpuStr),
+          CpuPercent = cpuPercent,
           MemoryUsage = memUsage,
           MemoryLimit = memLimit,
-          MemoryPercent = ParsePercent(memPercStr),
+          MemoryPercent = memPercent,
           NetworkRxBytes = netRx,
           NetworkTxBytes = netTx,
           BlockReadBytes = blockRead,
@@ -158,7 +203,48 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           || token.Prop("CPUPerc") != null
           || token.Prop("cpu_perc") != null
           || token.Prop("mem_usage") != null
-          || token.Prop("MemUsage") != null;
+          || token.Prop("MemUsage") != null
+          || token.Prop("CPU") != null
+          || token.Prop("AvgCPU") != null
+          || token.Prop("MemPerc") != null
+          || token.Prop("MemLimit") != null
+          || token.Prop("PIDs") != null;
+    }
+
+    /// <summary>
+    /// Reads a byte-count field that podman emits either as a suffixed string
+    /// (<c>"1.5kB"</c>, table form) or as a raw numeric byte count (Go-marshaled form),
+    /// probing the Go spelling first and then the lowercase table spelling.
+    /// </summary>
+    private static long GetByteCountOrDefault(JsonElement token, string goName, string tableName)
+    {
+      var text = token.GetStringOrDefault(goName) ?? token.GetStringOrDefault(tableName);
+      if (!string.IsNullOrEmpty(text))
+        return ParseByteValue(text);
+      return token.GetInt64OrDefault(goName, token.GetInt64OrDefault(tableName));
+    }
+
+    /// <summary>
+    /// Sums per-interface RxBytes/TxBytes from the podman 5 <c>Network</c> map
+    /// (<c>{"eth0": {"RxBytes": …, "TxBytes": …}, …}</c>). Returns zeros when the
+    /// property is absent or not an object.
+    /// </summary>
+    private static (long rx, long tx) SumNetworkInterfaceStats(JsonElement token)
+    {
+      var network = token.Prop("Network") ?? token.Prop("network");
+      if (network?.ValueKind != JsonValueKind.Object)
+        return (0, 0);
+
+      long rx = 0, tx = 0;
+      foreach (var iface in network.Value.EnumerateObject())
+      {
+        if (iface.Value.ValueKind != JsonValueKind.Object)
+          continue;
+        rx += iface.Value.GetInt64OrDefault("RxBytes");
+        tx += iface.Value.GetInt64OrDefault("TxBytes");
+      }
+
+      return (rx, tx);
     }
 
     /// <summary>Parses a percentage string. Delegates to <see cref="CliOutputParser"/>.</summary>

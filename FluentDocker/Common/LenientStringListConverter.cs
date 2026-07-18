@@ -8,7 +8,11 @@ namespace FluentDocker.Common
 {
   /// <summary>
   /// Reads a string list from either a JSON array or Docker CLI's compact string form.
-  /// The legacy comma-delimited string form cannot represent items that contain commas.
+  /// The compact form splits on commas (with or without a following space — common Docker
+  /// versions join <c>docker service ls</c> ports with a bare comma), while commas INSIDE a
+  /// port publish spec (range lists like <c>*:80-81,84,86-87-&gt;80</c>) are kept: a comma
+  /// starts a new entry only once the accumulated entry already reads as a complete spec
+  /// (contains <c>-&gt;</c> or <c>/</c>).
   /// </summary>
   public sealed class LenientStringListConverter : JsonConverter<List<string>>
   {
@@ -36,8 +40,30 @@ namespace FluentDocker.Common
       if (string.IsNullOrWhiteSpace(value))
         return [];
 
-      return [.. value.Split(", ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)];
+      // Split on the comma alone — common Docker versions join `docker service ls` ports
+      // with a bare comma ("80/tcp,443/tcp") — but re-join segments that CONTINUE the
+      // previous entry: port-range publish specs legally contain bare commas
+      // ("*:80-81,84,86-87->80"). A comma starts a new entry only once the accumulated
+      // entry already reads as a complete spec (contains "->" or "/").
+      var result = new List<string>();
+      foreach (var raw in value.Split(','))
+      {
+        var part = raw.Trim();
+        if (result.Count > 0 && !LooksLikeCompleteEntry(result[^1]))
+        {
+          result[^1] = $"{result[^1]},{part}";
+          continue;
+        }
+
+        if (part.Length > 0)
+          result.Add(part);
+      }
+
+      return result;
     }
+
+    private static bool LooksLikeCompleteEntry(string entry) =>
+        entry.Contains("->", StringComparison.Ordinal) || entry.Contains('/', StringComparison.Ordinal);
 
     private static List<string> ReadArray(ref Utf8JsonReader reader)
     {

@@ -81,12 +81,18 @@ namespace FluentDocker.Extensions
     /// </summary>
     /// <param name="fileOrDirectory">The file or directory to copy to <paramref name="workdir" />.</param>
     /// <param name="workdir">The working directory to copy the file or directory to.</param>
-    /// <returns>A relative path to <paramref name="workdir" /> in linux format. If fails it will return null.</returns>
+    /// <returns>
+    ///   A relative path to <paramref name="workdir" /> in linux format, or <c>null</c> only when
+    ///   <paramref name="fileOrDirectory" /> exists neither as a file nor as a directory.
+    /// </returns>
     /// <remarks>
     ///   If the <paramref name="fileOrDirectory" /> is on format emb://namespace/file format it will use
     ///   <see
     ///     cref="ResourceExtensions.ToFile(System.Collections.Generic.IEnumerable{FluentDocker.Resources.ResourceInfo},TemplateString)" />
     ///   to perform the copy. Only one file is permitted and thus the file or directory parameter is always a single file.
+    ///   I/O failures are not swallowed: copy errors throw <see cref="IOException" /> (or related
+    ///   exceptions), and a failing <c>emb:</c> copy throws
+    ///   <see cref="FluentDocker.Common.FluentDockerException" />.
     /// </remarks>
     public static string? Copy(this TemplateString fileOrDirectory, TemplateString workdir)
     {

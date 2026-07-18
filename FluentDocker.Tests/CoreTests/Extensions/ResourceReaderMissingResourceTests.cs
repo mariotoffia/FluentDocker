@@ -31,5 +31,26 @@ namespace FluentDocker.Tests.CoreTests.Extensions
 
       Assert.Contains("missing-resource.json", exception.Message);
     }
+
+    // CE-12: a disposed enumerator must not violate its contract (previously MoveNext returned
+    // true and Current threw IndexOutOfRangeException); use-after-dispose now throws
+    // ObjectDisposedException. Reset() remains supported on a live enumerator.
+    [Fact]
+    public void Enumerator_MoveNextAfterDispose_ThrowsObjectDisposedException()
+    {
+      var resource = new ResourceInfo
+      {
+        Assembly = typeof(ResourceReaderMissingResourceTests).Assembly,
+        Namespace = "FluentDocker.Tests.Fixtures.Dmr",
+        Resource = "missing-resource.json",
+        Root = "FluentDocker.Tests.Fixtures.Dmr",
+        RelativeRootNamespace = string.Empty
+      };
+      var enumerator = new ResourceReader([resource]).GetEnumerator();
+
+      enumerator.Dispose();
+
+      Assert.Throws<System.ObjectDisposedException>(() => enumerator.MoveNext());
+    }
   }
 }

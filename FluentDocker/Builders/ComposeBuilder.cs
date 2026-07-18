@@ -144,10 +144,30 @@ namespace FluentDocker.Builders
           ProjectName = _projectName,
           Environment = _environment
         };
-        if (!await ComposeProjectExistsAsync(driver, context, probeConfig, cancellationToken).ConfigureAwait(false))
+        bool projectExists;
+        try
+        {
+          projectExists = await ComposeProjectExistsAsync(driver, context, probeConfig, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+          // Caller cancelled during the probe — no ComposeService will take ownership of the
+          // rendered models overlay, so clean it up before propagating.
+          RemoveComposeFiles(ownedTempFiles);
+          DeleteTempFiles(ownedTempFiles);
+          throw;
+        }
+
+        if (!projectExists)
+        {
+          // No ComposeService takes ownership on this failure path — clean up the rendered
+          // models overlay like the non-attach failure paths do, or the temp file leaks.
+          RemoveComposeFiles(ownedTempFiles);
+          DeleteTempFiles(ownedTempFiles);
           throw new FluentDockerException(
               $"ConnectToExisting could not find a running compose project " +
               $"'{_projectName ?? "<derived>"}'. Verify the project name / compose file, or start it first.");
+        }
 
         BorrowedProject = true;
         return new Services.Impl.ComposeService(

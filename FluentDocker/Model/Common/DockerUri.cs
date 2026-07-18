@@ -79,7 +79,7 @@ namespace FluentDocker.Model.Common
         if (source.StartsWith("npipe:////", StringComparison.Ordinal))
           return source;
         if (source.StartsWith("npipe://", StringComparison.Ordinal))
-          return "npipe:////" + source.Substring("npipe://".Length);
+          return string.Concat("npipe:////", source.AsSpan("npipe://".Length));
         return source;
       }
 

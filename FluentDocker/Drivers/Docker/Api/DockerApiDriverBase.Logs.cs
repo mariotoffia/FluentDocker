@@ -12,10 +12,13 @@ namespace FluentDocker.Drivers.Docker.Api
 {
   public abstract partial class DockerApiDriverBase
   {
-    /// <summary>Reads the tail of a Docker log stream, stripping stdcopy headers when present.</summary>
+    /// <summary>Docker's multiplexed (stdcopy) stream Content-Type, authoritative on API 1.42+.</summary>
     private const string MultiplexedStreamContentType = "application/vnd.docker.multiplexed-stream";
+
+    /// <summary>Docker's raw (TTY) stream Content-Type, authoritative on API 1.42+.</summary>
     private const string RawStreamContentType = "application/vnd.docker.raw-stream";
 
+    /// <summary>Reads the tail of a Docker log stream, stripping stdcopy headers when present.</summary>
     /// <param name="stream">The opened log response stream.</param>
     /// <param name="containerId">
     /// When supplied and the response Content-Type does not authoritatively identify the stream
@@ -211,6 +214,12 @@ namespace FluentDocker.Drivers.Docker.Api
         for (var i = 0; i < _count; i++)
           bytes[i] = _buffer[(_start + i) % _buffer.Length];
         var text = Encoding.UTF8.GetString(bytes);
+        // The ring buffer evicts whole bytes, not whole characters, so a truncated tail can
+        // begin mid-way through a multi-byte UTF-8 sequence, which decodes as U+FFFD. Strip
+        // those leading replacement chars so the tail starts at the first complete character
+        // (only when truncated — a full tail's U+FFFD is genuine daemon output).
+        if (_truncated)
+          text = text.TrimStart('\uFFFD');
         return _truncated
             ? CliOutputTruncation.Marker(CliOutputTruncation.DefaultTailChars) + Environment.NewLine + text
             : text;

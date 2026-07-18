@@ -16,6 +16,13 @@
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Official packages are deterministic CI builds: normalized paths + SourceLink
+         validation (NuGet "Reproducible" indicator). GitHub Actions sets CI=true. -->
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <!-- One symbol story for all shipped packages: embed the .pdb next to the assembly in
+         the nupkg so consumers get SourceLink stepping without a symbol server. Applies to
+         FluentDocker and the three Testing.* packages alike (non-packable projects ignore it). -->
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     <!-- Suppress until nullable is fully enabled in main lib -->
     <NoWarn>$(NoWarn);CA1062</NoWarn>
     <!-- CA1507: all hits are [JsonProperty] serialization keys, not symbol refs — nameof is wrong here -->
@@ -28,5 +35,10 @@
     <NoWarn>$(NoWarn);CA1720</NoWarn>
     <!-- Culture/comparison analyzers promoted to errors so the cpus="1,5" locale bug class cannot regress -->
     <WarningsAsErrors>$(WarningsAsErrors);CA1304;CA1305;CA1310;CA1311</WarningsAsErrors>
+    <!-- Zero-warning floor is ENFORCED, not aspirational: the solution builds warning-free,
+         and any new warning fails the build (locally and in CI) instead of silently raising
+         the floor until new warnings become invisible again. Per-rule opt-outs live next to
+         their justification in the individual project files. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 </Project>

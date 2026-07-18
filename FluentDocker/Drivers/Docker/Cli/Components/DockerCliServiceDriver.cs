@@ -252,6 +252,17 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
                   : FailureCode(result.Error, ErrorCodes.Service.InspectFailed));
         }
 
+        // --pretty emits human-readable text, not JSON: return it raw instead of feeding it
+        // to the JSON parser (which could never succeed for this mode).
+        if (pretty)
+        {
+          return CommandResponse<ServiceDetails>.Ok(new ServiceDetails
+          {
+            Id = serviceId,
+            Pretty = result.Output
+          });
+        }
+
         var details = ParseServiceInspect(result.Output);
         return details != null
             ? CommandResponse<ServiceDetails>.Ok(details)

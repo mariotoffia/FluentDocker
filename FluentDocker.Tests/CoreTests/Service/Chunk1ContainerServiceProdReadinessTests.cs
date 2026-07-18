@@ -293,7 +293,7 @@ namespace FluentDocker.Tests.CoreTests.Service
           .Setup(d => d.StreamLogsAsync(
               It.IsAny<DriverContext>(), "container-123", It.IsAny<StreamLogsConfig>(),
               It.IsAny<CancellationToken>()))
-          .Returns(StreamLogs("booting", "ready"));
+          .Returns(StreamLogs("booting", "ready", TestContext.Current.CancellationToken));
       MockPack.RegisterCustomDriver(streamDriver.Object);
       var service = new ContainerService(Kernel, DriverId, "container-123", "alpine", "test");
 

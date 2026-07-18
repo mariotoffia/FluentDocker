@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Drivers.Docker.Api.Connection
@@ -42,8 +43,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       {
         throw;
       }
-      catch (InvalidOperationException)
+      catch (DriverException)
       {
+        // Unsupported-daemon-version: typed, non-transient, deliberately rethrown (the
+        // request helpers map it to CommandResponse.Fail; GetVersionedPathAsync negatively
+        // caches it for a cooldown).
         throw;
       }
       catch (Exception ex)
@@ -98,14 +102,19 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     private static void EnsureSupportedDaemonVersion(string daemonMax, string daemonMin)
     {
+      // Typed DriverException (not a raw InvalidOperationException) so CommandResponse-returning
+      // driver methods surface this as a Fail with a dedicated error code instead of leaking a
+      // raw exception through the contract.
       if (CompareVersion(daemonMax, MinSupportedApiVersion) < 0)
-        throw new InvalidOperationException(
-            $"Docker daemon API version {daemonMax} is too old; need >= {MinSupportedApiVersion}.");
+        throw new DriverException(
+            $"Docker daemon API version {daemonMax} is too old; need >= {MinSupportedApiVersion}.",
+            ErrorCodes.Api.UnsupportedVersion, isTransient: false);
 
       if (!string.IsNullOrEmpty(daemonMin) &&
           CompareVersion(daemonMin, MaxSupportedApiVersion) > 0)
-        throw new InvalidOperationException(
-            $"Docker daemon requires API version >= {daemonMin}; client supports <= {MaxSupportedApiVersion}.");
+        throw new DriverException(
+            $"Docker daemon requires API version >= {daemonMin}; client supports <= {MaxSupportedApiVersion}.",
+            ErrorCodes.Api.UnsupportedVersion, isTransient: false);
     }
 
     private static string MinVersion(string left, string right) =>

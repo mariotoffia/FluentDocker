@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
-using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;

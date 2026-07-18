@@ -229,23 +229,29 @@ namespace FluentDocker.Drivers.Docker.Cli
           if (IsIgnorablePruneLine(line))
             continue;
 
+          // Same shape validation as the dedicated network/volume parsers: a stray
+          // warning/diagnostic line inside a section must not be misreported as a deleted id.
           switch (section)
           {
             case PruneSection.Containers:
-              result.ContainersDeleted.Add(line);
+              if (LooksLikeSimpleName(line))
+                result.ContainersDeleted.Add(line);
               break;
             case PruneSection.Images:
               if (TryParseImageDeletionLine(line, out var deletedImage))
                 result.ImagesDeleted.Add(deletedImage);
               break;
             case PruneSection.Networks:
-              result.NetworksDeleted.Add(line);
+              if (LooksLikeSimpleName(line))
+                result.NetworksDeleted.Add(line);
               break;
             case PruneSection.Volumes:
-              result.VolumesDeleted.Add(line);
+              if (LooksLikeSimpleName(line))
+                result.VolumesDeleted.Add(line);
               break;
             case PruneSection.BuildCache:
-              result.BuildCacheDeleted.Add(line);
+              if (LooksLikeSimpleName(line))
+                result.BuildCacheDeleted.Add(line);
               break;
           }
         }

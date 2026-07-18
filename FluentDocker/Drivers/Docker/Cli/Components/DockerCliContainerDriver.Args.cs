@@ -67,7 +67,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       AddRepeated(args, "-v", config.Volumes);
       AddRepeated(args, "--label", config.Labels?.Select(l => $"{l.Key}={l.Value}"));
       // Multiple --network flags require Docker 25+/API 1.44+ and user-defined networks.
-      AddRepeated(args, "--network", config.Networks);
+      // NetworkMode already emitted a --network flag above; de-duplicate the union of
+      // (NetworkMode + Networks) so the same network is never passed twice.
+      AddRepeated(args, "--network", DistinctNetworks(config));
       AddRepeated(args, "--dns", config.Dns);
       AddRepeated(args, "--add-host", config.ExtraHosts?.Select(h => $"{h.Key}:{h.Value}"));
       AddRepeated(args, "--link", config.Links);
@@ -103,6 +105,21 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Command is { Length: > 0 })
         args.AddRange(config.Command.Select(QuoteArgumentIfNeeded));
       return args;
+    }
+
+    // Order-preserving union: entries equal to NetworkMode (already emitted) or repeated
+    // within Networks are dropped so each network yields exactly one --network flag.
+    private static IEnumerable<string> DistinctNetworks(ContainerCreateConfig config)
+    {
+      if (config.Networks == null)
+        yield break;
+
+      var seen = new HashSet<string>(StringComparer.Ordinal);
+      if (!string.IsNullOrEmpty(config.NetworkMode))
+        seen.Add(config.NetworkMode);
+      foreach (var network in config.Networks)
+        if (seen.Add(network))
+          yield return network;
     }
 
     private static void AddRepeated(List<string> args, string flag, IEnumerable<string> values)

@@ -25,11 +25,18 @@ namespace FluentDocker.Common
     /// Optional diagnostic hook invoked with the raw unparseable token each time drift is observed
     /// (the raw string, or the token-type name for a structured value). Set once at startup.
     /// </summary>
+    /// <remarks>
+    /// HAZARD: this is a process-global mutable hook — the last assignment wins for every
+    /// deserialization in the process, so libraries should not set it. The hook must not throw:
+    /// it is invoked from inside <see cref="Read"/> and any exception it raises is swallowed so a
+    /// faulty diagnostic callback cannot poison deserialization.
+    /// </remarks>
     public static Action<string?>? OnDrift { get; set; }
 
     /// <summary>
-    /// Reads a <see cref="DateTimeOffset"/> from a string token; any other or unparseable value is
-    /// treated as drift and read as <c>default</c> instead of throwing (see <see cref="DriftCount"/>).
+    /// Reads a <see cref="DateTimeOffset"/> from a string token; a numeric token is interpreted as
+    /// a unix epoch timestamp; any other or unparseable value is treated as drift and read as
+    /// <c>default</c> instead of throwing (see <see cref="DriftCount"/>).
     /// </summary>
     /// <param name="reader">The reader positioned at the token to convert.</param>
     /// <param name="typeToConvert">The type being converted (always <see cref="DateTimeOffset"/>).</param>
@@ -46,13 +53,44 @@ namespace FluentDocker.Common
               out var value))
         return value;
 
+      // Some daemon/CLI surfaces emit unix epoch numbers instead of ISO strings; that is a valid
+      // timestamp, not drift. Heuristic: a magnitude above 10^12 cannot plausibly be epoch
+      // SECONDS (it would be beyond year 9999, which FromUnixTimeSeconds rejects) but is a
+      // routine epoch-MILLISECONDS value (10^12 ms ≈ year 2001), so larger magnitudes read as
+      // milliseconds. Out-of-range magnitudes fall through to the drift accounting below.
+      if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt64(out var epoch))
+      {
+        try
+        {
+          return Math.Abs(epoch) > 1_000_000_000_000L
+              ? DateTimeOffset.FromUnixTimeMilliseconds(epoch)
+              : DateTimeOffset.FromUnixTimeSeconds(epoch);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+          // Not representable as a timestamp — treat as drift.
+        }
+      }
+
       // A present-but-unparseable value is runtime/CLI drift, not a legitimately-absent date (Null).
       // Surface it (counter + optional hook) so wait/uptime logic computing on a zeroed timestamp is
       // diagnosable instead of silent (MC-MAJ-1).
       if (reader.TokenType != JsonTokenType.Null)
       {
         Interlocked.Increment(ref _driftCount);
-        OnDrift?.Invoke(raw ?? reader.TokenType.ToString());
+        var hook = OnDrift;
+        if (hook != null)
+        {
+          try
+          {
+            hook(raw ?? reader.TokenType.ToString());
+          }
+          catch
+          {
+            // The diagnostic hook is best-effort; a throwing callback must not poison the
+            // deserialization this converter exists to keep alive (see OnDrift remarks).
+          }
+        }
       }
 
       // Drift to an object/array token: consume it so the reader stays aligned; otherwise the

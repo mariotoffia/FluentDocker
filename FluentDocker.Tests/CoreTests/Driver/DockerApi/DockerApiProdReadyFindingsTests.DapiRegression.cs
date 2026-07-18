@@ -54,6 +54,104 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task GetStreamAsync_WithStreamIdleTimeout_PrematureBodyEnd_PropagatesIOException()
+    {
+      // DAPI-8 regression: the idle-timeout wrapper returns its rented buffer on the
+      // IOException path too; the transport error must surface unchanged (not be masked
+      // by buffer bookkeeping or a pool fault).
+      using var listener = new TcpListener(IPAddress.Loopback, 0);
+      listener.Start();
+      var endpoint = (IPEndPoint)listener.LocalEndpoint;
+      var server = ServeShortBodyThenCloseAsync(listener, TestContext.Current.CancellationToken);
+      await using var connection = new DockerApiConnection(new DockerApiConnectionConfig
+      {
+        Host = $"tcp://127.0.0.1:{endpoint.Port}",
+        ApiVersion = "1.45",
+        StreamIdleTimeout = TimeSpan.FromSeconds(10),
+        RequestTimeout = TimeSpan.FromSeconds(5),
+        ConnectionTimeout = TimeSpan.FromSeconds(2)
+      });
+
+      await using var stream = await connection.GetStreamAsync(
+          "/events", TestContext.Current.CancellationToken);
+      var buffer = new byte[64];
+
+      await Assert.ThrowsAnyAsync<IOException>(async () =>
+      {
+        while (await stream.ReadAsync(buffer.AsMemory(),
+            TestContext.Current.CancellationToken) > 0)
+        {
+        }
+      });
+      await server;
+    }
+
+    [Fact]
+    public async Task GetStreamAsync_WithStreamIdleTimeout_CallerCancellation_PropagatesPromptly()
+    {
+      // DAPI-8 regression: caller cancellation abandons the pending inner read; the buffer
+      // hand-off must not delay or replace the OperationCanceledException.
+      using var listener = new TcpListener(IPAddress.Loopback, 0);
+      listener.Start();
+      var endpoint = (IPEndPoint)listener.LocalEndpoint;
+      using var serverCts = CancellationTokenSource.CreateLinkedTokenSource(
+          TestContext.Current.CancellationToken);
+      var server = ServeHeadersThenStallAsync(listener, serverCts.Token);
+      await using var connection = new DockerApiConnection(new DockerApiConnectionConfig
+      {
+        Host = $"tcp://127.0.0.1:{endpoint.Port}",
+        ApiVersion = "1.45",
+        StreamIdleTimeout = TimeSpan.FromSeconds(30),
+        RequestTimeout = TimeSpan.FromSeconds(30),
+        ConnectionTimeout = TimeSpan.FromSeconds(2)
+      });
+
+      await using var stream = await connection.GetStreamAsync(
+          "/events", TestContext.Current.CancellationToken);
+      using var readCts = CancellationTokenSource.CreateLinkedTokenSource(
+          TestContext.Current.CancellationToken);
+      readCts.CancelAfter(TimeSpan.FromMilliseconds(100));
+      var buffer = new byte[1];
+      var sw = Stopwatch.StartNew();
+
+#pragma warning disable CA2022 // Deliberate single read: the test measures cancellation promptness of one pending ReadAsync.
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+          await stream.ReadAsync(buffer.AsMemory(), readCts.Token));
+#pragma warning restore CA2022
+      sw.Stop();
+      serverCts.Cancel();
+      await server;
+
+      Assert.True(sw.Elapsed < TimeSpan.FromSeconds(10),
+          $"cancellation was not prompt; elapsed {sw.Elapsed}");
+    }
+
+    private static async Task ServeShortBodyThenCloseAsync(TcpListener listener, CancellationToken ct)
+    {
+      try
+      {
+        using var client = await listener.AcceptTcpClientAsync(ct);
+        await using var stream = client.GetStream();
+        await ReadHeadersAsync(stream, ct);
+        // Declares 100 body bytes but sends 5, then closes: the client's next read fails
+        // with an IOException-derived "response ended prematurely" transport error.
+        var response = Encoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 100\r\nContent-Type: application/json\r\n\r\nhello");
+        await stream.WriteAsync(response, ct);
+        await stream.FlushAsync(ct);
+      }
+      catch (OperationCanceledException)
+      {
+      }
+      catch (SocketException)
+      {
+      }
+      catch (ObjectDisposedException)
+      {
+      }
+    }
+
+    [Fact]
     public async Task CopyFromAsync_HardLinkEntry_MaterializesAsFileCopyNotSymlink()
     {
       var outputRoot = Path.Combine(".out", "docker-api-copyfrom-hardlink",

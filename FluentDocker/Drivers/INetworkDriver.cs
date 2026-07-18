@@ -311,11 +311,22 @@ namespace FluentDocker.Drivers
       if (string.IsNullOrEmpty(str))
         return result;
 
+      // Label VALUES may themselves contain commas (e.g. "desc=a,b"), so a comma-split
+      // segment without '=' is a continuation of the previous pair's value and is rejoined
+      // with ','. Well-formed "k1=v1,k2=v2" lists parse exactly as before.
+      string currentKey = null;
       foreach (var pair in str.Split(','))
       {
         var eqIdx = pair.IndexOf('=');
         if (eqIdx > 0)
-          result[pair[..eqIdx]] = pair[(eqIdx + 1)..];
+        {
+          currentKey = pair[..eqIdx];
+          result[currentKey] = pair[(eqIdx + 1)..];
+        }
+        else if (eqIdx < 0 && currentKey != null)
+        {
+          result[currentKey] = result[currentKey] + "," + pair;
+        }
       }
 
       return result;

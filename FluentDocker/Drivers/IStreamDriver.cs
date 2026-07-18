@@ -67,6 +67,16 @@ namespace FluentDocker.Drivers
     /// <param name="config">Stream configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Async enumerable of events</returns>
+    /// <remarks>
+    /// Docker Engine API driver: without an <see cref="StreamEventsConfig.Until"/> bound the
+    /// daemon holds the events stream open indefinitely, so a clean daemon-side close is
+    /// unexpected and deliberately surfaces fail-loud as a
+    /// <see cref="FluentDocker.Common.DriverException"/> with
+    /// <see cref="ErrorCodes.Api.StreamEnded"/> rather than a silent end. Consequently a
+    /// <c>foreach</c> over the returned sequence never completes normally unless
+    /// <see cref="StreamEventsConfig.Until"/> is set (it ends only by that exception or
+    /// by cancellation).
+    /// </remarks>
     IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
         DriverContext context,
         StreamEventsConfig config = null,

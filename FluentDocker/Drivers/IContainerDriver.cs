@@ -36,7 +36,12 @@ namespace FluentDocker.Drivers
     /// Container run result with ID. For Docker/Podman CLI foreground runs
     /// (<c>Detach=false</c>), <c>Success</c> means the container was created; a non-zero
     /// container exit is returned as <see cref="ContainerRunResult.ExitCode"/> data, so
-    /// callers must inspect it instead of gating on <c>Success</c> alone. Foreground stdout
+    /// callers must inspect it instead of gating on <c>Success</c> alone. The
+    /// <see cref="ContainerRunResult.ExitCode"/> value carries either the container
+    /// process's own exit code or the CLI's infrastructure exit codes (125 daemon/run
+    /// error, 126 command not invocable, 127 command not found) — the two sources are
+    /// indistinguishable in the result; callers that must tell them apart have to inspect
+    /// the container. Foreground stdout
     /// and stderr are delimited with a newline when both are present. Very large foreground
     /// output is returned as a bounded tail prefixed by
     /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/>.

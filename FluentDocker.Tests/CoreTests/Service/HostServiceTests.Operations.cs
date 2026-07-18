@@ -264,6 +264,35 @@ namespace FluentDocker.Tests.CoreTests.Service
       finally { kernel.Dispose(); }
     }
 
+    [Fact]
+    public async Task PullImageAsync_DigestReferenceWithNonDefaultTag_ThrowsArgumentException()
+    {
+      // SVC-6: HasExplicitImageTag returns false for digest refs, so a conflicting non-default tag
+      // must be rejected explicitly instead of being silently dropped by the driver.
+      const string digestRef = "repo@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+      var mockPack = new MockDriverPack();
+      mockPack.SetupImagePull();
+      mockPack.SetupImageInspect("sha256:pulleddigest");
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = new HostService(kernel, "docker", "test-host");
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => service.PullImageAsync(
+                digestRef, "1.0",
+                cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal("tag", ex.ParamName);
+        mockPack.ImageDriver.Verify(d => d.PullAsync(
+            It.IsAny<DriverContext>(),
+            It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<IProgress<ImagePullProgress>>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+      }
+      finally { kernel.Dispose(); }
+    }
+
     #endregion
 
     #region Image Management -- BuildImageAsync

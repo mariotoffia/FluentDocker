@@ -28,6 +28,7 @@ namespace TestingExample
     public async Task Redis_IsRunning()
     {
       var inspected = await fixture.Container.InspectAsync(TestContext.Current.CancellationToken);
+      Assert.NotNull(inspected.State);
       Assert.True(inspected.State.Running);
     }
   }

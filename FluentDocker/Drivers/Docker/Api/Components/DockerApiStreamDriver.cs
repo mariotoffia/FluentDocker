@@ -328,11 +328,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
       catch (Exception ex)
       {
+        var statusCode = ex is HttpRequestException { StatusCode: not null } httpEx
+            ? (int)httpEx.StatusCode.Value
+            : 0;
         return CommandResponse<AttachResult>.Fail(
             $"Attach failed: {ex.Message}",
             ErrorCodes.Container.AttachFailed,
             CreateErrorContext($"POST /containers/{containerId}/attach",
-                0, ex.Message));
+                statusCode, ex.Message),
+            statusCode);
       }
     }
 

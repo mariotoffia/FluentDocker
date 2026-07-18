@@ -405,6 +405,35 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
+    public void ParseNetworkJson_LabelValueContainsCommas_RejoinsContinuationSegments()
+    {
+      // DRV-8: a comma-split segment without '=' is a continuation of the previous
+      // pair's value, so "desc=x,y" must parse as desc -> "x,y", not a bogus pair.
+      var json = @"{""Name"":""mynet"",""Labels"":""a=1,desc=x,y,b=2""}";
+
+      var network = JsonSerializer.Deserialize<Network>(json, JsonHelper.CaseInsensitiveOptions);
+
+      Assert.NotNull(network);
+      Assert.Equal(3, network.Labels.Count);
+      Assert.Equal("1", network.Labels["a"]);
+      Assert.Equal("x,y", network.Labels["desc"]);
+      Assert.Equal("2", network.Labels["b"]);
+    }
+
+    [Fact]
+    public void ParseNetworkJson_LabelValueWithTrailingCommaSegments_AppendsAllContinuations()
+    {
+      var json = @"{""Name"":""mynet"",""Labels"":""desc=a,b,c""}";
+
+      var network = JsonSerializer.Deserialize<Network>(json, JsonHelper.CaseInsensitiveOptions);
+
+      Assert.NotNull(network);
+      var label = Assert.Single(network.Labels);
+      Assert.Equal("desc", label.Key);
+      Assert.Equal("a,b,c", label.Value);
+    }
+
+    [Fact]
     public void ParseNetworkJson_MultipleLines_ParsesAll()
     {
       var lines = new[]

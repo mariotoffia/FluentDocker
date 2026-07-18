@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Models
@@ -23,6 +24,6 @@ namespace FluentDocker.Model.Models
 
     /// <summary>The fraction complete in <c>[0,1]</c> (0 when <see cref="Total"/> is 0).</summary>
     [JsonIgnore]
-    public double Fraction => Total > 0 ? (double)Current / Total : 0d;
+    public double Fraction => Total > 0 ? Math.Clamp((double)Current / Total, 0d, 1d) : 0d;
   }
 }

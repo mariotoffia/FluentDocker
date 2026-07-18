@@ -15,7 +15,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine:latest")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("FROM alpine:latest", dockerfile);
     }
@@ -25,7 +25,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       var dockerfile = await new DockerfileBuilder()
           .From("node:18", "builder")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("FROM node:18 AS builder", dockerfile);
     }
@@ -36,7 +36,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine")
           .Run("apk update", "apk add nodejs")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("FROM alpine", dockerfile);
       Assert.Contains("RUN apk update", dockerfile);
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("node:18")
           .Copy("package.json", "/app/")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       // COPY can be in shell form or JSON array form
       Assert.Contains("COPY", dockerfile);
@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WorkingFolder(workingFolder)
           .UseParent("alpine")
           .Copy(source, "/app/source.txt")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.True(File.Exists(Path.Combine(workingFolder, "rooted-copy-source.txt")));
       Assert.Contains(@"COPY [""rooted-copy-source.txt"", ""/app/source.txt""]", dockerfile);
@@ -103,7 +103,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine")
           .Copy(@"src\app.dll", @"C:\app\app.dll")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains(@"COPY [""src/app.dll"", ""C:/app/app.dll""]", dockerfile);
     }
@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("node:18")
           .UseWorkDir("/app")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("WORKDIR /app", dockerfile);
     }
@@ -125,21 +125,27 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("nginx")
           .ExposePorts(80, 443)
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("EXPOSE 80 443", dockerfile);
     }
 
+    // BF-5: a null/empty port list would render an invalid bare "EXPOSE " instruction, so it is
+    // now rejected at the fluent call instead of being silently accepted.
     [Fact]
-    public async Task ExposePorts_NullPorts_DoesNotThrow()
+    public void ExposePorts_NullPorts_ThrowsArgumentException()
     {
       int[] ports = null!;
-      var dockerfile = await new DockerfileBuilder()
-          .UseParent("nginx")
-          .ExposePorts(ports)
-          .ToDockerfileStringAsync();
 
-      Assert.Contains("EXPOSE", dockerfile);
+      Assert.Throws<ArgumentException>(() =>
+          new DockerfileBuilder().UseParent("nginx").ExposePorts(ports));
+    }
+
+    [Fact]
+    public void ExposePorts_EmptyPorts_ThrowsArgumentException()
+    {
+      Assert.Throws<ArgumentException>(() =>
+          new DockerfileBuilder().UseParent("nginx").ExposePorts());
     }
 
     [Fact]
@@ -148,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("node:18")
           .Environment("NODE_ENV=production", "PORT=3000")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("ENV", dockerfile);
       Assert.Contains("NODE_ENV", dockerfile);
@@ -160,7 +166,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("node:18")
           .Command("npm", "start")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("CMD", dockerfile);
       Assert.Contains("npm", dockerfile);
@@ -172,7 +178,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("python:3.9")
           .Entrypoint("python", "-u", "app.py")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("ENTRYPOINT", dockerfile);
       Assert.Contains("python", dockerfile);
@@ -184,7 +190,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine")
           .Label("maintainer=test@example.com", "version=1.0")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("LABEL", dockerfile);
       Assert.Contains("maintainer", dockerfile);
@@ -196,7 +202,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine")
           .User("node")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("USER node", dockerfile);
     }
@@ -207,7 +213,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("postgres")
           .Volume("/var/lib/postgresql/data")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("VOLUME [\"/var/lib/postgresql/data\"]", dockerfile);
     }
@@ -218,7 +224,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine")
           .Command("echo", "a \"quoted\" value", @"C:\tools")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains(@"CMD [""echo"", ""a \""quoted\"" value"", ""C:\\tools""]", dockerfile);
     }
@@ -230,7 +236,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseParent("alpine")
           .Entrypoint("dotnet", @"C:\app\main.dll")
           .Shell("powershell", "-Command", "Write-Host \"hi\"")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains(@"ENTRYPOINT [""dotnet"", ""C:\\app\\main.dll""]", dockerfile);
       Assert.Contains(@"SHELL [""powershell"", ""-Command"", ""Write-Host \""hi\""""]", dockerfile);
@@ -242,7 +248,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine")
           .Add("folder with \"quote.txt", "/app/folder with \"quote.txt")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains(
           @"ADD [""folder with \""quote.txt"", ""/app/folder with \""quote.txt""]",
@@ -255,7 +261,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine")
           .Add(@"conf\app.json", "/app/")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains(@"ADD [""conf/app.json"", ""/app/""]", dockerfile);
     }
@@ -266,7 +272,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("nginx")
           .WithHealthCheck("curl -f http://localhost/ || exit 1", "30s", "10s")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("HEALTHCHECK", dockerfile);
       Assert.Contains("curl", dockerfile);
@@ -278,7 +284,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("mcr.microsoft.com/windows/servercore")
           .Shell("powershell", "-Command")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("SHELL", dockerfile);
       Assert.Contains("powershell", dockerfile);
@@ -290,7 +296,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var dockerfile = await new DockerfileBuilder()
           .UseParent("alpine")
           .Arguments("VERSION", "1.0.0")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("ARG VERSION", dockerfile);
     }
@@ -301,7 +307,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var customDockerfile = "FROM alpine\nRUN echo hello";
       var dockerfile = await new DockerfileBuilder()
           .FromString(customDockerfile)
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Equal(customDockerfile, dockerfile);
     }
@@ -317,7 +323,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .Copy("src", ".")
           .ExposePorts(3000)
           .Command("node", "server.js")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       var lines = dockerfile.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
@@ -344,7 +350,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var builder = new DockerfileBuilder();
 
       await Assert.ThrowsAsync<FluentDocker.Common.FluentDockerException>(
-          async () => await builder.BuildAsync());
+          async () => await builder.BuildAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -356,7 +362,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var ex = await Assert.ThrowsAsync<NotSupportedException>(() => new DockerfileBuilder()
           .UseParent("alpine")
           .Copy(sourceDir, "/app")
-          .ToDockerfileStringAsync());
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken));
 
       Assert.Contains("Directory sources are not supported", ex.Message);
     }
@@ -375,9 +381,9 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseParent("alpine")
           .Add(source, "/data/source.txt");
 
-      await builder.ToDockerfileStringAsync();
+      await builder.ToDockerfileStringAsync(TestContext.Current.CancellationToken);
       builder.WorkingFolder(second);
-      await builder.ToDockerfileStringAsync();
+      await builder.ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.True(File.Exists(Path.Combine(first, "source.txt")));
       Assert.True(File.Exists(Path.Combine(second, "source.txt")));

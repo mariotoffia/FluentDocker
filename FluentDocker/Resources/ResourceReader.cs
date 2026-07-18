@@ -2,7 +2,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using FluentDocker.Common;
 
 namespace FluentDocker.Resources
@@ -29,26 +28,33 @@ namespace FluentDocker.Resources
       return GetEnumerator();
     }
 
+    // A hand-rolled enumerator (not a compiler iterator) because Reset() is part of this
+    // class's supported surface; use after Dispose() throws ObjectDisposedException instead
+    // of violating the enumerator contract (MoveNext true + Current IndexOutOfRangeException).
     private sealed class ResourceStreamEnumerator : IEnumerator<ResourceStream>
     {
       private readonly ResourceInfo[] _resources;
       private int _pos = -1;
+      private bool _disposed;
 
       internal ResourceStreamEnumerator(ResourceInfo[] resources) => _resources = resources;
 
       public void Dispose()
       {
-        _pos = -2;
-        GC.SuppressFinalize(this);
+        _disposed = true;
       }
 
       public bool MoveNext()
       {
-        return ++_pos < _resources.Length;
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_pos < _resources.Length)
+          _pos++;
+        return _pos < _resources.Length;
       }
 
       public void Reset()
       {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _pos = -1;
       }
 
@@ -56,6 +62,7 @@ namespace FluentDocker.Resources
       {
         get
         {
+          ObjectDisposedException.ThrowIf(_disposed, this);
           var res = _resources[_pos];
           var name = $"{res.Namespace}.{res.Resource}";
           var stream = res.Assembly.GetManifestResourceStream(name)

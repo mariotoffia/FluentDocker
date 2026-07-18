@@ -23,9 +23,11 @@ namespace FluentDocker.Drivers.Podman.Cli
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> MachineLocks = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Whether Podman machine management applies on the current platform. Podman machine only
-    /// exists on macOS/Windows; on native Linux Podman runs without a VM, so there is nothing
-    /// to start. Public static so the platform gate can be unit-tested through the public
+    /// Whether this library's Podman machine auto-start applies on the current platform
+    /// (macOS/Windows, where Podman always needs a VM). <c>podman machine</c> itself also
+    /// exists on Linux, but native Linux typically runs Podman without a VM, so this library
+    /// never auto-starts a machine there — a Linux machine must be started externally.
+    /// Public static so the platform gate can be unit-tested through the public
     /// surface (the pack's auto-start path itself drives the real <c>podman machine</c> CLI).
     /// </summary>
     public static bool MachineManagementApplies() => FdOs.IsOsx() || FdOs.IsWindows();
@@ -47,7 +49,9 @@ namespace FluentDocker.Drivers.Podman.Cli
       if (!MachineManagementApplies())
       {
         throw new DriverException(
-            "Podman machine auto-start is only supported on macOS/Windows; native Linux runs Podman without a machine. Remove WithAutoStartMachine on Linux.",
+            "Auto-start of a Podman machine is only supported on macOS/Windows by this library. " +
+            "podman machine itself exists on Linux, but a machine on native Linux must be started " +
+            "externally (e.g. `podman machine start`); remove WithAutoStartMachine on Linux.",
             ErrorCodes.Driver.CapabilityNotSupported);
       }
 

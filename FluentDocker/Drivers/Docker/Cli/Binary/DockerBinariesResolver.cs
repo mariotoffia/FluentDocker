@@ -84,19 +84,54 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public DockerBinary MainDockerCli { get; }
 
     /// <inheritdoc />
+    /// <exception cref="FluentDockerException">
+    /// The name is unknown, or the binary was not found on the local system.
+    /// </exception>
     public DockerBinary Resolve(string binary)
     {
-      var type = DockerBinary.Translate(binary);
+      ArgumentException.ThrowIfNullOrWhiteSpace(binary);
+
+      // A configured custom client name (nerdctl, finch, …) is resolvable by that name:
+      // discovery mapped it to DockerClient, so the Translate-unknown path must not reject
+      // the very binary the configuration selected.
+      if (MatchesConfiguredClientName(binary))
+      {
+        return MainDockerClient ?? throw new FluentDockerException(
+            $"Could not resolve binary {binary} - is it installed on the local system?");
+      }
+
+      DockerBinaryType type;
+      try
+      {
+        type = DockerBinary.Translate(binary);
+      }
+      catch (ArgumentException ex)
+      {
+        // Keep the documented exception surface: unknown names are a FluentDockerException,
+        // not a raw ArgumentException from the Translate helper.
+        throw new FluentDockerException($"Cannot resolve unknown binary {binary}", ex);
+      }
 
       var resolved = type switch
       {
         DockerBinaryType.Compose => MainDockerClient,
         DockerBinaryType.DockerClient => MainDockerClient,
         DockerBinaryType.Cli => MainDockerCli,
-        _ => throw new FluentDockerException($"Cannot resolve unknown binary {binary}"),
+        _ => null,
       } ?? throw new FluentDockerException($"Could not resolve binary {binary} - is it installed on the local system?");
 
       return resolved;
+    }
+
+    private bool MatchesConfiguredClientName(string binary)
+    {
+      if (string.IsNullOrWhiteSpace(_configuration.BinaryName))
+        return false;
+
+      static string Normalize(string name) =>
+          name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name;
+      return string.Equals(
+          Normalize(binary), Normalize(_configuration.BinaryName), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />

@@ -12,7 +12,6 @@ using FluentDocker.Drivers.Docker.Api;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Kernel;
-using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Models;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -83,11 +82,18 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         new DockerApiDriverPack(),
         new PodmanCliDriverPack()
       };
+      // Hermetic: CLI pack init resolves (but never executes) the client binary, so fake
+      // executables keep this unit test green on machines without docker/podman (GATE-1).
+      var fakeBinDir = FluentDocker.Tests.Utilities.FakeBinaryDirectory.Create("docker", "podman");
 
       foreach (var pack in packs)
       {
         await pack.InitializeAsync(
-            new DriverContext("driver") { ModelRunnerEndpoint = ModelRunnerEndpoint.HostTcp() },
+            new DriverContext("driver")
+            {
+              ModelRunnerEndpoint = ModelRunnerEndpoint.HostTcp(),
+              SearchPaths = [fakeBinDir]
+            },
             TestContext.Current.CancellationToken);
 
         var capabilities = await pack.GetCapabilitiesAsync(TestContext.Current.CancellationToken);
@@ -253,18 +259,6 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
           Task.FromResult(true);
-
-      public T SysCtl<T>(string driverId) where T : class =>
-          throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
-
-      public object SysCtl(string driverId, Type interfaceType) =>
-          throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-
-      public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-      {
-        instance = null!;
-        return false;
-      }
 
       public virtual bool TryResolve(Type interfaceType, out object implementation)
       {

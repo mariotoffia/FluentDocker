@@ -52,7 +52,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
         var contents = await new DockerfileBuilder()
             .FromFile(dockerfile)
             .WithBuildContext(root)
-            .ToDockerfileStringAsync();
+            .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
         // The existing file's contents are returned…
         Assert.Contains("FROM alpine:3.20", contents);
@@ -116,7 +116,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .FromFile(dockerfile)
             .WithBuildContext(otherContext);
 
-        await Assert.ThrowsAsync<FluentDockerException>(() => builder.ToDockerfileStringAsync());
+        await Assert.ThrowsAsync<FluentDockerException>(() => builder.ToDockerfileStringAsync(TestContext.Current.CancellationToken));
       }
       finally { SafeDelete(root); }
     }
@@ -128,7 +128,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       var contents = await new DockerfileBuilder()
           .UseParent("alpine:3.20")
           .Run("echo hi")
-          .ToDockerfileStringAsync();
+          .ToDockerfileStringAsync(TestContext.Current.CancellationToken);
 
       Assert.Contains("FROM alpine:3.20", contents);
       Assert.Contains("RUN echo hi", contents);

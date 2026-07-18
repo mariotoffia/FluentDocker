@@ -112,8 +112,10 @@ format:
 check: lint test test-runners coverage-check
 
 # Release-docs gate (DOC-CRIT-2 / DOC-MAJ-4): fail if any temporary/typo branch link survives in
-# the docs or READMEs so a published doc set never points at a branch that 404s after merge. Wire
-# this into the release/publish job. At GA, also assert the preview banner is gone (see below).
+# the docs or READMEs so a published doc set never points at a branch that 404s after merge.
+# Wired into the ci.yml `release` job (runs on every version-tag push, before pack/publish).
+# Also fails on stale version literals (a doc still carrying an older preview string) and, for a
+# GA (non-prerelease) <Version>, on any surviving "-preview." marker.
 .PHONY: check-release-docs
 check-release-docs:
 	@echo "Checking docs for temporary branch links..."
@@ -121,8 +123,19 @@ check-release-docs:
 		echo "ERROR: temporary/typo branch link found in docs; sweep to a permalink before release."; exit 1; \
 	fi
 	@echo "OK: no temporary branch links."
-	@echo "GA reminder: before a stable (non-preview) release, remove the preview banner from docs/*.md"
-	@echo "             and drop the net8->net10 retarget warnings once they are no longer relevant."
+	@VERSION=$$(dotnet msbuild FluentDocker/FluentDocker.csproj -getProperty:Version -nologo -verbosity:quiet | tr -d '[:space:]'); \
+	echo "Checking docs against <Version> $$VERSION..."; \
+	STALE=$$(grep -rnoE '[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+' README.md FluentDocker/README.md FluentDocker.Testing.Xunit/README.md FluentDocker.Testing.MsTest/README.md FluentDocker.Testing.NUnit/README.md docs/ 2>/dev/null | grep -v ":$$VERSION$$" || true); \
+	if [ -n "$$STALE" ]; then \
+		echo "ERROR: stale preview version literals differ from <Version> $$VERSION:"; echo "$$STALE"; exit 1; \
+	fi; \
+	case "$$VERSION" in \
+	  *-*) echo "OK: pre-release $$VERSION; preview banners allowed." ;; \
+	  *) if grep -rn -- "-preview\." README.md FluentDocker/README.md FluentDocker.Testing.Xunit/README.md FluentDocker.Testing.MsTest/README.md FluentDocker.Testing.NUnit/README.md docs/ 2>/dev/null; then \
+	       echo "ERROR: GA <Version> $$VERSION but '-preview.' markers remain in docs/READMEs; sweep them before tagging."; exit 1; \
+	     fi; \
+	     echo "OK: no preview markers for GA $$VERSION." ;; \
+	esac
 
 .PHONY: coverage
 coverage:

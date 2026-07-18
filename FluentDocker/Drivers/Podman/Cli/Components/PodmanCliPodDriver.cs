@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -89,7 +90,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = timeout.HasValue
-            ? $"pod stop -t {timeout.Value} {QuotePositionalArgument(name, nameof(name))}"
+            ? $"pod stop -t {timeout.Value.ToString(CultureInfo.InvariantCulture)} {QuotePositionalArgument(name, nameof(name))}"
             : $"pod stop {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
@@ -118,7 +119,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = timeout.HasValue
-            ? $"pod restart -t {timeout.Value} {QuotePositionalArgument(name, nameof(name))}"
+            ? $"pod restart -t {timeout.Value.ToString(CultureInfo.InvariantCulture)} {QuotePositionalArgument(name, nameof(name))}"
             : $"pod restart {QuotePositionalArgument(name, nameof(name))}";
         var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)

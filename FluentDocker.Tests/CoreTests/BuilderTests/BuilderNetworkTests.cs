@@ -48,6 +48,28 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       MockPack.VerifyNetworkCreated("test-network", Times.Once());
     }
 
+    // BF-12: gateway/IP-range validate eagerly at the With* call (like WithSubnet), not first
+    // at BuildAsync. The throw surfaces synchronously from the UseNetwork configure action.
+    [Fact]
+    public void UseNetwork_InvalidGateway_ThrowsEagerlyAtConfigure()
+    {
+      var ex = Assert.Throws<FluentDocker.Common.FluentDockerException>(() => new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseNetwork(n => n.WithName("net").WithGateway("not-an-ip")));
+
+      Assert.Contains("gateway", ex.Message);
+    }
+
+    [Fact]
+    public void UseNetwork_InvalidIPRange_ThrowsEagerlyAtConfigure()
+    {
+      var ex = Assert.Throws<FluentDocker.Common.FluentDockerException>(() => new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseNetwork(n => n.WithName("net").WithIPRange("not-a-cidr")));
+
+      Assert.Contains("IP range", ex.Message);
+    }
+
     [Fact]
     public async Task UseNetwork_WithDriver_PassesDriver()
     {

@@ -44,8 +44,8 @@ namespace FluentDocker.Builders
     public INetworkBuilder WithName(string name) { _name = name; return this; }
     public INetworkBuilder UseDriver(string driver) { _driver = driver; return this; }
     public INetworkBuilder WithSubnet(string subnet) { if (!System.Net.IPNetwork.TryParse(subnet, out _)) throw new FluentDockerException($"Invalid subnet '{subnet}'. Expected CIDR notation."); _subnet = subnet; return this; }
-    public INetworkBuilder WithGateway(string gateway) { _gateway = gateway; return this; }
-    public INetworkBuilder WithIPRange(string ipRange) { _ipRange = ipRange; return this; }
+    public INetworkBuilder WithGateway(string gateway) { if (!System.Net.IPAddress.TryParse(gateway, out _)) throw new FluentDockerException($"Invalid gateway '{gateway}'. Expected an IP address."); _gateway = gateway; return this; }
+    public INetworkBuilder WithIPRange(string ipRange) { if (!System.Net.IPNetwork.TryParse(ipRange, out _)) throw new FluentDockerException($"Invalid IP range '{ipRange}'. Expected CIDR notation."); _ipRange = ipRange; return this; }
     public INetworkBuilder WithIPv6(bool enableIPv6 = true) { _enableIPv6 = enableIPv6; return this; }
     public INetworkBuilder AsInternal(bool isInternal = true) { _internal = isInternal; return this; }
     public INetworkBuilder RemoveOnDispose() { _removeOnDispose = true; return this; }
@@ -58,10 +58,8 @@ namespace FluentDocker.Builders
       CreatedResource = false;
       if (string.IsNullOrWhiteSpace(_name))
         throw new FluentDockerException("Network name is required. Call WithName() before building.");
-      if (_gateway != null && !System.Net.IPAddress.TryParse(_gateway, out _))
-        throw new FluentDockerException($"Invalid gateway '{_gateway}'. Expected an IP address.");
-      if (_ipRange != null && !System.Net.IPNetwork.TryParse(_ipRange, out _))
-        throw new FluentDockerException($"Invalid IP range '{_ipRange}'. Expected CIDR notation.");
+      // Gateway/IP-range/subnet are validated eagerly in their With* setters (same timing as
+      // WithSubnet), so the fields can only hold parseable values here.
 
       var driver = _kernel.SysCtl<Drivers.INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);

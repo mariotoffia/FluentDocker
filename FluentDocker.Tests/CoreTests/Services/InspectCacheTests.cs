@@ -440,5 +440,63 @@ namespace FluentDocker.Tests.CoreTests.Services
               It.IsAny<CancellationToken>()),
           Times.Once);
     }
+
+    // ------------------------------------------------------------------
+    // 9. Invalidation racing the cache-apply path (SVC-10)
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public async Task InvalidateInspectCache_RacingInFlightInspect_NeverServesPreInvalidationResult()
+    {
+      // SVC-10: InvalidateInspectCache participates in the same lock/versioning as the cache-apply
+      // path, so an invalidation can never be overwritten by an inspect result whose driver fetch
+      // started before the invalidation. Each round gates the driver so the in-flight fetch
+      // provably predates the invalidation, then asserts the follow-up inspect reaches the driver
+      // again (i.e. the stale result was not left in the cache).
+      _mockPack = new MockDriverPack();
+      _kernel = await MockKernelBuilderExtensions
+          .CreateWithMockDriverAsync("docker", _mockPack);
+      var service = new ContainerService(
+          _kernel, "docker", "race-test-123", "nginx:latest", "race-test");
+      var fetchCount = 0;
+
+      for (var round = 0; round < 100; round++)
+      {
+        var fetchStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFetch = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mockPack.ContainerDriver
+            .Setup(d => d.InspectAsync(
+                It.IsAny<DriverContext>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+              Interlocked.Increment(ref fetchCount);
+              fetchStarted.TrySetResult();
+              await releaseFetch.Task;
+              return CommandResponse<Container>.Ok(new Container
+              {
+                Id = "race-test-123",
+                Name = "race-test",
+                State = new ContainerState { Running = true, Status = "running" }
+              });
+            });
+
+        // Cold cache so the gated inspect really fetches (previous round warmed it).
+        InvokeInvalidateInspectCache(service);
+        var inFlight = service.InspectAsync(TestContext.Current.CancellationToken);
+        await fetchStarted.Task;
+
+        var invalidation = Task.Run(() => InvokeInvalidateInspectCache(service), TestContext.Current.CancellationToken);
+        releaseFetch.SetResult();
+        await Task.WhenAll(inFlight, invalidation);
+
+        var fetchesBeforeVerification = Volatile.Read(ref fetchCount);
+        await service.InspectAsync(TestContext.Current.CancellationToken);
+        Assert.True(
+            Volatile.Read(ref fetchCount) > fetchesBeforeVerification,
+            $"Round {round}: a pre-invalidation inspect result was served from the cache.");
+      }
+    }
   }
 }

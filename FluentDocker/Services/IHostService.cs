@@ -197,7 +197,7 @@ namespace FluentDocker.Services
     /// <summary>Delete volumes on container dispose.</summary>
     public bool DeleteVolumeOnDispose { get; set; }
 
-    /// <summary>Delete named volumes on container dispose.</summary>
+    /// <summary>Delete named volumes on container removal (including dispose).</summary>
     public bool DeleteNamedVolumeOnDispose { get; set; }
 
     /// <summary>Labels to apply.</summary>

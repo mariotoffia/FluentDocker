@@ -124,6 +124,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             return CommandResponse<Unit>.Fail(
                 $"Podman machine '{MachineNameForMessage(name, state.Data)}' state could not be determined; stop it first or call RemoveAsync with force: true.",
                 ErrorCodes.Machine.RemoveFailed);
+          // -f is required even for a stopped machine (plain `rm` always aborts at podman's
+          // interactive prompt when stdin is closed). Inspect-then-`rm -f` is inherently
+          // TOCTOU: a machine started externally between the check and the rm is still
+          // force-removed — documented on IPodmanMachineDriver.RemoveAsync.
           args += " -f";
         }
         if (!string.IsNullOrEmpty(name))

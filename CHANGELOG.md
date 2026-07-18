@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Production-readiness remediation pass across release engineering, services, drivers,
+  builders, model DTOs, common helpers, and the testing packages (full finding list in
+  the 3.2.0 review; every Critical/High finding fixed, Mediums and Minors burned down).
+
 ## [3.2.0-preview.2] - 2026-07-08
+
+> **Note:** `3.2.0-preview.1` was an internal iteration that was never published to
+> NuGet — no notes were lost; the version number was simply skipped.
 
 ### Breaking
 
@@ -244,3 +253,9 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 ## [2.x] - Previous
 
 See [GitHub releases](https://github.com/mariotoffia/FluentDocker/releases) for v2.x history.
+
+[Unreleased]: https://github.com/mariotoffia/FluentDocker/compare/3.1.0...HEAD
+[3.2.0-preview.2]: https://github.com/mariotoffia/FluentDocker/compare/3.1.0...HEAD
+[3.1.0]: https://github.com/mariotoffia/FluentDocker/compare/3.0.1...3.1.0
+[3.0.1]: https://github.com/mariotoffia/FluentDocker/compare/3.0.0...3.0.1
+[3.0.0]: https://github.com/mariotoffia/FluentDocker/releases/tag/3.0.0

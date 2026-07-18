@@ -54,6 +54,7 @@ namespace FluentDocker.Drivers.Docker.Api
         403 => ErrorCodes.Api.Forbidden,
         404 => ErrorCodes.Api.NotFound,
         409 => ErrorCodes.Api.Conflict,
+        505 => ErrorCodes.Api.UnsupportedVersion,
         >= 500 => ErrorCodes.Api.ServerError,
         _ => ErrorCodes.Api.BadRequest
       };
@@ -82,6 +83,11 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       if (ex is DockerApiTtfbTimeoutException ttfb)
         return (408, $"Docker API connection/TTFB timed out after {ttfb.Timeout}: {ttfb.InnerException?.Message ?? ttfb.Message}");
+
+      // Version negotiation rejected the daemon (typed, non-transient). Synthesize 505
+      // (HTTP Version Not Supported) so MapHttpErrorCode yields Api.UnsupportedVersion.
+      if (ex is DriverException { ErrorCode: ErrorCodes.Api.UnsupportedVersion })
+        return (505, ex.Message);
 
       if (ex is TaskCanceledException)
       {
@@ -128,6 +134,12 @@ namespace FluentDocker.Drivers.Docker.Api
     {
       if (ex is OperationCanceledException && ct.IsCancellationRequested)
         return false;
+
+      // The typed unsupported-daemon-version negotiation failure must surface as a
+      // CommandResponse.Fail (with its dedicated error code via DescribeTransportFailure),
+      // never as a raw exception through the CommandResponse contract (DAPI-5).
+      if (ex is DriverException { ErrorCode: ErrorCodes.Api.UnsupportedVersion })
+        return true;
 
       return ex is HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException;
     }

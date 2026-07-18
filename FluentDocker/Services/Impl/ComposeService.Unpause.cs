@@ -36,9 +36,13 @@ namespace FluentDocker.Services.Impl
               response.ErrorContext);
         }
 
+        // Running hooks must not fire until reconcile confirms the project is genuinely
+        // running — same optimistic-state ordering as StartAsync/RestartAsync (S-H2):
+        // `docker compose unpause` succeeding does not prove every service is up.
         UpdateState(ServiceRunningState.Running);
-        await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
         await TryReconcileStateAsync(cancellationToken).ConfigureAwait(false);
+        if (_state == ServiceRunningState.Running)
+          await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
       }
       catch
       {

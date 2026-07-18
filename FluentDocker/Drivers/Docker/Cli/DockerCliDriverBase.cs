@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -276,13 +277,72 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
         string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword)
+        => BuildSudoCommand(binaryPath, arguments, sudo, sudoPassword, null);
+
+    /// <summary>
+    /// Builds the actual process FileName and Arguments for sudo-aware execution, forwarding
+    /// caller-supplied environment variable NAMES through sudo via <c>--preserve-env</c>
+    /// (sudo's default <c>env_reset</c> would otherwise silently strip variables that were set
+    /// on the spawned <c>sudo</c> process itself). Only names ever reach the command line —
+    /// values stay in the process environment. Requires sudoers to permit <c>SETENV</c> or a
+    /// matching <c>env_keep</c>; sudo fails loudly otherwise, which beats a silent drop.
+    /// The password is NEVER placed on the command line — it is returned separately for stdin.
+    /// </summary>
+    private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword,
+        IReadOnlyCollection<string> preserveEnvironmentNames)
     {
+      var preserve = sudo != SudoMechanism.None && preserveEnvironmentNames is { Count: > 0 }
+          ? $"--preserve-env={string.Join(",", preserveEnvironmentNames)} "
+          : string.Empty;
       return sudo switch
       {
-        SudoMechanism.NoPassword => ("sudo", $"-n -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
-        SudoMechanism.Password => ("sudo", $"-S -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", sudoPassword),
+        SudoMechanism.NoPassword => ("sudo", $"-n {preserve}-- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
+        SudoMechanism.Password => ("sudo", $"-S {preserve}-- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", sudoPassword),
         _ => (binaryPath, arguments, null)
       };
+    }
+
+    /// <summary>
+    /// Validates and returns the environment names to preserve across sudo, or <c>null</c>
+    /// when no forwarding is needed (no sudo, or no extra environment). Names must be plain
+    /// POSIX identifiers (<c>[A-Za-z_][A-Za-z0-9_]*</c>) so the generated
+    /// <c>--preserve-env</c> list cannot be malformed or smuggle extra arguments.
+    /// </summary>
+    /// <exception cref="DriverException">A name is not a plain POSIX identifier.</exception>
+    private static List<string> ValidatedPreserveEnvNames(
+        IDictionary<string, string> environment, SudoMechanism sudo)
+    {
+      if (sudo == SudoMechanism.None || environment == null || environment.Count == 0)
+        return null;
+
+      var names = new List<string>(environment.Count);
+      foreach (var name in environment.Keys)
+      {
+        if (!IsPosixEnvironmentName(name))
+          throw new DriverException(
+              $"Environment variable name '{name}' cannot be forwarded through sudo " +
+              "(--preserve-env requires plain identifier names).",
+              ErrorCodes.Driver.CommandExecutionFailed);
+        names.Add(name);
+      }
+
+      return names;
+    }
+
+    private static bool IsPosixEnvironmentName(string name)
+    {
+      if (string.IsNullOrEmpty(name))
+        return false;
+      if (!char.IsAsciiLetter(name[0]) && name[0] != '_')
+        return false;
+      for (var i = 1; i < name.Length; i++)
+      {
+        if (!char.IsAsciiLetterOrDigit(name[i]) && name[i] != '_')
+          return false;
+      }
+
+      return true;
     }
 
     /// <summary>

@@ -101,6 +101,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// When <paramref name="timeout"/> is negative (daemon semantics: wait indefinitely) or at
+    /// least the configured request timeout, the HTTP call is issued without an upper time bound,
+    /// so a wedged daemon can block this call forever under <see cref="CancellationToken.None"/>.
+    /// Pass a <paramref name="cancellationToken"/> (or apply an external timeout) to bound the wait.
+    /// </remarks>
     public async Task<CommandResponse<Unit>> StopAsync(
         DriverContext context, string containerId, int? timeout = null,
         CancellationToken cancellationToken = default)
@@ -116,6 +122,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// When <paramref name="timeout"/> is negative (daemon semantics: wait indefinitely) or at
+    /// least the configured request timeout, the HTTP call is issued without an upper time bound,
+    /// so a wedged daemon can block this call forever under <see cref="CancellationToken.None"/>.
+    /// Pass a <paramref name="cancellationToken"/> (or apply an external timeout) to bound the wait.
+    /// </remarks>
     public async Task<CommandResponse<Unit>> RestartAsync(
         DriverContext context, string containerId, int? timeout = null,
         CancellationToken cancellationToken = default)
@@ -185,6 +197,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The Docker <c>/wait</c> endpoint blocks until the container exits and is issued without an
+    /// upper time bound, so a wedged daemon (or a container that never exits) can block this call
+    /// forever under <see cref="CancellationToken.None"/>. Pass a
+    /// <paramref name="cancellationToken"/> (or apply an external timeout) to bound the wait.
+    /// </remarks>
     public async Task<CommandResponse<ContainerWaitResult>> WaitAsync(
         DriverContext context, string containerId,
         CancellationToken cancellationToken = default)

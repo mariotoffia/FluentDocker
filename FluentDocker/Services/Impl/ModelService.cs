@@ -43,6 +43,11 @@ namespace FluentDocker.Services.Impl
     // Persistent marker for dispose best-effort unload after a load reached the runner.
     private int _loadAttempted;
     private int _disposed;
+    // ponytail: dispose-completion flag — ThrowIfDisposed keys on this (dispose finished),
+    // not _disposed (dispose started), so Stopping/Stopped hooks running during
+    // DisposeCoreAsync can still call public members without ObjectDisposedException
+    // (mirrors ContainerService).
+    private int _disposeCompleted;
     private int _loadCancellationSignaled;
     private Task _loadTask;
     private Task _activeLoadTask;
@@ -374,7 +379,14 @@ namespace FluentDocker.Services.Impl
       // Run the async unload on the thread pool to escape any captured
       // SynchronizationContext and avoid the classic sync-over-async deadlock.
       // DisposeCoreAsync already swallows/logs unload failures.
-      Task.Run(() => DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
+      try
+      {
+        Task.Run(() => DisposeCoreAsync().AsTask()).GetAwaiter().GetResult();
+      }
+      finally
+      {
+        Volatile.Write(ref _disposeCompleted, 1);
+      }
       GC.SuppressFinalize(this);
     }
 
@@ -384,7 +396,14 @@ namespace FluentDocker.Services.Impl
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
 
-      await DisposeCoreAsync().ConfigureAwait(false);
+      try
+      {
+        await DisposeCoreAsync().ConfigureAwait(false);
+      }
+      finally
+      {
+        Volatile.Write(ref _disposeCompleted, 1);
+      }
       GC.SuppressFinalize(this);
     }
 
@@ -443,8 +462,10 @@ namespace FluentDocker.Services.Impl
       }
     }
 
+    // ponytail: key on _disposeCompleted (dispose finished), not _disposed (dispose started), so
+    // user lifecycle hooks executing during DisposeCoreAsync can still call public members.
     private void ThrowIfDisposed() =>
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeCompleted) != 0, this);
 
     private void UpdateState(ServiceRunningState newState)
     {

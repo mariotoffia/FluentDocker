@@ -30,8 +30,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           $"printf '%s\\n' \"$@\" > '{argsPath}'\n" +
           "printf 'container-123\\n'\n",
           TestContext.Current.CancellationToken);
-      File.SetUnixFileMode(dockerPath,
-          UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      if (!OperatingSystem.IsWindows())
+      {
+        File.SetUnixFileMode(dockerPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      }
       var driver = new DockerCliContainerDriver(new TestBinaryResolver(directory));
       driver.Initialize(new DriverContext("docker"));
 
@@ -105,8 +108,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           $"printf '%s\\n' \"$@\" > '{argsPath}'\n" +
           "printf 'container-123\\n'\n",
           TestContext.Current.CancellationToken);
-      File.SetUnixFileMode(dockerPath,
-          UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      if (!OperatingSystem.IsWindows())
+      {
+        File.SetUnixFileMode(dockerPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      }
       var driver = new DockerCliContainerDriver(new TestBinaryResolver(directory));
       driver.Initialize(new DriverContext("docker"));
 
@@ -142,8 +148,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           "#!/bin/sh\n" +
           "printf '%s\\n' '[{\"Id\":\"abc123\",\"Name\":\"/foo\"}]'\n",
           TestContext.Current.CancellationToken);
-      File.SetUnixFileMode(dockerPath,
-          UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      if (!OperatingSystem.IsWindows())
+      {
+        File.SetUnixFileMode(dockerPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      }
       var driver = new DockerCliContainerDriver(new TestBinaryResolver(directory));
       driver.Initialize(new DriverContext("docker"));
 
@@ -171,8 +180,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           $"printf '%s\\n' \"$@\" > '{argsPath}'\n" +
           "printf '%s\\n' '{\"ID\":\"abc123\",\"Image\":\"alpine\",\"Names\":\"foo\",\"State\":\"running\",\"Status\":\"Up\"}'\n",
           TestContext.Current.CancellationToken);
-      File.SetUnixFileMode(dockerPath,
-          UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      if (!OperatingSystem.IsWindows())
+      {
+        File.SetUnixFileMode(dockerPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      }
       var driver = new DockerCliContainerDriver(new TestBinaryResolver(directory));
       driver.Initialize(new DriverContext("docker"));
 
@@ -201,8 +213,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           $"printf '%s\\n' \"$@\" > '{argsPath}'\n" +
           "printf '%s\\n' '{\"ID\":\"abc123\",\"Image\":\"alpine\",\"Names\":\"foo\",\"State\":\"running\",\"Status\":\"Up\"}'\n",
           TestContext.Current.CancellationToken);
-      File.SetUnixFileMode(dockerPath,
-          UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      if (!OperatingSystem.IsWindows())
+      {
+        File.SetUnixFileMode(dockerPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      }
       var driver = new DockerCliContainerDriver(new TestBinaryResolver(directory));
       driver.Initialize(new DriverContext("docker"));
 

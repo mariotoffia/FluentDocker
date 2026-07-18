@@ -136,23 +136,25 @@ namespace FluentDocker.Tests.CoreTests.Model
 
     #endregion
 
-    #region Implicit Conversion Tests
+    #region Explicit Conversion Tests
+
+    // The string conversion is explicit (not implicit) because it throws on malformed input.
 
     [Fact]
-    public void ImplicitConversion_NullString_ReturnsNull()
+    public void ExplicitConversion_NullString_ReturnsNull()
     {
       // Arrange & Act
-      EmbeddedUri uri = (string)null!; // intentional null to verify null-handling
+      var uri = (EmbeddedUri)(string)null!; // intentional null to verify null-handling
 
       // Assert
       Assert.Null(uri);
     }
 
     [Fact]
-    public void ImplicitConversion_ValidString_ReturnsEmbeddedUri()
+    public void ExplicitConversion_ValidString_ReturnsEmbeddedUri()
     {
       // Arrange & Act
-      EmbeddedUri uri = "emb:TestAssembly/Test.Namespace/test.txt";
+      var uri = (EmbeddedUri)"emb:TestAssembly/Test.Namespace/test.txt";
 
       // Assert
       Assert.NotNull(uri);
@@ -162,12 +164,12 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void ImplicitConversion_InvalidScheme_ThrowsArgumentException()
+    public void ExplicitConversion_InvalidScheme_ThrowsArgumentException()
     {
       // Arrange & Act & Assert
       Assert.Throws<ArgumentException>(() =>
       {
-        EmbeddedUri uri = "wrong:Assembly/Namespace/Resource";
+        _ = (EmbeddedUri)"wrong:Assembly/Namespace/Resource";
       });
     }
 

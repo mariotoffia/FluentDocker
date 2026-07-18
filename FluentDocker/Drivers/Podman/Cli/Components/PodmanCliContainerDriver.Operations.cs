@@ -19,7 +19,6 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   public partial class PodmanCliContainerDriver
   {
     private static readonly char[] WhitespaceSeparators = [' ', '\t'];
-    private static readonly string[] SlashSeparator = [" / "];
 
     #region Information Operations (continued)
 
@@ -69,7 +68,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
       catch (Exception ex)
       {
-        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
+        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.LogsFailed));
       }
     }
 
@@ -419,23 +418,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = $"update";
         if (config.MemoryLimit.HasValue)
-          args += $" --memory {config.MemoryLimit.Value}";
+          args += $" --memory {config.MemoryLimit.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.MemorySwap.HasValue)
-          args += $" --memory-swap {config.MemorySwap.Value}";
+          args += $" --memory-swap {config.MemorySwap.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.MemoryReservation.HasValue)
-          args += $" --memory-reservation {config.MemoryReservation.Value}";
+          args += $" --memory-reservation {config.MemoryReservation.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.CpuShares.HasValue)
-          args += $" --cpu-shares {config.CpuShares.Value}";
+          args += $" --cpu-shares {config.CpuShares.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.CpuPeriod.HasValue)
-          args += $" --cpu-period {config.CpuPeriod.Value}";
+          args += $" --cpu-period {config.CpuPeriod.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.CpuQuota.HasValue)
-          args += $" --cpu-quota {config.CpuQuota.Value}";
+          args += $" --cpu-quota {config.CpuQuota.Value.ToString(CultureInfo.InvariantCulture)}";
         if (!string.IsNullOrEmpty(config.CpusetCpus))
           args += $" --cpuset-cpus {QuoteArgumentIfNeeded(config.CpusetCpus)}";
         if (!string.IsNullOrEmpty(config.RestartPolicy))
           args += $" --restart {QuoteArgumentIfNeeded(config.RestartPolicy)}";
         if (config.PidsLimit.HasValue)
-          args += $" --pids-limit {config.PidsLimit.Value}";
+          args += $" --pids-limit {config.PidsLimit.Value.ToString(CultureInfo.InvariantCulture)}";
 
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 

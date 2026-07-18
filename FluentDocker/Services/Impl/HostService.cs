@@ -468,8 +468,11 @@ namespace FluentDocker.Services.Impl
       if (state.StartsWith("exited", StringComparison.OrdinalIgnoreCase) ||
           state.StartsWith("dead", StringComparison.OrdinalIgnoreCase))
         return ServiceRunningState.Stopped;
-      if (state.StartsWith("created", StringComparison.OrdinalIgnoreCase) ||
-          state.StartsWith("restarting", StringComparison.OrdinalIgnoreCase))
+      // "created …" seeds Created — not Starting — so a later start still transitions to Starting
+      // and fires its hooks (see ServiceRunningState.Created; UpdateState no-ops on same state).
+      if (state.StartsWith("created", StringComparison.OrdinalIgnoreCase))
+        return ServiceRunningState.Created;
+      if (state.StartsWith("restarting", StringComparison.OrdinalIgnoreCase))
         return ServiceRunningState.Starting;
       if (state.StartsWith("up", StringComparison.OrdinalIgnoreCase))
         return ServiceRunningState.Running;

@@ -32,10 +32,19 @@ namespace FluentDocker.Builders.Compose
     {
       ArgumentNullException.ThrowIfNull(key);
       ArgumentNullException.ThrowIfNull(spec);
+      // Duplicate top-level keys would emit a YAML map with the same key twice — an invalid
+      // (or silently last-wins) Compose document. Fail at the fluent call, not at emission.
+      if (_models.Any(m => string.Equals(m.Key, key, StringComparison.Ordinal)))
+        throw new ArgumentException($"Model key '{key}' was already added; each AddModel key must be unique.", nameof(key));
 
       var builder = new SpecBuilder(key);
       spec(builder);
-      _models.Add(builder.Build());
+      var model = builder.Build();
+      // A models: entry without a model reference is invalid; catching it here (the spec action
+      // has already run) fails at the fluent call instead of deep inside emission/BuildAsync.
+      if (string.IsNullOrEmpty(model.Model))
+        throw new ArgumentException($"Model '{key}' has no model reference; call WithModel() in the AddModel spec.", nameof(spec));
+      _models.Add(model);
       return this;
     }
 
@@ -44,6 +53,14 @@ namespace FluentDocker.Builders.Compose
     {
       ArgumentNullException.ThrowIfNull(service);
       ArgumentNullException.ThrowIfNull(modelKey);
+      // A service's models: block is one map/list; binding the same model key twice (e.g. once
+      // short-form, once long-form) would emit the key twice. Fail at the fluent call.
+      if (_bindings.Any(b =>
+          string.Equals(b.Service, service, StringComparison.Ordinal) &&
+          string.Equals(b.ModelKey, modelKey, StringComparison.Ordinal)))
+        throw new ArgumentException(
+            $"Model '{modelKey}' is already bound to service '{service}'; a model key can be bound once per service.",
+            nameof(modelKey));
 
       _bindings.Add(new ComposeServiceModelBinding
       {

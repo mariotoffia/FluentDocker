@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.IO;
 using System.Text;
@@ -36,7 +37,14 @@ namespace FluentDocker.Common
     private int _count;
     private bool _skipLeadingLf;
 
-    public async Task<string> ReadLineAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Reads the next (possibly truncated) line, or <c>null</c> at end of stream — a read that
+    /// reaches EOF without having consumed any character of a new line returns <c>null</c>, never
+    /// an empty string, so callers use <c>null</c> as the end-of-stream sentinel.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the underlying read.</param>
+    /// <returns>The next line without its terminator, or <c>null</c> at end of stream.</returns>
+    public async Task<string?> ReadLineAsync(CancellationToken cancellationToken)
     {
       _line.Clear();
       var sawAny = false;

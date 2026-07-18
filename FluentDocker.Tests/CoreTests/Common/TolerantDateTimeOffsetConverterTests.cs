@@ -158,6 +158,70 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.Equal(default(DateTimeOffset), result);
     }
 
+    // CE-10: numeric epoch timestamps are valid daemon output, not drift.
+
+    [Fact]
+    public void TryDeserialize_NumericEpochSeconds_ParsesAsTimestampNotDrift()
+    {
+      // A parsed (non-default) value proves the number was read as a timestamp, not zeroed as
+      // drift. (DriftCount is process-global, so no equality assertion — parallel tests mutate it.)
+      var json = """[{ "Name": "data", "CreatedAt": 1720000000 }]""";
+
+      var ok = JsonHelper.TryDeserialize<List<Volume>>(json, out var volumes);
+
+      Assert.True(ok);
+      Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1720000000), Assert.Single(volumes!).Created);
+    }
+
+    [Fact]
+    public void TryDeserialize_NumericEpochMilliseconds_ParsesViaMagnitudeHeuristic()
+    {
+      // Magnitudes above 10^12 cannot be epoch seconds (beyond year 9999) and are read as
+      // epoch milliseconds (documented heuristic).
+      var json = """[{ "Name": "data", "CreatedAt": 1720000000000 }]""";
+
+      var ok = JsonHelper.TryDeserialize<List<Volume>>(json, out var volumes);
+
+      Assert.True(ok);
+      Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1720000000000), Assert.Single(volumes!).Created);
+    }
+
+    [Fact]
+    public void TryDeserialize_NumericBeyondTimestampRange_StillDriftsToDefault()
+    {
+      // Larger than FromUnixTimeMilliseconds' max — not representable, so it counts as drift.
+      var before = TolerantDateTimeOffsetConverter.DriftCount;
+      var json = """[{ "Name": "data", "CreatedAt": 999999999999999999 }]""";
+
+      var ok = JsonHelper.TryDeserialize<List<Volume>>(json, out var volumes);
+
+      Assert.True(ok);
+      Assert.Equal(default, Assert.Single(volumes!).Created);
+      Assert.True(TolerantDateTimeOffsetConverter.DriftCount > before);
+    }
+
+    // ML-11: a throwing OnDrift hook must not poison the deserialization it observes.
+    [Fact]
+    public void TryDeserialize_ThrowingOnDriftHook_DoesNotPoisonDeserialization()
+    {
+      var before = TolerantDateTimeOffsetConverter.DriftCount;
+      TolerantDateTimeOffsetConverter.OnDrift = _ => throw new InvalidOperationException("faulty hook");
+      try
+      {
+        var json = """[{ "Name": "data", "CreatedAt": "not-a-date" }]""";
+
+        var ok = JsonHelper.TryDeserialize<List<Volume>>(json, out var volumes);
+
+        Assert.True(ok);
+        Assert.Equal(default, Assert.Single(volumes!).Created);
+        Assert.True(TolerantDateTimeOffsetConverter.DriftCount > before);
+      }
+      finally
+      {
+        TolerantDateTimeOffsetConverter.OnDrift = null;
+      }
+    }
+
     // A stand-in for an arbitrary consumer type (namespace is FluentDocker.Tests.*, not
     // FluentDocker.Model.*), so it is NOT touched by the tolerant DateTimeOffset modifier.
     private sealed class ExternalDto

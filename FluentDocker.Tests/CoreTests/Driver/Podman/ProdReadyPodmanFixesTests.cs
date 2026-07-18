@@ -164,13 +164,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public async Task InitializeAsync_WhenCalledTwice_ThrowsInvalidOperationException()
     {
       await using var pack = new PodmanCliDriverPack();
+      // Hermetic: pack init resolves (never executes) the binary — a fake executable keeps
+      // this unit test green on machines without podman (GATE-1).
+      var fakeBinDir = FluentDocker.Tests.Utilities.FakeBinaryDirectory.Create("podman");
 
       await pack.InitializeAsync(
-          new DriverContext("podman"),
+          new DriverContext("podman") { SearchPaths = [fakeBinDir] },
           TestContext.Current.CancellationToken);
 
       await Assert.ThrowsAsync<InvalidOperationException>(() => pack.InitializeAsync(
-          new DriverContext("podman"),
+          new DriverContext("podman") { SearchPaths = [fakeBinDir] },
           TestContext.Current.CancellationToken));
     }
 

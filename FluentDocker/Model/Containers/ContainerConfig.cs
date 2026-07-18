@@ -1,5 +1,7 @@
 #nullable enable
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace FluentDocker.Model.Containers
 {
@@ -63,5 +65,12 @@ namespace FluentDocker.Model.Containers
 
     /// <summary>Signal used to stop the container (e.g., "SIGTERM").</summary>
     public string? StopSignal { get; set; }
+
+    /// <summary>
+    /// Config fields not modeled by this DTO (e.g. <c>Healthcheck</c>, <c>OnBuild</c>),
+    /// captured verbatim so consumers can reach them without re-parsing the raw inspect output.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalData { get; set; }
   }
 }

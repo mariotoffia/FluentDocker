@@ -334,16 +334,56 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       return kernel;
     }
 
+    // BF-13: WithinDockerCli no longer hard-requires IComposeDriver — compose-free use of the
+    // typed builder (containers/networks/volumes/images) must work on a compose-less pack.
+    // The compose capability check is deferred to UseCompose.
     [Fact]
-    public async Task WithinDockerCli_DriverWithoutCompose_FailsFast()
+    public async Task WithinDockerCli_DriverWithoutCompose_AllowsComposeFreeUse()
     {
       var kernel = await CreateNoPortsKernelAsync("bad");
       try
       {
-        Assert.Throws<InterfaceNotSupportedException>(() =>
-            new Builder().WithinDockerCli("bad", kernel));
+        var typed = new Builder().WithinDockerCli("bad", kernel);
+
+        var result = typed.UseContainer(c => c.UseImage("alpine").WithName("no-compose"));
+
+        Assert.IsType<DockerCliFluentBuilder>(result);
       }
       finally { await kernel.DisposeAsync(); }
+    }
+
+    [Fact]
+    public async Task UseCompose_DriverWithoutCompose_FailsFastAtUseCompose()
+    {
+      var kernel = await CreateNoPortsKernelAsync("bad");
+      try
+      {
+        var typed = new Builder().WithinDockerCli("bad", kernel);
+
+        var ex = Assert.Throws<InterfaceNotSupportedException>(() =>
+            typed.UseCompose(c => c.WithComposeFile("docker-compose.yml")));
+
+        Assert.Contains("IComposeDriver", ex.Message);
+      }
+      finally { await kernel.DisposeAsync(); }
+    }
+
+    [Fact]
+    public async Task WithinDockerCli_ComposeLessContainerPack_BuildsContainer()
+    {
+      var pack = new ComposeLessContainerPack();
+      await pack.InitializeAsync(new DriverContext("docker"), TestContext.Current.CancellationToken);
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      await kernel.RegisterDriverPackAsync("docker", pack, new DriverContext("docker"), cancellationToken: TestContext.Current.CancellationToken);
+      await using (kernel)
+      {
+        await using var results = await new Builder()
+            .WithinDockerCli("docker", kernel)
+            .UseContainer(c => c.UseImage("alpine").WithName("no-compose"))
+            .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Single(results.All);
+      }
     }
 
     [Fact]
@@ -366,11 +406,58 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       public Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
       public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default) => Task.FromResult(DriverCapabilities.Default());
       public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
-      public T SysCtl<T>(string driverId) where T : class => throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
-      public object SysCtl(string driverId, Type interfaceType) => throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-      public bool TrySysCtl<T>(string driverId, out T instance) where T : class { instance = null!; return false; }
       public bool TryResolve(Type interfaceType, out object implementation) { implementation = null!; return false; }
       public IReadOnlyCollection<Type> GetSupportedInterfaces() => [];
+    }
+
+    // A pack exposing only IContainerDriver — no IComposeDriver — proving compose-free container
+    // builds through the typed Docker CLI builder (BF-13).
+    private sealed class ComposeLessContainerPack : IDriverPack
+    {
+      private readonly Dictionary<Type, object> _drivers = [];
+      private Mock<IContainerDriver> ContainerDriver { get; } = new();
+      public DriverType Type => DriverType.DockerCli;
+      public RuntimeType Runtime => RuntimeType.Docker;
+      public Task<DriverCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default) => Task.FromResult(DriverCapabilities.Default());
+      public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+      public Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default)
+      {
+        ContainerDriver.Setup(d => d.CreateAsync(It.IsAny<DriverContext>(), It.IsAny<ContainerCreateConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CommandResponse<ContainerCreateResult>.Ok(new ContainerCreateResult { Id = "container-1" }));
+        ContainerDriver.Setup(d => d.StartAsync(It.IsAny<DriverContext>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+        ContainerDriver.Setup(d => d.InspectAsync(It.IsAny<DriverContext>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CommandResponse<FluentDocker.Model.Containers.Container>.Ok(new FluentDocker.Model.Containers.Container
+            {
+              Id = "container-1",
+              Name = "no-compose",
+              State = new FluentDocker.Model.Containers.ContainerState { Running = true, Status = "running" }
+            }));
+        ContainerDriver.Setup(d => d.RemoveAsync(It.IsAny<DriverContext>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+        _drivers[typeof(IContainerDriver)] = ContainerDriver.Object;
+        return Task.CompletedTask;
+      }
+
+      public T SysCtl<T>(string driverId) where T : class => TryResolve(typeof(T), out var driver)
+          ? (T)driver
+          : throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+      public object SysCtl(string driverId, Type interfaceType) => TryResolve(interfaceType, out var driver)
+          ? driver
+          : throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+      {
+        if (TryResolve(typeof(T), out var driver))
+        {
+          instance = (T)driver;
+          return true;
+        }
+        instance = null!;
+        return false;
+      }
+      public bool TryResolve(Type interfaceType, out object implementation) => _drivers.TryGetValue(interfaceType, out implementation!);
+      public IReadOnlyCollection<Type> GetSupportedInterfaces() => [.. _drivers.Keys];
     }
 
     #endregion

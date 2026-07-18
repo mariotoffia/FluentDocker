@@ -51,8 +51,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var kernel = new FluentDockerKernel(
           new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
+#pragma warning disable CA2263 // Deliberate: this test exercises the non-generic SysCtl overload.
       var ex = Assert.Throws<InvalidOperationException>(() =>
           kernel.SysCtl("   ", typeof(IMarker)));
+#pragma warning restore CA2263
 
       Assert.Contains("No default driver configured", ex.Message, StringComparison.Ordinal);
     }
@@ -78,7 +80,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       await registry.RegisterAsync(
           "fast", new TestDriver(), new DriverContext("fast"),
-          TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromMilliseconds(250));
+          TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
 
       Assert.True(registry.IsRegistered("fast"));
       await registry.DisposeAsync();
@@ -97,7 +99,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       var dispose = registry.DisposeAsync().AsTask();
       await slow.DisposeStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
-      await dispose.WaitAsync(TimeSpan.FromSeconds(2));
+      await dispose.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
       Assert.Equal(1, slow.DisposeCount);
       Assert.InRange(fast.DisposeCount, 0, 1);

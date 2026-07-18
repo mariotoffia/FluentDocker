@@ -3,7 +3,9 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
@@ -77,11 +79,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         RequestTimeout = TimeSpan.FromSeconds(2)
       });
 
-      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      // Typed DriverException (not a raw InvalidOperationException) with the dedicated
+      // non-transient code so CommandResponse-returning drivers map it to Fail (DAPI-5).
+      var ex = await Assert.ThrowsAsync<DriverException>(() =>
           conn.GetAsync("/info", TestContext.Current.CancellationToken));
 
       Assert.Contains("daemon API version 1.20 is too old", ex.Message);
       Assert.Contains("need >= 1.24", ex.Message);
+      Assert.Equal(ErrorCodes.Api.UnsupportedVersion, ex.ErrorCode);
+      Assert.False(ex.IsTransient);
     }
 
   }

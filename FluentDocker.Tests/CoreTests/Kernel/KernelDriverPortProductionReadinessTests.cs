@@ -29,6 +29,29 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
+    public void DriverPackBase_NullMappedInterface_IsTreatedAsUnsupported()
+    {
+      // DRV-11: a subclass can write null straight into Drivers; TryResolve and
+      // TryResolveSysCtl must report the interface unsupported instead of returning
+      // true with a null instance (which would violate [NotNullWhen(true)]).
+      var pack = new NullInsertingPackBase();
+
+      Assert.False(pack.TryResolve(typeof(IImageDriver), out var implementation));
+      Assert.Null(implementation);
+      Assert.False(pack.TryResolveImageDriver(out var typed));
+      Assert.Null(typed);
+    }
+
+    [Fact]
+    public void DriverPackBase_RegisteredDriver_StillResolves()
+    {
+      var pack = new NullInsertingPackBase();
+
+      Assert.True(pack.TryResolve(typeof(IContainerDriver), out var implementation));
+      Assert.Same(pack.ContainerDriver, implementation);
+    }
+
+    [Fact]
     public async Task TrySysCtl_WhenInterfaceUnsupported_ReturnsFalseAndNull()
     {
       await using var kernel = new FluentDockerKernel(
@@ -178,6 +201,20 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       Assert.True(attribute.ReturnValue);
     }
 
+    private sealed class NullInsertingPackBase : DriverPackBase
+    {
+      public IContainerDriver ContainerDriver { get; } = new Mock<IContainerDriver>().Object;
+
+      public NullInsertingPackBase()
+      {
+        Drivers[typeof(IImageDriver)] = null!;
+        Drivers[typeof(IContainerDriver)] = ContainerDriver;
+      }
+
+      public bool TryResolveImageDriver(out IImageDriver? instance) =>
+          TryResolveSysCtl(out instance);
+    }
+
     private class FallbackThrowsPack : IDriverPack
     {
       public int FallbackCalls;
@@ -194,19 +231,10 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
           Task.FromResult(true);
 
-      public T SysCtl<T>(string driverId) where T : class =>
-          throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
-
       public object SysCtl(string driverId, Type interfaceType)
       {
         Interlocked.Increment(ref FallbackCalls);
         throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-      }
-
-      public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-      {
-        instance = null!;
-        return false;
       }
 
       public virtual bool TryResolve(Type interfaceType, out object implementation)

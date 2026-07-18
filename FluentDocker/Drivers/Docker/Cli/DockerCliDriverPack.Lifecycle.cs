@@ -31,7 +31,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         // Do not Clear() _drivers: resolution reads it lock-free (IDriverPack contract),
         // so mutating it here is a torn-read data race with an in-flight resolver. The
         // _disposed guard fences new callers; the dictionary stays immutable after init.
-        _initialized = false;
+        Volatile.Write(ref _initialized, false);
         _context = null;
         _binaryResolver = null;
       }
@@ -51,7 +51,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     private void ThrowIfNotInitialized()
     {
       ThrowIfDisposed();
-      if (!_initialized)
+      if (!Volatile.Read(ref _initialized))
         throw new InvalidOperationException(
             "DockerCliDriverPack has not been initialized. Call InitializeAsync first.");
     }

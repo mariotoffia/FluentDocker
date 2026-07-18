@@ -308,7 +308,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
         ParameterCount = parameters,
         Quantization = quant,
         Size = size,
-        Created = created > 0 ? DateTimeOffset.FromUnixTimeSeconds(created).UtcDateTime : default,
+        Created = created > 0 ? DateTimeOffset.FromUnixTimeSeconds(created) : default,
         Config = config
       };
     }

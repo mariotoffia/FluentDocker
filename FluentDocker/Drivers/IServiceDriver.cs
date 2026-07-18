@@ -90,7 +90,12 @@ namespace FluentDocker.Drivers
     /// </summary>
     /// <param name="context">Driver context</param>
     /// <param name="serviceId">Service ID or name</param>
-    /// <param name="pretty">Format output for readability</param>
+    /// <param name="pretty">
+    /// When <c>true</c>, the CLI's human-readable rendering is returned in
+    /// <see cref="ServiceDetails.Pretty"/> and the structured fields (other than
+    /// <see cref="ServiceDetails.Id"/>) are NOT populated — the pretty format is not
+    /// machine-parseable. Use the default <c>false</c> for structured details.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Service details</returns>
     Task<CommandResponse<ServiceDetails>> InspectAsync(
@@ -136,6 +141,13 @@ namespace FluentDocker.Drivers
   {
     /// <summary>Service ID.</summary>
     public string Id { get; set; }
+
+    /// <summary>
+    /// The CLI's human-readable inspect rendering. Populated ONLY when
+    /// <c>InspectAsync(..., pretty: true)</c> was requested; <c>null</c> otherwise.
+    /// When set, the structured fields (except <see cref="Id"/>) are not populated.
+    /// </summary>
+    public string Pretty { get; set; }
 
     /// <summary>Service version.</summary>
     public long Version { get; set; }

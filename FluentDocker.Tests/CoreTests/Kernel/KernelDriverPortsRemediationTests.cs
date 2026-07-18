@@ -229,15 +229,8 @@ namespace FluentDocker.Tests.CoreTests.Kernel
           Task.FromResult(DriverCapabilities.Default());
       public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
           Task.FromResult(true);
-      public T SysCtl<T>(string driverId) where T : class =>
-          throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
       public virtual object SysCtl(string driverId, Type interfaceType) =>
           throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-      public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-      {
-        instance = null!;
-        return false;
-      }
       public virtual bool TryResolve(Type interfaceType, out object implementation)
       {
         implementation = null!;
@@ -326,12 +319,14 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       public TaskCompletionSource CompleteDispose { get; } =
           new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+#pragma warning disable CA2215 // Deliberate: the mock counts/controls dispose itself; calling base would double-count.
       public override async ValueTask DisposeAsync()
       {
         Interlocked.Increment(ref DisposeAsyncCount);
         DisposeStarted.SetResult();
         await CompleteDispose.Task.ConfigureAwait(false);
       }
+#pragma warning restore CA2215
     }
 
     private sealed class PackFallbackException : Exception

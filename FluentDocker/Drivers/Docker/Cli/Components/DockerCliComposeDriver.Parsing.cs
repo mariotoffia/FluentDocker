@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
@@ -25,10 +26,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     /// <param name="output">Raw CLI output from <c>docker compose top</c>.</param>
     /// <param name="containersByName">Optional compose ps records keyed by container name.</param>
+    /// <param name="logger">Optional logger; header-detection anomalies are reported at Debug.</param>
     /// <returns>Parsed list of processes grouped by container (legacy) or service (modern).</returns>
     public static IList<ComposeProcesses> ParseTopOutput(
         string output,
-        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName = null)
+        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName = null,
+        ILogger logger = null)
     {
       if (string.IsNullOrWhiteSpace(output))
         return new List<ComposeProcesses>();
@@ -36,8 +39,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var lines = output.Split(NewlineSeparator);
 
       return IsSingleTableTop(lines)
-          ? ParseSingleTableTop(lines, containersByName)
-          : ParseLegacyBlockTop(lines, containersByName);
+          ? ParseSingleTableTop(lines, containersByName, logger)
+          : ParseLegacyBlockTop(lines, containersByName, logger);
     }
 
     /// <summary>
@@ -68,7 +71,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private static IList<ComposeProcesses> ParseSingleTableTop(
         string[] lines,
-        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName)
+        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName,
+        ILogger logger = null)
     {
       var result = new List<ComposeProcesses>();
       var byService = new Dictionary<string, ComposeProcesses>(StringComparer.Ordinal);
@@ -83,7 +87,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         if (columns == null)
         {
-          columns = SplitTopHeaderLine(line);
+          columns = SplitTopHeaderLine(line, logger);
           serviceColumn = columns.FirstOrDefault(c =>
               string.Equals(c.Name, "SERVICE", StringComparison.OrdinalIgnoreCase)).Name;
           continue;
@@ -149,7 +153,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private static IList<ComposeProcesses> ParseLegacyBlockTop(
         string[] lines,
-        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName)
+        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName,
+        ILogger logger = null)
     {
       var result = new List<ComposeProcesses>();
 
@@ -184,7 +189,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         var containerName = block[0].Trim();
         var headerLine = block[1];
-        var columns = SplitTopHeaderLine(headerLine);
+        var columns = SplitTopHeaderLine(headerLine, logger);
         // ponytail: compose top only names the container; without ps JSON this is the best-effort fallback.
         var service = containerName;
         string containerId = null;
@@ -217,7 +222,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <summary>
     /// Splits a header line into column names by whitespace.
     /// </summary>
-    private static TopColumn[] SplitTopHeaderLine(string headerLine)
+    private static TopColumn[] SplitTopHeaderLine(string headerLine, ILogger logger = null)
     {
       var headers = headerLine.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
       var columns = new TopColumn[headers.Length];
@@ -225,6 +230,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       for (var i = 0; i < headers.Length; i++)
       {
         var start = headerLine.IndexOf(headers[i], searchStart, StringComparison.Ordinal);
+        if (start < 0 && logger?.IsEnabled(LogLevel.Debug) == true)
+        {
+          // Best-effort column detection: a drifted `compose top` header would otherwise
+          // silently misassign column offsets — surface the anomaly for diagnosis.
+          logger.LogDebug(
+              "Compose top header token '{Token}' could not be located in header line '{Header}'; column offsets may be misassigned.",
+              headers[i],
+              headerLine);
+        }
+
         columns[i] = new TopColumn(headers[i], start < 0 ? searchStart : start);
         searchStart = columns[i].Start + headers[i].Length;
       }

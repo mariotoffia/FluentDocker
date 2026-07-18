@@ -53,15 +53,13 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.Contains("Expected format name=value", ex.Message);
     }
 
+    // BF-10: a null/whitespace image name now fails at the UseImage call, not first at BuildAsync.
     [Fact]
-    public async Task UseImage_NullName_ThrowsAtBuildTime()
+    public void UseImage_NullName_ThrowsAtConfigurationTime()
     {
-      var builder = NewScopedBuilder().UseImage(null!, df => df.UseParent("alpine"));
+      Assert.ThrowsAny<ArgumentException>(() =>
+          NewScopedBuilder().UseImage(null!, df => df.UseParent("alpine")));
 
-      var ex = await Assert.ThrowsAsync<FluentDockerException>(() =>
-          builder.BuildAsync(cancellationToken: TestContext.Current.CancellationToken));
-
-      Assert.Contains("without a name", ex.Message);
       MockPack.ImageDriver.Verify(d => d.BuildAsync(
           It.IsAny<DriverContext>(), It.IsAny<ImageBuildConfig>(),
           It.IsAny<IProgress<ImageBuildProgress>>(), It.IsAny<CancellationToken>()), Times.Never);

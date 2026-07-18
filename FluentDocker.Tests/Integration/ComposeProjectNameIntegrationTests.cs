@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.Integration
                 .WithWait())
             .BuildAsync(cancellationToken: cancellationToken);
 
-        var compose = results.ComposeServices.First();
+        var compose = results.ComposeServices[0];
         var services = await compose.ListServicesAsync(cancellationToken);
         var web = services.First(s => s.Name == "web");
         Assert.Equal("running", web.State, ignoreCase: true);

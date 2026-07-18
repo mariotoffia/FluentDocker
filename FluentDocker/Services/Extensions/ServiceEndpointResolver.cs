@@ -38,11 +38,14 @@ namespace FluentDocker.Services.Extensions
         Uri dockerHost,
         CancellationToken cancellationToken)
     {
-      if (ports == null)
-        return null;
-
+      // The custom resolver is consulted even when the inspect carries no port map (ports == null):
+      // resolvers exist precisely to handle host-network/portless containers that the default
+      // binding-based logic below cannot resolve.
       if (customResolver != null)
         return customResolver(ports, portAndProto, dockerHost);
+
+      if (ports == null)
+        return null;
 
       if (!ports.TryGetValue(portAndProto, out var bindings) ||
           bindings == null || bindings.Length == 0)
