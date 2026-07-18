@@ -13,6 +13,8 @@
 # Sonarqube
 .sonarqube/
 
+.temp-files/
+
 # User-specific files
 *.suo
 *.user
