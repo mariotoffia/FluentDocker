@@ -1,3 +1,4 @@
+#nullable disable warnings
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Drivers.Docker.Api.ApiModels

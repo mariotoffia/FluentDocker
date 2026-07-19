@@ -1,3 +1,4 @@
+#nullable disable warnings
 namespace FluentDocker.Drivers.Docker.Api
 {
 #pragma warning disable CA1000 // Static members on generic type — factory pattern is intentional API design

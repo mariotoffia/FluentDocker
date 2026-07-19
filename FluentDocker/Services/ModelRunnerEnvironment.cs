@@ -1,3 +1,4 @@
+#nullable disable warnings
 using System;
 using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Models.Connection;

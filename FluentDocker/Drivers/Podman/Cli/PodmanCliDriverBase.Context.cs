@@ -1,3 +1,4 @@
+#nullable disable warnings
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging.Abstractions;

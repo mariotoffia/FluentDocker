@@ -1,3 +1,4 @@
+#nullable disable warnings
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;

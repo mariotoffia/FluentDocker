@@ -1,3 +1,4 @@
+#nullable disable warnings
 using System;
 using System.Text.RegularExpressions;
 using FluentDocker.Common;

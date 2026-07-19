@@ -1,3 +1,4 @@
+#nullable disable warnings
 using System;
 
 namespace FluentDocker.Builders.Compose

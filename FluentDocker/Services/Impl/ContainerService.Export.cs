@@ -1,3 +1,4 @@
+#nullable disable warnings
 using System;
 using System.Formats.Tar;
 using System.IO;

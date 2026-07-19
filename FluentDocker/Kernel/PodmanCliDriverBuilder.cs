@@ -1,3 +1,4 @@
+#nullable disable warnings
 using System;
 using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Model.Common;

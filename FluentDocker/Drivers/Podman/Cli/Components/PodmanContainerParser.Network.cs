@@ -1,3 +1,4 @@
+#nullable disable warnings
 using System.Collections.Generic;
 using System.Text.Json;
 using FluentDocker.Common;
