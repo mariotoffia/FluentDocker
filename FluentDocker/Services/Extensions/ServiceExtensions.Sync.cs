@@ -19,7 +19,7 @@ namespace FluentDocker.Services.Extensions
     /// <summary>
     /// Gets the host-exposed endpoint synchronously.
     /// </summary>
-    public static IPEndPoint ToHostExposedEndpoint(this IContainerService service, string portAndProto)
+    public static IPEndPoint? ToHostExposedEndpoint(this IContainerService service, string portAndProto)
     {
       return Task.Run(() => service.ToHostExposedEndpointAsync(portAndProto)).GetAwaiter().GetResult();
     }

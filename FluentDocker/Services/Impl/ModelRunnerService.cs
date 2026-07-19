@@ -71,7 +71,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public ModelReference DefaultModel => _defaultModel!;
+    public ModelReference? DefaultModel => _defaultModel;
 
     /// <inheritdoc />
     /// <remarks>

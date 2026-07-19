@@ -43,7 +43,7 @@ namespace FluentDocker.Services
     /// <param name="portAndProto">Port and protocol, e.g. <c>5432/tcp</c>.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The endpoint reachable from the test host, or null when not bound.</returns>
-    Task<IPEndPoint> ToHostExposedEndpointAsync(
+    Task<IPEndPoint?> ToHostExposedEndpointAsync(
         string portAndProto,
         CancellationToken cancellationToken = default);
 

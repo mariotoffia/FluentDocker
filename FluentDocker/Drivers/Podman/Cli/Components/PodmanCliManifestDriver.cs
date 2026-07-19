@@ -480,7 +480,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           entry.Platform.Features = new List<string>();
           foreach (var f in features.Value.EnumerateArray())
-            entry.Platform.Features.Add(f.GetString()!);
+            entry.Platform.Features.Add(f.GetString() ?? string.Empty);
         }
       }
 

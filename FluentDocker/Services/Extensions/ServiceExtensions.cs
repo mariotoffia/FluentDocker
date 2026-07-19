@@ -48,8 +48,8 @@ namespace FluentDocker.Services.Extensions
     /// <param name="service">The container service.</param>
     /// <param name="portAndProto">Port and protocol, e.g., "5432/tcp".</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The IP endpoint accessible from the host.</returns>
-    public static async Task<IPEndPoint> ToHostExposedEndpointAsync(
+    /// <returns>The IP endpoint accessible from the host, or null when the port is not bound.</returns>
+    public static async Task<IPEndPoint?> ToHostExposedEndpointAsync(
         this IContainerService service,
         string portAndProto,
         CancellationToken cancellationToken = default)

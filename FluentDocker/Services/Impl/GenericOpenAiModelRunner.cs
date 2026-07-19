@@ -65,7 +65,7 @@ namespace FluentDocker.Services.Impl
     private readonly Func<CancellationToken, Task<bool>>? _statusProbe;
 
     /// <inheritdoc />
-    public ModelReference DefaultModel => _defaultModel!;
+    public ModelReference? DefaultModel => _defaultModel;
 
     /// <inheritdoc />
     /// <remarks>

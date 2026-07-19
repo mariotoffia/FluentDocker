@@ -330,7 +330,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var result = new List<string>();
         foreach (var item in el.EnumerateArray())
-          result.Add(item.GetString()!);
+          result.Add(item.GetString() ?? string.Empty);
         return [.. result];
       }
 
@@ -345,7 +345,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
       var result = new List<string>();
       foreach (var item in token.Value.EnumerateArray())
-        result.Add(item.GetString()!);
+        result.Add(item.GetString() ?? string.Empty);
       return [.. result];
     }
 

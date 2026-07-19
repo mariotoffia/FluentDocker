@@ -87,13 +87,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var data = result.Data;
       var titlesEl = data.Prop("Titles");
       if (titlesEl?.ValueKind == JsonValueKind.Array)
-        processes.Titles = [.. titlesEl.Value.EnumerateArray().Select(t => t.GetString()!)];
+        processes.Titles = [.. titlesEl.Value.EnumerateArray().Select(t => t.GetString() ?? string.Empty)];
       var rowsEl = data.Prop("Processes");
       if (rowsEl?.ValueKind == JsonValueKind.Array)
       {
         processes.Processes = [.. rowsEl.Value.EnumerateArray()
             .Select(row => row.ValueKind == JsonValueKind.Array
-                ? row.EnumerateArray().Select(c => c.GetString()!).ToList()
+                ? row.EnumerateArray().Select(c => c.GetString() ?? string.Empty).ToList()
                 : [])];
       }
       return CommandResponse<ContainerProcesses>.Ok(processes);

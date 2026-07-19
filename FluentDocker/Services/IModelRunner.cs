@@ -16,8 +16,8 @@ namespace FluentDocker.Services
   /// </summary>
   public interface IModelRunner : IModelStore, IModelEngine, IModelInference, IAsyncDisposable
   {
-    /// <summary>The default model bound at build time (nullable).</summary>
-    ModelReference DefaultModel { get; }
+    /// <summary>The default model bound at build time, or null when none was configured.</summary>
+    ModelReference? DefaultModel { get; }
 
     /// <summary>
     /// The context/default endpoint used for diagnostics. When inference is routed through

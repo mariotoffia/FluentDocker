@@ -399,18 +399,18 @@ namespace FluentDocker.Services.Impl
     /// <summary>
     /// Gets the host-exposed endpoint for a container port, using custom resolver if configured.
     /// </summary>
-    public async Task<IPEndPoint> ToHostExposedEndpointAsync(
+    public async Task<IPEndPoint?> ToHostExposedEndpointAsync(
         string portAndProto,
         CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
-      return (await ServiceEndpointResolver.ResolveAsync(
+      return await ServiceEndpointResolver.ResolveAsync(
           this,
           portAndProto,
           _customResolver!,
           GetDockerHostUri(),
-          cancellationToken).ConfigureAwait(false))!;
+          cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
