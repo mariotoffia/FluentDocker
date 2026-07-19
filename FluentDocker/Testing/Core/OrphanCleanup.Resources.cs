@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,9 +15,9 @@ namespace FluentDocker.Testing.Core
   /// </summary>
   public static partial class OrphanCleanup
   {
-    private static async Task<IList<Model.Containers.Container>> CleanupContainersAsync(
+    private static async Task<IList<Model.Containers.Container>?> CleanupContainersAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
+        string? currentSessionId, TimeSpan minimumAge, string? targetSessionId,
         CleanupResult result, CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<IContainerDriver>(driverId, out var driver))
@@ -35,11 +34,11 @@ namespace FluentDocker.Testing.Core
       foreach (var container in containers)
       {
         var containerLabels = container.Config?.Labels as IDictionary<string, string>;
-        Model.Containers.Container inspected = null;
+        Model.Containers.Container? inspected = null;
         if (containerLabels == null || containerLabels.Count == 0)
         {
           // ponytail: one inspect per managed CLI-listed container; upgrade path = map labels in list parsers.
-          inspected = await TryInspectContainerAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
+          inspected = await TryInspectContainerAsync(driver, context, container.Id!, cancellationToken).ConfigureAwait(false);
           containerLabels = inspected?.Config?.Labels as IDictionary<string, string>;
         }
         var targetCleanup = !string.IsNullOrEmpty(targetSessionId);
@@ -54,7 +53,7 @@ namespace FluentDocker.Testing.Core
           continue;
         if (!targetCleanup && !isAbandonedLateProvision)
         {
-          inspected ??= await TryInspectContainerAsync(driver, context, container.Id, cancellationToken).ConfigureAwait(false);
+          inspected ??= await TryInspectContainerAsync(driver, context, container.Id!, cancellationToken).ConfigureAwait(false);
           var created = GetCreated(container, inspected);
           if (IsRunning(container, inspected))
           {
@@ -69,9 +68,9 @@ namespace FluentDocker.Testing.Core
         }
         try
         {
-          var removed = await driver.RemoveAsync(context, container.Id, force: true,
+          var removed = await driver.RemoveAsync(context, container.Id!, force: true,
               removeVolumes: false, cancellationToken).ConfigureAwait(false);
-          if (!RemoveSucceeded(removed, "container", container.Id, result))
+          if (!RemoveSucceeded(removed, "container", container.Id!, result))
             continue;
           result.ContainersRemoved++;
           container.Mounts = [];
@@ -88,7 +87,7 @@ namespace FluentDocker.Testing.Core
 
     private static async Task CleanupNetworksAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
+        string? currentSessionId, TimeSpan minimumAge, string? targetSessionId,
         CleanupResult result, CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<INetworkDriver>(driverId, out var driver))
@@ -128,8 +127,8 @@ namespace FluentDocker.Testing.Core
 
         try
         {
-          var removed = await driver.RemoveAsync(context, network.Id ?? network.Name, cancellationToken).ConfigureAwait(false);
-          if (!RemoveSucceeded(removed, "network", network.Name, result))
+          var removed = await driver.RemoveAsync(context, (network.Id ?? network.Name)!, cancellationToken).ConfigureAwait(false);
+          if (!RemoveSucceeded(removed, "network", network.Name ?? string.Empty, result))
             continue;
           result.NetworksRemoved++;
           if (isAbandonedLateProvision)
@@ -144,8 +143,8 @@ namespace FluentDocker.Testing.Core
 
     private static async Task CleanupVolumesAsync(
         FluentDockerKernel kernel, string driverId, DriverContext context,
-        string currentSessionId, TimeSpan minimumAge, string targetSessionId,
-        IList<Model.Containers.Container> containers, CleanupResult result,
+        string? currentSessionId, TimeSpan minimumAge, string? targetSessionId,
+        IList<Model.Containers.Container>? containers, CleanupResult result,
         CancellationToken cancellationToken)
     {
       if (!kernel.TrySysCtl<IVolumeDriver>(driverId, out var driver))
@@ -201,7 +200,7 @@ namespace FluentDocker.Testing.Core
       }
     }
 
-    private static async Task<Model.Containers.Container> TryInspectContainerAsync(
+    private static async Task<Model.Containers.Container?> TryInspectContainerAsync(
         IContainerDriver driver,
         DriverContext context,
         string containerId,
@@ -242,8 +241,8 @@ namespace FluentDocker.Testing.Core
       }
     }
 
-    private static HashSet<string> GetInUseVolumes(
-        IList<Model.Containers.Container> containers)
+    private static HashSet<string>? GetInUseVolumes(
+        IList<Model.Containers.Container>? containers)
     {
       if (containers == null)
         return null;
@@ -264,7 +263,7 @@ namespace FluentDocker.Testing.Core
 
     private static bool IsRunning(
         Model.Containers.Container listed,
-        Model.Containers.Container inspected)
+        Model.Containers.Container? inspected)
     {
       return inspected?.State?.Running == true ||
              listed?.State?.Running == true;
@@ -272,10 +271,10 @@ namespace FluentDocker.Testing.Core
 
     private static DateTimeOffset GetCreated(
         Model.Containers.Container listed,
-        Model.Containers.Container inspected)
+        Model.Containers.Container? inspected)
     {
       if (inspected?.Created != default)
-        return inspected.Created;
+        return inspected!.Created;
       return listed?.Created ?? default;
     }
   }

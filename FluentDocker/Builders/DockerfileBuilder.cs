@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,11 +20,11 @@ namespace FluentDocker.Builders
   public sealed partial class DockerfileBuilder
   {
     private readonly FileBuilderConfig _config = new();
-    private readonly ImageBuilder _parent;
-    private TemplateString _workingFolder;
-    private TemplateString _buildContext;
-    private string _lastContents;
-    private string _preparedDockerfileName;
+    private readonly ImageBuilder? _parent;
+    private TemplateString? _workingFolder;
+    private TemplateString? _buildContext;
+    private string? _lastContents;
+    private string? _preparedDockerfileName;
     private readonly Dictionary<AddCommand, TemplateString> _addSourceOverrides = [];
     private readonly Dictionary<CopyCommand, string> _copySourceOverrides = [];
     private bool _ownsWorkingFolder = true;
@@ -35,7 +34,7 @@ namespace FluentDocker.Builders
     /// the name of the existing Dockerfile relative to the build context, suitable for the
     /// driver's <c>--file</c> argument. <c>null</c> for the default (rendered) build path.
     /// </summary>
-    internal string PreparedDockerfileName => _preparedDockerfileName;
+    internal string? PreparedDockerfileName => _preparedDockerfileName;
 
     internal bool HasFromInstruction =>
         _config.Commands.Any(x => x is FromCommand) ||
@@ -45,7 +44,7 @@ namespace FluentDocker.Builders
     private bool IsInPlaceBuild =>
         _buildContext != null && !string.IsNullOrEmpty(_config.UseFile?.Rendered);
 
-    private static bool ContainsFromInstruction(string contents) =>
+    private static bool ContainsFromInstruction(string? contents) =>
         !string.IsNullOrWhiteSpace(contents) &&
         contents.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .Any(line => line.TrimStart().StartsWith("FROM ", StringComparison.OrdinalIgnoreCase));
@@ -78,9 +77,9 @@ namespace FluentDocker.Builders
       if (IsInPlaceBuild)
         return await PrepareInPlaceBuildAsync(cancellationToken).ConfigureAwait(false);
 
-      await CopyToWorkDirAsync(_workingFolder, strictCopySources, cancellationToken).ConfigureAwait(false);
-      await RenderDockerfileAsync(_workingFolder, cancellationToken).ConfigureAwait(false);
-      return _workingFolder;
+      await CopyToWorkDirAsync(((string?)_workingFolder)!, strictCopySources, cancellationToken).ConfigureAwait(false);
+      await RenderDockerfileAsync(((string?)_workingFolder)!, cancellationToken).ConfigureAwait(false);
+      return ((string?)_workingFolder)!;
     }
 
     private void EnsureBuildContextCanBeUsed()
@@ -97,12 +96,12 @@ namespace FluentDocker.Builders
     /// </summary>
     private async Task<string> PrepareInPlaceBuildAsync(CancellationToken cancellationToken)
     {
-      var context = _buildContext.Rendered;
+      var context = _buildContext!.Rendered;
       if (string.IsNullOrEmpty(context) || !Directory.Exists(context))
         throw new FluentDockerException(
             $"WithBuildContext path '{context}' does not exist.");
 
-      var dockerfilePath = _config.UseFile.Rendered;
+      var dockerfilePath = _config.UseFile!.Rendered;
       if (string.IsNullOrEmpty(dockerfilePath) || !File.Exists(dockerfilePath))
         throw new FluentDockerException(
             $"FromFile path '{dockerfilePath}' does not exist.");
@@ -154,7 +153,7 @@ namespace FluentDocker.Builders
       try
       {
         await PrepareBuildAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-        return _lastContents;
+        return _lastContents!;
       }
       finally
       {
@@ -211,7 +210,7 @@ namespace FluentDocker.Builders
     /// <param name="from">Image name and optional tag</param>
     public DockerfileBuilder UseParent(string from)
     {
-      _config.Commands.Add(new FromCommand(from));
+      _config.Commands.Add(new FromCommand(((TemplateString?)from)!));
       return this;
     }
 
@@ -223,7 +222,7 @@ namespace FluentDocker.Builders
     /// <param name="platform">Optional platform (e.g., linux/amd64)</param>
     public DockerfileBuilder From(string imageAndTag, string? asName = null, string? platform = null)
     {
-      _config.Commands.Add(new FromCommand(imageAndTag, asName, platform));
+      _config.Commands.Add(new FromCommand(((TemplateString?)imageAndTag)!, asName, platform));
       return this;
     }
 
@@ -252,7 +251,7 @@ namespace FluentDocker.Builders
     /// <param name="nameValue">Name=value pairs</param>
     public DockerfileBuilder Label(params string[] nameValue)
     {
-      _config.Commands.Add(new LabelCommand([.. nameValue.Select(x => (TemplateString)x)]));
+      _config.Commands.Add(new LabelCommand([.. nameValue.Select(x => ((TemplateString?)x)!)]));
       return this;
     }
 
@@ -263,7 +262,7 @@ namespace FluentDocker.Builders
     /// <param name="defaultValue">Optional default value</param>
     public DockerfileBuilder Arguments(string name, string? defaultValue = null)
     {
-      _config.Commands.Add(new ArgCommand(name, defaultValue));
+      _config.Commands.Add(new ArgCommand(((TemplateString?)name)!, defaultValue));
       return this;
     }
 
@@ -279,7 +278,7 @@ namespace FluentDocker.Builders
     {
       foreach (var cmd in commands)
       {
-        _config.Commands.Add(new RunCommand(cmd));
+        _config.Commands.Add(new RunCommand(((TemplateString?)cmd)!));
       }
       return this;
     }
@@ -298,7 +297,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerfileBuilder Add(string source, string destination)
     {
-      _config.Commands.Add(new AddCommand(source, destination));
+      _config.Commands.Add(new AddCommand(((TemplateString?)source)!, ((TemplateString?)destination)!));
       return this;
     }
 
@@ -327,11 +326,11 @@ namespace FluentDocker.Builders
         // COPY instructions would otherwise silently ship the second URL's bytes).
         var ordinal = _config.Commands.Count(x => x is CopyURLCommand);
         var tmp = Path.Combine("___fluentdockerdl", ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture), fileName);
-        _config.Commands.Add(new CopyURLCommand(uri, tmp, dest, chownUserAndGroup, fromAlias));
+        _config.Commands.Add(new CopyURLCommand(uri, ((TemplateString?)tmp)!, ((TemplateString?)dest)!, chownUserAndGroup, fromAlias));
         return this;
       }
 
-      _config.Commands.Add(new CopyCommand(source, dest, chownUserAndGroup, fromAlias));
+      _config.Commands.Add(new CopyCommand(((TemplateString?)source)!, ((TemplateString?)dest)!, chownUserAndGroup, fromAlias));
       return this;
     }
 
@@ -367,7 +366,7 @@ namespace FluentDocker.Builders
     /// <param name="nameValue">Name=value pairs</param>
     public DockerfileBuilder Environment(params string[] nameValue)
     {
-      _config.Commands.Add(new EnvCommand([.. nameValue.Select(x => (TemplateString)x)]));
+      _config.Commands.Add(new EnvCommand([.. nameValue.Select(x => ((TemplateString?)x)!)]));
       return this;
     }
 
@@ -376,7 +375,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerfileBuilder Volume(params string[] mountpoints)
     {
-      _config.Commands.Add(new VolumeCommand([.. mountpoints.Select(x => (TemplateString)x)]));
+      _config.Commands.Add(new VolumeCommand([.. mountpoints.Select(x => ((TemplateString?)x)!)]));
       return this;
     }
 
@@ -385,7 +384,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerfileBuilder User(string user, string? group = null)
     {
-      _config.Commands.Add(new UserCommand(user, group));
+      _config.Commands.Add(new UserCommand(((TemplateString?)user)!, group));
       return this;
     }
 

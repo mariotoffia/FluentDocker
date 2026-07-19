@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -31,8 +30,8 @@ namespace FluentDocker.Builders
 
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
-    private string _image;
-    private string _name;
+    private string _image = null!;
+    private string _name = null!;
     private readonly Dictionary<string, string> _environment = [];
     private readonly Dictionary<string, string> _extraHosts = [];
     private readonly Dictionary<string, string> _ports = [];
@@ -46,13 +45,13 @@ namespace FluentDocker.Builders
     private readonly List<LifecycleHook> _lifecycleHooks = [];
     private readonly List<ContainerLink> _links = [];
 
-    private string _workingDir;
-    private string _user;
-    private string _restartPolicy;
-    private string _hostname;
-    private string _networkMode;
-    private string _ipv4Address;
-    private string _ipv6Address;
+    private string? _workingDir;
+    private string? _user;
+    private string? _restartPolicy;
+    private string? _hostname;
+    private string? _networkMode;
+    private string? _ipv4Address;
+    private string? _ipv6Address;
     private long? _memoryLimit;
     private long? _cpuShares;
     private bool _privileged;
@@ -62,12 +61,12 @@ namespace FluentDocker.Builders
     private bool _deleteVolumeOnDispose;
     private bool _deleteNamedVolumeOnDispose;
     private bool _forcePullImage;
-    private Drivers.RegistryLoginConfig _registryAuth;
+    private Drivers.RegistryLoginConfig? _registryAuth;
     private ContainerExistsBehavior _existsBehavior = ContainerExistsBehavior.Default;
     private bool _destroyForce;
     private bool _destroyRemoveVolumes;
-    private Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
-    private string _pod;
+    private Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>? _customResolver;
+    private string? _pod;
     private readonly List<string> _capAdd = [];
     private readonly List<string> _capDrop = [];
     private readonly List<string> _securityOpt = [];
@@ -75,16 +74,16 @@ namespace FluentDocker.Builders
     private readonly Dictionary<string, string> _tmpfs = [];
     private readonly Dictionary<string, string> _devices = [];
     private bool _readonlyRootfs;
-    private string _platform;
-    private string _runtime;
+    private string? _platform;
+    private string? _runtime;
     private bool _interactive;
     private bool _tty;
-    private string[] _entrypoint;
-    private string _stopSignal;
-    private Drivers.HealthCheckConfig _healthCheck;
+    private string[]? _entrypoint;
+    private string? _stopSignal;
+    private Drivers.HealthCheckConfig? _healthCheck;
     private readonly List<string> _dns = [];
     private int _waitPollIntervalMs = 500;
-    private Services.Impl.ContainerService _pendingService;
+    private Services.Impl.ContainerService? _pendingService;
     private bool _waitConditionsExecuted;
     private bool _reusedExisting;
     private bool _startDeferred;

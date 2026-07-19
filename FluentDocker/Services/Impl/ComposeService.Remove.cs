@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -68,7 +67,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to remove compose project '{_projectName}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 

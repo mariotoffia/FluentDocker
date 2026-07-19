@@ -32,8 +32,8 @@ namespace FluentDocker.Common
     /// <param name="errorCode">The driver error code that caused the start failure.</param>
     public ContainerStartException(
         string containerId,
-        string reason,
-        ErrorContext context,
+        string? reason,
+        ErrorContext? context,
         string errorCode = ErrorCodes.Container.StartFailed)
         : base($"Failed to start container '{containerId}': {reason}", errorCode, context) => ContainerId = containerId;
   }

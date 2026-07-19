@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -27,14 +26,14 @@ namespace FluentDocker.Testing.Core
     private int _disposeProvisionGeneration;
     private int _disposeStarted;
     private int _reaperRegistered;
-    private Task _abandonedProvision;
+    private Task? _abandonedProvision;
     // Records (driver, session) keys whose process-wide orphan sweep has already run (TST-MAJ-3).
     private static readonly ConcurrentDictionary<string, byte> _orphanSweepDone = new();
 
     /// <summary>
     /// Creates a new resource with the given kernel and options.
     /// </summary>
-    protected ResourceBase(FluentDockerKernel kernel, DockerResourceOptions options = null)
+    protected ResourceBase(FluentDockerKernel kernel, DockerResourceOptions? options = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       Kernel = kernel;
@@ -59,13 +58,14 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The resolved driver ID for this resource.
     /// </summary>
-    // Nullable annotation scoped to consumer-visible null-before-init properties.
-    public string DriverId { get; private set; }
+    // Non-null contract: assigned by ResolveDriverId during InitializeAsync before any
+    // consumer read; consumer-facing accessors are guarded by initialization checks.
+    public string DriverId { get; private set; } = null!;
     /// <summary>
     /// Unique name generated for this resource. Set during initialization.
     /// </summary>
     // Keep signature; public contract documents availability after initialization.
-    public string ResourceName { get; protected set; }
+    public string ResourceName { get; protected set; } = null!;
     /// <summary>
     /// Diagnostics collected on failure.
     /// </summary>
@@ -278,11 +278,11 @@ namespace FluentDocker.Testing.Core
           BeforeDisposeHookFailed(Logger, ex);
         }
 
-        Exception teardownFailure = null;
+        Exception? teardownFailure = null;
 
         if (_provisioned)
         {
-          Task teardownTask = null;
+          Task? teardownTask = null;
           try
           {
             teardownTask = TeardownAsync(cts.Token);
@@ -298,7 +298,7 @@ namespace FluentDocker.Testing.Core
             {
               Exception? forceRemoveFailure = null;
               using var forceCts = new CancellationTokenSource(Options.TeardownTimeout);
-              Task forceTask = null;
+              Task? forceTask = null;
               try
               {
                 forceTask = ForceRemoveAsync(forceCts.Token);
@@ -425,7 +425,9 @@ namespace FluentDocker.Testing.Core
             "Use DriverSelection.Default or DriverSelection.Specific(id) instead.");
 
       if (Options.Driver.UseDefault)
-        return Kernel.DefaultDriverId;
+        return Kernel.DefaultDriverId
+               ?? throw new InvalidOperationException(
+                   "Kernel has no default driver configured.");
 
       return Options.Driver.DriverId
              ?? throw new InvalidOperationException("DriverSelection has no DriverId set");

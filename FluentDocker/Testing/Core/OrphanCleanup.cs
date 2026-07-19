@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -59,7 +58,7 @@ namespace FluentDocker.Testing.Core
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string currentSessionId = null,
+        string? currentSessionId = null,
         TimeSpan? minimumAge = null,
         CancellationToken cancellationToken = default)
     {
@@ -81,7 +80,7 @@ namespace FluentDocker.Testing.Core
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string currentSessionId,
+        string? currentSessionId,
         TimeSpan minimumAge,
         CancellationToken cancellationToken)
     {
@@ -110,9 +109,9 @@ namespace FluentDocker.Testing.Core
     private static async Task<CleanupResult> CleanupResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string currentSessionId,
+        string? currentSessionId,
         TimeSpan minimumAge,
-        string targetSessionId,
+        string? targetSessionId,
         CancellationToken cancellationToken)
     {
       var result = new CleanupResult();
@@ -149,7 +148,7 @@ namespace FluentDocker.Testing.Core
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string currentSessionId)
+        string? currentSessionId)
     {
       return CleanupOrphanedResourcesAsync(
           kernel, driverId, currentSessionId, DefaultMinimumAge, CancellationToken.None);
@@ -167,7 +166,7 @@ namespace FluentDocker.Testing.Core
     public static Task<CleanupResult> CleanupOrphanedResourcesAsync(
         FluentDockerKernel kernel,
         string driverId,
-        string currentSessionId,
+        string? currentSessionId,
         CancellationToken cancellationToken)
     {
       return CleanupOrphanedResourcesAsync(

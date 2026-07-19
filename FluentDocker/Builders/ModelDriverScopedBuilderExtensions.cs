@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
@@ -36,7 +35,7 @@ namespace FluentDocker.Builders
     /// <param name="builder">The driver-scoped builder.</param>
     /// <param name="runnerBuilder">The runner builder, or null.</param>
     /// <returns><c>true</c> when model running is supported.</returns>
-    public static bool TryUseModelRunner(this IDriverScopedBuilder builder, out IModelRunnerBuilder runnerBuilder)
+    public static bool TryUseModelRunner(this IDriverScopedBuilder builder, out IModelRunnerBuilder? runnerBuilder)
     {
       ArgumentNullException.ThrowIfNull(builder);
       if (HasAnyModelPort(builder))

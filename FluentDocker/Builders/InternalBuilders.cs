@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,20 +26,20 @@ namespace FluentDocker.Builders
 
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
-    private string _name;
+    private string? _name;
     private string _driver = "bridge";
-    private string _subnet;
-    private string _gateway;
-    private string _ipRange;
+    private string? _subnet;
+    private string? _gateway;
+    private string? _ipRange;
     private bool _enableIPv6;
     private bool _internal;
     private bool _removeOnDispose;
     private readonly Dictionary<string, string> _labels = [];
     private readonly Dictionary<string, string> _options = [];
-    private string _createdNetworkId;
+    private string? _createdNetworkId;
 
     internal bool CreatedResource { get; private set; }
-    internal string Name => _name;
+    internal string Name => _name!;
 
     public INetworkBuilder WithName(string name) { _name = name; return this; }
     public INetworkBuilder UseDriver(string driver) { _driver = driver; return this; }
@@ -93,7 +92,7 @@ namespace FluentDocker.Builders
           // Re-own only by Docker's network ID. Names are ambiguous; IDs prove this is the
           // same network this builder created before cleanup missed it.
           return new Services.Impl.NetworkService(
-              _kernel, _driverId, existingNetwork.Id, _name, removeOnDispose: reownPriorAttempt && _removeOnDispose);
+              _kernel, _driverId, existingNetwork.Id!, _name, removeOnDispose: reownPriorAttempt && _removeOnDispose);
         }
       }
 
@@ -113,12 +112,12 @@ namespace FluentDocker.Builders
       var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
         throw new DriverException($"Failed to create network: {response.Error}",
-            response.ErrorCode, response.ErrorContext);
+            response.ErrorCode!, response.ErrorContext);
 
       CreatedResource = true;
-      _createdNetworkId = response.Data.Id;
+      _createdNetworkId = response.Data!.Id;
       return new Services.Impl.NetworkService(
-          _kernel, _driverId, response.Data.Id, _name, _removeOnDispose);
+          _kernel, _driverId, response.Data.Id!, _name, _removeOnDispose);
     }
   }
 
@@ -135,14 +134,14 @@ namespace FluentDocker.Builders
 
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
-    private string _name;
+    private string? _name;
     private string _driver = "local";
     private bool _removeOnDispose;
     private readonly Dictionary<string, string> _driverOpts = [];
     private readonly Dictionary<string, string> _labels = [];
 
     internal bool CreatedResource { get; private set; }
-    internal string Name => _name;
+    internal string Name => _name!;
 
     public IVolumeBuilder WithName(string name) { _name = name; return this; }
     public IVolumeBuilder UseDriver(string driver) { _driver = driver; return this; }
@@ -187,7 +186,7 @@ namespace FluentDocker.Builders
           // reports it as builder-created, not "borrowed" (mirrors NetworkBuilder).
           CreatedResource = priorAttemptCreated;
           return new Services.Impl.VolumeService(
-              _kernel, _driverId, existing.Data.Name, existing.Data.Driver ?? _driver, removeOnDispose: priorAttemptCreated && _removeOnDispose);
+              _kernel, _driverId, existing.Data.Name!, existing.Data.Driver ?? _driver, removeOnDispose: priorAttemptCreated && _removeOnDispose);
         }
       }
 
@@ -202,11 +201,11 @@ namespace FluentDocker.Builders
       var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
         throw new DriverException($"Failed to create volume: {response.Error}",
-            response.ErrorCode, response.ErrorContext);
+            response.ErrorCode!, response.ErrorContext);
 
       CreatedResource = true;
       return new Services.Impl.VolumeService(
-          _kernel, _driverId, response.Data.Name, _driver, _removeOnDispose);
+          _kernel, _driverId, response.Data!.Name!, _driver, _removeOnDispose);
     }
   }
 

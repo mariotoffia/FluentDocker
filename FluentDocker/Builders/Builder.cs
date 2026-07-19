@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,13 +24,13 @@ namespace FluentDocker.Builders
   /// </remarks>
   public partial class Builder : IBuilder, IDriverScopedBuilder
   {
-    private FluentDockerKernel _currentKernel;
-    private string _currentDriverId;
+    private FluentDockerKernel _currentKernel = null!;
+    private string _currentDriverId = null!;
     private readonly List<BuildOperation> _operations = [];
     private const string ModelBuilderAfterOpsMessage =
         "UseModelRunner()/UseModel() cannot be chained after UseContainer/UseNetwork/UseVolume/UseImage/UseCompose/UsePod operations; the model builders return directly and are not part of the deferred build pipeline. Call UseModelRunner()/UseModel() on a fresh Builder.";
     internal IEnumerable<object> ResourceBuilders =>
-        _operations.Where(o => o.ResourceBuilder != null).Select(o => o.ResourceBuilder);
+        _operations.Where(o => o.ResourceBuilder != null).Select(o => o.ResourceBuilder!);
     private volatile bool _buildSucceeded;
     private int _buildInProgress;
 
@@ -419,7 +418,7 @@ namespace FluentDocker.Builders
 
     #region Private
 
-    private void SetScope(string driverId, FluentDockerKernel kernel)
+    private void SetScope(string driverId, FluentDockerKernel? kernel)
     {
       ArgumentException.ThrowIfNullOrWhiteSpace(driverId);
       _currentKernel = kernel ?? _currentKernel ?? throw new InvalidOperationException(

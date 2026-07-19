@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -26,7 +25,7 @@ namespace FluentDocker.Kernel
       }
     }
 
-    private string FirstRegisteredStillPresent()
+    private string? FirstRegisteredStillPresent()
     {
       return _registrationOrder.FirstOrDefault(id =>
           _drivers.ContainsKey(id) || _driverPacks.ContainsKey(id));
@@ -131,16 +130,16 @@ namespace FluentDocker.Kernel
 
     private sealed class DriverRegistration
     {
-      public IDriver Driver { get; set; }
-      public DriverContext Context { get; set; }
+      public IDriver Driver { get; set; } = null!;
+      public DriverContext Context { get; set; } = null!;
       public DriverType Type { get; set; }
       public RuntimeType Runtime { get; set; }
     }
 
     private sealed class DriverPackRegistration
     {
-      public IDriverPack DriverPack { get; set; }
-      public DriverContext Context { get; set; }
+      public IDriverPack DriverPack { get; set; } = null!;
+      public DriverContext Context { get; set; } = null!;
       public DriverType Type { get; set; }
       public RuntimeType Runtime { get; set; }
     }

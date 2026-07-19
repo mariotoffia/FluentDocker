@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -16,10 +15,10 @@ namespace FluentDocker.Services.Extensions
     private static readonly TimeSpan DockerHostAddressCacheTtl = TimeSpan.FromSeconds(30);
     private static readonly ConcurrentDictionary<string, (IPAddress Address, DateTimeOffset ExpiresAt)> DockerHostAddressCache = new();
 
-    internal static async Task<IPEndPoint> ResolveAsync(
+    internal static async Task<IPEndPoint?> ResolveAsync(
         IContainerService service,
         string portAndProto,
-        Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver,
+        Func<Dictionary<string, HostIpEndpoint[]?>?, string, Uri, IPEndPoint> customResolver,
         Uri dockerHost,
         CancellationToken cancellationToken)
     {
@@ -32,10 +31,10 @@ namespace FluentDocker.Services.Extensions
           cancellationToken).ConfigureAwait(false);
     }
 
-    internal static async Task<IPEndPoint> ResolveAsync(
-        Dictionary<string, HostIpEndpoint[]> ports,
+    internal static async Task<IPEndPoint?> ResolveAsync(
+        Dictionary<string, HostIpEndpoint[]?>? ports,
         string portAndProto,
-        Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver,
+        Func<Dictionary<string, HostIpEndpoint[]?>?, string, Uri, IPEndPoint> customResolver,
         Uri dockerHost,
         CancellationToken cancellationToken)
     {
@@ -88,7 +87,7 @@ namespace FluentDocker.Services.Extensions
       return null;
     }
 
-    internal static Uri GetDockerHostUri(string value)
+    internal static Uri? GetDockerHostUri(string value)
     {
       return Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri : null;
     }

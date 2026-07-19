@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -13,7 +12,7 @@ namespace FluentDocker.Services.Extensions
   /// </summary>
   public static class EnvironmentExtensions
   {
-    private static volatile IPAddress _cachedDockerIpAddress;
+    private static volatile IPAddress? _cachedDockerIpAddress;
     private static DateTimeOffset _cachedDockerIpAddressExpiresAt;
     private static readonly object CacheLock = new();
     private static readonly TimeSpan DnsTimeout = TimeSpan.FromSeconds(3);

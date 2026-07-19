@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using FluentDocker.Common;
@@ -66,8 +65,8 @@ namespace FluentDocker.Builders
     {
       var closedScopes = new HashSet<(FluentDockerKernel Kernel, string DriverId)>();
       var hasCurrent = false;
-      FluentDockerKernel currentKernel = null;
-      string currentDriverId = null;
+      FluentDockerKernel currentKernel = null!;
+      string currentDriverId = null!;
 
       foreach (var operation in _operations)
       {

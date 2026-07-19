@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,16 +18,16 @@ namespace FluentDocker.Builders
   {
     private readonly FluentDockerKernel _kernel = kernel;
     private readonly string _driverId = driverId;
-    private ModelReference _model;
+    private ModelReference? _model;
     private int? _contextSize;
-    private string _backend;
-    private string[] _runtimeFlags;
-    private ModelRunnerEndpoint _endpoint;
-    private ModelApiConnectionConfig _config;
-    private string _apiKey;
-    private IModelInferenceDriver _inferenceDriver;
-    private string _inferenceDriverId;
-    private ModelRunOptions _runOptions;
+    private string? _backend;
+    private string[]? _runtimeFlags;
+    private ModelRunnerEndpoint? _endpoint;
+    private ModelApiConnectionConfig? _config;
+    private string? _apiKey;
+    private IModelInferenceDriver? _inferenceDriver;
+    private string? _inferenceDriverId;
+    private ModelRunOptions? _runOptions;
     private bool _keepRunning;
     private bool _pullIfMissing;
 

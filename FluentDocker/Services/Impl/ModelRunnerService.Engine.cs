@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -36,7 +35,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public async Task LoadAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
+    public async Task LoadAsync(ModelReference model, ModelRunOptions? options = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(model);
@@ -44,7 +43,7 @@ namespace FluentDocker.Services.Impl
       await LoadCoreAsync(model, options, cancellationToken).ConfigureAwait(false);
     }
 
-    internal async Task LoadCoreAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
+    internal async Task LoadCoreAsync(ModelReference model, ModelRunOptions? options = null, CancellationToken cancellationToken = default)
     {
       var response = await Runtime().LoadAsync(Context(), model, options, cancellationToken).ConfigureAwait(false);
       UnwrapUnit(response, $"Load model '{model}'");
@@ -101,7 +100,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public async Task InstallRunnerAsync(ModelRunnerInstallOptions options = null, CancellationToken cancellationToken = default)
+    public async Task InstallRunnerAsync(ModelRunnerInstallOptions? options = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       var response = await Runtime().InstallRunnerAsync(Context(), options, cancellationToken).ConfigureAwait(false);
@@ -109,7 +108,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public async Task UninstallRunnerAsync(ModelRunnerUninstallOptions options = null, CancellationToken cancellationToken = default)
+    public async Task UninstallRunnerAsync(ModelRunnerUninstallOptions? options = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       var response = await Runtime().UninstallRunnerAsync(Context(), options, cancellationToken).ConfigureAwait(false);

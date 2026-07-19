@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -14,7 +13,7 @@ namespace FluentDocker.Builders
       Justification = "ComposeBuilder does not own the lifetime of the captured ComposeService; it is handed off via PendingService to BuildResults, which disposes it.")]
   internal sealed partial class ComposeBuilder
   {
-    private Services.Impl.ComposeService _pendingService;
+    private Services.Impl.ComposeService? _pendingService;
     private bool _composeCleanupFailed;
     // Deliberately NOT reset by ResetForRetry: survives across retries on the same builder so a
     // retried BuildAsync() that finds ITS OWN leftover project (created here, but whose cleanup
@@ -24,7 +23,7 @@ namespace FluentDocker.Builders
     private bool _priorAttemptCreatedProject;
 
     private ILogger<ComposeBuilder> Logger => _kernel.LoggerFactory.CreateLogger<ComposeBuilder>();
-    internal IServiceAsync PendingService => _pendingService;
+    internal IServiceAsync? PendingService => _pendingService;
     internal string ProjectName => _projectName;
 
     internal void ResetForRetry()
@@ -34,7 +33,7 @@ namespace FluentDocker.Builders
       BorrowedProject = false;
     }
 
-    internal string FailureKeepReason(IServiceAsync _) =>
+    internal string? FailureKeepReason(IServiceAsync _) =>
         BorrowedProject ? "borrowed" : _composeCleanupFailed ? "compose cleanup failed" : null;
 
     internal bool ForceRemoveOnFailure(IServiceAsync _) => !BorrowedProject && !_composeCleanupFailed;
@@ -215,7 +214,7 @@ namespace FluentDocker.Builders
           _kernel,
           _driverId,
           [.. _composeFiles],
-          _projectName ?? (_composeFiles.Count == 0 ? "compose" : null),
+          _projectName ?? (_composeFiles.Count == 0 ? "compose" : null)!,
           _removeVolumes,
           _removeImages,
           ownedTempFiles,

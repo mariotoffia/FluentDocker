@@ -48,7 +48,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public IContainerService Container
     {
-      get { EnsureInitialized(); return _resource!.Container; }
+      get { EnsureInitialized(); return _resource!.Container!; }
     }
 
     /// <summary>

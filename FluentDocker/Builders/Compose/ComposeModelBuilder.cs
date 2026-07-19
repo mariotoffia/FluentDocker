@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -56,7 +55,7 @@ namespace FluentDocker.Builders.Compose
     }
 
     /// <inheritdoc />
-    public IComposeModelBuilder BindToService(string service, string modelKey, string endpointVar = null, string modelVar = null)
+    public IComposeModelBuilder BindToService(string service, string modelKey, string? endpointVar = null, string? modelVar = null)
     {
       ArgumentNullException.ThrowIfNull(service);
       ArgumentNullException.ThrowIfNull(modelKey);
@@ -151,7 +150,7 @@ namespace FluentDocker.Builders.Compose
       return path;
     }
 
-    private static string ValidateKey(string value, string what)
+    private static string ValidateKey(string? value, string what)
     {
       if (string.IsNullOrEmpty(value) || !KeyPattern.IsMatch(value))
         throw new ArgumentException(
@@ -161,7 +160,7 @@ namespace FluentDocker.Builders.Compose
 
     private static string ValidateEnvName(string value) => ModelEnvName.Validate(value, "envName");
 
-    private static string ValidateModelReference(string value)
+    private static string ValidateModelReference(string? value)
     {
       if (string.IsNullOrEmpty(value) || !ModelReferencePattern.IsMatch(value))
         throw new ArgumentException(
@@ -189,15 +188,15 @@ namespace FluentDocker.Builders.Compose
     }
 
     /// <summary>Renders a value for an error message with line breaks made visible.</summary>
-    private static string Describe(string value) =>
+    private static string Describe(string? value) =>
         value == null ? "<null>" : value.Replace("\r", "\\r").Replace("\n", "\\n");
 
     private sealed class SpecBuilder(string key) : IComposeModelSpecBuilder
     {
       private readonly string _key = key;
-      private string _model;
+      private string? _model;
       private int? _contextSize;
-      private string[] _flags;
+      private string[]? _flags;
 
       public IComposeModelSpecBuilder WithModel(string reference)
       {

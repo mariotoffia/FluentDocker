@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,11 +34,11 @@ namespace FluentDocker.Testing.Core
     /// <paramref name="kernelFactory"/> (e.g. "podman-cli").</param>
     /// <param name="cancellationToken">Cancellation token for the probe.</param>
     public static async Task<bool> IsAvailableAsync(
-        Func<Task<FluentDockerKernel>> kernelFactory = null,
-        string driverId = null,
+        Func<Task<FluentDockerKernel>>? kernelFactory = null,
+        string? driverId = null,
         CancellationToken cancellationToken = default)
     {
-      FluentDockerKernel kernel = null;
+      FluentDockerKernel? kernel = null;
       try
       {
         kernel = kernelFactory != null
@@ -48,7 +47,7 @@ namespace FluentDocker.Testing.Core
         driverId ??= kernel.DefaultDriverId;
         var system = kernel.SysCtl<ISystemDriver>(driverId);
         var response = await system.PingAsync(
-            new DriverContext(driverId),
+            new DriverContext(driverId!),
             cancellationToken).ConfigureAwait(false);
         return response.Success;
       }

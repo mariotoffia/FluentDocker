@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Linq;
 using System.Threading;
@@ -39,7 +38,7 @@ namespace FluentDocker.Builders
         if (!login.Success)
           throw new DriverException(
               $"Registry login failed for '{_registryAuth.Server ?? "Docker Hub"}': {login.Error}",
-              login.ErrorCode, login.ErrorContext);
+              login.ErrorCode ?? ErrorCodes.General.Unknown, login.ErrorContext);
       }
 
       if (!string.IsNullOrEmpty(_name) && _existsBehavior != ContainerExistsBehavior.Default)
@@ -90,14 +89,14 @@ namespace FluentDocker.Builders
                 _destroyForce, _destroyRemoveVolumes, cancellationToken).ConfigureAwait(false);
             if (!remove.Success)
               throw new DriverException($"Failed to remove existing container '{_name}': {remove.Error}",
-                  remove.ErrorCode, remove.ErrorContext);
+                  remove.ErrorCode ?? ErrorCodes.General.Unknown, remove.ErrorContext);
           }
         }
       }
       if (_forcePullImage && imageDriver == null)
         throw new FluentDockerException("ForcePullImage() requires a driver that supports IImageDriver.");
       if (_forcePullImage)
-        await ExecuteForcePullAsync(imageDriver, context, cancellationToken).ConfigureAwait(false);
+        await ExecuteForcePullAsync(imageDriver!, context, cancellationToken).ConfigureAwait(false);
 
       var config = new Drivers.ContainerCreateConfig
       {
@@ -106,9 +105,9 @@ namespace FluentDocker.Builders
         Environment = _environment,
         PortBindings = _ports,
         Command = _command.Count > 0 ? [.. _command] : null,
-        Labels = _labels.Count > 0 ? _labels : null,
-        Volumes = _volumes.Count > 0 ? _volumes : null,
-        Networks = _networks.Count > 0 ? _networks : null,
+        Labels = _labels.Count > 0 ? _labels : null!,
+        Volumes = _volumes.Count > 0 ? _volumes : null!,
+        Networks = _networks.Count > 0 ? _networks : null!,
         WorkingDirectory = _workingDir,
         User = _user,
         RestartPolicy = _restartPolicy,
@@ -123,20 +122,20 @@ namespace FluentDocker.Builders
         AutoRemove = _autoRemove,
         Links = _links.Count > 0
               ? [.. _links.Select(l => l.Alias != l.ContainerName
-                  ? $"{l.ContainerName}:{l.Alias}" : l.ContainerName)]
-              : null,
+                  ? $"{l.ContainerName}:{l.Alias}" : l.ContainerName!)]
+              : null!,
         NetworkAliases = _networkAliases.Count > 0
               ? _networkAliases
-                  .GroupBy(a => a.NetworkName)
-                  .ToDictionary(g => g.Key, g => g.Select(a => a.Alias).ToList())
-              : null,
+                  .GroupBy(a => a.NetworkName!)
+                  .ToDictionary(g => g.Key, g => g.Select(a => a.Alias!).ToList())
+              : null!,
         Pod = _pod,
-        CapAdd = _capAdd.Count > 0 ? _capAdd : null,
-        CapDrop = _capDrop.Count > 0 ? _capDrop : null,
-        SecurityOpt = _securityOpt.Count > 0 ? _securityOpt : null,
+        CapAdd = _capAdd.Count > 0 ? _capAdd : null!,
+        CapDrop = _capDrop.Count > 0 ? _capDrop : null!,
+        SecurityOpt = _securityOpt.Count > 0 ? _securityOpt : null!,
         ShmSize = _shmSize,
-        Tmpfs = _tmpfs.Count > 0 ? _tmpfs : null,
-        Devices = _devices.Count > 0 ? _devices : null,
+        Tmpfs = _tmpfs.Count > 0 ? _tmpfs : null!,
+        Devices = _devices.Count > 0 ? _devices : null!,
         ReadonlyRootfs = _readonlyRootfs,
         Platform = _platform,
         Runtime = _runtime,
@@ -145,16 +144,16 @@ namespace FluentDocker.Builders
         Entrypoint = _entrypoint?.Length > 0 ? _entrypoint : null,
         StopSignal = _stopSignal,
         HealthCheck = _healthCheck,
-        Dns = _dns.Count > 0 ? _dns : null
+        Dns = _dns.Count > 0 ? _dns : null!
       };
 
       var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!response.Success)
         throw new DriverException($"Failed to create container: {response.Error}",
-            response.ErrorCode, response.ErrorContext);
+            response.ErrorCode ?? ErrorCodes.General.Unknown, response.ErrorContext);
 
       var service = new Services.Impl.ContainerService(
-          _kernel, _driverId, response.Data.Id, _image, _name,
+          _kernel, _driverId, response.Data!.Id!, _image, _name,
           !_keepRunning, !_keepContainer,
           _deleteVolumeOnDispose, _deleteNamedVolumeOnDispose,
           _customResolver, _lifecycleHooks);
@@ -171,7 +170,7 @@ namespace FluentDocker.Builders
         {
           await service.StartAsync(cancellationToken).ConfigureAwait(false);
           await WaitForContainerStartedAsync(
-              driver, context, response.Data.Id, _name, AllowCleanExitOnStart,
+              driver, context, response.Data.Id!, _name, AllowCleanExitOnStart,
               StartupTimeoutMs, StartupPollIntervalMs, cancellationToken).ConfigureAwait(false);
           _waitConditionsExecuted = true;
           await RunPostStartAsync(service, cancellationToken).ConfigureAwait(false);
@@ -183,7 +182,7 @@ namespace FluentDocker.Builders
 
           var logTail = ex is OperationCanceledException
               ? null
-              : await WaitDiagnostics.ReadLogTailAsync(driver, context, response.Data.Id, cancellationToken).ConfigureAwait(false);
+              : await WaitDiagnostics.ReadLogTailAsync(driver, context, response.Data.Id!, cancellationToken).ConfigureAwait(false);
           try
           {
             if (!_keepContainer)

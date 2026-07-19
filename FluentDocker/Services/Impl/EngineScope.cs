@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,7 +24,7 @@ namespace FluentDocker.Services.Impl
     private readonly TimeSpan _disposeCleanupTimeout =
         TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     private EngineScopeType _currentScope;
-    private string _lastSwitchError;
+    private string? _lastSwitchError;
     private int _disposed;
 
     private EngineScope(

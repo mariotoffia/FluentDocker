@@ -20,7 +20,7 @@ namespace FluentDocker.Services
     /// Explicitly configured project name, or <c>null</c> when compose derived the name from
     /// the project directory (commands then identify the project via <see cref="ComposeFiles"/>).
     /// </summary>
-    string ProjectName { get; }
+    string? ProjectName { get; }
 
     /// <summary>
     /// Compose file paths.
@@ -72,7 +72,7 @@ namespace FluentDocker.Services
     /// </summary>
     /// <param name="services">The services to restart. When null or empty, the whole project is restarted.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task RestartAsync(IEnumerable<string> services, CancellationToken cancellationToken = default);
+    Task RestartAsync(IEnumerable<string>? services, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resumes paused services in the compose project.

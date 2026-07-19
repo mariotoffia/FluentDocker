@@ -48,7 +48,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public IComposeService Service
     {
-      get { EnsureInitialized(); return _resource!.Service; }
+      get { EnsureInitialized(); return _resource!.Service!; }
     }
 
     /// <summary>

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -90,7 +89,7 @@ namespace FluentDocker.Kernel
 
       var kernel = new FluentDockerKernel(new DriverRegistry(_loggerFactory), _loggerFactory);
       var configIndex = 0;
-      object currentInstance = null;
+      object? currentInstance = null;
       var currentRegistered = false;
       // Only instances the builder itself created (the WithDockerCli/Api/PodmanCli factory packs)
       // are builder-owned. UseCustomDriver/UseCustomDriverPack instances are user-owned and must
@@ -182,11 +181,11 @@ namespace FluentDocker.Kernel
 
     internal sealed class DriverConfiguration
     {
-      public string DriverId { get; set; }
-      public IDriver Driver { get; set; }
-      public IDriverPack DriverPack { get; set; }
-      public Func<IDriverPack> DriverPackFactory { get; set; }
-      public DriverContext Context { get; set; }
+      public string DriverId { get; set; } = null!;
+      public IDriver? Driver { get; set; }
+      public IDriverPack? DriverPack { get; set; }
+      public Func<IDriverPack>? DriverPackFactory { get; set; }
+      public DriverContext Context { get; set; } = null!;
       public bool IsDefault { get; set; }
     }
   }
@@ -197,10 +196,10 @@ namespace FluentDocker.Kernel
   internal sealed class DriverBuilder(string driverId) : IDriverBuilder
   {
     private readonly string _driverId = driverId;
-    private IDriver _driver;
-    private IDriverPack _driverPack;
-    private string _host;
-    private string _certificatePath;
+    private IDriver? _driver;
+    private IDriverPack? _driverPack;
+    private string? _host;
+    private string? _certificatePath;
     private bool _isDefault;
 
     public IDriverBuilder UseCustomDriver(IDriver driver)

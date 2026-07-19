@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,7 +27,7 @@ namespace FluentDocker.Services
     /// container the runtime is about to retry), never "exited"/"dead", so this naturally
     /// returns false while the runtime still intends to restart it.
     /// </summary>
-    internal static bool HasReachedTerminalState(ContainerState state)
+    internal static bool HasReachedTerminalState(ContainerState? state)
     {
       if (state == null)
         return false;
@@ -44,14 +43,14 @@ namespace FluentDocker.Services
     /// <see cref="ThrowIfTerminalAsync"/> or the start gate, then re-wrapped by a builder catch)
     /// is returned unchanged so the tail is never duplicated.
     /// </summary>
-    internal static string AppendLogTail(string message, string logTail) =>
+    internal static string AppendLogTail(string message, string? logTail) =>
         string.IsNullOrWhiteSpace(logTail) ||
         message?.Contains(LogTailMarker, StringComparison.Ordinal) == true
             ? message
             : $"{message}{Environment.NewLine}{LogTailMarker}{Environment.NewLine}{logTail}";
 
     /// <summary>Best-effort log tail read via a raw driver; returns null on any failure.</summary>
-    internal static async Task<string> ReadLogTailAsync(
+    internal static async Task<string?> ReadLogTailAsync(
         IContainerDriver driver,
         DriverContext context,
         string containerId,
@@ -71,7 +70,7 @@ namespace FluentDocker.Services
     }
 
     /// <summary>Best-effort log tail read via a container service; returns null on any failure.</summary>
-    internal static async Task<string> ReadLogTailAsync(
+    internal static async Task<string?> ReadLogTailAsync(
         IContainerService service,
         CancellationToken cancellationToken)
     {
@@ -119,7 +118,7 @@ namespace FluentDocker.Services
 
       var logTail = await ReadLogTailAsync(service, cancellationToken).ConfigureAwait(false);
       throw new FluentDockerException(AppendLogTail(
-          $"Container {service.Id} exited while waiting with exit code {state.ExitCode}.",
+          $"Container {service.Id} exited while waiting with exit code {state!.ExitCode}.",
           logTail));
     }
   }

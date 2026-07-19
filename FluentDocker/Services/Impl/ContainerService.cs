@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -33,7 +32,7 @@ namespace FluentDocker.Services.Impl
     private readonly bool _deleteOnDispose;
     private readonly bool _deleteVolumeOnDispose;
     private readonly bool _deleteNamedVolumeOnDispose;
-    private readonly Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
+    private readonly Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>? _customResolver;
     private readonly List<LifecycleHook> _lifecycleHooks;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private readonly object _stateLock = new();
@@ -82,11 +81,11 @@ namespace FluentDocker.Services.Impl
         bool deleteOnDispose = true,
         bool deleteVolumeOnDispose = false,
         bool deleteNamedVolumeOnDispose = false,
-        Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver = null,
-        List<LifecycleHook> lifecycleHooks = null,
+        Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>? customResolver = null,
+        List<LifecycleHook>? lifecycleHooks = null,
         TimeSpan? disposeCleanupTimeout = null,
         ServiceRunningState initialState = ServiceRunningState.Unknown,
-        TimeProvider timeProvider = null)
+        TimeProvider? timeProvider = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -143,7 +142,7 @@ namespace FluentDocker.Services.Impl
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     /// <inheritdoc />
-    public event ServiceDelegates.StateChange StateChange;
+    public event ServiceDelegates.StateChange? StateChange;
 #pragma warning restore CA1710
 
     /// <inheritdoc />
@@ -169,7 +168,7 @@ namespace FluentDocker.Services.Impl
               _containerId,
               response.Error,
               response.ErrorContext,
-              response.ErrorCode);
+              response.ErrorCode ?? ErrorCodes.General.Unknown);
         }
 
         InvalidateInspectCache();
@@ -184,7 +183,7 @@ namespace FluentDocker.Services.Impl
         if (!inspect.Success)
           throw new DriverException(
               $"Failed to inspect container '{_name}' after start: {inspect.Error}",
-              inspect.ErrorCode,
+              inspect.ErrorCode ?? ErrorCodes.General.Unknown,
               inspect.ErrorContext);
 
         var inspectedState = ParseInspectState(inspect.Data?.State);
@@ -219,7 +218,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to pause container '{_name}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -269,7 +268,7 @@ namespace FluentDocker.Services.Impl
           {
             throw new DriverException(
                 $"Failed to unpause container '{_name}': {response.Error}",
-                response.ErrorCode,
+                response.ErrorCode ?? ErrorCodes.General.Unknown,
                 response.ErrorContext);
           }
 
@@ -324,7 +323,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to stop container '{_name}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -363,7 +362,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to kill container '{_name}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 

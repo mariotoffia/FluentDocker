@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -20,7 +19,7 @@ namespace FluentDocker.Services.Impl
     // of both data and timestamp together, preventing torn reads.
     // The _cacheVersion counter prevents stale writes: if a state change occurs
     // while an InspectAsync is in-flight, the result is discarded rather than cached.
-    private volatile InspectCacheEntry _inspectCacheEntry;
+    private volatile InspectCacheEntry? _inspectCacheEntry;
     private volatile int _cacheVersion;
     private int _inspectSequence;
     private int _lastAppliedInspectSequence;
@@ -68,20 +67,20 @@ namespace FluentDocker.Services.Impl
           await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
         throw new DriverException(
             $"Failed to inspect container '{_name}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
 
-      await ApplyInspectResultIfVersionCurrentAsync(versionBefore, inspectSequence, response.Data)
+      await ApplyInspectResultIfVersionCurrentAsync(versionBefore, inspectSequence, response.Data!)
           .ConfigureAwait(false);
 
-      return response.Data;
+      return response.Data!;
     }
 
     private async Task ApplyInspectResultIfVersionCurrentAsync(int versionBefore, int inspectSequence, Container data)
     {
-      ServiceDelegates.StateChange stateChange = null;
-      StateChangeEventArgs args = null;
+      ServiceDelegates.StateChange? stateChange = null;
+      StateChangeEventArgs? args = null;
       ServiceRunningState? changedState = null;
       lock (_stateLock)
       {
@@ -103,11 +102,11 @@ namespace FluentDocker.Services.Impl
           }
         }
 
-        _inspectCacheEntry = new InspectCacheEntry(data, _timeProvider.GetTimestamp());
+        _inspectCacheEntry = new InspectCacheEntry(data!, _timeProvider.GetTimestamp());
       }
 
       if (stateChange != null)
-        StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
+        StateChangeNotifier.Invoke(stateChange, args!, _logger, "ContainerService");
 
       if (changedState.HasValue)
         await ExecuteHooksAsync(changedState.Value).ConfigureAwait(false);

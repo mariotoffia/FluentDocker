@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,7 +25,7 @@ namespace FluentDocker.Testing.Core
     public NetworkResource(
         FluentDockerKernel kernel,
         Action<NetworkCreateConfig> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -36,7 +35,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The network ID, available after initialization.
     /// </summary>
-    public string NetworkId { get; private set; }
+    public string? NetworkId { get; private set; }
 
     /// <summary>
     /// The network name used during creation.
@@ -46,12 +45,12 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Inspects the network.
     /// </summary>
-    public async Task<Network> InspectAsync(CancellationToken cancellationToken = default)
+    public async Task<Network?> InspectAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
       var result = await driver.InspectAsync(
-          new DriverContext(DriverId), NetworkId, cancellationToken).ConfigureAwait(false);
+          new DriverContext(DriverId), NetworkId!, cancellationToken).ConfigureAwait(false);
       return result.Success ? result.Data : null;
     }
 
@@ -88,7 +87,7 @@ namespace FluentDocker.Testing.Core
         throw new FluentDockerException(
             $"Failed to create network '{config.Name}': {result.Error}");
 
-      var networkId = result.Data.Id;
+      var networkId = result.Data!.Id!;
       if (TryCommitProvision(generation, () =>
       {
         ResourceName = config.Name;
@@ -120,7 +119,7 @@ namespace FluentDocker.Testing.Core
       // Genuine failure: keep NetworkId so DisposeAsync can engage ForceRemoveAsync.
       throw new DriverException(
           $"Failed to remove network '{NetworkId}': {result.Error}",
-          result.ErrorCode,
+          result.ErrorCode!,
           result.ErrorContext);
     }
 
@@ -143,7 +142,7 @@ namespace FluentDocker.Testing.Core
 
       throw new DriverException(
           $"Failed to force-remove network '{id}': {result.Error}",
-          result.ErrorCode,
+          result.ErrorCode!,
           result.ErrorContext);
     }
 

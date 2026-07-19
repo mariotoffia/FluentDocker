@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -92,7 +91,7 @@ namespace FluentDocker.Services.Impl
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     /// <inheritdoc />
-    public event ServiceDelegates.StateChange StateChange;
+    public event ServiceDelegates.StateChange? StateChange;
 #pragma warning restore CA1710
 
     /// <inheritdoc />
@@ -109,11 +108,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to inspect image '{FullName}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -130,11 +129,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get history for image '{FullName}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -151,13 +150,13 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to tag image '{FullName}' as '{repository}:{tag}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
     }
 
     /// <inheritdoc />
-    public async Task PushAsync(IProgress<ImagePushProgress> progress = null, CancellationToken cancellationToken = default)
+    public async Task PushAsync(IProgress<ImagePushProgress>? progress = null, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
@@ -170,7 +169,7 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to push image '{FullName}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
     }
@@ -189,7 +188,7 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to save image '{FullName}' to '{outputPath}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
     }
@@ -249,7 +248,7 @@ namespace FluentDocker.Services.Impl
 
           throw new DriverException(
               $"Failed to remove image '{FullName}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode!,
               response.ErrorContext);
         }
 
@@ -271,7 +270,7 @@ namespace FluentDocker.Services.Impl
         response.Error?.Contains("no such image", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <inheritdoc />
-    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
+    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null)
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(hook);
@@ -335,7 +334,7 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      ServiceDelegates.StateChange stateChange;
+      ServiceDelegates.StateChange? stateChange;
       StateChangeEventArgs args;
       lock (_stateLock)
       {

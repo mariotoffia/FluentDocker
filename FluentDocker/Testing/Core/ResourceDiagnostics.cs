@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 
 namespace FluentDocker.Testing.Core
@@ -11,32 +10,32 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The exception that caused the failure.
     /// </summary>
-    public Exception Failure { get; set; }
+    public Exception? Failure { get; set; }
 
     /// <summary>
     /// Resource name at the time of failure.
     /// </summary>
-    public string ResourceName { get; set; }
+    public string? ResourceName { get; set; }
 
     /// <summary>
     /// Driver ID used.
     /// </summary>
-    public string DriverId { get; set; }
+    public string? DriverId { get; set; }
 
     /// <summary>
     /// Container/service inspect payload (JSON), if available.
     /// </summary>
-    public string InspectPayload { get; set; }
+    public string? InspectPayload { get; set; }
 
     /// <summary>
     /// Logs collected from the resource, if available.
     /// </summary>
-    public string Logs { get; set; }
+    public string? Logs { get; set; }
 
     /// <summary>
     /// Additional context about the operation.
     /// </summary>
-    public string OperationContext { get; set; }
+    public string? OperationContext { get; set; }
   }
 
   /// <summary>

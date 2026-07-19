@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,7 +29,7 @@ namespace FluentDocker.Builders
 #pragma warning disable IDE1006 // Same-assembly compose overlay needs the existing backing fields.
     internal readonly List<string> _composeFiles = [];
     internal readonly List<string> _profiles = [];
-    internal string _projectName;
+    internal string _projectName = null!;
     internal readonly Dictionary<string, string> _environment = [];
 #pragma warning restore IDE1006
     private readonly HashSet<string> _explicitEnvironmentKeys = [];
@@ -51,8 +50,8 @@ namespace FluentDocker.Builders
     internal bool _attachToExisting;
 #pragma warning restore IDE1006
     private readonly List<string> _services = [];
-    private ComposeModelBuilder _models;
-    private string _renderedOverlay;
+    private ComposeModelBuilder? _models;
+    private string? _renderedOverlay;
 
     public IComposeBuilder WithComposeFile(string path) { ArgumentException.ThrowIfNullOrWhiteSpace(path); _composeFiles.Add(path); return this; }
     public IComposeBuilder WithComposeFiles(params string[] paths) { ArgumentNullException.ThrowIfNull(paths); foreach (var path in paths) WithComposeFile(path); return this; }
@@ -236,12 +235,12 @@ namespace FluentDocker.Builders
         RemoveComposeFiles(ownedTempFiles);
         DeleteTempFiles(ownedTempFiles);
         throw new DriverException($"Failed to start compose: {response.Error}",
-            response.ErrorCode, response.ErrorContext);
+            response.ErrorCode ?? ErrorCodes.General.Unknown, response.ErrorContext);
       }
 
       return new Services.Impl.ComposeService(
           _kernel, _driverId, [.. _composeFiles],
-          response.Data.ProjectName ?? _projectName,
+          response.Data?.ProjectName ?? _projectName,
           _removeVolumes, _removeImages, ownedTempFiles,
           downOnDispose: !borrowedProject,
           initialState: _noStart ? ServiceRunningState.Stopped : ServiceRunningState.Running);
@@ -281,12 +280,12 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Renders the configured <see cref="ComposeModelBuilder"/> (if any) to a unique temp
     /// overlay file, appends it to the compose-files list and returns the owned temp-file
-    /// list (or null when no models were configured).
+    /// list (empty when no models were configured).
     /// </summary>
     private IReadOnlyList<string> RenderModelOverlay()
     {
       if (_models is null)
-        return null;
+        return [];
 
       // Drop the overlay from a previous (failed) attempt so retries do not
       // accumulate stale, possibly deleted, temp-file paths.

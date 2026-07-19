@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
@@ -29,7 +28,7 @@ namespace FluentDocker.Services.Impl
     private readonly string _driverId;
     private readonly ModelReference _model;
     private readonly IModelRunner _runner;
-    private readonly ModelRunOptions _runOptions;
+    private readonly ModelRunOptions? _runOptions;
     private readonly bool _keepRunning;
     private readonly TimeSpan _disposeCleanupTimeout;
     private readonly TimeSpan _loadTimeout;
@@ -50,8 +49,8 @@ namespace FluentDocker.Services.Impl
     // (mirrors ContainerService).
     private int _disposeCompleted;
     private int _loadCancellationSignaled;
-    private Task _loadTask;
-    private Task _activeLoadTask;
+    private Task _loadTask = null!;
+    private Task? _activeLoadTask;
 
     /// <summary>Initializes the model service.</summary>
     /// <param name="kernel">The kernel.</param>
@@ -63,7 +62,7 @@ namespace FluentDocker.Services.Impl
     /// <param name="disposeCleanupTimeout">Maximum best-effort unload time during dispose.</param>
     /// <param name="loadTimeout">Maximum wall-clock time for the shared StartAsync load.</param>
     public ModelService(FluentDockerKernel kernel, string driverId, ModelReference model,
-        IModelRunner runner, ModelRunOptions runOptions = null, bool keepRunning = false,
+        IModelRunner runner, ModelRunOptions? runOptions = null, bool keepRunning = false,
         TimeSpan? disposeCleanupTimeout = null, TimeSpan? loadTimeout = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
@@ -125,7 +124,7 @@ namespace FluentDocker.Services.Impl
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design (mirrors IServiceAsync)
     /// <inheritdoc />
-    public event ServiceDelegates.StateChange StateChange;
+    public event ServiceDelegates.StateChange StateChange = null!;
 #pragma warning restore CA1710
 
     /// <inheritdoc />
@@ -146,7 +145,7 @@ namespace FluentDocker.Services.Impl
       if (State == ServiceRunningState.Removed)
         throw new InvalidOperationException("Cannot start a removed model.");
       Task loadTask;
-      TaskCompletionSource<bool> completion = null;
+      TaskCompletionSource<bool>? completion = null;
       lock (_startSync)
       {
         if (_loadInitiated != 0)
@@ -176,8 +175,8 @@ namespace FluentDocker.Services.Impl
     // Drives the one elected load to completion and publishes its outcome to every waiter.
     private async Task DriveSharedLoadAsync(TaskCompletionSource<bool> completion)
     {
-      CancellationTokenSource loadCts = null;
-      Task loadTask = null;
+      CancellationTokenSource? loadCts = null;
+      Task? loadTask = null;
       try
       {
         loadCts = CancellationTokenSource.CreateLinkedTokenSource(_loadCancellation.Token);
@@ -357,7 +356,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
+    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null)
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(hook);

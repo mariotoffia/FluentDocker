@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
@@ -300,7 +299,7 @@ namespace FluentDocker.Kernel
     // TryResolveCore and its resolution-only helpers live in FluentDockerKernel.Resolution.cs
     // (kept as a partial-class split so this file stays under the 500-line limit).
 
-    private string ResolveDriverIdOrDefault(string driverId)
+    private string ResolveDriverIdOrDefault(string? driverId)
     {
       if (!string.IsNullOrWhiteSpace(driverId))
         return driverId;

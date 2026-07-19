@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -31,7 +30,7 @@ namespace FluentDocker.Testing.Core
     /// <param name="loggerFactory">Logger factory for the kernel.
     /// Defaults to <see cref="DefaultFixtureLoggerFactory.Instance"/> (Warning+ to stderr).</param>
     public static Task<FluentDockerKernel> CreateDefaultDockerKernelAsync(
-        ILoggerFactory loggerFactory = null)
+        ILoggerFactory? loggerFactory = null)
         => FluentDockerKernel.Create(loggerFactory ?? DefaultFixtureLoggerFactory.Instance)
             .WithDockerCli("docker-cli", d => d.AsDefault())
             .BuildAsync();
@@ -42,7 +41,7 @@ namespace FluentDocker.Testing.Core
     /// <param name="loggerFactory">Logger factory for the kernel.
     /// Defaults to <see cref="DefaultFixtureLoggerFactory.Instance"/> (Warning+ to stderr).</param>
     public static Task<FluentDockerKernel> CreateDefaultPodmanKernelAsync(
-        ILoggerFactory loggerFactory = null)
+        ILoggerFactory? loggerFactory = null)
         => FluentDockerKernel.Create(loggerFactory ?? DefaultFixtureLoggerFactory.Instance)
             .WithPodmanCli("podman-cli", d => d.AsDefault())
             .BuildAsync();
@@ -77,9 +76,9 @@ namespace FluentDocker.Testing.Core
     public static async Task<(FluentDockerKernel kernel, TResource resource)>
         CreateAndInitializeAsync<TResource>(
             Func<FluentDockerKernel, TResource> resourceFactory,
-            Func<Task<FluentDockerKernel>> kernelFactory = null,
-            Func<Task<FluentDockerKernel>> defaultKernelFactory = null,
-            ILoggerFactory loggerFactory = null,
+            Func<Task<FluentDockerKernel>>? kernelFactory = null,
+            Func<Task<FluentDockerKernel>>? defaultKernelFactory = null,
+            ILoggerFactory? loggerFactory = null,
             CancellationToken cancellationToken = default)
         where TResource : class, ITestResource
     {
@@ -88,8 +87,8 @@ namespace FluentDocker.Testing.Core
       defaultKernelFactory ??= () => CreateDefaultDockerKernelAsync(loggerFactory);
 
       var logger = loggerFactory.CreateLogger(typeof(ResourceLifecycle));
-      FluentDockerKernel kernel = null;
-      TResource resource = null;
+      FluentDockerKernel? kernel = null;
+      TResource? resource = null;
       try
       {
         kernel = (kernelFactory != null

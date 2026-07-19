@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,8 +17,8 @@ namespace FluentDocker.Testing.Core
   public sealed class ModelResource : ResourceBase
   {
     private readonly ModelReference _model;
-    private readonly Action<IModelServiceBuilder> _configure;
-    private IModelService _service;
+    private readonly Action<IModelServiceBuilder>? _configure;
+    private IModelService? _service;
 
     /// <summary>
     /// Creates a model resource from a model reference string.
@@ -27,8 +26,8 @@ namespace FluentDocker.Testing.Core
     public ModelResource(
         FluentDockerKernel kernel,
         string model,
-        Action<IModelServiceBuilder> configure = null,
-        DockerResourceOptions options = null)
+        Action<IModelServiceBuilder>? configure = null,
+        DockerResourceOptions? options = null)
         : this(kernel, ModelReference.Parse(model), configure, options)
     {
     }
@@ -39,8 +38,8 @@ namespace FluentDocker.Testing.Core
     public ModelResource(
         FluentDockerKernel kernel,
         ModelReference model,
-        Action<IModelServiceBuilder> configure = null,
-        DockerResourceOptions options = null)
+        Action<IModelServiceBuilder>? configure = null,
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(model);
@@ -56,7 +55,7 @@ namespace FluentDocker.Testing.Core
       get
       {
         EnsureInitialized();
-        return _service;
+        return _service!;
       }
     }
 

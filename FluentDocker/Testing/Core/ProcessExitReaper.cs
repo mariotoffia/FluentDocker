@@ -1,7 +1,7 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -19,15 +19,15 @@ namespace FluentDocker.Testing.Core
     private readonly ConcurrentDictionary<string, Registration> _registrations = new();
     private readonly object _registrationsLock = new();
     private readonly Func<bool> _isEnabled;
-    private readonly Func<string> _sharedSessionId;
+    private readonly Func<string?> _sharedSessionId;
     private readonly Func<FluentDockerKernel, string, string, CancellationToken, Task> _cleanup;
     private int _cleanupStarted;
 
     /// <summary>Creates a reaper core with injectable seams for tests.</summary>
     public ProcessExitReaperCore(
-        Func<FluentDockerKernel, string, string, CancellationToken, Task> cleanup = null,
-        Func<bool> isEnabled = null,
-        Func<string> sharedSessionId = null)
+        Func<FluentDockerKernel, string, string, CancellationToken, Task>? cleanup = null,
+        Func<bool>? isEnabled = null,
+        Func<string?>? sharedSessionId = null)
     {
       _cleanup = cleanup ?? DefaultCleanupAsync;
       _isEnabled = isEnabled ?? IsEnvironmentEnabled;
@@ -178,7 +178,7 @@ namespace FluentDocker.Testing.Core
 
       public int Decrement() => Interlocked.Decrement(ref _count);
 
-      public bool TryGetKernel(out FluentDockerKernel kernel)
+      public bool TryGetKernel([MaybeNullWhen(false)] out FluentDockerKernel kernel)
       {
         return _kernel.TryGetTarget(out kernel);
       }
@@ -189,8 +189,8 @@ namespace FluentDocker.Testing.Core
   {
     private static readonly ProcessExitReaperCore Core = new();
     private static int _registered;
-    private static PosixSignalRegistration _sigIntRegistration;
-    private static PosixSignalRegistration _sigTermRegistration;
+    private static PosixSignalRegistration? _sigIntRegistration;
+    private static PosixSignalRegistration? _sigTermRegistration;
 
     internal static bool Register(
         FluentDockerKernel kernel,

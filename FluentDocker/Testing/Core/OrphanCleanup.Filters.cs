@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -15,7 +14,7 @@ namespace FluentDocker.Testing.Core
   public static partial class OrphanCleanup
   {
     private static bool IsCurrentSession(
-        IDictionary<string, string> labels, string currentSessionId)
+        IDictionary<string, string>? labels, string? currentSessionId)
     {
       if (currentSessionId == null)
         return IsSession(labels, SessionLabel.SharedSessionId());
@@ -24,7 +23,7 @@ namespace FluentDocker.Testing.Core
              IsSession(labels, SessionLabel.SharedSessionId());
     }
 
-    private static bool IsSession(IDictionary<string, string> labels, string sessionId)
+    private static bool IsSession(IDictionary<string, string>? labels, string? sessionId)
     {
       if (labels == null || string.IsNullOrWhiteSpace(sessionId))
         return false;
@@ -41,8 +40,8 @@ namespace FluentDocker.Testing.Core
     }
 
     private static bool IsAbandonedLateProvision(
-        IDictionary<string, string> labels,
-        params string[] names)
+        IDictionary<string, string>? labels,
+        params string?[] names)
     {
       if (labels == null ||
           !labels.TryGetValue(SessionLabel.Key, out var sessionId) ||
@@ -61,8 +60,8 @@ namespace FluentDocker.Testing.Core
     }
 
     private static void ClearAbandonedLateProvision(
-        IDictionary<string, string> labels,
-        params string[] names)
+        IDictionary<string, string>? labels,
+        params string?[] names)
     {
       if (labels == null ||
           !labels.TryGetValue(SessionLabel.Key, out var sessionId) ||
@@ -84,7 +83,7 @@ namespace FluentDocker.Testing.Core
         name.Trim().TrimStart('/');
 
     private static bool ShouldPreserveDueToAge(
-        IDictionary<string, string> labels,
+        IDictionary<string, string>? labels,
         TimeSpan minimumAge,
         DateTimeOffset daemonCreated = default)
     {
@@ -106,10 +105,10 @@ namespace FluentDocker.Testing.Core
       return created.ToUniversalTime() > DateTimeOffset.UtcNow - minimumAge;
     }
 
-    private static bool ShouldReapRunning(IDictionary<string, string> labels, DateTimeOffset created) =>
+    private static bool ShouldReapRunning(IDictionary<string, string>? labels, DateTimeOffset created) =>
         RunningReapCeiling() is { } ceiling && ceiling > TimeSpan.Zero && !ShouldPreserveDueToAge(labels, ceiling, created);
     private static TimeSpan? RunningReapCeiling() => ParseDuration(Environment.GetEnvironmentVariable(SessionLabel.ReapRunningAfterEnvironmentVariable));
-    private static TimeSpan? ParseDuration(string raw)
+    private static TimeSpan? ParseDuration(string? raw)
     {
       if (string.IsNullOrWhiteSpace(raw))
         return null;

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -12,7 +11,7 @@ namespace FluentDocker.Services.Impl
   public sealed partial class ModelRunnerService
   {
     /// <inheritdoc />
-    public async Task<ModelInfo> PullAsync(ModelReference model, IProgress<ModelPullProgress> progress = null,
+    public async Task<ModelInfo> PullAsync(ModelReference model, IProgress<ModelPullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
@@ -21,7 +20,7 @@ namespace FluentDocker.Services.Impl
       return await PullCoreAsync(model, progress, cancellationToken).ConfigureAwait(false);
     }
 
-    internal async Task<ModelInfo> PullCoreAsync(ModelReference model, IProgress<ModelPullProgress> progress = null,
+    internal async Task<ModelInfo> PullCoreAsync(ModelReference model, IProgress<ModelPullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       var response = await Management().PullAsync(Context(), model, progress, cancellationToken).ConfigureAwait(false);

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,14 +21,14 @@ namespace FluentDocker.Testing.Core
   public class ComposeResource : ResourceBase
   {
     private readonly Action<IComposeBuilder> _configure;
-    private string _sessionLabelOverlayPath;
+    private string? _sessionLabelOverlayPath;
     private bool _borrowedProject;
     private static readonly Action<ILogger, Exception> DiagnosticsLogCollectionFailed =
         LoggerMessage.Define(
             LogLevel.Warning,
             new EventId(1, nameof(DiagnosticsLogCollectionFailed)),
             "Compose diagnostics log collection failed.");
-    private static readonly Action<ILogger, string, Exception> ComposeLabelOverlaySkipped =
+    private static readonly Action<ILogger, string, Exception?> ComposeLabelOverlaySkipped =
         LoggerMessage.Define<string>(
             LogLevel.Warning,
             new EventId(2, nameof(ComposeLabelOverlaySkipped)),
@@ -44,7 +43,7 @@ namespace FluentDocker.Testing.Core
     public ComposeResource(
         FluentDockerKernel kernel,
         Action<IComposeBuilder> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -54,7 +53,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The running compose service, available after initialization.
     /// </summary>
-    public IComposeService Service { get; private set; }
+    public IComposeService? Service { get; private set; }
 
     /// <summary>
     /// Lists all services in the compose project.
@@ -63,7 +62,7 @@ namespace FluentDocker.Testing.Core
         CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
-      return Service.ListServicesAsync(cancellationToken);
+      return Service!.ListServicesAsync(cancellationToken);
     }
 
     /// <summary>
@@ -72,7 +71,7 @@ namespace FluentDocker.Testing.Core
     public Task<string> GetLogsAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
-      return Service.GetLogsAsync(false, cancellationToken);
+      return Service!.GetLogsAsync(false, cancellationToken);
     }
 
     #region ResourceBase overrides
@@ -95,7 +94,7 @@ namespace FluentDocker.Testing.Core
       var ownsGeneratedProject = !callerProjectName && !attachToExisting;
       if (!callerProjectName && !attachToExisting)
         builder._projectName = GenerateUniqueName("compose");
-      string sessionLabelOverlayPath = null;
+      string? sessionLabelOverlayPath = null;
       if (Options.EnableSessionLabels)
       {
         sessionLabelOverlayPath = await CreateSessionLabelOverlayAsync(builder, cancellationToken)
@@ -224,7 +223,7 @@ namespace FluentDocker.Testing.Core
              ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<string> CreateSessionLabelOverlayAsync(
+    private async Task<string?> CreateSessionLabelOverlayAsync(
         ComposeBuilder builder,
         CancellationToken cancellationToken)
     {
@@ -264,7 +263,7 @@ namespace FluentDocker.Testing.Core
           return null;
         }
 
-        if (!JsonHelper.TryDeserialize<JsonElement>(response.Data, out var root) ||
+        if (!JsonHelper.TryDeserialize<JsonElement>(response.Data ?? string.Empty, out var root) ||
             root.ValueKind != JsonValueKind.Object)
         {
           ComposeLabelOverlaySkipped(Logger, "compose config did not return JSON", null);
@@ -407,7 +406,7 @@ namespace FluentDocker.Testing.Core
       DeleteSessionLabelOverlay(path);
     }
 
-    private static void DeleteSessionLabelOverlay(string path)
+    private static void DeleteSessionLabelOverlay(string? path)
     {
       if (string.IsNullOrEmpty(path))
         return;
@@ -427,7 +426,7 @@ namespace FluentDocker.Testing.Core
 
     private async Task RemoveStaleComposeAsync(
         IComposeService compose,
-        string sessionLabelOverlayPath,
+        string? sessionLabelOverlayPath,
         int generation,
         bool ownsGeneratedProject,
         bool borrowedProject)

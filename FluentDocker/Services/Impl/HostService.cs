@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -73,7 +72,7 @@ namespace FluentDocker.Services.Impl
     // Host services have a fixed Running state — event is required by IServiceAsync but never raised.
 #pragma warning disable CS0067, CA1710
     /// <inheritdoc />
-    public event ServiceDelegates.StateChange StateChange;
+    public event ServiceDelegates.StateChange? StateChange;
 #pragma warning restore CS0067, CA1710
 
     #region System Information
@@ -92,11 +91,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get system info: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -113,11 +112,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get version info: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -146,11 +145,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get disk usage: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     #endregion
@@ -166,7 +165,7 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async Task<IList<IContainerService>> GetContainersAsync(
         bool all = true,
-        IDictionary<string, string> filters = null,
+        IDictionary<string, string>? filters = null,
         CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -189,21 +188,21 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to list containers: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
       var services = new List<IContainerService>();
-      foreach (var container in response.Data)
+      foreach (var container in response.Data!)
       {
         // Discovered/borrowed containers: this library did not create them, so disposing
         // the wrapper must never stop or delete a user's running container.
         services.Add(new ContainerService(
             _kernel,
             _driverId,
-            container.Id,
-            container.Image,
-            container.Name,
+            container.Id!,
+            container.Image!,
+            container.Name!,
             stopOnDispose: false,
             deleteOnDispose: false,
             // Seed the real per-container state the list already carries (docker/podman ps reports
@@ -217,7 +216,7 @@ namespace FluentDocker.Services.Impl
     /// <inheritdoc />
     public async Task<IContainerService> CreateContainerAsync(
         string image,
-        ContainerCreateOptions config = null,
+        ContainerCreateOptions? config = null,
         CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
@@ -235,7 +234,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to pull image '{image}': {pullResponse.Error}",
-              pullResponse.ErrorCode,
+              pullResponse.ErrorCode!,
               pullResponse.ErrorContext);
         }
       }
@@ -291,16 +290,16 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to create container from image '{image}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
       return new ContainerService(
           _kernel,
           _driverId,
-          response.Data.Id,
+          response.Data!.Id!,
           image,
-          config.Name ?? response.Data.Name ?? response.Data.Id,
+          config.Name ?? response.Data.Name ?? response.Data.Id!,
           config.StopOnDispose,
           config.DeleteOnDispose,
           config.DeleteVolumeOnDispose,
@@ -349,7 +348,7 @@ namespace FluentDocker.Services.Impl
 
     /// <summary>Hosts have a fixed <see cref="ServiceRunningState.Running"/> state, so hooks would never fire.</summary>
     /// <exception cref="FluentDockerNotSupportedException">Always thrown.</exception>
-    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
+    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null)
     {
       ThrowIfDisposed();
       throw new FluentDockerNotSupportedException("HostService has a fixed Running state and does not support hooks.");
@@ -415,7 +414,7 @@ namespace FluentDocker.Services.Impl
           AddLabelFilter(filter, value);
           break;
         default:
-          filter.Labels[key] = value;
+          filter.Labels[key!] = value;
           break;
       }
     }
@@ -435,10 +434,10 @@ namespace FluentDocker.Services.Impl
       filter.Labels[value[..separator]] = value[(separator + 1)..];
     }
 
-    private static (string Image, string Tag) ParseImagePullReference(string image)
+    private static (string Image, string Tag) ParseImagePullReference(string? image)
     {
       if (string.IsNullOrEmpty(image) || image.Contains('@'))
-        return (image, default!);
+        return (image!, default!);
 
       var slash = image.LastIndexOf('/');
       var colon = image.LastIndexOf(':');
@@ -455,7 +454,7 @@ namespace FluentDocker.Services.Impl
           container.State.Restarting != true)
         return ServiceRunningState.Running;
 
-      return ParseContainerListState(container?.State?.Status);
+      return ParseContainerListState(container?.State?.Status ?? string.Empty);
     }
 
     private static ServiceRunningState ParseContainerListState(string state)

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -88,7 +87,7 @@ namespace FluentDocker.Services.Impl
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     /// <inheritdoc />
-    public event ServiceDelegates.StateChange StateChange;
+    public event ServiceDelegates.StateChange? StateChange;
 #pragma warning restore CA1710
 
     /// <inheritdoc />
@@ -105,11 +104,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to inspect volume '{_volumeName}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <summary>Volumes are already available when represented; start is a no-op.</summary>
@@ -167,7 +166,7 @@ namespace FluentDocker.Services.Impl
 
           throw new DriverException(
               $"Failed to remove volume '{_volumeName}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode!,
               response.ErrorContext);
         }
 
@@ -192,7 +191,7 @@ namespace FluentDocker.Services.Impl
          response.Error.Contains(_volumeName, StringComparison.OrdinalIgnoreCase));
 
     /// <inheritdoc />
-    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
+    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null)
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(hook);
@@ -276,7 +275,7 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      ServiceDelegates.StateChange stateChange;
+      ServiceDelegates.StateChange? stateChange;
       StateChangeEventArgs args;
       lock (_stateLock)
       {

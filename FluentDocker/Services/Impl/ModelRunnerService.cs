@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -26,12 +25,12 @@ namespace FluentDocker.Services.Impl
     private readonly FluentDockerKernel _kernel;
     private readonly string _driverId;
     private readonly ModelRunnerEndpoint _endpoint;
-    private readonly ModelReference _defaultModel;
+    private readonly ModelReference? _defaultModel;
     private readonly InferenceModelId? _defaultInferenceId;
-    private readonly IModelInferenceDriver _inferenceOverride;
-    private readonly IAsyncDisposable _ownedResource;
-    private ModelRunnerCapabilities _capabilities;
-    private DriverContext _context;
+    private readonly IModelInferenceDriver? _inferenceOverride;
+    private readonly IAsyncDisposable? _ownedResource;
+    private ModelRunnerCapabilities? _capabilities;
+    private DriverContext? _context;
     private int _disposed;
 
     /// <summary>Initializes the runner service.</summary>
@@ -56,7 +55,7 @@ namespace FluentDocker.Services.Impl
     /// <c>:latest</c>). Supply this directly to preserve a raw/remote id verbatim.
     /// </param>
     public ModelRunnerService(FluentDockerKernel kernel, string driverId, ModelRunnerEndpoint endpoint,
-        ModelReference defaultModel = null, IModelInferenceDriver inferenceOverride = null, IAsyncDisposable ownedResource = null,
+        ModelReference? defaultModel = null, IModelInferenceDriver? inferenceOverride = null, IAsyncDisposable? ownedResource = null,
         InferenceModelId? defaultInferenceId = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
@@ -72,7 +71,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public ModelReference DefaultModel => _defaultModel;
+    public ModelReference DefaultModel => _defaultModel!;
 
     /// <inheritdoc />
     /// <remarks>
@@ -103,7 +102,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference model = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference? model = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       return await ModelRunnerInferenceHelpers.EmbedAsync(
@@ -188,7 +187,7 @@ namespace FluentDocker.Services.Impl
     private static T Unwrap<T>(CommandResponse<T> response, string operation)
     {
       if (response.Success)
-        return response.Data;
+        return response.Data!;
 
       throw new ModelRunnerException($"{operation} failed: {response.Error}", response.ErrorCode, response.ErrorContext);
     }

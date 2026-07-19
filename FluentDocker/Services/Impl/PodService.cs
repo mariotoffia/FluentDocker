@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -81,7 +80,7 @@ namespace FluentDocker.Services.Impl
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
     /// <inheritdoc />
-    public event ServiceDelegates.StateChange StateChange;
+    public event ServiceDelegates.StateChange? StateChange;
 #pragma warning restore CA1710
 
     /// <inheritdoc />
@@ -226,7 +225,7 @@ namespace FluentDocker.Services.Impl
 
     /// <inheritdoc />
     public IServiceAsync AddHook(
-        ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
+        ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null)
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(hook);
@@ -310,7 +309,7 @@ namespace FluentDocker.Services.Impl
 
     private void UpdateState(ServiceRunningState newState)
     {
-      ServiceDelegates.StateChange stateChange;
+      ServiceDelegates.StateChange? stateChange;
       StateChangeEventArgs args;
       lock (_stateLock)
       {
@@ -349,7 +348,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
-    private static string ResolveErrorCode(string errorCode, string fallback) =>
+    private static string ResolveErrorCode(string? errorCode, string fallback) =>
         string.IsNullOrWhiteSpace(errorCode) || errorCode == ErrorCodes.General.Unknown ? fallback : errorCode;
 
     // Podman driver maps "no such pod" removes to Pod.NotFound; keep the phrase fallback for

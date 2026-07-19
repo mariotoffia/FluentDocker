@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -18,7 +17,7 @@ namespace FluentDocker.Testing.Core
   public class SwarmStackResource : ResourceBase
   {
     private readonly StackDeployConfig _config;
-    private static readonly Action<ILogger, Exception> MissingSessionLabels =
+    private static readonly Action<ILogger, Exception?> MissingSessionLabels =
         LoggerMessage.Define(
             LogLevel.Warning,
             new EventId(1, nameof(MissingSessionLabels)),
@@ -33,7 +32,7 @@ namespace FluentDocker.Testing.Core
     public SwarmStackResource(
         FluentDockerKernel kernel,
         StackDeployConfig config,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(config);
@@ -61,7 +60,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The deployment result, available after initialization.
     /// </summary>
-    public StackDeployResult DeployResult { get; private set; }
+    public StackDeployResult? DeployResult { get; private set; }
 
     /// <summary>
     /// Lists services in the deployed stack.
@@ -76,7 +75,7 @@ namespace FluentDocker.Testing.Core
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to list services for stack '{StackName}': {result.Error}");
-      return result.Data;
+      return result.Data!;
     }
 
     /// <summary>
@@ -92,7 +91,7 @@ namespace FluentDocker.Testing.Core
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to list tasks for stack '{StackName}': {result.Error}");
-      return result.Data;
+      return result.Data!;
     }
 
     #region ResourceBase overrides
@@ -171,7 +170,7 @@ namespace FluentDocker.Testing.Core
 
       throw new DriverException(
           $"Failed to force-remove stack '{_stackName}': {result.Error}",
-          result.ErrorCode,
+          result.ErrorCode!,
           result.ErrorContext);
     }
 

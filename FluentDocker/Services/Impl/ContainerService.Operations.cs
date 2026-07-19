@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Linq;
@@ -51,11 +50,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get logs for container '{_name}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -64,7 +63,7 @@ namespace FluentDocker.Services.Impl
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
       var result = await ExecuteDetailedAsync(command, cancellationToken).ConfigureAwait(false);
-      return result?.StdOut;
+      return result?.StdOut ?? string.Empty;
     }
 
     /// <inheritdoc />
@@ -96,11 +95,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to execute command in container '{_name}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -109,7 +108,7 @@ namespace FluentDocker.Services.Impl
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
       var result = await ExecuteDetailedAsync(command, cancellationToken).ConfigureAwait(false);
-      return result?.StdOut;
+      return result?.StdOut ?? string.Empty;
     }
 
     /// <inheritdoc />
@@ -136,11 +135,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to execute command in container '{_name}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -186,7 +185,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to copy from container '{_name}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -244,7 +243,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to copy to container '{_name}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
       }
@@ -300,7 +299,7 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to copy to container '{_name}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
     }
@@ -342,7 +341,7 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to copy from container '{_name}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
     }
@@ -360,7 +359,7 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get stats for container '{_name}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
 
@@ -369,7 +368,7 @@ namespace FluentDocker.Services.Impl
           ErrorCodes.General.Unknown);
       return new ContainerStats
       {
-        ContainerId = driverStats.ContainerId,
+        ContainerId = driverStats.ContainerId ?? string.Empty,
         Cpu = new CpuStats
         {
           UsagePercent = driverStats.CpuPercent,
@@ -406,12 +405,12 @@ namespace FluentDocker.Services.Impl
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
-      return await ServiceEndpointResolver.ResolveAsync(
+      return (await ServiceEndpointResolver.ResolveAsync(
           this,
           portAndProto,
-          _customResolver,
+          _customResolver!,
           GetDockerHostUri(),
-          cancellationToken).ConfigureAwait(false);
+          cancellationToken).ConfigureAwait(false))!;
     }
 
     /// <summary>
@@ -426,7 +425,7 @@ namespace FluentDocker.Services.Impl
 
     private Uri GetDockerHostUri()
     {
-      return ServiceEndpointResolver.GetDockerHostUri(_kernel.Registry.GetContext(_driverId).Host);
+      return ServiceEndpointResolver.GetDockerHostUri(_kernel.Registry.GetContext(_driverId).Host ?? string.Empty)!;
     }
   }
 }

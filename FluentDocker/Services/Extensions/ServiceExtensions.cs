@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -124,7 +123,7 @@ namespace FluentDocker.Services.Extensions
       cancellationToken.ThrowIfCancellationRequested();
       var sw = Stopwatch.StartNew();
       var forceFreshEndpoint = true;
-      Exception lastException = null;
+      Exception? lastException = null;
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {
         // Fail fast on a dead container instead of burning the rest of the timeout (outside the
@@ -393,7 +392,7 @@ namespace FluentDocker.Services.Extensions
       cancellationToken.ThrowIfCancellationRequested();
       var sw = Stopwatch.StartNew();
       var forceFreshEndpoint = true;
-      Exception lastException = null;
+      Exception? lastException = null;
 
       while (sw.ElapsedMilliseconds < timeout && !cancellationToken.IsCancellationRequested)
       {

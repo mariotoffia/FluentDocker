@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,7 +35,7 @@ namespace FluentDocker.Testing.Core
     public TopologyResource(
         FluentDockerKernel kernel,
         Action<Builder> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -54,7 +53,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Gets a container service by name.
     /// </summary>
-    public IContainerService GetContainer(string name)
+    public IContainerService? GetContainer(string name)
     {
       EnsureInitialized();
       var requested = NormalizeContainerName(name);
@@ -65,7 +64,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Gets a network service by name.
     /// </summary>
-    public INetworkService GetNetwork(string name)
+    public INetworkService? GetNetwork(string name)
     {
       EnsureInitialized();
       return _services.OfType<INetworkService>()
@@ -209,7 +208,7 @@ namespace FluentDocker.Testing.Core
              ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string NormalizeContainerName(string name) =>
+    private static string? NormalizeContainerName(string name) =>
         name?.Trim().TrimStart('/');
 
     private void ApplySessionLabels(Builder builder)

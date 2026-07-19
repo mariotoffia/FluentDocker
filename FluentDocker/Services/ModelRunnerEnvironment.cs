@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using FluentDocker.Drivers.Models;
 using FluentDocker.Drivers.Models.Connection;
@@ -25,7 +24,7 @@ namespace FluentDocker.Services
     /// <param name="apiKey">Optional bearer token for the endpoint.</param>
     /// <returns>An inference-capable <see cref="IModelRunner"/>.</returns>
     /// <exception cref="InvalidOperationException">The required URL variable is not set or invalid.</exception>
-    public static IModelRunner FromEnvironment(string prefix = null, string apiKey = null)
+    public static IModelRunner FromEnvironment(string? prefix = null, string? apiKey = null)
     {
       if (!TryFromEnvironment(out var runner, prefix, apiKey))
       {
@@ -35,7 +34,7 @@ namespace FluentDocker.Services
             "This factory expects the variables injected by a Docker Model Runner / Compose 'models:' binding.");
       }
 
-      return runner;
+      return runner!;
     }
 
     /// <summary>
@@ -45,7 +44,7 @@ namespace FluentDocker.Services
     /// <param name="prefix">The env-var prefix (default <c>LLM</c>).</param>
     /// <param name="apiKey">Optional bearer token.</param>
     /// <returns><c>true</c> when <c>&lt;PREFIX&gt;_URL</c> is set to a valid absolute URI.</returns>
-    public static bool TryFromEnvironment(out IModelRunner runner, string prefix = null, string apiKey = null)
+    public static bool TryFromEnvironment(out IModelRunner? runner, string? prefix = null, string? apiKey = null)
     {
       runner = null;
       var p = Normalize(prefix);
@@ -69,12 +68,12 @@ namespace FluentDocker.Services
     /// <param name="apiKey">Optional bearer token.</param>
     /// <returns>An inference-capable <see cref="IModelRunner"/>.</returns>
     /// <exception cref="InvalidOperationException">The endpoint variable is unset or invalid.</exception>
-    public static IModelRunner FromVariables(string endpointVar, string modelVar, string apiKey = null)
+    public static IModelRunner FromVariables(string endpointVar, string modelVar, string? apiKey = null)
     {
       if (!TryFromVariables(endpointVar, modelVar, out var runner, apiKey))
         throw new InvalidOperationException($"Model endpoint environment variable '{endpointVar}' is not set or is not a valid absolute URI.");
 
-      return runner;
+      return runner!;
     }
 
     /// <summary>
@@ -85,7 +84,7 @@ namespace FluentDocker.Services
     /// <param name="runner">The resulting runner, or null.</param>
     /// <param name="apiKey">Optional bearer token.</param>
     /// <returns><c>true</c> when the endpoint variable is set to a valid absolute URI.</returns>
-    public static bool TryFromVariables(string endpointVar, string modelVar, out IModelRunner runner, string apiKey = null)
+    public static bool TryFromVariables(string endpointVar, string modelVar, out IModelRunner? runner, string? apiKey = null)
     {
       runner = null;
 
@@ -109,7 +108,7 @@ namespace FluentDocker.Services
     /// <param name="apiKey">Optional bearer token.</param>
     /// <returns>A narrow <see cref="IInferenceModelRunner"/> (also satisfies <see cref="IModelRunner"/>).</returns>
     public static IInferenceModelRunner CreateInferenceRunner(
-        ModelRunnerEndpoint endpoint, string modelId, string apiKey = null) =>
+        ModelRunnerEndpoint endpoint, string? modelId, string? apiKey = null) =>
         CreateInferenceRunner(endpoint, modelId, new ModelApiConnectionConfig(), apiKey);
 
     /// <summary>
@@ -125,17 +124,17 @@ namespace FluentDocker.Services
     /// <param name="apiKey">Optional bearer token.</param>
     /// <returns>A narrow <see cref="IInferenceModelRunner"/> (also satisfies <see cref="IModelRunner"/>).</returns>
     public static IInferenceModelRunner CreateInferenceRunner(
-        ModelRunnerEndpoint endpoint, string modelId, ModelApiConnectionConfig config, string apiKey = null)
+        ModelRunnerEndpoint endpoint, string? modelId, ModelApiConnectionConfig config, string? apiKey = null)
     {
       ArgumentNullException.ThrowIfNull(config);
       var connection = new ModelApiConnection(endpoint, config, apiKey: apiKey);
       var inference = new OpenAiModelInferenceDriver(connection, endpoint);
-      InferenceModelId? inferenceId = string.IsNullOrWhiteSpace(modelId) ? null : new InferenceModelId(modelId);
+      InferenceModelId? inferenceId = string.IsNullOrWhiteSpace(modelId) ? (InferenceModelId?)null : new InferenceModelId(modelId);
       var model = ParseDefaultModel(modelId);
       return new Impl.GenericOpenAiModelRunner(endpoint, model, inference, connection.PingAsync, connection, inferenceId);
     }
 
-    private static ModelReference ParseDefaultModel(string modelId)
+    private static ModelReference? ParseDefaultModel(string? modelId)
     {
       // ponytail: remote ids are usually bare (gpt-4o-mini); keep metadata null until
       // ModelReference can represent a raw id without adding :latest.
@@ -145,6 +144,6 @@ namespace FluentDocker.Services
       return ModelReference.TryParse(modelId, out var r) ? r : null;
     }
 
-    private static string Normalize(string prefix) => string.IsNullOrWhiteSpace(prefix) ? DefaultPrefix : prefix;
+    private static string Normalize(string? prefix) => string.IsNullOrWhiteSpace(prefix) ? DefaultPrefix : prefix;
   }
 }

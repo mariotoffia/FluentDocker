@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -27,16 +26,16 @@ namespace FluentDocker.Builders
   {
     private readonly FluentDockerKernel _kernel = kernel;
     private readonly string _driverId = driverId;
-    private ModelReference _model;
+    private ModelReference? _model;
     private int? _contextSize;
-    private string _backend;
-    private IReadOnlyList<string> _runtimeFlags;
-    private ModelRunnerEndpoint _endpoint;
-    private ModelApiConnectionConfig _config;
-    private string _apiKey;
+    private string? _backend;
+    private IReadOnlyList<string>? _runtimeFlags;
+    private ModelRunnerEndpoint? _endpoint;
+    private ModelApiConnectionConfig? _config;
+    private string? _apiKey;
     private bool _pullIfMissing;
-    private IModelInferenceDriver _inferenceDriver;
-    private string _inferenceDriverId;
+    private IModelInferenceDriver? _inferenceDriver;
+    private string? _inferenceDriverId;
 
     /// <inheritdoc />
     FluentDockerKernel IDriverScopedBuilder.Kernel => _kernel;
@@ -133,8 +132,8 @@ namespace FluentDocker.Builders
       // endpoint, else the scoped driver pack's own inference adapter. Only the
       // auto-built connection is owned (disposed) by the runner — caller-supplied or
       // kernel-resolved drivers are owned elsewhere.
-      IModelInferenceDriver inferenceOverride = null;
-      IAsyncDisposable owned = null;
+      IModelInferenceDriver? inferenceOverride = null;
+      IAsyncDisposable? owned = null;
       if (_inferenceDriver != null)
       {
         inferenceOverride = _inferenceDriver;
@@ -204,7 +203,7 @@ namespace FluentDocker.Builders
 
     private bool NeedsConfigure() => _contextSize.HasValue || _runtimeFlags is { Count: > 0 } || IsExplicitBackend(_backend);
 
-    private static bool IsExplicitBackend(string backend) =>
+    private static bool IsExplicitBackend(string? backend) =>
         !string.IsNullOrWhiteSpace(backend) && !string.Equals(backend, "auto", StringComparison.OrdinalIgnoreCase);
 
     private static void ThrowIfInferenceRouteConflict(bool hasConflict)
@@ -217,7 +216,7 @@ namespace FluentDocker.Builders
     // The endpoint the pack/context is bound to (null when nothing configured or the driver is not
     // registered). GetContext throws for an unregistered driver, so guard with IsRegistered — the
     // same pattern ModelRunnerService.Context() uses.
-    private ModelRunnerEndpoint ContextEndpoint() =>
+    private ModelRunnerEndpoint? ContextEndpoint() =>
         _kernel.Registry.IsRegistered(_driverId) ? _kernel.Registry.GetContext(_driverId)?.ModelRunnerEndpoint : null;
 
     private ModelConfigureOptions BuildConfigureOptions() => new()

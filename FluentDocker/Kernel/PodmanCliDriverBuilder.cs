@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using FluentDocker.Drivers.Podman.Cli;
 using FluentDocker.Model.Common;
@@ -12,14 +11,14 @@ namespace FluentDocker.Kernel
   internal sealed class PodmanCliDriverBuilder(string driverId) : IPodmanCliDriverBuilder
   {
     private readonly string _driverId = driverId;
-    private string _host;
-    private string _certificatePath;
+    private string? _host;
+    private string? _certificatePath;
     private bool _isDefault;
-    private AutoStartMachineConfig _autoStartMachine;
+    private AutoStartMachineConfig? _autoStartMachine;
     private SudoMechanism _sudo = SudoMechanism.None;
-    private string _sudoPassword;
-    private string _binaryName;
-    private string[] _searchPaths;
+    private string? _sudoPassword;
+    private string? _binaryName;
+    private string[]? _searchPaths;
     private TimeSpan? _requestTimeout;
 
     public IPodmanCliDriverBuilder AtHost(string host)

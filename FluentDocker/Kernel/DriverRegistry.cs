@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -27,7 +26,7 @@ namespace FluentDocker.Kernel
     private readonly SemaphoreSlim _registrationLock = new(1, 1);
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<DriverRegistry> _logger;
-    private string _defaultDriverId;
+    private string? _defaultDriverId;
     private readonly object _defaultDriverLock = new object();
     private int _disposed;
     private int _abandonedDriverCount;
@@ -75,7 +74,7 @@ namespace FluentDocker.Kernel
       ArgumentNullException.ThrowIfNull(context);
       ThrowIfDisposed();
 
-      DriverContext preparedContext = null;
+      DriverContext? preparedContext = null;
       var reserved = false;
       var initStarted = false;
       try
@@ -161,8 +160,8 @@ namespace FluentDocker.Kernel
     {
       ThrowIfDriverIdInvalid(driverId);
       ThrowIfDisposed();
-      DriverRegistration driver = null;
-      DriverPackRegistration pack = null;
+      DriverRegistration? driver = null;
+      DriverPackRegistration? pack = null;
 
       await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
       try
@@ -253,7 +252,7 @@ namespace FluentDocker.Kernel
       ArgumentNullException.ThrowIfNull(context);
       ThrowIfDisposed();
 
-      DriverContext preparedContext = null;
+      DriverContext? preparedContext = null;
       var reserved = false;
       var initStarted = false;
       try

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,7 +20,7 @@ namespace FluentDocker.Builders
       try
       {
         if (Directory.Exists(_workingFolder))
-          Directory.Delete(_workingFolder, recursive: true);
+          Directory.Delete(((string?)_workingFolder)!, recursive: true);
       }
       catch
       {
@@ -170,7 +169,7 @@ namespace FluentDocker.Builders
           var rootedDest = Path.Combine(workingFolder, name);
           GuardNoDirectoryAt(rootedDest, name);
           File.Copy(source, rootedDest, true);
-          _addSourceOverrides[command] = name;
+          _addSourceOverrides[command] = ((TemplateString?)name)!;
           continue;
         }
         if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
@@ -251,7 +250,7 @@ namespace FluentDocker.Builders
       var dockerFile = Path.Combine(workingFolder, "Dockerfile");
 
       var contents = !string.IsNullOrEmpty(_config.UseFile?.Rendered)
-          ? await File.ReadAllTextAsync(_config.UseFile, cancellationToken).ConfigureAwait(false)
+          ? await File.ReadAllTextAsync(((string?)_config.UseFile)!, cancellationToken).ConfigureAwait(false)
           : ResolveOrBuildString();
 
       await File.WriteAllTextAsync(dockerFile, contents, cancellationToken).ConfigureAwait(false);

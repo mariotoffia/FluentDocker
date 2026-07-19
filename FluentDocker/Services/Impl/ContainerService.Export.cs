@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Formats.Tar;
 using System.IO;
@@ -38,7 +37,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to export container '{_name}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -71,7 +70,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to export container '{_name}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -100,9 +99,9 @@ namespace FluentDocker.Services.Impl
         cancellationToken.ThrowIfCancellationRequested();
         if (hook.Explode)
         {
-          Directory.CreateDirectory(hook.HostPath);
+          Directory.CreateDirectory(hook.HostPath!);
           await using var stream = File.OpenRead(tempPath);
-          await TarFile.ExtractToDirectoryAsync(stream, hook.HostPath, overwriteFiles: true, cancellationToken)
+          await TarFile.ExtractToDirectoryAsync(stream, hook.HostPath!, overwriteFiles: true, cancellationToken)
               .ConfigureAwait(false);
         }
         else
@@ -115,7 +114,7 @@ namespace FluentDocker.Services.Impl
             {
               await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
             }
-            File.Move(partialPath, hook.HostPath, overwrite: true);
+            File.Move(partialPath, hook.HostPath!, overwrite: true);
           }
           catch
           {

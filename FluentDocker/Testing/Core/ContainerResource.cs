@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,7 +42,7 @@ namespace FluentDocker.Testing.Core
     public ContainerResource(
         FluentDockerKernel kernel,
         Action<IContainerBuilder> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -53,7 +52,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The running container service, available after initialization.
     /// </summary>
-    public IContainerService Container { get; private set; }
+    public IContainerService? Container { get; private set; }
 
     /// <summary>
     /// Inspects the container.
@@ -61,7 +60,7 @@ namespace FluentDocker.Testing.Core
     public Task<Container> InspectAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
-      return Container.InspectAsync(cancellationToken);
+      return Container!.InspectAsync(cancellationToken);
     }
 
     /// <summary>
@@ -70,7 +69,7 @@ namespace FluentDocker.Testing.Core
     public Task<string> GetLogsAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
-      return Container.GetLogsAsync(false, cancellationToken);
+      return Container!.GetLogsAsync(false, cancellationToken);
     }
 
     /// <summary>
@@ -79,7 +78,7 @@ namespace FluentDocker.Testing.Core
     public Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
-      return Container.ExecuteAsync(command, cancellationToken);
+      return Container!.ExecuteAsync(command, cancellationToken);
     }
 
     #region ResourceBase overrides
@@ -192,7 +191,7 @@ namespace FluentDocker.Testing.Core
           var info = await Container.InspectAsync(cancellationToken).ConfigureAwait(false);
           diag.InspectPayload = info != null
               ? JsonHelper.SerializeIndented(info)
-              : null;
+              : null!;
         }
         catch (Exception ex)
         {
@@ -228,7 +227,7 @@ namespace FluentDocker.Testing.Core
       }
     }
 
-    private static string ExtractBuilderLogTail(Exception failure)
+    private static string? ExtractBuilderLogTail(Exception failure)
     {
       const string dataKey = "ContainerLogTail";
       const string marker = "Container log tail:";

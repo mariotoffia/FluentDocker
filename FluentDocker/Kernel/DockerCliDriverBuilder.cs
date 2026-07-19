@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Model.Common;
@@ -13,14 +12,14 @@ namespace FluentDocker.Kernel
   internal sealed class DockerCliDriverBuilder(string driverId) : IDockerCliDriverBuilder
   {
     private readonly string _driverId = driverId;
-    private string _host;
-    private string _certificatePath;
+    private string? _host;
+    private string? _certificatePath;
     private bool _isDefault;
     private SudoMechanism _sudo = SudoMechanism.None;
-    private string _sudoPassword;
-    private string _binaryName;
-    private string[] _searchPaths;
-    private ModelRunnerEndpoint _modelEndpoint;
+    private string? _sudoPassword;
+    private string? _binaryName;
+    private string[]? _searchPaths;
+    private ModelRunnerEndpoint? _modelEndpoint;
     private TimeSpan? _requestTimeout;
 
     public IDockerCliDriverBuilder AtHost(string host)

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -142,9 +141,9 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
     private static readonly char[] EqualsSeparator = ['='];
-    private DockerfileBuilder _dockerfileBuilder;
+    private DockerfileBuilder? _dockerfileBuilder;
 
-    private string _imageName;
+    private string? _imageName;
     private readonly List<string> _tags = [];
     private readonly Dictionary<string, string> _buildArgs = [];
     private readonly Dictionary<string, string> _labels = [];
@@ -153,8 +152,8 @@ namespace FluentDocker.Builders
     private bool _alwaysPull;
     private bool _removeIntermediate;
     private bool _forceRemoveIntermediate;
-    private string _platform;
-    private string _target;
+    private string? _platform;
+    private string? _target;
 
     /// <summary>
     /// Creates an ImageBuilder with kernel context.
@@ -360,7 +359,7 @@ namespace FluentDocker.Builders
         if (!result.Success)
           throw new FluentDockerException($"Failed to build image {_imageName}: {result.Error}");
 
-        return new ImageService(_kernel, _driverId, result.Data.ImageId, _imageName, _tags[0]);
+        return new ImageService(_kernel, _driverId, result.Data!.ImageId!, _imageName, _tags[0]);
       }
       finally
       {
@@ -391,10 +390,10 @@ namespace FluentDocker.Builders
         _tags.Add("latest");
     }
 
-    private async Task<IImageService> TryResolveReusableImageAsync(
+    private async Task<IImageService?> TryResolveReusableImageAsync(
         IImageDriver driver, DriverContext context, CancellationToken cancellationToken)
     {
-      string imageId = null;
+      string? imageId = null;
       foreach (var tag in _tags)
       {
         var existingImages = await driver.ListAsync(context, new ImageListFilter
@@ -410,7 +409,7 @@ namespace FluentDocker.Builders
           return null;
       }
 
-      return new ImageService(_kernel, _driverId, imageId, _imageName, _tags[0]);
+      return new ImageService(_kernel, _driverId, imageId!, _imageName!, _tags[0]);
     }
 
     #endregion

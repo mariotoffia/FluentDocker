@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -27,9 +26,9 @@ namespace FluentDocker.Services.Impl
         "GenericOpenAiModelRunner supports inference only; model management/runtime control is not available for a generic endpoint.";
 
     private readonly IModelInferenceDriver _inference;
-    private readonly IAsyncDisposable _ownedResource;
+    private readonly IAsyncDisposable? _ownedResource;
     private readonly ModelRunnerEndpoint _endpoint;
-    private readonly ModelReference _defaultModel;
+    private readonly ModelReference? _defaultModel;
     private readonly InferenceModelId? _defaultInferenceId;
     private int _disposed;
 
@@ -49,8 +48,8 @@ namespace FluentDocker.Services.Impl
     /// (dropping the auto-injected <c>:latest</c>). Supply this directly to preserve a
     /// raw/remote id (e.g. <c>gpt-4o-mini</c>) verbatim.
     /// </param>
-    public GenericOpenAiModelRunner(ModelRunnerEndpoint endpoint, ModelReference defaultModel,
-        IModelInferenceDriver inference, Func<CancellationToken, Task<bool>> statusProbe = null, IAsyncDisposable ownedResource = null,
+    public GenericOpenAiModelRunner(ModelRunnerEndpoint endpoint, ModelReference? defaultModel,
+        IModelInferenceDriver inference, Func<CancellationToken, Task<bool>>? statusProbe = null, IAsyncDisposable? ownedResource = null,
         InferenceModelId? defaultInferenceId = null)
     {
       ArgumentNullException.ThrowIfNull(endpoint);
@@ -63,10 +62,10 @@ namespace FluentDocker.Services.Impl
       _ownedResource = ownedResource;
     }
 
-    private readonly Func<CancellationToken, Task<bool>> _statusProbe;
+    private readonly Func<CancellationToken, Task<bool>>? _statusProbe;
 
     /// <inheritdoc />
-    public ModelReference DefaultModel => _defaultModel;
+    public ModelReference DefaultModel => _defaultModel!;
 
     /// <inheritdoc />
     /// <remarks>
@@ -165,7 +164,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference model = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference? model = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       return await ModelRunnerInferenceHelpers.EmbedAsync(
@@ -175,7 +174,7 @@ namespace FluentDocker.Services.Impl
     // ---- Management / runtime (not supported) ---------------------------------
 
     /// <inheritdoc />
-    public Task<ModelInfo> PullAsync(ModelReference model, IProgress<ModelPullProgress> progress = null, CancellationToken cancellationToken = default)
+    public Task<ModelInfo> PullAsync(ModelReference model, IProgress<ModelPullProgress>? progress = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       throw Fail();
@@ -282,7 +281,7 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public Task LoadAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
+    public Task LoadAsync(ModelReference model, ModelRunOptions? options = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       throw Fail();
@@ -317,14 +316,14 @@ namespace FluentDocker.Services.Impl
     }
 
     /// <inheritdoc />
-    public Task InstallRunnerAsync(ModelRunnerInstallOptions options = null, CancellationToken cancellationToken = default)
+    public Task InstallRunnerAsync(ModelRunnerInstallOptions? options = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       throw Fail();
     }
 
     /// <inheritdoc />
-    public Task UninstallRunnerAsync(ModelRunnerUninstallOptions options = null, CancellationToken cancellationToken = default)
+    public Task UninstallRunnerAsync(ModelRunnerUninstallOptions? options = null, CancellationToken cancellationToken = default)
     {
       ThrowIfDisposed();
       throw Fail();
@@ -349,7 +348,7 @@ namespace FluentDocker.Services.Impl
     private static T Unwrap<T>(CommandResponse<T> response, string operation)
     {
       if (response.Success)
-        return response.Data;
+        return response.Data!;
 
       throw new ModelRunnerException($"{operation} failed: {response.Error}", response.ErrorCode, response.ErrorContext);
     }

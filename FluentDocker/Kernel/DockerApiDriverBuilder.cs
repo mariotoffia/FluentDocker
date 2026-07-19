@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Globalization;
 using FluentDocker.Drivers;
@@ -13,13 +12,13 @@ namespace FluentDocker.Kernel
   internal sealed class DockerApiDriverBuilder(string driverId) : IDockerApiDriverBuilder
   {
     private readonly string _driverId = driverId;
-    private string _host;
-    private string _certificatePath;
+    private string? _host;
+    private string? _certificatePath;
     private bool _isDefault;
     private TimeSpan? _connectionTimeout;
     private TimeSpan? _requestTimeout;
     private TimeSpan? _streamIdleTimeout;
-    private string _apiVersion;
+    private string? _apiVersion;
     private bool _verifyTls = true;
     private bool _allowTlsHostnameMismatch;
 

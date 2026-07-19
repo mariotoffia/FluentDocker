@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,7 +32,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to unpause compose project '{_projectName}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 

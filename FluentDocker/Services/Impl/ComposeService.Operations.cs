@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -38,11 +37,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to execute command in service '{service}' for project '{_projectName}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -66,13 +65,13 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to scale service '{service}' for project '{_projectName}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
     }
 
     /// <inheritdoc />
-    public async Task RestartAsync(IEnumerable<string> services, CancellationToken cancellationToken = default)
+    public async Task RestartAsync(IEnumerable<string>? services, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
       ThrowIfDisposed();
@@ -97,7 +96,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to restart compose project '{_projectName}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 

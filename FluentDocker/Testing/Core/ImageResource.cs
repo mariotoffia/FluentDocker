@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,7 +31,7 @@ namespace FluentDocker.Testing.Core
         string image,
         string tag = "latest",
         bool removeOnDispose = false,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(image);
@@ -49,12 +48,12 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The image ID, available after initialization.
     /// </summary>
-    public string ImageId { get; private set; }
+    public string? ImageId { get; private set; }
 
     /// <summary>
     /// Inspects the image.
     /// </summary>
-    public async Task<Image> InspectAsync(CancellationToken cancellationToken = default)
+    public async Task<Image?> InspectAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
@@ -118,7 +117,7 @@ namespace FluentDocker.Testing.Core
 
       throw new DriverException(
           $"Failed to remove image '{ImageReference}': {result.Error}",
-          result.ErrorCode,
+          result.ErrorCode!,
           result.ErrorContext);
     }
 
@@ -141,7 +140,7 @@ namespace FluentDocker.Testing.Core
 
       throw new DriverException(
           $"Failed to force-remove image '{target}': {result.Error}",
-          result.ErrorCode,
+          result.ErrorCode!,
           result.ErrorContext);
     }
 
@@ -154,7 +153,7 @@ namespace FluentDocker.Testing.Core
             "Image resource is not initialized. Call InitializeAsync first.");
     }
 
-    private async Task RemoveStaleImageAsync(IImageDriver driver, string imageId, int generation)
+    private async Task RemoveStaleImageAsync(IImageDriver driver, string? imageId, int generation)
     {
       if (!_removeOnDispose)
         return;

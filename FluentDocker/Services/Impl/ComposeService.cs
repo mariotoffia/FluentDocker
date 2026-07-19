@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -23,10 +22,10 @@ namespace FluentDocker.Services.Impl
     private readonly ILogger<ComposeService> _logger;
     private readonly string _driverId;
     private readonly List<string> _composeFiles;
-    private readonly string _projectName;
+    private readonly string? _projectName;
     private readonly bool _removeVolumes;
     private readonly bool _removeImages;
-    private readonly IReadOnlyList<string> _ownedTempFiles;
+    private readonly IReadOnlyList<string>? _ownedTempFiles;
     private readonly TimeSpan _disposeCleanupTimeout;
     private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
     private readonly bool _downOnDispose;
@@ -56,7 +55,7 @@ namespace FluentDocker.Services.Impl
         string projectName,
         bool removeVolumes = false,
         bool removeImages = false,
-        IReadOnlyList<string> ownedTempFiles = null,
+        IReadOnlyList<string>? ownedTempFiles = null,
         TimeSpan? disposeCleanupTimeout = null,
         bool downOnDispose = true,
         ServiceRunningState initialState = ServiceRunningState.Stopped)
@@ -97,7 +96,7 @@ namespace FluentDocker.Services.Impl
     public string DriverId => _driverId;
 
     /// <inheritdoc />
-    public string ProjectName => _projectName;
+    public string? ProjectName => _projectName;
 
     /// <inheritdoc />
     public IReadOnlyList<string> ComposeFiles => _composeFiles;
@@ -114,7 +113,7 @@ namespace FluentDocker.Services.Impl
     /// state. Lifecycle hooks registered via <see cref="AddHook"/> for Running fire only after
     /// reconciliation confirms the project is genuinely running.
     /// </remarks>
-    public event ServiceDelegates.StateChange StateChange;
+    public event ServiceDelegates.StateChange? StateChange;
 #pragma warning restore CA1710
 
     /// <summary>
@@ -143,11 +142,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to list compose services for project '{_projectName}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     /// <inheritdoc />
@@ -171,11 +170,11 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to get logs for compose project '{_projectName}': {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode ?? ErrorCodes.General.Unknown,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     // Best-effort reconciliation after a mutating op: a `compose ps` corrects optimistic aggregate
@@ -287,7 +286,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to start compose project '{_projectName}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -332,7 +331,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to pause compose project '{_projectName}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -374,7 +373,7 @@ namespace FluentDocker.Services.Impl
         {
           throw new DriverException(
               $"Failed to stop compose project '{_projectName}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -398,7 +397,7 @@ namespace FluentDocker.Services.Impl
         RestartAsync(null, cancellationToken);
 
     /// <inheritdoc />
-    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
+    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null)
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(hook);
@@ -418,7 +417,7 @@ namespace FluentDocker.Services.Impl
 
     private bool UpdateState(ServiceRunningState newState)
     {
-      ServiceDelegates.StateChange stateChange;
+      ServiceDelegates.StateChange? stateChange;
       StateChangeEventArgs args;
       lock (_stateLock)
       {

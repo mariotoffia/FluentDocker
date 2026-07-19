@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 
@@ -49,7 +48,7 @@ namespace FluentDocker.Testing.Core
     /// <returns>A 32-character hex string (a <see cref="Guid"/> in <c>"N"</c> format).</returns>
     public static string NewSessionId() => Guid.NewGuid().ToString("N");
 
-    internal static string SharedSessionId() =>
+    internal static string? SharedSessionId() =>
         Environment.GetEnvironmentVariable(SessionEnvironmentVariable);
 
     /// <summary>Builds the label set FluentDocker stamps onto a newly created resource.</summary>

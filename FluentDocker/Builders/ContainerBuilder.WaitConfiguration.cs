@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Net.Http;
 using FluentDocker.Common;

@@ -55,7 +55,7 @@ namespace FluentDocker.Services.Extensions
       }
     }
 
-    private static void LogWaitFailure(IContainerService service, Exception exception, string operation, string value)
+    private static void LogWaitFailure(IContainerService service, Exception? exception, string operation, string value)
     {
       if (exception == null || service is not ContainerService containerService)
         return;

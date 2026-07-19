@@ -36,7 +36,7 @@ namespace FluentDocker.Testing.Xunit
     }
 
     /// <summary>Shorthand access to the running container.</summary>
-    public IContainerService Container => Resource.Container;
+    public IContainerService Container => Resource.Container!;
 
     /// <summary>The owned kernel, available when not skipped and initialized.</summary>
     public FluentDockerKernel Kernel

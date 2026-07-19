@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -10,11 +9,11 @@ namespace FluentDocker.Builders
   internal sealed partial class ContainerBuilder
   {
     internal bool KeepContainerRequested => _keepContainer;
-    internal IServiceAsync PendingService => _pendingService;
+    internal IServiceAsync? PendingService => _pendingService;
     internal bool StartDeferred => _startDeferred;
     internal string ContainerName => _name;
     internal IReadOnlyCollection<string> NetworkReferences => [.. _networks];
-    internal IReadOnlyCollection<string> LinkReferences => [.. _links.Select(l => l.ContainerName)];
+    internal IReadOnlyCollection<string> LinkReferences => [.. _links.Select(l => l.ContainerName!)];
     internal IReadOnlyCollection<string> ImageReferences => string.IsNullOrWhiteSpace(_image) ? [] : [_image];
     internal IReadOnlyCollection<string> PodReferences => string.IsNullOrWhiteSpace(_pod) ? [] : [_pod];
     internal IReadOnlyCollection<string> VolumeReferences => [.. _volumes
@@ -31,7 +30,7 @@ namespace FluentDocker.Builders
       _startDeferred = false;
     }
 
-    internal string FailureKeepReason(IServiceAsync _)
+    internal string? FailureKeepReason(IServiceAsync _)
     {
       if (_keepContainer)
         return "KeepContainer()";

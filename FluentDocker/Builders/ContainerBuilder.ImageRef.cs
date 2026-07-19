@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,7 +24,7 @@ namespace FluentDocker.Builders
       var (image, tag) = ParseImageReference(_image);
 
       var response = await imageDriver
-          .PullAsync(context, image, tag, null, cancellationToken)
+          .PullAsync(context, image, tag!, null, cancellationToken)
           .ConfigureAwait(false);
 
       if (!response.Success)
@@ -44,7 +43,7 @@ namespace FluentDocker.Builders
     /// preserved by deferring to the driver's as-is handling, and <c>latest</c> is only used
     /// when the reference carries neither a tag nor a digest.
     /// </summary>
-    internal static (string image, string tag) ParseImageReference(string reference)
+    internal static (string image, string? tag) ParseImageReference(string reference)
     {
       // Validate() already rejects a null/empty _image before ForcePull runs; guard whitespace
       // too so a blank ref is passed verbatim (tag:null) and never becomes a ":latest" pull.

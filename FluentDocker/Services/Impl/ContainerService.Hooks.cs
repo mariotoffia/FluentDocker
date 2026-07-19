@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Threading;
@@ -25,8 +24,8 @@ namespace FluentDocker.Services.Impl
 
     private bool UpdateStateCore(ServiceRunningState newState, bool invalidateInspectCache)
     {
-      ServiceDelegates.StateChange stateChange = null;
-      StateChangeEventArgs args = null;
+      ServiceDelegates.StateChange? stateChange = null;
+      StateChangeEventArgs? args = null;
       lock (_stateLock)
       {
         if (Volatile.Read(ref _disposeCompleted) != 0)
@@ -45,7 +44,7 @@ namespace FluentDocker.Services.Impl
       }
 
       if (stateChange != null)
-        StateChangeNotifier.Invoke(stateChange, args, _logger, "ContainerService");
+        StateChangeNotifier.Invoke(stateChange, args!, _logger, "ContainerService");
       return true;
     }
 
@@ -94,7 +93,7 @@ namespace FluentDocker.Services.Impl
             case LifecycleHookType.CopyTo:
               if (File.Exists(hook.HostPath) || Directory.Exists(hook.HostPath))
                 await CopyToCoreAsync(
-                    hook.HostPath, hook.ContainerPath, throwIfDisposed: false, cancellationToken)
+                    hook.HostPath, hook.ContainerPath!, throwIfDisposed: false, cancellationToken)
                     .ConfigureAwait(false);
               else
                 // ponytail: warn rather than throw to preserve existing no-op lifecycle hook behavior.
@@ -106,7 +105,7 @@ namespace FluentDocker.Services.Impl
 
             case LifecycleHookType.CopyFrom:
               await CopyFromToPathCoreAsync(
-                  hook.ContainerPath, hook.HostPath, throwIfDisposed: false, cancellationToken)
+                  hook.ContainerPath!, hook.HostPath!, throwIfDisposed: false, cancellationToken)
                   .ConfigureAwait(false);
               break;
 
@@ -130,7 +129,7 @@ namespace FluentDocker.Services.Impl
       }
     }
 
-    internal static ServiceRunningState ParseState(string state)
+    internal static ServiceRunningState ParseState(string? state)
     {
       return state?.ToLowerInvariant() switch
       {

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 
 namespace FluentDocker.Builders
@@ -29,7 +28,7 @@ namespace FluentDocker.Builders
     /// <typeparam name="T">Driver interface type to resolve</typeparam>
     /// <param name="builder">The driver-scoped builder</param>
     /// <returns>The resolved driver interface, or null if not supported</returns>
-    public static T TryDriver<T>(this IDriverScopedBuilder builder) where T : class
+    public static T? TryDriver<T>(this IDriverScopedBuilder builder) where T : class
     {
       ArgumentNullException.ThrowIfNull(builder);
       return builder.Kernel.TrySysCtl<T>(builder.DriverId, out var v) ? v : null;

@@ -53,7 +53,7 @@ namespace FluentDocker.Testing.Xunit
     /// <summary>
     /// Shorthand access to the running compose service.
     /// </summary>
-    public IComposeService Service => Resource.Service;
+    public IComposeService Service => Resource.Service!;
 
     /// <summary>
     /// The kernel managing drivers for this fixture.

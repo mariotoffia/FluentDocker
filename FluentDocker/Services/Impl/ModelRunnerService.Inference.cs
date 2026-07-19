@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -166,7 +165,7 @@ namespace FluentDocker.Services.Impl
 
     public static async Task<IReadOnlyList<float>> EmbedAsync(
         IModelInference inference, InferenceModelId? defaultInferenceId, string text,
-        ModelReference model = null, CancellationToken cancellationToken = default)
+        ModelReference? model = null, CancellationToken cancellationToken = default)
     {
       ArgumentNullException.ThrowIfNull(inference);
       ArgumentNullException.ThrowIfNull(text);
@@ -180,10 +179,10 @@ namespace FluentDocker.Services.Impl
         throw new ModelRunnerException(
             "Embeddings response contained no embedding data.", ErrorCodes.ModelInference.RequestFailed);
 
-      return ToReadOnly(response.Data[0].Embedding);
+      return ToReadOnly(response.Data[0].Embedding!);
     }
 
-    private static string RequireModelId(InferenceModelId? defaultInferenceId, ModelReference model = null)
+    private static string RequireModelId(InferenceModelId? defaultInferenceId, ModelReference? model = null)
     {
       var id = model != null
           ? InferenceModelId.FromModelReference(model)?.Value

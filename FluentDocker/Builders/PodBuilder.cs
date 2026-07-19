@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -24,15 +23,15 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     string IDriverScopedBuilder.DriverId => _driverId;
 
-    private string _name;
-    private string _hostname;
-    private string _network;
+    private string? _name;
+    private string? _hostname;
+    private string? _network;
     private bool _removeOnDispose;
     private readonly List<string> _ports = [];
     private readonly Dictionary<string, string> _labels = [];
-    internal IServiceAsync PendingService { get; private set; }
+    internal IServiceAsync? PendingService { get; private set; }
     internal bool CreatedResource { get; private set; }
-    internal string PodName => _name;
+    internal string PodName => _name!;
 
     /// <inheritdoc />
     public IPodBuilder WithName(string name) { _name = name; return this; }
@@ -89,12 +88,12 @@ namespace FluentDocker.Builders
       {
         throw new DriverException(
             $"Failed to create pod '{_name}': {response.Error}",
-            response.ErrorCode, response.ErrorContext);
+            response.ErrorCode!, response.ErrorContext);
       }
 
       CreatedResource = true;
       var service = new Services.Impl.PodService(
-          _kernel, _driverId, response.Data.Id, _name, _removeOnDispose);
+          _kernel, _driverId, response.Data!.Id!, _name!, _removeOnDispose);
       PendingService = service;
       await service.StartAsync(cancellationToken).ConfigureAwait(false);
       return service;

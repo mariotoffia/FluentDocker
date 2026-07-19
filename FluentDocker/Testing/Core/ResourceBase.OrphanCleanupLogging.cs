@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using Microsoft.Extensions.Logging;
 
@@ -12,7 +11,7 @@ namespace FluentDocker.Testing.Core
             new EventId(7, nameof(OrphanCleanupFailed)),
             "Orphan cleanup failed: {Error}");
 
-    private static readonly Action<ILogger, string, Exception> OrphanCleanupReportedErrors =
+    private static readonly Action<ILogger, string, Exception?> OrphanCleanupReportedErrors =
         LoggerMessage.Define<string>(
             LogLevel.Warning,
             new EventId(8, nameof(OrphanCleanupReportedErrors)),

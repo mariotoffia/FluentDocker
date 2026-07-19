@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -68,7 +67,7 @@ namespace FluentDocker.Services.Extensions
               !firstLogPoll &&
               pollCount % 10 != 0;
           var logs = useTail
-              ? await containerService.GetLogsTailAsync(LogTailLines, cancellationToken).ConfigureAwait(false)
+              ? await containerService!.GetLogsTailAsync(LogTailLines, cancellationToken).ConfigureAwait(false)
               : await service.GetLogsAsync(false, cancellationToken).ConfigureAwait(false);
           firstLogPoll = false;
           pollCount++;

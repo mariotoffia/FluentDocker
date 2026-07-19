@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,7 +19,7 @@ namespace FluentDocker.Testing.Core
   public class PodmanKubernetesResource : ResourceBase
   {
     private readonly KubePlayConfig _config;
-    private static readonly Action<ILogger, Exception> MissingSessionLabels =
+    private static readonly Action<ILogger, Exception?> MissingSessionLabels =
         LoggerMessage.Define(
             LogLevel.Warning,
             new EventId(1, nameof(MissingSessionLabels)),
@@ -35,7 +34,7 @@ namespace FluentDocker.Testing.Core
     public PodmanKubernetesResource(
         FluentDockerKernel kernel,
         KubePlayConfig config,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(config);
@@ -47,12 +46,12 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Path to the Kubernetes YAML file.
     /// </summary>
-    public string YamlPath => _config.YamlPath;
+    public string YamlPath => _config.YamlPath!;
 
     /// <summary>
     /// The play result, available after initialization.
     /// </summary>
-    public KubePlayResult PlayResult { get; private set; }
+    public KubePlayResult? PlayResult { get; private set; }
 
     /// <summary>
     /// All pod IDs created by the play operation.
@@ -74,7 +73,7 @@ namespace FluentDocker.Testing.Core
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to generate YAML for '{resourceName}': {result.Error}");
-      return result.Data;
+      return result.Data!;
     }
 
     #region ResourceBase overrides
@@ -118,7 +117,7 @@ namespace FluentDocker.Testing.Core
       if (TryCommitProvision(generation, () =>
       {
         PlayResult = playResult;
-        ResourceName = _config.YamlPath;
+        ResourceName = _config.YamlPath!;
       }))
       {
         return;
@@ -133,7 +132,7 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.DownAsync(
-          context, _config.YamlPath, cancellationToken).ConfigureAwait(false);
+          context, _config.YamlPath!, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to tear down Podman kube for '{_config.YamlPath}': {result.Error}");
@@ -149,7 +148,7 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IPodmanKubernetesDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.DownAsync(
-          context, _config.YamlPath, cancellationToken).ConfigureAwait(false);
+          context, _config.YamlPath!, cancellationToken).ConfigureAwait(false);
 
       if (result.Success || IsNotFound(result))
       {
@@ -159,7 +158,7 @@ namespace FluentDocker.Testing.Core
 
       throw new DriverException(
           $"Failed to force-remove Podman kube for '{_config.YamlPath}': {result.Error}",
-          result.ErrorCode,
+          result.ErrorCode!,
           result.ErrorContext);
     }
 
@@ -190,14 +189,14 @@ namespace FluentDocker.Testing.Core
       try
       {
         using var cts = new CancellationTokenSource(Options.TeardownTimeout);
-        var downTask = driver.DownAsync(context, _config.YamlPath, cts.Token);
+        var downTask = driver.DownAsync(context, _config.YamlPath!, cts.Token);
         var result = await downTask.WaitAsync(cts.Token).ConfigureAwait(false);
         if (!result.Success && !IsNotFound(result))
-          OrphanCleanup.MarkAbandonedLateProvision(_config.YamlPath, Options.SessionId);
+          OrphanCleanup.MarkAbandonedLateProvision(_config.YamlPath!, Options.SessionId);
       }
       catch
       {
-        OrphanCleanup.MarkAbandonedLateProvision(_config.YamlPath, Options.SessionId);
+        OrphanCleanup.MarkAbandonedLateProvision(_config.YamlPath!, Options.SessionId);
       }
     }
   }

@@ -52,7 +52,7 @@ namespace FluentDocker.Testing.MsTest
     /// <summary>
     /// Shorthand access to the running container service.
     /// </summary>
-    public IContainerService Container => Resource.Container;
+    public IContainerService Container => Resource.Container!;
 
     /// <summary>
     /// The kernel managing drivers for this fixture.

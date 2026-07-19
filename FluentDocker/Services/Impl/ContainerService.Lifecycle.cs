@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -22,7 +21,7 @@ namespace FluentDocker.Services.Impl
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     /// <inheritdoc />
-    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
+    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null)
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(hook);
@@ -197,7 +196,7 @@ namespace FluentDocker.Services.Impl
             includeOnly: false,
             skipType: skipExecuteLifecycleHooks).ConfigureAwait(false);
 
-        IVolumeDriver namedVolumeDriver = null;
+        IVolumeDriver? namedVolumeDriver = null;
         var namedVolumes = Array.Empty<string>();
         if (_deleteNamedVolumeOnDispose)
         {
@@ -231,7 +230,7 @@ namespace FluentDocker.Services.Impl
           await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
           throw new DriverException(
               $"Failed to remove container '{_name}': {response.Error}",
-              response.ErrorCode,
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
               response.ErrorContext);
         }
 
@@ -286,7 +285,7 @@ namespace FluentDocker.Services.Impl
     }
 
     private async Task RemoveNamedVolumesAsync(
-        IVolumeDriver driver,
+        IVolumeDriver? driver,
         DriverContext context,
         string[] volumeNames,
         CancellationToken cancellationToken)

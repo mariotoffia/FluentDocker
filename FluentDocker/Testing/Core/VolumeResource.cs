@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,7 +26,7 @@ namespace FluentDocker.Testing.Core
     public VolumeResource(
         FluentDockerKernel kernel,
         Action<VolumeCreateConfig> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -42,7 +41,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Inspects the volume.
     /// </summary>
-    public async Task<Volume> InspectAsync(CancellationToken cancellationToken = default)
+    public async Task<Volume?> InspectAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
@@ -107,7 +106,7 @@ namespace FluentDocker.Testing.Core
       // Genuine failure: keep ResourceName so DisposeAsync can engage ForceRemoveAsync.
       throw new DriverException(
           $"Failed to remove volume '{ResourceName}': {result.Error}",
-          result.ErrorCode,
+          result.ErrorCode!,
           result.ErrorContext);
     }
 
@@ -127,7 +126,7 @@ namespace FluentDocker.Testing.Core
 
       throw new DriverException(
           $"Failed to force-remove volume '{name}': {result.Error}",
-          result.ErrorCode,
+          result.ErrorCode!,
           result.ErrorContext);
     }
 
