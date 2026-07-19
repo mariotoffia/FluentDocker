@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -22,7 +21,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>Docker's <c>Driver</c> field (storage driver); mirrors <see cref="SystemInfo.StorageBackend"/>.</summary>
     [JsonPropertyName("Driver")]
-    public string DockerStorageDriver
+    public string? DockerStorageDriver
     {
       get => StorageBackend;
       set => StorageBackend = value;
@@ -30,7 +29,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>Docker's <c>LoggingDriver</c> field; mirrors <see cref="SystemInfo.LoggingBackend"/>.</summary>
     [JsonPropertyName("LoggingDriver")]
-    public string DockerLoggingDriver
+    public string? DockerLoggingDriver
     {
       get => LoggingBackend;
       set => LoggingBackend = value;
@@ -38,7 +37,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>Docker's <c>Name</c> field (daemon host name); mirrors <see cref="SystemInfo.Hostname"/>.</summary>
     [JsonPropertyName("Name")]
-    public string DockerHostname
+    public string? DockerHostname
     {
       get => Hostname;
       set => Hostname = value;
@@ -62,7 +61,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>Docker's <c>DockerRootDir</c> field; mirrors <see cref="SystemInfo.DataRoot"/>.</summary>
     [JsonPropertyName("DockerRootDir")]
-    public string DockerDataRoot
+    public string? DockerDataRoot
     {
       get => DataRoot;
       set => DataRoot = value;
@@ -73,7 +72,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <see cref="DockerVersionInfo.PopulateFromComponents"/>). Mirrors <see cref="SystemInfo.EngineVersion"/>.
     /// </summary>
     [JsonIgnore]
-    public string DockerEngineVersion
+    public string? DockerEngineVersion
     {
       get => EngineVersion;
       set => EngineVersion = value;
@@ -96,7 +95,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>Docker's <c>Swarm</c> field: Swarm mode status reported by the daemon.</summary>
     [JsonPropertyName("Swarm")]
-    public DockerSwarmInfo Swarm { get; set; }
+    public DockerSwarmInfo? Swarm { get; set; }
 
     /// <summary>True when <see cref="Swarm"/> reports <c>LocalNodeState == "active"</c>.</summary>
     [JsonIgnore]
@@ -117,7 +116,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   {
     /// <summary>Path to the OCI runtime binary (Docker's <c>path</c> field).</summary>
     [JsonPropertyName("path")]
-    public string Path { get; set; }
+    public string? Path { get; set; }
 
     /// <summary>Extra arguments passed to the runtime binary (Docker's <c>runtimeArgs</c> field).</summary>
     [JsonPropertyName("runtimeArgs")]
@@ -130,10 +129,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   public class DockerSwarmInfo
   {
     /// <summary>Swarm membership state (e.g. <c>"inactive"</c>, <c>"active"</c>, <c>"pending"</c>).</summary>
-    public string LocalNodeState { get; set; }
+    public string? LocalNodeState { get; set; }
 
     /// <summary>ID of this node within the Swarm, empty when not a member.</summary>
-    public string NodeID { get; set; }
+    public string? NodeID { get; set; }
 
     /// <summary>True if this node has manager/control-plane availability.</summary>
     public bool ControlAvailable { get; set; }
@@ -146,11 +145,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   {
     /// <summary>Docker's <c>Client</c> field: version details for the CLI client.</summary>
     [JsonPropertyName("Client")]
-    public DockerVersionComponent Client { get; set; }
+    public DockerVersionComponent? Client { get; set; }
 
     /// <summary>Docker's <c>Server</c> field: version details for the daemon/engine.</summary>
     [JsonPropertyName("Server")]
-    public DockerVersionComponent Server { get; set; }
+    public DockerVersionComponent? Server { get; set; }
 
     /// <summary>
     /// Normalize component values into the generic base properties.
@@ -189,45 +188,45 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   public class DockerVersionComponent
   {
     /// <summary>Component version string; falls back to the matching entry in <see cref="Components"/> when blank.</summary>
-    public string Version { get; set; }
+    public string? Version { get; set; }
 
     /// <summary>Docker Engine API version negotiated by this component.</summary>
-    public string ApiVersion { get; set; }
+    public string? ApiVersion { get; set; }
 
     /// <summary>Default API version this component was built with.</summary>
-    public string DefaultAPIVersion { get; set; }
+    public string? DefaultAPIVersion { get; set; }
 
     /// <summary>Minimum API version this component supports.</summary>
-    public string MinAPIVersion { get; set; }
+    public string? MinAPIVersion { get; set; }
 
     /// <summary>Git commit hash this component was built from.</summary>
-    public string GitCommit { get; set; }
+    public string? GitCommit { get; set; }
 
     /// <summary>Go toolchain version this component was built with.</summary>
-    public string GoVersion { get; set; }
+    public string? GoVersion { get; set; }
 
     /// <summary>Operating system this component targets (e.g. <c>linux</c>).</summary>
-    public string Os { get; set; }
+    public string? Os { get; set; }
 
     /// <summary>CPU architecture this component targets (e.g. <c>amd64</c>).</summary>
-    public string Arch { get; set; }
+    public string? Arch { get; set; }
 
     /// <summary>Build timestamp of this component.</summary>
-    public string BuildTime { get; set; }
+    public string? BuildTime { get; set; }
 
     /// <summary>
     /// Raw experimental-features flag as reported by the daemon (string, not bool: some
     /// engine versions omit or vary its shape). Use <see cref="IsExperimental"/> to read it
     /// as a parsed <see cref="bool"/> with the <see cref="Components"/> fallback applied.
     /// </summary>
-    public string Experimental { get; set; }
+    public string? Experimental { get; set; }
 
     /// <summary>Host kernel version reported alongside this component.</summary>
-    public string KernelVersion { get; set; }
+    public string? KernelVersion { get; set; }
 
     /// <summary>Build platform metadata for this component.</summary>
     [JsonPropertyName("Platform")]
-    public DockerVersionPlatform Platform { get; set; }
+    public DockerVersionPlatform? Platform { get; set; }
 
     /// <summary>
     /// Detailed sub-component list some engine versions report instead of top-level fields;
@@ -238,23 +237,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     internal bool? IsExperimental => GetExperimentalFlag();
 
-    internal string GetVersion() => GetValueOrDetail(Version, "Version");
+    internal string? GetVersion() => GetValueOrDetail(Version, "Version");
 
-    internal string GetApiVersion() => GetValueOrDetail(ApiVersion, "ApiVersion");
+    internal string? GetApiVersion() => GetValueOrDetail(ApiVersion, "ApiVersion");
 
-    internal string GetMinApiVersion() => GetValueOrDetail(MinAPIVersion, "MinAPIVersion");
+    internal string? GetMinApiVersion() => GetValueOrDetail(MinAPIVersion, "MinAPIVersion");
 
-    internal string GetGitCommit() => GetValueOrDetail(GitCommit, "GitCommit");
+    internal string? GetGitCommit() => GetValueOrDetail(GitCommit, "GitCommit");
 
-    internal string GetGoVersion() => GetValueOrDetail(GoVersion, "GoVersion");
+    internal string? GetGoVersion() => GetValueOrDetail(GoVersion, "GoVersion");
 
-    internal string GetOs() => GetValueOrDetail(Os, "Os");
+    internal string? GetOs() => GetValueOrDetail(Os, "Os");
 
-    internal string GetArch() => GetValueOrDetail(Arch, "Arch");
+    internal string? GetArch() => GetValueOrDetail(Arch, "Arch");
 
-    internal string GetBuildTime() => GetValueOrDetail(BuildTime, "BuildTime");
+    internal string? GetBuildTime() => GetValueOrDetail(BuildTime, "BuildTime");
 
-    private string GetValueOrDetail(string primary, string detailKey)
+    private string? GetValueOrDetail(string? primary, string detailKey)
     {
       if (!string.IsNullOrEmpty(primary))
         return primary;
@@ -274,7 +273,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       return null;
     }
 
-    private string GetDetailValue(string key)
+    private string? GetDetailValue(string key)
     {
       if (Components == null)
         return null;
@@ -305,10 +304,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   public class DockerVersionComponentDetail
   {
     /// <summary>Sub-component name (e.g. <c>"Engine"</c>, <c>"containerd"</c>).</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Sub-component version string.</summary>
-    public string Version { get; set; }
+    public string? Version { get; set; }
 
     /// <summary>Extra key/value details reported for this sub-component (e.g. <c>ApiVersion</c>, <c>Experimental</c>).</summary>
     public Dictionary<string, object> Details { get; set; } = [];
@@ -318,6 +317,6 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   public class DockerVersionPlatform
   {
     /// <summary>Platform/distribution name (e.g. <c>"Docker Engine - Community"</c>).</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
   }
 }

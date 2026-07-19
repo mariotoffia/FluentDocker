@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -17,7 +16,7 @@ namespace FluentDocker.Services
   {
     /// <summary>Pulls a model, reporting progress.</summary>
     Task<ModelInfo> PullAsync(ModelReference model,
-        IProgress<ModelPullProgress> progress = null,
+        IProgress<ModelPullProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Lists local models.</summary>

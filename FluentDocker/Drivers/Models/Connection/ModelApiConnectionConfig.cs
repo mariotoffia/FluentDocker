@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 
 namespace FluentDocker.Drivers.Models.Connection
@@ -13,7 +12,7 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <c>ca.pem</c> is optional; when present it is the exclusive trust root (pin), when
     /// absent the system trust store validates the server certificate.
     /// </summary>
-    public string CertificatePath { get; set; }
+    public string? CertificatePath { get; set; }
 
     /// <summary>Whether to verify the server's TLS certificate.</summary>
     public bool VerifyTls { get; set; } = true;

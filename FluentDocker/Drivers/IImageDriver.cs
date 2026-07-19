@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -224,13 +223,13 @@ namespace FluentDocker.Drivers
   public class ImagePullProgress
   {
     /// <summary>Status message for the current pull step (e.g. "Downloading", "Pull complete").</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Human-readable progress bar (e.g. "[=====>   ] 5.12MB/10.24MB").</summary>
-    public string Progress { get; set; }
+    public string? Progress { get; set; }
 
     /// <summary>Layer digest being processed. Null for non-layer-specific messages.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Bytes downloaded so far for the current layer.</summary>
     public long Current { get; set; }
@@ -245,13 +244,13 @@ namespace FluentDocker.Drivers
   public class ImagePushProgress
   {
     /// <summary>Status message for the current push step (e.g. "Pushing", "Layer already exists").</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Human-readable progress bar for the upload.</summary>
-    public string Progress { get; set; }
+    public string? Progress { get; set; }
 
     /// <summary>Layer digest being uploaded. Null for non-layer-specific messages.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Bytes uploaded so far for the current layer.</summary>
     public long Current { get; set; }
@@ -266,13 +265,13 @@ namespace FluentDocker.Drivers
   public class ImageBuildProgress
   {
     /// <summary>Build output stream text (e.g. "Step 1/5 : FROM alpine:latest").</summary>
-    public string Stream { get; set; }
+    public string? Stream { get; set; }
 
     /// <summary>Status message for the build step.</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Image ID associated with the build event. Null for regular stream output.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Error message if the build step failed. Null on success.</summary>
     public string? Error { get; set; }
@@ -288,10 +287,10 @@ namespace FluentDocker.Drivers
   public class ImageBuildConfig
   {
     /// <summary>Path to Dockerfile or build context.</summary>
-    public string BuildContext { get; set; }
+    public string? BuildContext { get; set; }
 
     /// <summary>Dockerfile name (if not "Dockerfile").</summary>
-    public string DockerfileName { get; set; }
+    public string? DockerfileName { get; set; }
 
     /// <summary>Tags to apply to the built image.</summary>
     public List<string> Tags { get; set; } = [];
@@ -300,7 +299,7 @@ namespace FluentDocker.Drivers
     public Dictionary<string, string> BuildArgs { get; set; } = [];
 
     /// <summary>Target build stage (for multi-stage builds).</summary>
-    public string Target { get; set; }
+    public string? Target { get; set; }
 
     /// <summary>Labels to apply.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];
@@ -321,10 +320,10 @@ namespace FluentDocker.Drivers
     public bool Squash { get; set; }
 
     /// <summary>Platform to build for.</summary>
-    public string Platform { get; set; }
+    public string? Platform { get; set; }
 
     /// <summary>Network mode during build.</summary>
-    public string NetworkMode { get; set; }
+    public string? NetworkMode { get; set; }
 
     /// <summary>Memory limit for build.</summary>
     public long? Memory { get; set; }
@@ -342,7 +341,7 @@ namespace FluentDocker.Drivers
     public bool All { get; set; }
 
     /// <summary>Filter by reference (name:tag).</summary>
-    public string Reference { get; set; }
+    public string? Reference { get; set; }
 
     /// <summary>Show dangling images only.</summary>
     public bool? Dangling { get; set; }
@@ -351,10 +350,10 @@ namespace FluentDocker.Drivers
     public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Filter by before image.</summary>
-    public string Before { get; set; }
+    public string? Before { get; set; }
 
     /// <summary>Filter by since image.</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
   }
 
   #endregion
@@ -367,7 +366,7 @@ namespace FluentDocker.Drivers
   public class ImageBuildResult
   {
     /// <summary>Built image ID.</summary>
-    public string ImageId { get; set; }
+    public string? ImageId { get; set; }
 
     /// <summary>Build warnings.</summary>
     public List<string> Warnings { get; set; } = [];
@@ -406,10 +405,10 @@ namespace FluentDocker.Drivers
   public class ImageLayer
   {
     /// <summary>Layer ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Created by command.</summary>
-    public string CreatedBy { get; set; }
+    public string? CreatedBy { get; set; }
 
     /// <summary>Creation time.</summary>
     /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
@@ -419,7 +418,7 @@ namespace FluentDocker.Drivers
     public long Size { get; set; }
 
     /// <summary>Comment.</summary>
-    public string Comment { get; set; }
+    public string? Comment { get; set; }
 
     /// <summary>Tags associated with this layer.</summary>
     public List<string> Tags { get; set; } = [];
@@ -433,10 +432,10 @@ namespace FluentDocker.Drivers
   public class Image
   {
     /// <summary>Image ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Parent image ID.</summary>
-    public string ParentId { get; set; }
+    public string? ParentId { get; set; }
 
     /// <summary>Repository tags.</summary>
     public List<string> RepoTags { get; set; } = [];
@@ -461,10 +460,10 @@ namespace FluentDocker.Drivers
     public int Containers { get; set; }
 
     /// <summary>Architecture.</summary>
-    public string Architecture { get; set; }
+    public string? Architecture { get; set; }
 
     /// <summary>Operating system.</summary>
-    public string Os { get; set; }
+    public string? Os { get; set; }
   }
 
   #endregion

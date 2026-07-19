@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
@@ -41,7 +40,7 @@ namespace FluentDocker.Drivers.Models.Connection
     /// them, so loading only the first cert rejected valid chains (DAPI-MAJ-3). All certs in
     /// <paramref name="caCerts"/> are added to the custom trust store.
     /// </summary>
-    public static bool ValidateWithCustomRoot(X509Certificate2Collection caCerts, X509Certificate cert, X509Chain chain,
+    public static bool ValidateWithCustomRoot(X509Certificate2Collection? caCerts, X509Certificate cert, X509Chain chain,
         SslPolicyErrors errors, bool allowHostnameMismatch = false)
     {
       // A missing certificate is never acceptable.

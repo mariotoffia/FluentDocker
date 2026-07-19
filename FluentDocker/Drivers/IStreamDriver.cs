@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -145,7 +144,7 @@ namespace FluentDocker.Drivers
     public LogStreamSource Source { get; set; }
 
     /// <summary>The log line (without the trailing newline).</summary>
-    public string Line { get; set; }
+    public string? Line { get; set; }
 
     /// <summary>Optional timestamp when timestamps are requested in the stream config.</summary>
     /// <remarks>When populated, the value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
@@ -166,10 +165,10 @@ namespace FluentDocker.Drivers
     public bool Timestamps { get; set; }
 
     /// <summary>Show logs since timestamp (RFC3339 or relative).</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
 
     /// <summary>Show logs until timestamp.</summary>
-    public string Until { get; set; }
+    public string? Until { get; set; }
 
     /// <summary>Number of lines to show from end (null = all).</summary>
     public int? Tail { get; set; }
@@ -190,10 +189,10 @@ namespace FluentDocker.Drivers
   public class StreamEventsConfig
   {
     /// <summary>Show events since timestamp.</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
 
     /// <summary>Show events until timestamp.</summary>
-    public string Until { get; set; }
+    public string? Until { get; set; }
 
     /// <summary>Filter events by type (container, image, volume, network, daemon).</summary>
     public List<string> Types { get; set; } = [];
@@ -248,7 +247,7 @@ namespace FluentDocker.Drivers
     /// Key sequence for detaching. The Docker API driver does not support custom detach
     /// keys and fails fast when set. This is an adapter-specific Docker/Podman CLI option.
     /// </summary>
-    public string DetachKeys { get; set; }
+    public string? DetachKeys { get; set; }
 
     /// <summary>
     /// Do not attach stdout. This is the Docker CLI inverse of <see cref="Stdout"/> and is
@@ -280,13 +279,13 @@ namespace FluentDocker.Drivers
   public class ContainerEvent
   {
     /// <summary>Event type (container, image, network, volume, daemon).</summary>
-    public string Type { get; set; }
+    public string? Type { get; set; }
 
     /// <summary>Event action (create, start, stop, die, etc.).</summary>
-    public string Action { get; set; }
+    public string? Action { get; set; }
 
     /// <summary>Actor ID (container ID, image ID, etc.).</summary>
-    public string ActorId { get; set; }
+    public string? ActorId { get; set; }
 
     /// <summary>Actor attributes.</summary>
     public Dictionary<string, string> ActorAttributes { get; set; } = [];
@@ -299,10 +298,10 @@ namespace FluentDocker.Drivers
     public long TimeNano { get; set; }
 
     /// <summary>Scope of the event (local, swarm).</summary>
-    public string Scope { get; set; }
+    public string? Scope { get; set; }
 
     /// <summary>Raw JSON string of the event.</summary>
-    public string RawJson { get; set; }
+    public string? RawJson { get; set; }
   }
 
   /// <summary>
@@ -311,10 +310,10 @@ namespace FluentDocker.Drivers
   public class ContainerStats
   {
     /// <summary>Container ID.</summary>
-    public string ContainerId { get; set; }
+    public string? ContainerId { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>CPU usage percentage.</summary>
     public double CpuPercentage { get; set; }
@@ -348,7 +347,7 @@ namespace FluentDocker.Drivers
     public DateTime Timestamp { get; set; }
 
     /// <summary>Raw JSON string of stats.</summary>
-    public string RawJson { get; set; }
+    public string? RawJson { get; set; }
   }
 
   /// <summary>
@@ -363,10 +362,10 @@ namespace FluentDocker.Drivers
   {
     // ponytail: CLI attach owns a Process while API attach only owns streams; move this split in a future release.
     /// <summary>Input stream (to send data to container).</summary>
-    public Stream InputStream { get; set; }
+    public Stream? InputStream { get; set; }
 
     /// <summary>Output stream (to read data from container).</summary>
-    public Stream OutputStream { get; set; }
+    public Stream? OutputStream { get; set; }
 
     /// <summary>Error stream (to read error data from container).</summary>
     public Stream? ErrorStream { get; set; }
@@ -378,7 +377,7 @@ namespace FluentDocker.Drivers
     public bool IsConnected { get; set; }
 
     /// <summary>The underlying process for CLI-based attach (used for cleanup).</summary>
-    internal Process AttachedProcess { get; set; }
+    internal Process? AttachedProcess { get; set; }
 
     /// <summary>Optional logger for attach cleanup failures.</summary>
     public ILogger? Logger { get; set; }
@@ -452,7 +451,7 @@ namespace FluentDocker.Drivers
       return ValueTask.CompletedTask;
     }
 
-    private static void DisposeStream(Stream stream, List<Exception> disposeErrors, ILogger logger)
+    private static void DisposeStream(Stream? stream, List<Exception> disposeErrors, ILogger? logger)
     {
       try
       {

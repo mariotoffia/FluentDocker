@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,18 +42,18 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Registry server URL (null for Docker Hub).
     /// </summary>
-    public string Server { get; set; }
+    public string? Server { get; set; }
 
     /// <summary>
     /// Username for authentication.
     /// </summary>
-    public string Username { get; set; }
+    public string? Username { get; set; }
 
     /// <summary>
     /// Password for authentication.
     /// </summary>
     [JsonIgnore]
-    public string Password { get; set; }
+    public string? Password { get; set; }
 
     /// <summary>
     /// When <c>true</c>, requires that <see cref="Password"/> is present — adapters fail fast if it
@@ -66,7 +65,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Email address (deprecated in newer Docker versions).
     /// </summary>
-    public string Email { get; set; }
+    public string? Email { get; set; }
 
     /// <summary>
     /// Identity token returned by the registry's token/2FA flow. When set it is preferred over
@@ -75,7 +74,7 @@ namespace FluentDocker.Drivers
     /// callers do not normally set it.
     /// </summary>
     [JsonIgnore]
-    public string IdentityToken { get; set; }
+    public string? IdentityToken { get; set; }
 
     /// <summary>Returns a redacted representation of the registry login configuration.</summary>
     public override string ToString()

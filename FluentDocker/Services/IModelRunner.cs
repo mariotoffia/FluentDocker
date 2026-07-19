@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -39,6 +38,6 @@ namespace FluentDocker.Services
     IAsyncEnumerable<string> ChatStreamAsync(string prompt, CancellationToken cancellationToken = default);
 
     /// <summary>Embed a single string with the default (or specified) model.</summary>
-    Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference model = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<float>> EmbedAsync(string text, ModelReference? model = null, CancellationToken cancellationToken = default);
   }
 }

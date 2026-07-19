@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -134,12 +133,12 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// The name of the created volume (either the requested name or an engine-generated one).
     /// </summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     /// The driver used by the created volume.
     /// </summary>
-    public string Driver { get; set; }
+    public string? Driver { get; set; }
 
     /// <summary>
     /// Any warnings generated during volume creation (e.g., deprecated options).
@@ -155,7 +154,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Filters volumes by name. Supports partial matching depending on the driver implementation.
     /// </summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     /// Filters volumes by labels. Only volumes that have all specified key-value pairs are returned.

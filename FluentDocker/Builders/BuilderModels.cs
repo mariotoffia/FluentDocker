@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Net.Http;
 using FluentDocker.Common;
@@ -27,14 +26,14 @@ namespace FluentDocker.Builders
   internal sealed class WaitCondition
   {
     public WaitConditionType Type { get; set; }
-    public string Target { get; set; }
-    public string Path { get; set; }
+    public string? Target { get; set; }
+    public string? Path { get; set; }
     public long TimeoutMs { get; set; }
-    public HttpMethod HttpMethod { get; set; }
-    public string ContentType { get; set; }
-    public string Body { get; set; }
-    public Func<RequestResponse, int, long> HttpContinuation { get; set; }
-    public Func<IContainerService, int, int> LambdaCondition { get; set; }
+    public HttpMethod? HttpMethod { get; set; }
+    public string? ContentType { get; set; }
+    public string? Body { get; set; }
+    public Func<RequestResponse, int, long>? HttpContinuation { get; set; }
+    public Func<IContainerService, int, int>? LambdaCondition { get; set; }
 
     /// <summary>
     /// Delay in milliseconds between poll iterations (default 500ms).
@@ -67,11 +66,11 @@ namespace FluentDocker.Builders
     /// <summary>The container state (e.g. Running, Removing) that fires this hook.</summary>
     public ServiceRunningState TriggerState { get; set; }
     /// <summary>The host-side path for <see cref="LifecycleHookType.CopyTo"/>, <see cref="LifecycleHookType.CopyFrom"/>, and <see cref="LifecycleHookType.Export"/> hooks.</summary>
-    public string HostPath { get; set; }
+    public string? HostPath { get; set; }
     /// <summary>The container-side path for <see cref="LifecycleHookType.CopyTo"/> and <see cref="LifecycleHookType.CopyFrom"/> hooks.</summary>
-    public string ContainerPath { get; set; }
+    public string? ContainerPath { get; set; }
     /// <summary>The argv command run by an <see cref="LifecycleHookType.Execute"/> hook.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
     /// <summary>
     /// For an <see cref="LifecycleHookType.Export"/> hook, extracts the exported tar archive into
     /// <see cref="HostPath"/> as a directory instead of writing a single <c>.tar</c> file.
@@ -81,7 +80,7 @@ namespace FluentDocker.Builders
     /// Optional predicate gating an <see cref="LifecycleHookType.Export"/> hook; the export is skipped
     /// when this returns <c>false</c>.
     /// </summary>
-    public Func<IContainerService, bool> Condition { get; set; }
+    public Func<IContainerService, bool>? Condition { get; set; }
   }
 
   /// <summary>
@@ -103,9 +102,9 @@ namespace FluentDocker.Builders
   public class NetworkAlias
   {
     /// <summary>The name of the existing Docker/Podman network the alias applies to.</summary>
-    public string NetworkName { get; set; }
+    public string? NetworkName { get; set; }
     /// <summary>The DNS alias the container is reachable as on <see cref="NetworkName"/>.</summary>
-    public string Alias { get; set; }
+    public string? Alias { get; set; }
   }
 
   /// <summary>
@@ -114,9 +113,9 @@ namespace FluentDocker.Builders
   public class ContainerLink
   {
     /// <summary>Name of the container to link to.</summary>
-    public string ContainerName { get; set; }
+    public string? ContainerName { get; set; }
     /// <summary>Alias for the linked container (defaults to container name if not specified).</summary>
-    public string Alias { get; set; }
+    public string? Alias { get; set; }
   }
 
   #endregion

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,10 +66,10 @@ namespace FluentDocker.Builders
   {
     private bool _detach = true;
     private bool _debug;
-    private string _openAiUrl;
+    private string? _openAiUrl;
     private bool _webSearch;
     private int? _contextSize;
-    private System.Collections.Generic.IReadOnlyList<string> _runtimeFlags;
+    private System.Collections.Generic.IReadOnlyList<string>? _runtimeFlags;
 
     /// <summary>Load detached so the call returns once resident (default true).</summary>
     public ModelRunOptionsBuilder WithDetach(bool detach = true)

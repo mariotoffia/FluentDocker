@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 
 namespace FluentDocker.Drivers.Docker.Api.Connection
@@ -12,13 +11,13 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// Docker daemon host URI. Supported schemes: unix://, npipe://, tcp://, http://, https://.
     /// Default: auto-detected based on platform.
     /// </summary>
-    public string Host { get; set; }
+    public string? Host { get; set; }
 
     /// <summary>
     /// Path to directory containing TLS client certificates (ca.pem, cert.pem, key.pem).
     /// Setting this explicitly enables TLS and selects port 2376 for a bare tcp host.
     /// </summary>
-    public string CertificatePath { get; set; }
+    public string? CertificatePath { get; set; }
 
     /// <summary>
     /// Whether to verify TLS certificates. Default: true.
@@ -63,7 +62,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// <summary>
     /// Docker Engine API version to use. Null means auto-negotiate via /_ping.
     /// </summary>
-    public string ApiVersion { get; set; }
+    public string? ApiVersion { get; set; }
 
     /// <summary>
     /// When true, a TLS certificate whose hostname/SAN does not match the connection host

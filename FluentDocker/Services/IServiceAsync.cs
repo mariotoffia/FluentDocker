@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -69,7 +68,7 @@ namespace FluentDocker.Services
     /// removable name, use <see cref="ServiceHookExtensions.AddHookWithGeneratedName"/>.
     /// Hooks registered for the same state run in an unspecified order.
     /// </remarks>
-    IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null);
+    IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null);
 
     /// <summary>
     /// Removes a hook by name.

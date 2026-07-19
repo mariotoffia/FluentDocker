@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -104,28 +103,28 @@ namespace FluentDocker.Drivers
   public class ServiceTask
   {
     /// <summary>Task ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Task name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Image used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Node the task is running on.</summary>
-    public string Node { get; set; }
+    public string? Node { get; set; }
 
     /// <summary>Desired state.</summary>
-    public string DesiredState { get; set; }
+    public string? DesiredState { get; set; }
 
     /// <summary>Current state.</summary>
-    public string CurrentState { get; set; }
+    public string? CurrentState { get; set; }
 
     /// <summary>Error message if any.</summary>
-    public string Error { get; set; }
+    public string? Error { get; set; }
 
     /// <summary>Ports exposed.</summary>
-    public string Ports { get; set; }
+    public string? Ports { get; set; }
   }
 
   #endregion
@@ -138,16 +137,16 @@ namespace FluentDocker.Drivers
   public class ServiceTaskFilter
   {
     /// <summary>Filter by task ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Filter by task name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Filter by node.</summary>
-    public string Node { get; set; }
+    public string? Node { get; set; }
 
     /// <summary>Filter by desired state.</summary>
-    public string DesiredState { get; set; }
+    public string? DesiredState { get; set; }
 
     /// <summary>Don't truncate output.</summary>
     public bool NoTrunc { get; set; }
@@ -159,7 +158,7 @@ namespace FluentDocker.Drivers
     public bool Quiet { get; set; }
 
     /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
-    public string Format { get; set; }
+    public string? Format { get; set; }
   }
 
   /// <summary>
@@ -174,7 +173,7 @@ namespace FluentDocker.Drivers
     public bool Follow { get; set; }
 
     /// <summary>Show logs since timestamp.</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
 
     /// <summary>Number of lines to show from end.</summary>
     public int? Tail { get; set; }

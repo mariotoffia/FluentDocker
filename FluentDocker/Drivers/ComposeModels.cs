@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 
 namespace FluentDocker.Drivers
@@ -13,9 +12,9 @@ namespace FluentDocker.Drivers
     /// <summary>Path to compose file(s).</summary>
     public List<string> ComposeFiles { get; set; } = [];
     /// <summary>Project name.</summary>
-    public string ProjectName { get; set; }
+    public string? ProjectName { get; set; }
     /// <summary>Project directory.</summary>
-    public string ProjectDirectory { get; set; }
+    public string? ProjectDirectory { get; set; }
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
     /// <summary>Specific services to target.</summary>
@@ -53,7 +52,7 @@ namespace FluentDocker.Drivers
     /// Pull image policy passed through to the compose adapter. Accepted values are
     /// <c>always</c>, <c>missing</c>, <c>never</c>, and adapter-supported aliases.
     /// </summary>
-    public string Pull { get; set; }
+    public string? Pull { get; set; }
     /// <summary>Scale service replicas (service=count) for the up command.</summary>
     public Dictionary<string, int> Scale { get; set; } = [];
     /// <summary>Compose profiles to activate.</summary>
@@ -68,7 +67,7 @@ namespace FluentDocker.Drivers
     /// <summary>Remove volumes.</summary>
     public bool RemoveVolumes { get; set; }
     /// <summary>Remove images (all, local).</summary>
-    public string RemoveImages { get; set; }
+    public string? RemoveImages { get; set; }
     /// <summary>Timeout in seconds.</summary>
     public int? Timeout { get; set; }
     /// <summary>Remove orphaned containers.</summary>
@@ -125,11 +124,11 @@ namespace FluentDocker.Drivers
     /// <summary>Show all containers (default: running only).</summary>
     public bool All { get; set; }
     /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
-    public string Format { get; set; }
+    public string? Format { get; set; }
     /// <summary>Only display IDs.</summary>
     public bool Quiet { get; set; }
     /// <summary>Filter by status.</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
   }
 
   /// <summary>
@@ -144,9 +143,9 @@ namespace FluentDocker.Drivers
     /// <summary>Number of lines to show from end.</summary>
     public int? Tail { get; set; }
     /// <summary>Show logs since timestamp.</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
     /// <summary>Show logs until timestamp.</summary>
-    public string Until { get; set; }
+    public string? Until { get; set; }
     /// <summary>Don't colorize output.</summary>
     public bool NoColor { get; set; }
   }
@@ -163,7 +162,7 @@ namespace FluentDocker.Drivers
     /// <summary>Pin image tags to digests in the rendered config.</summary>
     public bool ResolveImageDigests { get; set; }
     /// <summary>Output format.</summary>
-    public string Format { get; set; }
+    public string? Format { get; set; }
   }
 
   /// <summary>
@@ -206,19 +205,19 @@ namespace FluentDocker.Drivers
   public class ComposeExecConfig : ComposeFileConfig
   {
     /// <summary>Service name.</summary>
-    public string Service { get; set; }
+    public string? Service { get; set; }
     /// <summary>Command to execute.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
     /// <summary>Detached mode.</summary>
     public bool Detach { get; set; }
     /// <summary>Give extended privileges.</summary>
     public bool Privileged { get; set; }
     /// <summary>Run as this user.</summary>
-    public string User { get; set; }
+    public string? User { get; set; }
     /// <summary>Allocate a pseudo-TTY.</summary>
     public bool Tty { get; set; } = true;
     /// <summary>Working directory inside container.</summary>
-    public string WorkDir { get; set; }
+    public string? WorkDir { get; set; }
     /// <summary>Index of container if scaled.</summary>
     public int? Index { get; set; }
   }
@@ -229,19 +228,19 @@ namespace FluentDocker.Drivers
   public class ComposeRunConfig : ComposeFileConfig
   {
     /// <summary>Service name.</summary>
-    public string Service { get; set; }
+    public string? Service { get; set; }
     /// <summary>Command to run.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
     /// <summary>Detached mode.</summary>
     public bool Detach { get; set; }
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
     /// <summary>Override entrypoint.</summary>
-    public string Entrypoint { get; set; }
+    public string? Entrypoint { get; set; }
     /// <summary>Run as this user.</summary>
-    public string User { get; set; }
+    public string? User { get; set; }
     /// <summary>Working directory.</summary>
-    public string WorkDir { get; set; }
+    public string? WorkDir { get; set; }
     /// <summary>Don't start linked services.</summary>
     public bool NoDeps { get; set; }
     /// <summary>Remove container after run.</summary>
@@ -273,9 +272,9 @@ namespace FluentDocker.Drivers
   public class ComposeCopyConfig : ComposeFileConfig
   {
     /// <summary>Source path (container:path or local path).</summary>
-    public string Source { get; set; }
+    public string? Source { get; set; }
     /// <summary>Destination path (container:path or local path).</summary>
-    public string Destination { get; set; }
+    public string? Destination { get; set; }
     /// <summary>Archive mode (copy all uid/gid info).</summary>
     public bool Archive { get; set; }
     /// <summary>Follow symbolic links.</summary>
@@ -298,7 +297,7 @@ namespace FluentDocker.Drivers
     /// <summary>Don't build images.</summary>
     public bool NoBuild { get; set; }
     /// <summary>Pull images before creating.</summary>
-    public string Pull { get; set; }
+    public string? Pull { get; set; }
     /// <summary>Remove orphaned containers.</summary>
     public bool RemoveOrphans { get; set; }
   }
@@ -309,7 +308,7 @@ namespace FluentDocker.Drivers
   public class ComposePortConfig : ComposeFileConfig
   {
     /// <summary>Service name.</summary>
-    public string Service { get; set; }
+    public string? Service { get; set; }
     /// <summary>Private port.</summary>
     public int PrivatePort { get; set; }
     /// <summary>Protocol (tcp or udp).</summary>
@@ -346,33 +345,33 @@ namespace FluentDocker.Drivers
   {
     /// <summary>Service name (from compose file).</summary>
     [System.Text.Json.Serialization.JsonPropertyName("Service")]
-    public string Name { get; set; }
+    public string? Name { get; set; }
     /// <summary>Current state (running, exited, etc.).</summary>
-    public string State { get; set; }
+    public string? State { get; set; }
     /// <summary>Status description (e.g., "Up 2 seconds").</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
     /// <summary>Health status.</summary>
-    public string Health { get; set; }
+    public string? Health { get; set; }
     /// <summary>Container ID.</summary>
     [System.Text.Json.Serialization.JsonPropertyName("ID")]
-    public string ContainerId { get; set; }
+    public string? ContainerId { get; set; }
     /// <summary>Container name.</summary>
     [System.Text.Json.Serialization.JsonPropertyName("Name")]
-    public string ContainerName { get; set; }
+    public string? ContainerName { get; set; }
     /// <summary>Image being used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
     /// <summary>Command being run.</summary>
-    public string Command { get; set; }
+    public string? Command { get; set; }
     /// <summary>Port mappings string.</summary>
-    public string Ports { get; set; }
+    public string? Ports { get; set; }
     /// <summary>Project name.</summary>
-    public string Project { get; set; }
+    public string? Project { get; set; }
     /// <summary>Exit code (if stopped).</summary>
     public int ExitCode { get; set; }
     /// <summary>Created at timestamp.</summary>
-    public string CreatedAt { get; set; }
+    public string? CreatedAt { get; set; }
     /// <summary>Running time description.</summary>
-    public string RunningFor { get; set; }
+    public string? RunningFor { get; set; }
     /// <summary>Publishers (structured port info).</summary>
     public List<ComposePublisher> Publishers { get; set; } = [];
   }
@@ -383,13 +382,13 @@ namespace FluentDocker.Drivers
   public class ComposePublisher
   {
     /// <summary>URL/IP to bind to.</summary>
-    public string URL { get; set; }
+    public string? URL { get; set; }
     /// <summary>Target port in container.</summary>
     public int TargetPort { get; set; }
     /// <summary>Published port on host.</summary>
     public int PublishedPort { get; set; }
     /// <summary>Protocol (tcp/udp).</summary>
-    public string Protocol { get; set; }
+    public string? Protocol { get; set; }
   }
 
   /// <summary>
@@ -398,7 +397,7 @@ namespace FluentDocker.Drivers
   public class ComposeProcesses
   {
     /// <summary>Service name.</summary>
-    public string Service { get; set; }
+    public string? Service { get; set; }
     /// <summary>
     /// Real container ID from the <c>compose ps</c> join. May be <c>null</c> when the join is
     /// unavailable (ps failed, malformed, or no matching container), in which case only
@@ -406,7 +405,7 @@ namespace FluentDocker.Drivers
     /// </summary>
     public string? ContainerId { get; set; }
     /// <summary>Container name (e.g. project-service-1).</summary>
-    public string ContainerName { get; set; }
+    public string? ContainerName { get; set; }
     /// <summary>Process information.</summary>
     public List<Dictionary<string, string>> Processes { get; set; } = [];
   }
@@ -417,21 +416,21 @@ namespace FluentDocker.Drivers
   public class ComposeImage
   {
     /// <summary>Container name.</summary>
-    public string Container { get; set; }
+    public string? Container { get; set; }
     /// <summary>Repository.</summary>
-    public string Repository { get; set; }
+    public string? Repository { get; set; }
     /// <summary>Tag.</summary>
-    public string Tag { get; set; }
+    public string? Tag { get; set; }
     /// <summary>Image ID.</summary>
     [System.Text.Json.Serialization.JsonPropertyName("ID")]
-    public string ImageId { get; set; }
+    public string? ImageId { get; set; }
     /// <summary>
     /// Image size. Newer <c>docker compose images --format json</c> emits this as a JSON
     /// number (raw byte count); older versions emit a human string (e.g. <c>"133MB"</c>).
     /// The converter tolerates both.
     /// </summary>
     [System.Text.Json.Serialization.JsonConverter(typeof(FluentDocker.Common.TolerantStringConverter))]
-    public string Size { get; set; }
+    public string? Size { get; set; }
   }
 
   #endregion

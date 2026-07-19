@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -127,7 +126,7 @@ namespace FluentDocker.Drivers
     /// </summary>
     /// <param name="key">Metadata key.</param>
     /// <param name="value">Metadata value.</param>
-    protected void SetMeta(string key, object value)
+    protected void SetMeta(string key, object? value)
     {
       if (string.IsNullOrWhiteSpace(key) || value == null)
         return;
@@ -221,16 +220,16 @@ namespace FluentDocker.Drivers
   public class SystemInfo : RuntimeInfoBase
   {
     /// <summary>Operating system name (e.g., "Docker Desktop").</summary>
-    public string OperatingSystem { get; set; }
+    public string? OperatingSystem { get; set; }
 
     /// <summary>Operating system type (e.g., "linux", "windows").</summary>
-    public string OSType { get; set; }
+    public string? OSType { get; set; }
 
     /// <summary>Operating system version.</summary>
-    public string OSVersion { get; set; }
+    public string? OSVersion { get; set; }
 
     /// <summary>CPU architecture.</summary>
-    public string Architecture { get; set; }
+    public string? Architecture { get; set; }
 
     /// <summary>Total number of containers.</summary>
     public int Containers { get; set; }
@@ -248,25 +247,25 @@ namespace FluentDocker.Drivers
     public int Images { get; set; }
 
     /// <summary>Engine/runtime version (e.g., Docker Engine version, Podman version).</summary>
-    public string EngineVersion { get; set; }
+    public string? EngineVersion { get; set; }
 
     /// <summary>
     /// Backward-compatible alias for Docker-based consumers; maps to EngineVersion.
     /// </summary>
-    public string ServerVersion
+    public string? ServerVersion
     {
       get => EngineVersion;
       set => EngineVersion = value;
     }
 
     /// <summary>Storage backend/driver in use.</summary>
-    public string StorageBackend { get; set; }
+    public string? StorageBackend { get; set; }
 
     /// <summary>Logging backend/driver in use.</summary>
-    public string LoggingBackend { get; set; }
+    public string? LoggingBackend { get; set; }
 
     /// <summary>Kernel version.</summary>
-    public string KernelVersion { get; set; }
+    public string? KernelVersion { get; set; }
 
     /// <summary>Total memory in bytes.</summary>
     public long MemoryTotal { get; set; }
@@ -275,10 +274,10 @@ namespace FluentDocker.Drivers
     public int CPUs { get; set; }
 
     /// <summary>Root directory where the engine stores data/layers.</summary>
-    public string DataRoot { get; set; }
+    public string? DataRoot { get; set; }
 
     /// <summary>Server hostname.</summary>
-    public string Hostname { get; set; }
+    public string? Hostname { get; set; }
 
     /// <summary>Security options.</summary>
     public List<string> SecurityOptions { get; set; } = [];
@@ -288,7 +287,7 @@ namespace FluentDocker.Drivers
     public Dictionary<string, object> Runtimes { get; set; } = [];
 
     /// <summary>Default runtime.</summary>
-    public string DefaultRuntime { get; set; }
+    public string? DefaultRuntime { get; set; }
 
     /// <summary>Whether the runtime reports rootless mode.</summary>
     public bool? Rootless { get; set; }
@@ -324,37 +323,37 @@ namespace FluentDocker.Drivers
   public class VersionInfo : RuntimeInfoBase
   {
     /// <summary>Client version.</summary>
-    public string ClientVersion { get; set; }
+    public string? ClientVersion { get; set; }
 
     /// <summary>Client API version.</summary>
-    public string ClientApiVersion { get; set; }
+    public string? ClientApiVersion { get; set; }
 
     /// <summary>Server version.</summary>
-    public string ServerVersion { get; set; }
+    public string? ServerVersion { get; set; }
 
     /// <summary>Server API version.</summary>
-    public string ServerApiVersion { get; set; }
+    public string? ServerApiVersion { get; set; }
 
     /// <summary>Minimum API version.</summary>
-    public string MinApiVersion { get; set; }
+    public string? MinApiVersion { get; set; }
 
     /// <summary>Git commit.</summary>
-    public string GitCommit { get; set; }
+    public string? GitCommit { get; set; }
 
     /// <summary>Engine runtime language/toolchain version (e.g., Go version for Docker/Podman).</summary>
-    public string RuntimeVersion { get; set; }
+    public string? RuntimeVersion { get; set; }
 
     /// <summary>Operating system.</summary>
-    public string Os { get; set; }
+    public string? Os { get; set; }
 
     /// <summary>Architecture.</summary>
-    public string Arch { get; set; }
+    public string? Arch { get; set; }
 
     /// <summary>Build time.</summary>
-    public string BuildTime { get; set; }
+    public string? BuildTime { get; set; }
 
     /// <summary>Platform name (engine or desktop distribution).</summary>
-    public string PlatformName { get; set; }
+    public string? PlatformName { get; set; }
 
     /// <summary>Experimental features enabled.</summary>
     public bool Experimental { get; set; }

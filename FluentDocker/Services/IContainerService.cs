@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -178,19 +177,19 @@ namespace FluentDocker.Services
   public class ContainerStats
   {
     /// <summary>Container identifier.</summary>
-    public string ContainerId { get; set; }
+    public string ContainerId { get; set; } = string.Empty;
 
     /// <summary>CPU usage metrics.</summary>
-    public CpuStats Cpu { get; set; }
+    public CpuStats Cpu { get; set; } = new();
 
     /// <summary>Memory usage metrics.</summary>
-    public MemoryStats Memory { get; set; }
+    public MemoryStats Memory { get; set; } = new();
 
     /// <summary>Network I/O metrics.</summary>
-    public NetworkStats Network { get; set; }
+    public NetworkStats Network { get; set; } = new();
 
     /// <summary>Block I/O metrics.</summary>
-    public DiskStats Disk { get; set; }
+    public DiskStats Disk { get; set; } = new();
   }
 
   /// <summary>

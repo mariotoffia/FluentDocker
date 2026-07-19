@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -50,7 +49,7 @@ namespace FluentDocker.Services
     /// </summary>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task PushAsync(IProgress<ImagePushProgress> progress = null, CancellationToken cancellationToken = default);
+    Task PushAsync(IProgress<ImagePushProgress>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Saves the image to a tar archive.

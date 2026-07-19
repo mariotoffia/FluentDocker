@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,12 +23,12 @@ namespace FluentDocker.Drivers.Podman
 
     /// <summary>Starts a machine VM.</summary>
     Task<CommandResponse<Unit>> StartAsync(
-        DriverContext context, string name = null,
+        DriverContext context, string? name = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Stops a machine VM.</summary>
     Task<CommandResponse<Unit>> StopAsync(
-        DriverContext context, string name = null,
+        DriverContext context, string? name = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Removes a machine VM.</summary>
@@ -44,7 +43,7 @@ namespace FluentDocker.Drivers.Podman
     /// externally rather than relying on the non-force check.
     /// </remarks>
     Task<CommandResponse<Unit>> RemoveAsync(
-        DriverContext context, string name = null, bool force = false,
+        DriverContext context, string? name = null, bool force = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>Lists all machines.</summary>
@@ -54,17 +53,17 @@ namespace FluentDocker.Drivers.Podman
 
     /// <summary>Inspects a machine returning detailed information.</summary>
     Task<CommandResponse<MachineInspectResult>> InspectAsync(
-        DriverContext context, string name = null,
+        DriverContext context, string? name = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Executes a command via SSH in a machine VM.</summary>
     Task<CommandResponse<string>> SshAsync(
-        DriverContext context, string name = null, string command = null,
+        DriverContext context, string? name = null, string? command = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Modifies machine settings (CPU, memory, disk, rootful).</summary>
     Task<CommandResponse<Unit>> SetAsync(
-        DriverContext context, MachineSetConfig config, string name = null,
+        DriverContext context, MachineSetConfig config, string? name = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Returns machine host and version information.</summary>
@@ -79,7 +78,7 @@ namespace FluentDocker.Drivers.Podman
   public class MachineInitConfig
   {
     /// <summary>Machine name (defaults to podman-machine-default if null).</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Number of CPUs for the VM.</summary>
     public int? Cpus { get; set; }
@@ -94,10 +93,10 @@ namespace FluentDocker.Drivers.Podman
     public bool Rootful { get; set; }
 
     /// <summary>Custom VM image URL or path; emitted as <c>--image</c> (Podman 5+, Podman 4 used <c>--image-path</c>).</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>SSH username for the VM.</summary>
-    public string Username { get; set; }
+    public string? Username { get; set; }
 
     /// <summary>Volume mounts (e.g., "/host/path:/vm/path").</summary>
     public List<string> Volumes { get; set; } = [];
@@ -130,7 +129,7 @@ namespace FluentDocker.Drivers.Podman
   public class MachineInfo
   {
     /// <summary>Machine name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Whether this is the default machine.</summary>
     public bool Default { get; set; }
@@ -142,13 +141,13 @@ namespace FluentDocker.Drivers.Podman
     public bool Starting { get; set; }
 
     /// <summary>Creation timestamp.</summary>
-    public string Created { get; set; }
+    public string? Created { get; set; }
 
     /// <summary>Last time the machine was running.</summary>
-    public string LastUp { get; set; }
+    public string? LastUp { get; set; }
 
     /// <summary>VM type (qemu, applehv, hyperv, wsl).</summary>
-    public string VMType { get; set; }
+    public string? VMType { get; set; }
 
     /// <summary>Number of CPUs.</summary>
     public int Cpus { get; set; }
@@ -166,28 +165,28 @@ namespace FluentDocker.Drivers.Podman
   public class MachineInspectResult
   {
     /// <summary>Machine name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Machine state (running, stopped, etc.).</summary>
-    public string State { get; set; }
+    public string? State { get; set; }
 
     /// <summary>Whether rootful mode is enabled.</summary>
     public bool Rootful { get; set; }
 
     /// <summary>Creation timestamp.</summary>
-    public string Created { get; set; }
+    public string? Created { get; set; }
 
     /// <summary>Last time the machine was running.</summary>
-    public string LastUp { get; set; }
+    public string? LastUp { get; set; }
 
     /// <summary>Configuration directory path.</summary>
-    public string ConfigDir { get; set; }
+    public string? ConfigDir { get; set; }
 
     /// <summary>Machine resource allocation.</summary>
-    public MachineResources Resources { get; set; }
+    public MachineResources? Resources { get; set; }
 
     /// <summary>Connection info (socket path).</summary>
-    public MachineConnectionInfo ConnectionInfo { get; set; }
+    public MachineConnectionInfo? ConnectionInfo { get; set; }
   }
 
   /// <summary>Machine resource allocation.</summary>
@@ -207,7 +206,7 @@ namespace FluentDocker.Drivers.Podman
   public class MachineConnectionInfo
   {
     /// <summary>Path to the Podman API socket.</summary>
-    public string PodmanSocketPath { get; set; }
+    public string? PodmanSocketPath { get; set; }
   }
 
   /// <summary>
@@ -216,27 +215,27 @@ namespace FluentDocker.Drivers.Podman
   public class MachineHostInfo
   {
     /// <summary>Host architecture (amd64, arm64, etc.).</summary>
-    public string Arch { get; set; }
+    public string? Arch { get; set; }
 
     /// <summary>Host OS.</summary>
-    public string OS { get; set; }
+    public string? OS { get; set; }
 
     /// <summary>Name of the currently active machine.</summary>
-    public string CurrentMachine { get; set; }
+    public string? CurrentMachine { get; set; }
 
     /// <summary>VM type (qemu, applehv, hyperv, wsl).</summary>
-    public string VMType { get; set; }
+    public string? VMType { get; set; }
 
     /// <summary>Number of machines configured.</summary>
     public int NumberOfMachines { get; set; }
 
     /// <summary>Machine configuration directory.</summary>
-    public string MachineConfigDir { get; set; }
+    public string? MachineConfigDir { get; set; }
 
     /// <summary>Podman API version.</summary>
-    public string ApiVersion { get; set; }
+    public string? ApiVersion { get; set; }
 
     /// <summary>Podman version.</summary>
-    public string Version { get; set; }
+    public string? Version { get; set; }
   }
 }

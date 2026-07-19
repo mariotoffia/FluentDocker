@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Text.Json.Serialization;
 
 namespace FluentDocker.Drivers.Docker.Api.ApiModels
@@ -11,9 +10,9 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   internal sealed class DockerApiAuthResponse
   {
     [JsonPropertyName("Status")]
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     [JsonPropertyName("IdentityToken")]
-    public string IdentityToken { get; set; }
+    public string? IdentityToken { get; set; }
   }
 }

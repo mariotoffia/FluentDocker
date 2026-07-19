@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 
 namespace FluentDocker.Builders.Compose
@@ -37,6 +36,6 @@ namespace FluentDocker.Builders.Compose
     /// <param name="endpointVar">The custom endpoint env-var name (long form), or null.</param>
     /// <param name="modelVar">The custom model-id env-var name (long form), or null.</param>
     /// <returns>This builder.</returns>
-    IComposeModelBuilder BindToService(string service, string modelKey, string endpointVar = null, string modelVar = null);
+    IComposeModelBuilder BindToService(string service, string modelKey, string? endpointVar = null, string? modelVar = null);
   }
 }

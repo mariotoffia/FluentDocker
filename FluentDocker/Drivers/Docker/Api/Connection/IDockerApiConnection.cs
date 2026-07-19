@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,7 +27,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// <summary>
     /// Sends a POST request to the Docker API.
     /// </summary>
-    Task<HttpResponseMessage> PostAsync(string path, HttpContent content = null, CancellationToken ct = default);
+    Task<HttpResponseMessage> PostAsync(string path, HttpContent? content = null, CancellationToken ct = default);
 
     /// <summary>
     /// Sends a POST request with HTTP headers to the Docker API. Implementations that carry
@@ -69,7 +68,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// Header arrival (time-to-first-byte) is bounded by the connection timeout; the returned
     /// body stream is not request-timeout bounded because Docker logs/build streams can be long-lived.
     /// </remarks>
-    Task<Stream> PostStreamAsync(string path, HttpContent content = null, CancellationToken ct = default);
+    Task<Stream> PostStreamAsync(string path, HttpContent? content = null, CancellationToken ct = default);
 
     /// <summary>
     /// Sends a POST request with optional HTTP headers and returns the response body as a stream.

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -63,7 +62,7 @@ namespace FluentDocker.Services
     /// </remarks>
     Task<IList<IContainerService>> GetContainersAsync(
         bool all = true,
-        IDictionary<string, string> filters = null,
+        IDictionary<string, string>? filters = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -71,7 +70,7 @@ namespace FluentDocker.Services
     /// </summary>
     Task<IContainerService> CreateContainerAsync(
         string image,
-        ContainerCreateOptions config = null,
+        ContainerCreateOptions? config = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -87,7 +86,7 @@ namespace FluentDocker.Services
     /// </remarks>
     Task<IList<IImageService>> GetImagesAsync(
         bool all = true,
-        ImageListFilter filter = null,
+        ImageListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -96,7 +95,7 @@ namespace FluentDocker.Services
     Task<IImageService> PullImageAsync(
         string image,
         string tag = "latest",
-        IProgress<ImagePullProgress> progress = null,
+        IProgress<ImagePullProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -104,7 +103,7 @@ namespace FluentDocker.Services
     /// </summary>
     Task<IImageService> BuildImageAsync(
         ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress = null,
+        IProgress<ImageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -121,7 +120,7 @@ namespace FluentDocker.Services
     /// </summary>
     Task<INetworkService> CreateNetworkAsync(
         string name,
-        NetworkCreateConfig config = null,
+        NetworkCreateConfig? config = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -137,10 +136,10 @@ namespace FluentDocker.Services
     /// Creates a volume.
     /// </summary>
     Task<IVolumeService> CreateVolumeAsync(
-        string name = null,
+        string? name = null,
         string driver = "local",
-        IDictionary<string, string> labels = null,
-        IDictionary<string, string> options = null,
+        IDictionary<string, string>? labels = null,
+        IDictionary<string, string>? options = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -151,7 +150,7 @@ namespace FluentDocker.Services
     /// Prunes unused resources.
     /// </summary>
     Task<SystemPruneResult> PruneAsync(
-        SystemPruneConfig config = null,
+        SystemPruneConfig? config = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -166,10 +165,10 @@ namespace FluentDocker.Services
     public bool ForcePull { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Command to run.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
 
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
@@ -181,13 +180,13 @@ namespace FluentDocker.Services
     public List<string> Volumes { get; set; } = [];
 
     /// <summary>Network to connect to.</summary>
-    public string Network { get; set; }
+    public string? Network { get; set; }
 
     /// <summary>Working directory inside container.</summary>
-    public string WorkingDir { get; set; }
+    public string? WorkingDir { get; set; }
 
     /// <summary>User to run as.</summary>
-    public string User { get; set; }
+    public string? User { get; set; }
 
     /// <summary>Stop container on service dispose.</summary>
     public bool StopOnDispose { get; set; } = true;
@@ -211,7 +210,7 @@ namespace FluentDocker.Services
     public long? CpuQuota { get; set; }
 
     /// <summary>Restart policy.</summary>
-    public string RestartPolicy { get; set; }
+    public string? RestartPolicy { get; set; }
 
     /// <summary>Privileged mode.</summary>
     public bool Privileged { get; set; }

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,7 +70,7 @@ namespace FluentDocker.Drivers.Podman
   public class ManifestCreateConfig
   {
     /// <summary>Name/tag for the manifest list (required).</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Optional images to include during creation.</summary>
     public List<string> Images { get; set; } = [];
@@ -92,22 +91,22 @@ namespace FluentDocker.Drivers.Podman
   public class ManifestAddConfig
   {
     /// <summary>Name of the manifest list (required).</summary>
-    public string ListName { get; set; }
+    public string? ListName { get; set; }
 
     /// <summary>Image to add (required).</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Override the architecture for the image entry.</summary>
-    public string Arch { get; set; }
+    public string? Arch { get; set; }
 
     /// <summary>Override the OS for the image entry.</summary>
-    public string Os { get; set; }
+    public string? Os { get; set; }
 
     /// <summary>Override the variant for the image entry.</summary>
-    public string Variant { get; set; }
+    public string? Variant { get; set; }
 
     /// <summary>Override the OS version for the image entry.</summary>
-    public string OsVersion { get; set; }
+    public string? OsVersion { get; set; }
 
     /// <summary>Features required for the image entry.</summary>
     public List<string> Features { get; set; } = [];
@@ -125,10 +124,10 @@ namespace FluentDocker.Drivers.Podman
   public class ManifestPushConfig
   {
     /// <summary>Name of the manifest list to push (required).</summary>
-    public string ListName { get; set; }
+    public string? ListName { get; set; }
 
     /// <summary>Destination registry/repository (required).</summary>
-    public string Destination { get; set; }
+    public string? Destination { get; set; }
 
     /// <summary>Push all referenced images (default true).</summary>
     public bool All { get; set; } = true;
@@ -137,7 +136,7 @@ namespace FluentDocker.Drivers.Podman
     public bool Rm { get; set; }
 
     /// <summary>Manifest format: "oci" or "v2s2" (default: oci).</summary>
-    public string Format { get; set; }
+    public string? Format { get; set; }
 
     /// <summary>Enable/disable TLS verification. Null uses the default.</summary>
     public bool? TlsVerify { get; set; }
@@ -149,22 +148,22 @@ namespace FluentDocker.Drivers.Podman
   public class ManifestAnnotateConfig
   {
     /// <summary>Name of the manifest list (required).</summary>
-    public string ListName { get; set; }
+    public string? ListName { get; set; }
 
     /// <summary>Image digest or name within the list (required).</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Override the architecture.</summary>
-    public string Arch { get; set; }
+    public string? Arch { get; set; }
 
     /// <summary>Override the OS.</summary>
-    public string Os { get; set; }
+    public string? Os { get; set; }
 
     /// <summary>Override the variant.</summary>
-    public string Variant { get; set; }
+    public string? Variant { get; set; }
 
     /// <summary>Override the OS version.</summary>
-    public string OsVersion { get; set; }
+    public string? OsVersion { get; set; }
 
     /// <summary>OS features for the entry.</summary>
     public List<string> OsFeatures { get; set; } = [];
@@ -192,7 +191,7 @@ namespace FluentDocker.Drivers.Podman
     public int SchemaVersion { get; set; }
 
     /// <summary>OCI/Docker media type of the manifest list itself (the JSON's <c>mediaType</c> field).</summary>
-    public string MediaType { get; set; }
+    public string? MediaType { get; set; }
 
     /// <summary>The platform-specific manifest entries this list points to (the JSON's <c>manifests</c> array).</summary>
     public List<ManifestEntry> Manifests { get; set; } = [];
@@ -204,16 +203,16 @@ namespace FluentDocker.Drivers.Podman
   public class ManifestEntry
   {
     /// <summary>Media type of the referenced image manifest (the entry's <c>mediaType</c> field).</summary>
-    public string MediaType { get; set; }
+    public string? MediaType { get; set; }
 
     /// <summary>Size in bytes of the referenced image manifest.</summary>
     public long Size { get; set; }
 
     /// <summary>Content-addressable digest (e.g. <c>sha256:...</c>) of the referenced image manifest.</summary>
-    public string Digest { get; set; }
+    public string? Digest { get; set; }
 
     /// <summary>The platform this entry targets.</summary>
-    public ManifestPlatform Platform { get; set; }
+    public ManifestPlatform? Platform { get; set; }
 
     /// <summary>OCI annotations attached to this entry.</summary>
     public Dictionary<string, string> Annotations { get; set; } = [];
@@ -225,16 +224,16 @@ namespace FluentDocker.Drivers.Podman
   public class ManifestPlatform
   {
     /// <summary>CPU architecture (e.g. <c>amd64</c>, <c>arm64</c>).</summary>
-    public string Architecture { get; set; }
+    public string? Architecture { get; set; }
 
     /// <summary>Target operating system (e.g. <c>linux</c>).</summary>
-    public string Os { get; set; }
+    public string? Os { get; set; }
 
     /// <summary>CPU variant, when applicable (e.g. <c>v7</c> for 32-bit ARM).</summary>
-    public string Variant { get; set; }
+    public string? Variant { get; set; }
 
     /// <summary>Minimum target OS version, when specified.</summary>
-    public string OsVersion { get; set; }
+    public string? OsVersion { get; set; }
 
     /// <summary>Required CPU/OS features, when specified.</summary>
     public List<string> Features { get; set; } = [];

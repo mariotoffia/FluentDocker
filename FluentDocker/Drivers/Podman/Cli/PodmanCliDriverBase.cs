@@ -262,11 +262,15 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// Quotes a positional CLI argument, throwing a <see cref="DriverException"/> if it starts
     /// with '-' (which Podman would otherwise misparse as an option rather than a value).
     /// </summary>
-    /// <param name="argument">The positional argument value.</param>
+    /// <param name="argument">The positional argument value (must not be null — a positional argument is required).</param>
     /// <param name="argumentName">Argument name used in the exception message.</param>
-    /// <exception cref="DriverException">The argument starts with '-'.</exception>
-    protected static string QuotePositionalArgument(string argument, string argumentName)
+    /// <exception cref="DriverException">The argument is null or starts with '-'.</exception>
+    protected static string QuotePositionalArgument(string? argument, string argumentName)
     {
+      if (argument is null)
+        throw new DriverException(
+            $"{argumentName} is required and must not be null.",
+            ErrorCodes.General.InvalidArgument);
       if (StartsWithDash(argument))
         throw new DriverException(
             $"{argumentName} must not start with '-' because Podman would parse it as an option.",

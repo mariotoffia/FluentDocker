@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -183,10 +182,10 @@ namespace FluentDocker.Drivers
   public class ContainerCreateResult
   {
     /// <summary>Container ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Warnings from the create operation.</summary>
     public List<string> Warnings { get; set; } = [];
@@ -226,13 +225,13 @@ namespace FluentDocker.Drivers
   public class ContainerCreateConfig
   {
     /// <summary>Image to use for the container.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Command to run.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
 
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
@@ -244,31 +243,31 @@ namespace FluentDocker.Drivers
     public List<string> Volumes { get; set; } = [];
 
     /// <summary>Network mode.</summary>
-    public string NetworkMode { get; set; }
+    public string? NetworkMode { get; set; }
 
     /// <summary>Additional labels.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Working directory inside the container.</summary>
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     /// <summary>User to run as inside the container.</summary>
-    public string User { get; set; }
+    public string? User { get; set; }
 
     /// <summary>Restart policy (no, always, unless-stopped, on-failure).</summary>
-    public string RestartPolicy { get; set; }
+    public string? RestartPolicy { get; set; }
 
     /// <summary>Hostname of the container.</summary>
-    public string Hostname { get; set; }
+    public string? Hostname { get; set; }
 
     /// <summary>Networks to attach the container to.</summary>
     public List<string> Networks { get; set; } = [];
 
     /// <summary>Static IPv4 address for the container (requires custom network with subnet).</summary>
-    public string Ipv4Address { get; set; }
+    public string? Ipv4Address { get; set; }
 
     /// <summary>Static IPv6 address for the container (requires IPv6-enabled network with subnet).</summary>
-    public string Ipv6Address { get; set; }
+    public string? Ipv6Address { get; set; }
 
     /// <summary>Memory limit in bytes.</summary>
     public long? MemoryLimit { get; set; }
@@ -295,16 +294,16 @@ namespace FluentDocker.Drivers
     public bool Interactive { get; set; }
 
     /// <summary>Entrypoint override.</summary>
-    public string[] Entrypoint { get; set; }
+    public string[]? Entrypoint { get; set; }
 
     /// <summary>Stop signal.</summary>
-    public string StopSignal { get; set; }
+    public string? StopSignal { get; set; }
 
     /// <summary>Stop timeout in seconds.</summary>
     public int? StopTimeout { get; set; }
 
     /// <summary>Health check configuration.</summary>
-    public HealthCheckConfig HealthCheck { get; set; }
+    public HealthCheckConfig? HealthCheck { get; set; }
 
     /// <summary>DNS servers.</summary>
     public List<string> Dns { get; set; } = [];
@@ -323,7 +322,7 @@ namespace FluentDocker.Drivers
     public List<string> Links { get; set; } = [];
 
     /// <summary>Podman pod to join (Podman-only, ignored by Docker).</summary>
-    public string Pod { get; set; }
+    public string? Pod { get; set; }
 
     /// <summary>
     /// Network aliases keyed by network name.
@@ -353,10 +352,10 @@ namespace FluentDocker.Drivers
     public bool ReadonlyRootfs { get; set; }
 
     /// <summary>Platform for multi-arch images (e.g. linux/arm64).</summary>
-    public string Platform { get; set; }
+    public string? Platform { get; set; }
 
     /// <summary>OCI runtime to use (e.g. runc, crun, runsc).</summary>
-    public string Runtime { get; set; }
+    public string? Runtime { get; set; }
   }
 
   /// <summary>
@@ -370,19 +369,19 @@ namespace FluentDocker.Drivers
     /// <c>CMD</c> values are serialized into the string-only health command flag, so
     /// shell-less images cannot run them without providing a shell-compatible command.
     /// </summary>
-    public string[] Test { get; set; }
+    public string[]? Test { get; set; }
 
     /// <summary>Interval between health checks.</summary>
-    public string Interval { get; set; }
+    public string? Interval { get; set; }
 
     /// <summary>Timeout for health check.</summary>
-    public string Timeout { get; set; }
+    public string? Timeout { get; set; }
 
     /// <summary>Number of retries.</summary>
     public int Retries { get; set; }
 
     /// <summary>Start period before health checks begin.</summary>
-    public string StartPeriod { get; set; }
+    public string? StartPeriod { get; set; }
   }
 
   /// <summary>
@@ -394,16 +393,16 @@ namespace FluentDocker.Drivers
     public bool All { get; set; }
 
     /// <summary>Filter by status.</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Filter by name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Filter by ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Filter by ancestor image.</summary>
-    public string Ancestor { get; set; }
+    public string? Ancestor { get; set; }
 
     /// <summary>Filter by label.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];

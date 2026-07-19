@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -116,19 +115,19 @@ namespace FluentDocker.Drivers
   public class ServiceInfo
   {
     /// <summary>Service ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Service name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Service mode (replicated, global).</summary>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
 
     /// <summary>Replicas status (e.g., "3/3").</summary>
-    public string Replicas { get; set; }
+    public string? Replicas { get; set; }
 
     /// <summary>Image used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Ports exposed.</summary>
     [JsonConverter(typeof(LenientStringListConverter))]
@@ -141,7 +140,7 @@ namespace FluentDocker.Drivers
   public class ServiceDetails
   {
     /// <summary>Service ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>
     /// The CLI's human-readable inspect rendering. Populated ONLY when
@@ -154,22 +153,22 @@ namespace FluentDocker.Drivers
     public long Version { get; set; }
 
     /// <summary>Service name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Service mode (replicated, global).</summary>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
 
     /// <summary>Number of replicas.</summary>
     public int Replicas { get; set; }
 
     /// <summary>Image used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Command.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
 
     /// <summary>Arguments.</summary>
-    public string[] Args { get; set; }
+    public string[]? Args { get; set; }
 
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
@@ -187,16 +186,16 @@ namespace FluentDocker.Drivers
     public List<ServiceMount> Mounts { get; set; } = [];
 
     /// <summary>Update configuration.</summary>
-    public ServiceUpdateSettings UpdateConfig { get; set; }
+    public ServiceUpdateSettings? UpdateConfig { get; set; }
 
     /// <summary>Rollback configuration.</summary>
-    public ServiceUpdateSettings RollbackConfig { get; set; }
+    public ServiceUpdateSettings? RollbackConfig { get; set; }
 
     /// <summary>Resource limits.</summary>
-    public ServiceResources Limits { get; set; }
+    public ServiceResources? Limits { get; set; }
 
     /// <summary>Resource reservations.</summary>
-    public ServiceResources Reservations { get; set; }
+    public ServiceResources? Reservations { get; set; }
 
     /// <summary>Placement constraints.</summary>
     public List<string> Constraints { get; set; } = [];
@@ -210,7 +209,7 @@ namespace FluentDocker.Drivers
     public DateTime UpdatedAt { get; set; }
 
     /// <summary>Raw JSON.</summary>
-    public string RawJson { get; set; }
+    public string? RawJson { get; set; }
   }
 
   /// <summary>
@@ -237,13 +236,13 @@ namespace FluentDocker.Drivers
   public class ServiceMount
   {
     /// <summary>Mount type (bind, volume, tmpfs).</summary>
-    public string Type { get; set; }
+    public string? Type { get; set; }
 
     /// <summary>Source path or volume name.</summary>
-    public string Source { get; set; }
+    public string? Source { get; set; }
 
     /// <summary>Target path in container.</summary>
-    public string Target { get; set; }
+    public string? Target { get; set; }
 
     /// <summary>Read-only flag.</summary>
     public bool ReadOnly { get; set; }
@@ -258,19 +257,19 @@ namespace FluentDocker.Drivers
     public int Parallelism { get; set; }
 
     /// <summary>Delay between updates.</summary>
-    public string Delay { get; set; }
+    public string? Delay { get; set; }
 
     /// <summary>Failure action (pause, continue, rollback).</summary>
-    public string FailureAction { get; set; }
+    public string? FailureAction { get; set; }
 
     /// <summary>Monitor period after update.</summary>
-    public string Monitor { get; set; }
+    public string? Monitor { get; set; }
 
     /// <summary>Maximum failure ratio.</summary>
     public double MaxFailureRatio { get; set; }
 
     /// <summary>Order (stop-first, start-first).</summary>
-    public string Order { get; set; }
+    public string? Order { get; set; }
   }
 
   /// <summary>
@@ -279,10 +278,10 @@ namespace FluentDocker.Drivers
   public class ServiceResources
   {
     /// <summary>CPU limit/reservation (e.g., "0.5").</summary>
-    public string Cpu { get; set; }
+    public string? Cpu { get; set; }
 
     /// <summary>Memory limit/reservation (e.g., "512M").</summary>
-    public string Memory { get; set; }
+    public string? Memory { get; set; }
   }
 
   #endregion

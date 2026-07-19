@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -237,7 +236,7 @@ namespace FluentDocker.Drivers
     public long ExitCode { get; set; }
 
     /// <summary>Error message if any.</summary>
-    public string Error { get; set; }
+    public string? Error { get; set; }
   }
 
   /// <summary>
@@ -252,10 +251,10 @@ namespace FluentDocker.Drivers
     public long ExitCode { get; set; }
 
     /// <summary>Standard output from the command; Docker CLI marks it when only a tail was kept.</summary>
-    public string StdOut { get; set; }
+    public string? StdOut { get; set; }
 
     /// <summary>Standard error from the command; Docker CLI marks it when only a tail was kept.</summary>
-    public string StdErr { get; set; }
+    public string? StdErr { get; set; }
   }
 
   /// <summary>
@@ -276,10 +275,10 @@ namespace FluentDocker.Drivers
   public class FilesystemChange
   {
     /// <summary>Path that changed.</summary>
-    public string Path { get; set; }
+    public string? Path { get; set; }
 
     /// <summary>Type of change (A=Added, C=Changed, D=Deleted).</summary>
-    public string Kind { get; set; }
+    public string? Kind { get; set; }
   }
 
   /// <summary>
@@ -288,10 +287,10 @@ namespace FluentDocker.Drivers
   public class ContainerStatsResult
   {
     /// <summary>Container ID.</summary>
-    public string ContainerId { get; set; }
+    public string? ContainerId { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>CPU usage percentage.</summary>
     public double CpuPercent { get; set; }
@@ -331,16 +330,16 @@ namespace FluentDocker.Drivers
   public class ExecConfig
   {
     /// <summary>Command to execute.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
 
     /// <summary>Working directory inside the container.</summary>
-    public string WorkingDir { get; set; }
+    public string? WorkingDir { get; set; }
 
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
 
     /// <summary>User to run as.</summary>
-    public string User { get; set; }
+    public string? User { get; set; }
 
     /// <summary>Whether to run in privileged mode.</summary>
     public bool Privileged { get; set; }
@@ -379,10 +378,10 @@ namespace FluentDocker.Drivers
     public long? CpuQuota { get; set; }
 
     /// <summary>CPUs to use (e.g., "0-3", "0,1").</summary>
-    public string CpusetCpus { get; set; }
+    public string? CpusetCpus { get; set; }
 
     /// <summary>Restart policy.</summary>
-    public string RestartPolicy { get; set; }
+    public string? RestartPolicy { get; set; }
 
     /// <summary>Pids limit.</summary>
     public long? PidsLimit { get; set; }

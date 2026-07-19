@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 
 namespace FluentDocker.Drivers
@@ -11,22 +10,22 @@ namespace FluentDocker.Drivers
   public class ServiceCreateConfig
   {
     /// <summary>Service name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Image to use.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Command to run.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
 
     /// <summary>Arguments to command.</summary>
-    public string[] Args { get; set; }
+    public string[]? Args { get; set; }
 
     /// <summary>Number of replicas.</summary>
     public int? Replicas { get; set; }
 
     /// <summary>Service mode (replicated, global).</summary>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
 
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
@@ -47,52 +46,52 @@ namespace FluentDocker.Drivers
     public List<ServiceMount> Mounts { get; set; } = [];
 
     /// <summary>Working directory.</summary>
-    public string WorkDir { get; set; }
+    public string? WorkDir { get; set; }
 
     /// <summary>User to run as.</summary>
-    public string User { get; set; }
+    public string? User { get; set; }
 
     /// <summary>Placement constraints.</summary>
     public List<string> Constraints { get; set; } = [];
 
     /// <summary>Resource limits.</summary>
-    public ServiceResources Limits { get; set; }
+    public ServiceResources? Limits { get; set; }
 
     /// <summary>Resource reservations.</summary>
-    public ServiceResources Reservations { get; set; }
+    public ServiceResources? Reservations { get; set; }
 
     /// <summary>Update configuration.</summary>
-    public ServiceUpdateSettings UpdateConfig { get; set; }
+    public ServiceUpdateSettings? UpdateConfig { get; set; }
 
     /// <summary>Rollback configuration.</summary>
-    public ServiceUpdateSettings RollbackConfig { get; set; }
+    public ServiceUpdateSettings? RollbackConfig { get; set; }
 
     /// <summary>Restart condition (none, on-failure, any).</summary>
-    public string RestartCondition { get; set; }
+    public string? RestartCondition { get; set; }
 
     /// <summary>Restart delay.</summary>
-    public string RestartDelay { get; set; }
+    public string? RestartDelay { get; set; }
 
     /// <summary>Maximum restart attempts.</summary>
     public int? RestartMaxAttempts { get; set; }
 
     /// <summary>Restart window.</summary>
-    public string RestartWindow { get; set; }
+    public string? RestartWindow { get; set; }
 
     /// <summary>Health check command.</summary>
-    public string HealthCmd { get; set; }
+    public string? HealthCmd { get; set; }
 
     /// <summary>Health check interval.</summary>
-    public string HealthInterval { get; set; }
+    public string? HealthInterval { get; set; }
 
     /// <summary>Health check timeout.</summary>
-    public string HealthTimeout { get; set; }
+    public string? HealthTimeout { get; set; }
 
     /// <summary>Health check retries.</summary>
     public int? HealthRetries { get; set; }
 
     /// <summary>Health check start period.</summary>
-    public string HealthStartPeriod { get; set; }
+    public string? HealthStartPeriod { get; set; }
 
     /// <summary>Secrets to expose.</summary>
     public List<string> Secrets { get; set; } = [];
@@ -101,16 +100,16 @@ namespace FluentDocker.Drivers
     public List<string> Configs { get; set; } = [];
 
     /// <summary>Log driver.</summary>
-    public string LogDriver { get; set; }
+    public string? LogDriver { get; set; }
 
     /// <summary>Log driver options.</summary>
     public Dictionary<string, string> LogOpts { get; set; } = [];
 
     /// <summary>Endpoint mode (vip, dnsrr).</summary>
-    public string EndpointMode { get; set; }
+    public string? EndpointMode { get; set; }
 
     /// <summary>Stop grace period.</summary>
-    public string StopGracePeriod { get; set; }
+    public string? StopGracePeriod { get; set; }
 
     /// <summary>Detach immediately.</summary>
     public bool Detach { get; set; }
@@ -125,7 +124,7 @@ namespace FluentDocker.Drivers
   public class ServiceUpdateConfig
   {
     /// <summary>New image.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Environment variables to add.</summary>
     public Dictionary<string, string> EnvAdd { get; set; } = [];
@@ -167,10 +166,10 @@ namespace FluentDocker.Drivers
     public int? Replicas { get; set; }
 
     /// <summary>Resource limits.</summary>
-    public ServiceResources Limits { get; set; }
+    public ServiceResources? Limits { get; set; }
 
     /// <summary>Resource reservations.</summary>
-    public ServiceResources Reservations { get; set; }
+    public ServiceResources? Reservations { get; set; }
 
     /// <summary>Force update even if no changes.</summary>
     public bool Force { get; set; }
@@ -191,19 +190,19 @@ namespace FluentDocker.Drivers
   public class ServiceListFilter
   {
     /// <summary>Filter by service ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Filter by service name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Filter by label.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Filter by mode.</summary>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
 
     /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
-    public string Format { get; set; }
+    public string? Format { get; set; }
 
     /// <summary>Only display service IDs.</summary>
     public bool Quiet { get; set; }
@@ -219,7 +218,7 @@ namespace FluentDocker.Drivers
   public class ServiceCreateResult
   {
     /// <summary>Service ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Warnings from the operation.</summary>
     public List<string> Warnings { get; set; } = [];

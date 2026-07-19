@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -141,7 +140,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// The name to assign to the network. Must be unique on the host.
     /// </summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     /// The network driver to use (e.g., "bridge", "overlay", "macvlan").
@@ -170,7 +169,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// The IP range for automatic container allocation in CIDR notation.
     /// </summary>
-    public string IpRange { get; set; }
+    public string? IpRange { get; set; }
 
     /// <summary>
     /// When <c>true</c>, enables IPv6 networking on this network.
@@ -198,7 +197,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// The unique identifier assigned to the created network.
     /// </summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>
     /// Any warnings generated during network creation (e.g., deprecated options).
@@ -214,7 +213,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Filters networks by name. Supports partial matching depending on the driver implementation.
     /// </summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     /// Filters networks by labels. Only networks that have all specified key-value pairs are returned.
@@ -232,23 +231,23 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// The unique identifier of the network (typically a SHA256 hash or truncated form).
     /// </summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>
     /// The human-readable name of the network.
     /// </summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     /// The network driver in use (e.g., "bridge", "overlay", "macvlan").
     /// </summary>
-    public string Driver { get; set; }
+    public string? Driver { get; set; }
 
     /// <summary>
     /// The scope of the network. Typical values are "local" for single-host networks,
     /// "swarm" for Swarm-managed networks, or "global" for multi-host networks.
     /// </summary>
-    public string Scope { get; set; }
+    public string? Scope { get; set; }
 
     /// <summary>
     /// Indicates whether IPv6 is enabled on this network.
@@ -319,7 +318,7 @@ namespace FluentDocker.Drivers
       // pair's value and is rejoined with ','. An empty label key is never valid, so a segment
       // whose first char is '=' (eqIdx == 0) is also a continuation (e.g. "v1,=w"), not a new
       // pair. Well-formed "k1=v1,k2=v2" lists parse exactly as before.
-      string currentKey = null;
+      string? currentKey = null;
       foreach (var pair in str.Split(','))
       {
         var eqIdx = pair.IndexOf('=');

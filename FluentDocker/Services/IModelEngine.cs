@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +22,7 @@ namespace FluentDocker.Services
     Task<IReadOnlyList<RunningModel>> ListRunningAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Loads (and optionally keeps resident) a model.</summary>
-    Task LoadAsync(ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default);
+    Task LoadAsync(ModelReference model, ModelRunOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>Unloads a single model.</summary>
     Task UnloadAsync(ModelReference model, CancellationToken cancellationToken = default);
@@ -38,9 +37,9 @@ namespace FluentDocker.Services
     IAsyncEnumerable<string> LogsAsync(bool follow = false, CancellationToken cancellationToken = default);
 
     /// <summary>Installs the runner (Docker Engine CE only).</summary>
-    Task InstallRunnerAsync(ModelRunnerInstallOptions options = null, CancellationToken cancellationToken = default);
+    Task InstallRunnerAsync(ModelRunnerInstallOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>Uninstalls the runner (Docker Engine CE only).</summary>
-    Task UninstallRunnerAsync(ModelRunnerUninstallOptions options = null, CancellationToken cancellationToken = default);
+    Task UninstallRunnerAsync(ModelRunnerUninstallOptions? options = null, CancellationToken cancellationToken = default);
   }
 }
