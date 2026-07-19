@@ -18,11 +18,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     private static JsonSerializerOptions CreateOptions()
     {
       var o = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-      // TolerantStringConverter is [Obsolete] (COMMON-2: unused production dead code) but these
-      // tests deliberately exercise the converter's behavior, so suppress the obsolete-usage error.
-#pragma warning disable CS0618
       o.Converters.Add(new TolerantStringConverter());
-#pragma warning restore CS0618
       return o;
     }
 

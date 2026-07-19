@@ -8,7 +8,7 @@ using FluentDocker.Tests.Mocks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace FluentDocker.Tests.CoreTests.Services
+namespace FluentDocker.Tests.CoreTests.Service
 {
   /// <summary>
   /// Tests for IServiceAsync hook registration, removal, firing, and StateChange events.

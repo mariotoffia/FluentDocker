@@ -424,7 +424,12 @@ namespace FluentDocker.Drivers
     /// <summary>Image ID.</summary>
     [System.Text.Json.Serialization.JsonPropertyName("ID")]
     public string ImageId { get; set; }
-    /// <summary>Image size.</summary>
+    /// <summary>
+    /// Image size. Newer <c>docker compose images --format json</c> emits this as a JSON
+    /// number (raw byte count); older versions emit a human string (e.g. <c>"133MB"</c>).
+    /// The converter tolerates both.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonConverter(typeof(FluentDocker.Common.TolerantStringConverter))]
     public string Size { get; set; }
   }
 

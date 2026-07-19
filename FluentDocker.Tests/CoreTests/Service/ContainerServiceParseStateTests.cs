@@ -3,7 +3,7 @@ using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using Xunit;
 
-namespace FluentDocker.Tests.CoreTests.Services
+namespace FluentDocker.Tests.CoreTests.Service
 {
   /// <summary>
   /// Pins the Docker/Podman status-string to <see cref="ServiceRunningState"/> mapping.

@@ -254,6 +254,51 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Equal("30.2MB", images[3].Size);
     }
 
+    [Fact]
+    public void ParseSingleImage_NumericSize_ParsesToStringLiteral()
+    {
+      // Newer `docker compose images --format json` emits Size as a JSON NUMBER
+      // (raw byte count) rather than the older human string ("133MB").
+      var json = @"{""Container"":""web-1"",""Repository"":""nginx"",""Tag"":""latest"",""ID"":""sha256:abc"",""Size"":133456789}";
+
+      var image = JsonSerializer.Deserialize<ComposeImage>(json, JsonHelper.CaseInsensitiveOptions);
+
+      Assert.NotNull(image);
+      Assert.Equal("web-1", image.Container);
+      Assert.Equal("133456789", image.Size);
+    }
+
+    [Fact]
+    public void ParseImagesArray_NumericSize_ParsesWithoutError()
+    {
+      // Mirrors the array branch of DockerCliComposeDriver.ImagesAsync where the numeric
+      // Size drift originally surfaced ("The JSON value could not be converted to
+      // System.String. Path: $[0].Size").
+      var json =
+          @"[{""Container"":""web-1"",""Repository"":""nginx"",""Tag"":""latest"",""ID"":""sha256:aaa"",""Size"":133456789}," +
+          @"{""Container"":""db-1"",""Repository"":""postgres"",""Tag"":""16"",""ID"":""sha256:bbb"",""Size"":""412MB""}]";
+
+      var images = JsonSerializer.Deserialize<List<ComposeImage>>(json, JsonHelper.CaseInsensitiveOptions);
+
+      Assert.NotNull(images);
+      Assert.Equal(2, images.Count);
+      Assert.Equal("133456789", images[0].Size);
+      Assert.Equal("412MB", images[1].Size);
+    }
+
+    [Fact]
+    public void ParseImagesArray_StringSize_ParsesWithoutError()
+    {
+      var json =
+          @"[{""Container"":""web-1"",""Repository"":""nginx"",""Tag"":""latest"",""ID"":""sha256:aaa"",""Size"":""187MB""}]";
+
+      var images = JsonSerializer.Deserialize<List<ComposeImage>>(json, JsonHelper.CaseInsensitiveOptions);
+
+      Assert.NotNull(images);
+      Assert.Single(images);
+      Assert.Equal("187MB", images[0].Size);
+    }
+
     #endregion
 
     #region Helper

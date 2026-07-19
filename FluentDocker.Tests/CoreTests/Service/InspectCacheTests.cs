@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
@@ -11,7 +10,7 @@ using FluentDocker.Tests.Mocks;
 using Moq;
 using Xunit;
 
-namespace FluentDocker.Tests.CoreTests.Services
+namespace FluentDocker.Tests.CoreTests.Service
 {
   /// <summary>
   /// Unit tests for the short-lived InspectAsync result cache in ContainerService.
@@ -35,19 +34,6 @@ namespace FluentDocker.Tests.CoreTests.Services
 
       return new ContainerService(
           _kernel, "docker", containerId, "nginx:latest", "cache-test");
-    }
-
-    /// <summary>
-    /// Invokes the private InvalidateInspectCache method via reflection.
-    /// The main project is strong-named so InternalsVisibleTo is not available.
-    /// </summary>
-    private static void InvokeInvalidateInspectCache(ContainerService service)
-    {
-      var method = typeof(ContainerService).GetMethod(
-          "InvalidateInspectCache",
-          BindingFlags.NonPublic | BindingFlags.Instance);
-      Assert.NotNull(method);
-      method.Invoke(service, []);
     }
 
     public async ValueTask DisposeAsync()
@@ -303,34 +289,6 @@ namespace FluentDocker.Tests.CoreTests.Services
     }
 
     // ------------------------------------------------------------------
-    // 4. Direct invalidation via reflection
-    // ------------------------------------------------------------------
-
-    [Fact]
-    public async Task InvalidateInspectCache_ViaReflection_ForcesFreshFetch()
-    {
-      // Arrange
-      var service = await CreateServiceAsync();
-
-      // Populate cache
-      await service.InspectAsync(TestContext.Current.CancellationToken);
-
-      // Manually invalidate private method via reflection
-      InvokeInvalidateInspectCache(service);
-
-      // Act
-      await service.InspectAsync(TestContext.Current.CancellationToken);
-
-      // Assert -- two driver calls
-      _mockPack.ContainerDriver.Verify(
-          d => d.InspectAsync(
-              It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
-              It.IsAny<CancellationToken>()),
-          Times.Exactly(2));
-    }
-
-    // ------------------------------------------------------------------
     // 5. TTL constant has expected value
     // ------------------------------------------------------------------
 
@@ -447,18 +405,26 @@ namespace FluentDocker.Tests.CoreTests.Services
     // ------------------------------------------------------------------
 
     [Fact]
-    public async Task InvalidateInspectCache_RacingInFlightInspect_NeverServesPreInvalidationResult()
+    public async Task StopAsync_RacingInFlightInspect_NeverServesPreInvalidationResult()
     {
-      // SVC-10: InvalidateInspectCache participates in the same lock/versioning as the cache-apply
-      // path, so an invalidation can never be overwritten by an inspect result whose driver fetch
-      // started before the invalidation. Each round gates the driver so the in-flight fetch
-      // provably predates the invalidation, then asserts the follow-up inspect reaches the driver
-      // again (i.e. the stale result was not left in the cache).
+      // SVC-10: a public state change (StopAsync) invalidates the inspect cache under the same
+      // lock/versioning as the cache-apply path (StopAsync -> Stopping -> Stopped, each transition
+      // bumping the cache version and clearing the entry). An invalidation can therefore never be
+      // overwritten by an inspect result whose driver fetch started before it. Each round gates the
+      // driver so the in-flight fetch provably predates the StopAsync invalidation, then asserts the
+      // follow-up inspect reaches the driver again (i.e. the stale result was not left in the cache).
+      // Driving the race through the public StopAsync op keeps the test on the public contract rather
+      // than reflecting into the private InvalidateInspectCache lifecycle method.
       _mockPack = new MockDriverPack();
+      _mockPack.SetupContainerStop();
       _kernel = await MockKernelBuilderExtensions
           .CreateWithMockDriverAsync("docker", _mockPack);
+      // Controllable clock so each round can start cold (age the previous round's entry past the TTL)
+      // without reflecting into the private invalidation seam. StopAsync never calls the driver's
+      // InspectAsync, so it cannot deadlock on the gated inspect mock.
+      var fakeTime = new ManualTimeProvider();
       var service = new ContainerService(
-          _kernel, "docker", "race-test-123", "nginx:latest", "race-test");
+          _kernel, "docker", "race-test-123", "nginx:latest", "race-test", timeProvider: fakeTime);
       var fetchCount = 0;
 
       for (var round = 0; round < 100; round++)
@@ -483,12 +449,16 @@ namespace FluentDocker.Tests.CoreTests.Services
               });
             });
 
-        // Cold cache so the gated inspect really fetches (previous round warmed it).
-        InvokeInvalidateInspectCache(service);
+        // Age any cache entry the previous round left behind past the TTL so the gated inspect
+        // really fetches rather than serving a warm cache.
+        fakeTime.Advance(TimeSpan.FromMilliseconds(ContainerService.InspectCacheTtlMs + 100));
         var inFlight = service.InspectAsync(TestContext.Current.CancellationToken);
         await fetchStarted.Task;
 
-        var invalidation = Task.Run(() => InvokeInvalidateInspectCache(service), TestContext.Current.CancellationToken);
+        // Public invalidation trigger: StopAsync races the in-flight inspect's cache-apply.
+        var invalidation = Task.Run(
+            () => service.StopAsync(TestContext.Current.CancellationToken),
+            TestContext.Current.CancellationToken);
         releaseFetch.SetResult();
         await Task.WhenAll(inFlight, invalidation);
 
