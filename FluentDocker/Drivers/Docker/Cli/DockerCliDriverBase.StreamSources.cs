@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -70,7 +69,7 @@ namespace FluentDocker.Drivers.Docker.Cli
           new BoundedChannelOptions(256) { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
       var tail = new Queue<string>();
       var pump = PumpSourceStreamsAsync(process, channel.Writer, stdout, stderr, tail, cancellationToken);
-      string failure = null;
+      string? failure = null;
       var failureExitCode = 0;
 
       try
@@ -121,7 +120,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       async Task PumpAsync(TextReader reader, LogStreamSource source, bool emit)
       {
         var lineReader = new BoundedLineReader(reader);
-        string line;
+        string? line;
         while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         {
           lock (tail)

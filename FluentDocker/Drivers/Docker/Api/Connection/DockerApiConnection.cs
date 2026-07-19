@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -33,11 +32,11 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     // Shared in-flight negotiation: concurrent un-negotiated requests JOIN one attempt
     // instead of each running its own /_ping serially behind the lock (a daemon outage
     // otherwise costs request N about N x ConnectionTimeout). Guarded by _negotiationLock.
-    private Task _negotiationTask;
+    private Task? _negotiationTask;
     // Negative cache for the terminal unsupported-daemon-version failure: re-probing an
     // incompatible daemon on every request is pointless, but a cooldown (not a permanent
     // cache) lets the client recover when the daemon is live-upgraded. Guarded by _negotiationLock.
-    private volatile DriverException _unsupportedDaemonFailure;
+    private volatile DriverException? _unsupportedDaemonFailure;
     private long _unsupportedDaemonTimestamp;
     private static readonly TimeSpan UnsupportedDaemonRetryCooldown = TimeSpan.FromSeconds(30);
     // X509Certificate2 instances we created (client cert + custom CA) — they own
@@ -59,7 +58,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     private readonly ILogger<DockerApiConnection> _logger;
 
     /// <summary>Creates a Docker API connection using the supplied transport configuration.</summary>
-    public DockerApiConnection(DockerApiConnectionConfig config, ILoggerFactory loggerFactory = null)
+    public DockerApiConnection(DockerApiConnectionConfig config, ILoggerFactory? loggerFactory = null)
     {
       ArgumentNullException.ThrowIfNull(config);
       _config = CreateEffectiveConfig(config);
@@ -76,7 +75,9 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       string baseAddress;
       try
       {
-        var host = _config.Host;
+        // CreateEffectiveConfig guarantees Host is non-null (falls back to
+        // GetDockerHostEnvironmentPathOrDefault, which never returns null).
+        var host = _config.Host!;
         (handler, baseAddress) = CreateHandler(host, _config, ownedCertificates);
         _ownedCertificates = ownedCertificates;
       }
@@ -102,7 +103,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       // If the user pre-set ApiVersion, mark negotiation as already done.
       _negotiation = !string.IsNullOrEmpty(_config.ApiVersion)
           ? new NegotiationState(_config.ApiVersion, Negotiated: true)
-          : new NegotiationState(null, Negotiated: false);
+          : new NegotiationState(null!, Negotiated: false);
     }
 
     /// <inheritdoc />
@@ -133,7 +134,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     /// <inheritdoc />
     public async Task<HttpResponseMessage> PostAsync(
-        string path, HttpContent content = null, CancellationToken ct = default)
+        string path, HttpContent? content = null, CancellationToken ct = default)
     {
       ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
@@ -170,7 +171,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       ThrowIfDisposed();
       var versionedPath = await GetVersionedPathAsync(path, ct).ConfigureAwait(false);
       using var request = new HttpRequestMessage(HttpMethod.Get, versionedPath);
-      HttpResponseMessage response = null;
+      HttpResponseMessage? response = null;
       var transferred = false;
       try
       {
@@ -190,14 +191,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
     /// <inheritdoc />
     public async Task<Stream> PostStreamAsync(
-        string path, HttpContent content = null, CancellationToken ct = default)
+        string path, HttpContent? content = null, CancellationToken ct = default)
     {
-      return await PostStreamAsync(path, content, null, ct).ConfigureAwait(false);
+      return await PostStreamAsync(path, content, null!, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<Stream> PostStreamAsync(
-        string path, HttpContent content,
+        string path, HttpContent? content,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
     {
       ThrowIfDisposed();
@@ -208,7 +209,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         foreach (var header in headers)
           request.Headers.TryAddWithoutValidation(header.Key, header.Value);
       }
-      HttpResponseMessage response = null;
+      HttpResponseMessage? response = null;
       var transferred = false;
       try
       {
@@ -280,7 +281,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           $"Docker API {status}: {detail}", null, statusEnum);
     }
 
-    private static string ExtractDockerMessage(string body)
+    private static string? ExtractDockerMessage(string body)
     {
       if (string.IsNullOrWhiteSpace(body))
         return null;
@@ -376,7 +377,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       var state = _negotiation;
       if (!state.Negotiated)
       {
-        Task negotiation = null;
+        Task? negotiation = null;
         await _negotiationLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {

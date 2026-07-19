@@ -79,7 +79,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// <param name="ct">Cancellation token for the request and response stream open.</param>
     /// <returns>The response body stream. Disposing the stream releases the HTTP response.</returns>
     Task<Stream> PostStreamAsync(
-        string path, HttpContent content,
+        string path, HttpContent? content,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct = default);
 
     /// <summary>

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -108,7 +107,7 @@ namespace FluentDocker.Drivers.Models
         // A transport-level failure (refused connection, socket error) surfaces from the
         // connection as ModelRunnerException(EndpointUnreachable). Preserve its code + context
         // instead of letting the broad catch below downgrade it to RequestFailed.
-        return CommandResponse<IList<OpenAiModel>>.Fail(ex.Message, ex.ErrorCode, ex.Context);
+        return CommandResponse<IList<OpenAiModel>>.Fail(ex.Message, ex.ErrorCode, ex.Context!);
       }
       catch (JsonException ex)
       {
@@ -197,7 +196,7 @@ namespace FluentDocker.Drivers.Models
       {
         // Preserve the typed transport error (e.g. EndpointUnreachable) + its context rather
         // than collapsing it to RequestFailed in the broad catch below.
-        return CommandResponse<TResponse>.Fail(ex.Message, ex.ErrorCode, ex.Context);
+        return CommandResponse<TResponse>.Fail(ex.Message, ex.ErrorCode, ex.Context!);
       }
       catch (JsonException ex)
       {
@@ -220,7 +219,7 @@ namespace FluentDocker.Drivers.Models
     // Accepts a nullable status so the streaming path can pass HttpRequestException.StatusCode
     // directly — a connect failure (no response, null status) maps to RequestFailed, matching
     // the non-streaming catch.
-    private static string ErrorCodeFor(HttpStatusCode? code, string error = null, bool modelMissingEligible = true) => code switch
+    private static string ErrorCodeFor(HttpStatusCode? code, string? error = null, bool modelMissingEligible = true) => code switch
     {
       HttpStatusCode.Unauthorized => ErrorCodes.ModelInference.Unauthorized,
       HttpStatusCode.NotFound when modelMissingEligible && LooksLikeModelMissing(error) => ErrorCodes.ModelInference.ModelNotLoaded,
@@ -229,7 +228,7 @@ namespace FluentDocker.Drivers.Models
     };
 
     private static string FormatHttpError(
-        string operation, string suffix, object request, HttpStatusCode status, string error,
+        string operation, string suffix, object? request, HttpStatusCode status, string error,
         bool modelMissingEligible = true)
     {
       if (status != HttpStatusCode.NotFound)
@@ -250,13 +249,13 @@ namespace FluentDocker.Drivers.Models
     /// DMR-version-sensitive 404-body heuristic: current DMR builds report missing/unloaded
     /// models as text containing "model" plus "not found" or "not loaded".
     /// </summary>
-    private static bool LooksLikeModelMissing(string error) =>
+    private static bool LooksLikeModelMissing(string? error) =>
         !string.IsNullOrEmpty(error) &&
         error.Contains("model", StringComparison.OrdinalIgnoreCase) &&
         (error.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
          error.Contains("not loaded", StringComparison.OrdinalIgnoreCase));
 
-    private static string ModelIdFor(object request) => request switch
+    private static string? ModelIdFor(object? request) => request switch
     {
       ChatCompletionRequest r => r.Model,
       CompletionRequest r => r.Model,
@@ -268,7 +267,7 @@ namespace FluentDocker.Drivers.Models
     // response beyond this is treated as hostile/misbehaving rather than materialized (DMR-MAJ-4).
     private const int MaxNonStreamingResponseBytes = 64 * 1024 * 1024;
 
-    private static async Task<(string Body, bool Overflow)> ReadBoundedBodyAsync(
+    private static async Task<(string? Body, bool Overflow)> ReadBoundedBodyAsync(
         HttpResponseMessage response, CancellationToken cancellationToken)
     {
       await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);

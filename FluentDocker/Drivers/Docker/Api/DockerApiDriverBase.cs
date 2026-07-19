@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,7 +28,7 @@ namespace FluentDocker.Drivers.Docker.Api
     protected IDockerApiConnection Connection { get; private set; }
 
     /// <summary>Driver context supplied during initialization.</summary>
-    protected DriverContext Context { get; private set; }
+    protected DriverContext Context { get; private set; } = null!;
 
     /// <summary>
     /// Logger for this driver component. Category equals the concrete derived type's FQN.
@@ -276,7 +275,7 @@ namespace FluentDocker.Drivers.Docker.Api
       while (true)
       {
         ct.ThrowIfCancellationRequested();
-        string line;
+        string? line;
         try
         {
           line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
@@ -329,7 +328,7 @@ namespace FluentDocker.Drivers.Docker.Api
       while (true)
       {
         ct.ThrowIfCancellationRequested();
-        string line;
+        string? line;
         try
         {
           line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
@@ -395,7 +394,7 @@ namespace FluentDocker.Drivers.Docker.Api
         [EnumeratorCancellation] CancellationToken ct) where T : class
     {
       await foreach (var item in ReadNdjsonFromPostStreamAsync(
-          path, content, null, typeInfo, ct).ConfigureAwait(false))
+          path, content, null!, typeInfo, ct).ConfigureAwait(false))
         yield return item;
     }
 

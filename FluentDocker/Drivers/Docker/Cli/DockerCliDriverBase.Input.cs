@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -12,10 +11,10 @@ namespace FluentDocker.Drivers.Docker.Cli
   {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
 
-    private static async Task<Exception> TryWriteStandardInputAsync(
+    private static async Task<Exception?> TryWriteStandardInputAsync(
         Process process,
-        string passwordForStdin,
-        string stdinData,
+        string? passwordForStdin,
+        string? stdinData,
         CancellationToken cancellationToken)
     {
       try
@@ -39,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
     }
 
-    private static async Task<string> TryReadStringTaskAsync(Task<string> task)
+    private static async Task<string?> TryReadStringTaskAsync(Task<string>? task)
     {
       if (task == null)
         return null;
@@ -53,7 +52,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
     }
 
-    private static int GetExitCodeOrDefault(Process process)
+    private static int GetExitCodeOrDefault(Process? process)
     {
       try
       {

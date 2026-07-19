@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,9 +14,9 @@ namespace FluentDocker.Drivers.Docker.Cli
   public abstract partial class DockerCliDriverBase
   {
     private async Task<SimpleCommandResult> ExecuteUnboundedProcessAsync(
-        DriverContext context,
+        DriverContext? context,
         string arguments,
-        IDictionary<string, string> environment,
+        IDictionary<string, string>? environment,
         CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
@@ -30,9 +29,9 @@ namespace FluentDocker.Drivers.Docker.Cli
           BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword,
               ValidatedPreserveEnvNames(environment, sudo));
 
-      Process process = null;
-      Task outTask = null;
-      Task errTask = null;
+      Process? process = null;
+      Task? outTask = null;
+      Task? errTask = null;
       var outTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
       var errTail = new OutputTail(CliOutputTruncation.DefaultTailChars);
       var processStarted = false;
@@ -104,7 +103,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
     }
 
-    private static async Task TryObserveTaskAsync(Task task)
+    private static async Task TryObserveTaskAsync(Task? task)
     {
       if (task == null)
         return;

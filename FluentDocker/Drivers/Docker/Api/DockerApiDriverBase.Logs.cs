@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Text;
@@ -87,7 +86,7 @@ namespace FluentDocker.Drivers.Docker.Api
       return null;
     }
 
-    private bool UseDockerLogContentType(string contentType)
+    private bool UseDockerLogContentType(string? contentType)
     {
       return (string.Equals(contentType, MultiplexedStreamContentType, StringComparison.OrdinalIgnoreCase) ||
               string.Equals(contentType, RawStreamContentType, StringComparison.OrdinalIgnoreCase)) &&

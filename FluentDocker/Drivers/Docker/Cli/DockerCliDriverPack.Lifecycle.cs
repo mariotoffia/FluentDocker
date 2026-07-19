@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,7 +17,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
 
-      ModelApiConnection connection = null;
+      ModelApiConnection? connection = null;
       await _initializeLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
       try
       {
@@ -33,8 +32,8 @@ namespace FluentDocker.Drivers.Docker.Cli
         // so mutating it here is a torn-read data race with an in-flight resolver. The
         // _disposed guard fences new callers; the dictionary stays immutable after init.
         Volatile.Write(ref _initialized, false);
-        _context = null;
-        _binaryResolver = null;
+        _context = null!;
+        _binaryResolver = null!;
       }
       finally
       {

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -60,14 +59,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       }
     }
 
-    private static string HeaderValue(HttpResponseMessage response, string name)
+    private static string? HeaderValue(HttpResponseMessage response, string name)
     {
       return response.Headers.TryGetValues(name, out var values)
           ? values.FirstOrDefault()
           : null;
     }
 
-    private async Task<(string ApiVersion, string MinApiVersion)> TryGetVersionInfoAsync(
+    private async Task<(string? ApiVersion, string? MinApiVersion)> TryGetVersionInfoAsync(
         CancellationToken ct)
     {
       try
@@ -101,7 +100,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       _negotiation = new NegotiationState(MaxSupportedApiVersion, Negotiated: false);
     }
 
-    private static void EnsureSupportedDaemonVersion(string daemonMax, string daemonMin)
+    private static void EnsureSupportedDaemonVersion(string daemonMax, string? daemonMin)
     {
       // Typed DriverException (not a raw InvalidOperationException) so CommandResponse-returning
       // driver methods surface this as a Fail with a dedicated error code instead of leaking a

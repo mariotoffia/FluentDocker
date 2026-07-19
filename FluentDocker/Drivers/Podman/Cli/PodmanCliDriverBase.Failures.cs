@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
@@ -29,7 +28,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <param name="error">The captured error text.</param>
     /// <param name="fallbackCode">Code to use if the text does not indicate a connection failure.</param>
     /// <returns>An error code.</returns>
-    protected string FailureCode(string error, string fallbackCode)
+    protected string FailureCode(string? error, string fallbackCode)
         => FailureCode(Context, error, fallbackCode);
 
     /// <summary>
@@ -43,7 +42,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <param name="error">The captured error text.</param>
     /// <param name="fallbackCode">Code to use if the text does not indicate a connection failure.</param>
     /// <returns>An error code.</returns>
-    protected static string FailureCode(DriverContext context, string error, string fallbackCode)
+    protected static string FailureCode(DriverContext context, string? error, string fallbackCode)
     {
       if (!IsDaemonConnectionError(error))
         return fallbackCode;
@@ -84,7 +83,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// True if <paramref name="error"/> matches one of Podman's known daemon/socket-unreachable
     /// messages (e.g. "Cannot connect to Podman", "connection refused").
     /// </summary>
-    protected static bool IsDaemonConnectionError(string error)
+    protected static bool IsDaemonConnectionError(string? error)
     {
       if (string.IsNullOrEmpty(error))
         return false;

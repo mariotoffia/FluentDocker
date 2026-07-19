@@ -1,9 +1,9 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Drivers.Docker.Cli.Components;
@@ -29,15 +29,15 @@ namespace FluentDocker.Drivers.Docker.Cli
   {
     private readonly Dictionary<Type, object> _drivers = [];
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
-    private DriverContext _context;
-    private IBinaryResolver _binaryResolver;
+    private DriverContext _context = null!;
+    private IBinaryResolver _binaryResolver = null!;
     private ILogger<DockerCliDriverPack> _logger = NullLogger<DockerCliDriverPack>.Instance;
     // ponytail: init-then-read discipline; use immutable dictionary if runtime registration appears.
     // Written with Volatile.Write after all driver fields/_drivers entries are assigned and read
     // with Volatile.Read on lock-free paths (mirrors _disposed), so the release/acquire pairing
     // publishes those writes to readers on weakly ordered hardware (ARM64).
     private bool _initialized;
-    private IReadOnlyCollection<Type> _supportedInterfaces;
+    private IReadOnlyCollection<Type> _supportedInterfaces = null!;
 
     /// <summary>
     /// Gets the binary resolver for this driver pack.
@@ -47,25 +47,25 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <summary>
     /// Individual driver components
     /// </summary>
-    private DockerCliContainerDriver _containerDriver;
-    private DockerCliImageDriver _imageDriver;
-    private DockerCliNetworkDriver _networkDriver;
-    private DockerCliVolumeDriver _volumeDriver;
-    private DockerCliSystemDriver _systemDriver;
-    private DockerCliComposeDriver _composeDriver;
-    private DockerCliAuthDriver _authDriver;
-    private DockerCliStreamDriver _streamDriver;
-    private DockerCliStackDriver _stackDriver;
-    private DockerCliServiceDriver _serviceDriver;
-    private Components.DockerCliModelManagementDriver _modelManagementDriver;
-    private Components.DockerCliModelRuntimeDriver _modelRuntimeDriver;
+    private DockerCliContainerDriver _containerDriver = null!;
+    private DockerCliImageDriver _imageDriver = null!;
+    private DockerCliNetworkDriver _networkDriver = null!;
+    private DockerCliVolumeDriver _volumeDriver = null!;
+    private DockerCliSystemDriver _systemDriver = null!;
+    private DockerCliComposeDriver _composeDriver = null!;
+    private DockerCliAuthDriver _authDriver = null!;
+    private DockerCliStreamDriver _streamDriver = null!;
+    private DockerCliStackDriver _stackDriver = null!;
+    private DockerCliServiceDriver _serviceDriver = null!;
+    private Components.DockerCliModelManagementDriver _modelManagementDriver = null!;
+    private Components.DockerCliModelRuntimeDriver _modelRuntimeDriver = null!;
     // Inference is served over the OpenAI-compatible :12434 HTTP data plane — the
     // `docker model` CLI cannot stream tokens or embed, so transport here is an
     // adapter detail, not a user choice. The pack owns the connection's lifetime
     // and builds it lazily on first resolve so pure-container packs pay nothing.
-    private ModelRunnerEndpoint _modelEndpoint;
-    private ModelApiConnection _modelInferenceConnection;
-    private OpenAiModelInferenceDriver _modelInferenceDriver;
+    private ModelRunnerEndpoint _modelEndpoint = null!;
+    private ModelApiConnection? _modelInferenceConnection;
+    private OpenAiModelInferenceDriver? _modelInferenceDriver;
     private readonly object _inferenceLock = new();
     private int _disposed;
 
@@ -240,7 +240,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     #region IDriverInterfaceResolver
 
     /// <inheritdoc />
-    public bool TryResolve(Type interfaceType, out object implementation)
+    public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
     {
       ThrowIfNotInitialized();
       return TryGetDriver(interfaceType, out implementation);
@@ -276,13 +276,13 @@ namespace FluentDocker.Drivers.Docker.Cli
         instance = (T)driver;
         return true;
       }
-      instance = null;
+      instance = null!;
       return false;
     }
 
     // Resolves a registered driver, building the inference adapter on first request
     // (lazy: pure-container packs never allocate the HttpClient).
-    private bool TryGetDriver(Type interfaceType, out object driver)
+    private bool TryGetDriver(Type interfaceType, [NotNullWhen(true)] out object? driver)
     {
       ThrowIfDisposed();
       if (interfaceType == typeof(IModelInferenceDriver))

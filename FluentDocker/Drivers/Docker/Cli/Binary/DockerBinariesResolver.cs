@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -33,7 +32,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// <param name="loggerFactory">Optional logger factory; defaults to
     /// <see cref="NullLoggerFactory.Instance"/> when omitted. The Docker CLI
     /// driver pack supplies the consumer-provided factory automatically.</param>
-    public DockerBinariesResolver(BinaryConfiguration configuration, ILoggerFactory loggerFactory = null)
+    public DockerBinariesResolver(BinaryConfiguration configuration, ILoggerFactory? loggerFactory = null)
     {
       _configuration = configuration ?? new BinaryConfiguration();
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<DockerBinariesResolver>();
@@ -44,8 +43,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           _configuration.BinaryName,
           _configuration.SearchPaths)];
 
-      MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient);
-      MainDockerCli = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.Cli);
+      // Validated non-null by the guard below before the constructor returns; the interface
+      // exposes MainDockerClient as non-null, so keep the invariant rather than widen the type.
+      MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient)!;
+      // Docker Desktop's dockercli is optional; the interface contract is non-null and the only
+      // reader (Resolve) guards with '?? throw', so conform to that contract here.
+      MainDockerCli = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.Cli)!;
 
       if (MainDockerClient == null)
       {
@@ -148,7 +151,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     }
 
     private IEnumerable<DockerBinary> ResolveFromPaths(
-        SudoMechanism sudo, string password, string binaryName, params string[] paths)
+        SudoMechanism sudo, string? password, string? binaryName, params string[]? paths)
     {
       var isWindows = IsWindows();
       var clientName = string.IsNullOrWhiteSpace(binaryName) ? "docker" : binaryName;
@@ -184,7 +187,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
             list.AddRange(from file in Directory.GetFiles(path, $"{clientName}*.*")
                           let f = Path.GetFileName(file)
                           where f != null && f.Equals(clientFile, StringComparison.OrdinalIgnoreCase)
-                          select new DockerBinary(path, f, sudo, password, DockerBinaryType.DockerClient));
+                          select new DockerBinary(path, f, sudo, password!, DockerBinaryType.DockerClient));
 
             // Docker Desktop's dockercli.exe is docker-specific; skip for custom binaries.
             if (isDocker)
@@ -192,7 +195,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
               var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
               if (File.Exists(Path.Combine(dockercli, "dockercli.exe")))
               {
-                list.Add(new DockerBinary(dockercli, "dockercli.exe", sudo, password));
+                list.Add(new DockerBinary(dockercli, "dockercli.exe", sudo, password!));
               }
             }
 
@@ -202,7 +205,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           list.AddRange(from file in Directory.GetFiles(path, $"{clientName}*")
                         let f = Path.GetFileName(file)
                         where f.Equals(clientFile, StringComparison.Ordinal) && IsExecutable(file)
-                        select new DockerBinary(path, f, sudo, password, DockerBinaryType.DockerClient));
+                        select new DockerBinary(path, f, sudo, password!, DockerBinaryType.DockerClient));
         }
         catch (Exception e)
         {

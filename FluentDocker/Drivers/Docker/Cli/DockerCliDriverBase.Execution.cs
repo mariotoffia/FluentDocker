@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -54,14 +53,14 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <see cref="ErrorContext"/> — enough to see why a command hung/timed out without
     /// dragging a multi-MiB buffer into the exception.
     /// </summary>
-    private static string DiagnosticTail(string text, int maxChars = 4096) =>
+    private static string? DiagnosticTail(string? text, int maxChars = 4096) =>
         string.IsNullOrEmpty(text) || text.Length <= maxChars ? text : text[^maxChars..];
 
     /// <summary>
     /// Snapshot of a reader sink after its (possibly cancelled) task has been awaited:
     /// the reader no longer appends at that point, so the read is race-free.
     /// </summary>
-    private static string SinkSnapshot(StringBuilder sink) =>
+    private static string? SinkSnapshot(StringBuilder sink) =>
         sink is { Length: > 0 } ? sink.ToString() : null;
 
     /// <summary>
@@ -71,7 +70,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// differing from the component's own context resolves a one-shot binary for this call —
     /// the merged values are honored, not silently ignored in favor of the pack-init resolver.
     /// </summary>
-    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo(DriverContext context)
+    private (string BinaryPath, SudoMechanism Sudo, string? SudoPassword) ResolveBinaryInfo(DriverContext context)
     {
       var contextSudo = context?.Sudo ?? SudoMechanism.None;
       var contextPassword = context?.SudoPassword;
@@ -82,7 +81,8 @@ namespace FluentDocker.Drivers.Docker.Cli
         {
           Sudo = contextSudo,
           SudoPassword = contextPassword,
-          DefaultShell = context.DefaultShell,
+          // HasPerOperationBinaryOverride returned true, which is only possible for a non-null context.
+          DefaultShell = context!.DefaultShell,
           BinaryName = context.BinaryName,
           SearchPaths = context.SearchPaths
         });
@@ -108,7 +108,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// them for this call). String/reference comparison suffices because
     /// <see cref="CreateEffectiveContext"/> passes component values through unchanged.
     /// </summary>
-    private bool HasPerOperationBinaryOverride(DriverContext context)
+    private bool HasPerOperationBinaryOverride(DriverContext? context)
     {
       if (context == null || BinaryResolver == null)
         return false;
@@ -128,7 +128,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Command result</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
-        => await ExecuteCommandAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false);
+        => await ExecuteCommandAsync((DriverContext?)null, arguments, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// Executes a Docker command asynchronously: spawns the process, buffers stdout/stderr
@@ -139,7 +139,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        DriverContext context, string arguments, CancellationToken cancellationToken)
+        DriverContext? context, string arguments, CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -153,7 +153,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, string stdinData, CancellationToken cancellationToken)
-        => await ExecuteCommandAsync((DriverContext)null, arguments, stdinData, cancellationToken).ConfigureAwait(false);
+        => await ExecuteCommandAsync((DriverContext?)null, arguments, stdinData, cancellationToken).ConfigureAwait(false);
 
     /// <summary>Executes a Docker command asynchronously with data piped to stdin, using the given driver context.</summary>
     /// <param name="context">Driver context supplying host/TLS/sudo settings and timeout.</param>
@@ -162,7 +162,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        DriverContext context, string arguments, string stdinData, CancellationToken cancellationToken)
+        DriverContext? context, string arguments, string stdinData, CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -178,7 +178,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         string arguments,
         IDictionary<string, string> environment,
         CancellationToken cancellationToken)
-        => await ExecuteCommandAsync((DriverContext)null, arguments, environment, cancellationToken).ConfigureAwait(false);
+        => await ExecuteCommandAsync((DriverContext?)null, arguments, environment, cancellationToken).ConfigureAwait(false);
 
     /// <summary>Executes a Docker command asynchronously with additional environment variables, using the given driver context.</summary>
     /// <param name="context">Driver context supplying host/TLS/sudo settings and timeout.</param>
@@ -187,7 +187,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        DriverContext context,
+        DriverContext? context,
         string arguments,
         IDictionary<string, string> environment,
         CancellationToken cancellationToken)
@@ -207,7 +207,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, TimeSpan timeout, CancellationToken cancellationToken)
-        => await ExecuteCommandAsync((DriverContext)null, arguments, timeout, cancellationToken).ConfigureAwait(false);
+        => await ExecuteCommandAsync((DriverContext?)null, arguments, timeout, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// Executes a Docker command asynchronously using the given driver context and an explicit
@@ -222,7 +222,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        DriverContext context, string arguments, TimeSpan timeout, CancellationToken cancellationToken)
+        DriverContext? context, string arguments, TimeSpan timeout, CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -275,9 +275,9 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
-        IDictionary<string, string> environment,
-        string stdinData,
-        SudoMechanism sudo, string sudoPassword,
+        IDictionary<string, string>? environment,
+        string? stdinData,
+        SudoMechanism sudo, string? sudoPassword,
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
@@ -300,9 +300,9 @@ namespace FluentDocker.Drivers.Docker.Cli
         linked.CancelAfter(timeout);
       var linkedToken = linked.Token;
 
-      Process process = null;
-      Task<string> outputTask = null;
-      Task<string> errorTask = null;
+      Process? process = null;
+      Task<string>? outputTask = null;
+      Task<string>? errorTask = null;
       var outputSink = new StringBuilder();
       var errorSink = new StringBuilder();
       var processStarted = false;
@@ -410,7 +410,7 @@ namespace FluentDocker.Drivers.Docker.Cli
         return new SimpleCommandResult
         {
           Success = false,
-          Output = output,
+          Output = output ?? string.Empty,
           // The exception (e.g. the output-cap DriverException) is the primary failure;
           // stderr may race in SIGPIPE noise from the killed child, so always keep both.
           Error = string.IsNullOrEmpty(error) ? ex.Message : $"{ex.Message}\n{error}",

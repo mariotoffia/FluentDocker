@@ -1,6 +1,6 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
@@ -174,7 +174,7 @@ namespace FluentDocker.Drivers.Models
                 errorMessage, ErrorCodes.ModelInference.RequestFailed,
                 CreateStreamErrorContext(context, operation));
 
-          T chunk;
+          T? chunk;
           try
           {
             chunk = JsonSerializer.Deserialize<T>(span, JsonHelper.CaseInsensitiveOptions);
@@ -416,7 +416,7 @@ namespace FluentDocker.Drivers.Models
 
     // Parses an SSE payload and reports whether it is an OpenAI-style error envelope
     // ({"error":{"message":"..."}} or {"error":"..."}), extracting the human-readable message.
-    private static bool TryGetSseError(ReadOnlySpan<char> payload, out string message)
+    private static bool TryGetSseError(ReadOnlySpan<char> payload, [NotNullWhen(true)] out string? message)
     {
       message = null;
 

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -127,7 +126,7 @@ namespace FluentDocker.Drivers.Docker.Api
     /// of UTF-8 bytes. Returns <c>null</c> for empty, whitespace-only, or invalid JSON.
     /// Trims \r if present (handles \r\n line endings).
     /// </summary>
-    private T TryDeserializeLine<T>(
+    private T? TryDeserializeLine<T>(
         ReadOnlySequence<byte> lineBytes, JsonTypeInfo<T> typeInfo) where T : class
     {
       // Trim trailing \r for \r\n line endings

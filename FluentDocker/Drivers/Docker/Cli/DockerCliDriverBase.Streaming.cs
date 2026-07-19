@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -38,7 +37,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       async Task PumpAsync(TextReader reader)
       {
         var lineReader = new BoundedLineReader(reader);
-        string line;
+        string? line;
         while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           await writer.WriteAsync(line, cancellationToken).ConfigureAwait(false);
       }
@@ -84,7 +83,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
         string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-      await foreach (var line in ExecuteStreamingCommandWithProgressAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false))
+      await foreach (var line in ExecuteStreamingCommandWithProgressAsync((DriverContext?)null, arguments, cancellationToken).ConfigureAwait(false))
         yield return line;
     }
 
@@ -99,7 +98,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <returns>Async enumerable of stdout and stderr lines, in arrival order.</returns>
     /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
-        DriverContext context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
+        DriverContext? context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -141,7 +140,7 @@ namespace FluentDocker.Drivers.Docker.Cli
           });
 
       var pump = PumpBothStreamsAsync(process, channel.Writer, cancellationToken);
-      string failure = null;
+      string? failure = null;
       var failureExitCode = 0;
       var tail = new Queue<string>();
 
@@ -196,7 +195,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <returns>Async enumerable of output lines</returns>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-      await foreach (var line in ExecuteStreamingCommandAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false))
+      await foreach (var line in ExecuteStreamingCommandAsync((DriverContext?)null, arguments, cancellationToken).ConfigureAwait(false))
         yield return line;
     }
 
@@ -211,7 +210,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <returns>An async stream of stdout lines.</returns>
     /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(
-        DriverContext context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
+        DriverContext? context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -246,7 +245,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       // stderr pipe buffer while we only read stdout.
       var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, cancellationToken);
       var lineReader = new BoundedLineReader(process.StandardOutput);
-      string failure = null;
+      string? failure = null;
 
       try
       {
@@ -257,7 +256,7 @@ namespace FluentDocker.Drivers.Docker.Cli
           _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken)
               .ConfigureAwait(false);
 
-        string line;
+        string? line;
         while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           yield return line;
 

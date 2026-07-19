@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 
@@ -6,7 +5,7 @@ namespace FluentDocker.Drivers.Models.Connection
 {
   public sealed partial class ModelApiConnection
   {
-    private static (string CertPath, string KeyPath, string CaPath, bool HasClientCertificate)
+    private static (string CertPath, string KeyPath, string? CaPath, bool HasClientCertificate)
         ValidateCertificatePath(ModelApiConnectionConfig config)
     {
       if (!Directory.Exists(config.CertificatePath))

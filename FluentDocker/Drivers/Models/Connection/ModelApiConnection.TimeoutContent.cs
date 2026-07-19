@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Net;
@@ -32,14 +31,14 @@ namespace FluentDocker.Drivers.Models.Connection
           Headers.TryAddWithoutValidation(header.Key, header.Value);
       }
 
-      protected override void SerializeToStream(Stream stream, TransportContext context, CancellationToken cancellationToken) =>
+      protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken cancellationToken) =>
           throw AsyncOnlyNotSupported();
 
-      protected override Task SerializeToStreamAsync(Stream stream, TransportContext context) =>
+      protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
           SerializeToStreamAsync(stream, context, CancellationToken.None);
 
       protected override async Task SerializeToStreamAsync(
-          Stream stream, TransportContext context, CancellationToken cancellationToken)
+          Stream stream, TransportContext? context, CancellationToken cancellationToken)
       {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(RemainingTimeout());
@@ -76,7 +75,7 @@ namespace FluentDocker.Drivers.Models.Connection
         return remaining < _timeout ? remaining : _timeout;
       }
 
-      private TimeoutException BodyTimeout(Exception inner = null) =>
+      private TimeoutException BodyTimeout(Exception? inner = null) =>
           new($"The model API response body exceeded the configured request timeout of {_timeout}.", inner);
 
       private static NotSupportedException AsyncOnlyNotSupported() =>
@@ -157,7 +156,7 @@ namespace FluentDocker.Drivers.Models.Connection
         return remaining < timeout ? remaining : timeout;
       }
 
-      private TimeoutException BodyTimeout(Exception innerException = null) =>
+      private TimeoutException BodyTimeout(Exception? innerException = null) =>
           new($"The model API response body exceeded the configured request timeout of {timeout}.", innerException);
     }
   }

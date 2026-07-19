@@ -1,6 +1,6 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,8 +26,8 @@ namespace FluentDocker.Drivers.Podman.Cli
   {
     private readonly Dictionary<Type, object> _drivers = [];
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
-    private DriverContext _context;
-    private IPodmanBinaryResolver _binaryResolver;
+    private DriverContext _context = null!;
+    private IPodmanBinaryResolver _binaryResolver = null!;
     private ILogger<PodmanCliDriverPack> _logger = NullLogger<PodmanCliDriverPack>.Instance;
     // Written with Volatile.Write after all driver fields/_drivers entries are assigned and read
     // with Volatile.Read on lock-free paths (mirrors _disposed), so the release/acquire pairing
@@ -42,17 +42,17 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     public IPodmanBinaryResolver BinaryResolver => _binaryResolver;
 
-    private PodmanCliContainerDriver _containerDriver;
-    private PodmanCliImageDriver _imageDriver;
-    private PodmanCliNetworkDriver _networkDriver;
-    private PodmanCliVolumeDriver _volumeDriver;
-    private PodmanCliSystemDriver _systemDriver;
-    private PodmanCliAuthDriver _authDriver;
-    private PodmanCliStreamDriver _streamDriver;
-    private PodmanCliPodDriver _podDriver;
-    private PodmanCliKubernetesDriver _kubernetesDriver;
-    private PodmanCliMachineDriver _machineDriver;
-    private PodmanCliManifestDriver _manifestDriver;
+    private PodmanCliContainerDriver _containerDriver = null!;
+    private PodmanCliImageDriver _imageDriver = null!;
+    private PodmanCliNetworkDriver _networkDriver = null!;
+    private PodmanCliVolumeDriver _volumeDriver = null!;
+    private PodmanCliSystemDriver _systemDriver = null!;
+    private PodmanCliAuthDriver _authDriver = null!;
+    private PodmanCliStreamDriver _streamDriver = null!;
+    private PodmanCliPodDriver _podDriver = null!;
+    private PodmanCliKubernetesDriver _kubernetesDriver = null!;
+    private PodmanCliMachineDriver _machineDriver = null!;
+    private PodmanCliManifestDriver _manifestDriver = null!;
 
     /// <inheritdoc />
     public DriverType Type => DriverType.PodmanCli;
@@ -181,20 +181,20 @@ namespace FluentDocker.Drivers.Podman.Cli
     }
 
     /// <inheritdoc />
-    public T SysCtl<T>(string driverId) where T : class
+    public T SysCtl<T>(string? driverId) where T : class
     {
       ThrowIfNotInitialized();
 
       if (_drivers.TryGetValue(typeof(T), out var driver))
         return (T)driver;
 
-      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(typeof(T)));
+      throw new InterfaceNotSupportedException(driverId!, TypeNameFormatter.Format(typeof(T)));
     }
 
     #region IDriverInterfaceResolver
 
     /// <inheritdoc />
-    public bool TryResolve(Type interfaceType, out object implementation)
+    public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
     {
       ThrowIfNotInitialized();
       return _drivers.TryGetValue(interfaceType, out implementation);
@@ -212,16 +212,16 @@ namespace FluentDocker.Drivers.Podman.Cli
     #region ISysCtl Type-Based Resolution
 
     /// <inheritdoc />
-    public object SysCtl(string driverId, Type interfaceType)
+    public object SysCtl(string? driverId, Type interfaceType)
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(interfaceType, out var driver))
         return driver;
-      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(interfaceType));
+      throw new InterfaceNotSupportedException(driverId!, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <inheritdoc />
-    public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+    public bool TrySysCtl<T>(string? driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(typeof(T), out var driver))

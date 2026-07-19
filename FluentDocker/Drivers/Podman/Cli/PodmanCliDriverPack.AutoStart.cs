@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Linq;
 using System.Threading;
@@ -41,7 +40,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// over-serialization is harmless here). Public static so the keying is unit-testable
     /// without internals access.
     /// </summary>
-    public static string MachineLockKey(string machineName)
+    public static string MachineLockKey(string? machineName)
         => string.IsNullOrEmpty(machineName) ? "default" : machineName;
 
     private async Task AutoStartMachineAsync(
@@ -56,7 +55,9 @@ namespace FluentDocker.Drivers.Podman.Cli
             ErrorCodes.Driver.CapabilityNotSupported);
       }
 
-      var key = MachineLockKey(context.AutoStartMachine.MachineName);
+      // AutoStartMachineAsync is only invoked when context.AutoStartMachine is non-null
+      // (guarded in InitializeAsync), so the dereference is safe.
+      var key = MachineLockKey(context.AutoStartMachine!.MachineName);
       var gate = MachineLocks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
 
       await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -73,7 +74,8 @@ namespace FluentDocker.Drivers.Podman.Cli
     private async Task AutoStartMachineCoreAsync(
         DriverContext context, CancellationToken cancellationToken)
     {
-      var config = context.AutoStartMachine;
+      // Reached only via AutoStartMachineAsync, which runs solely when AutoStartMachine is set.
+      var config = context.AutoStartMachine!;
       var listResult = await _machineDriver.ListAsync(context, cancellationToken).ConfigureAwait(false);
 
       if (!listResult.Success)
@@ -86,21 +88,23 @@ namespace FluentDocker.Drivers.Podman.Cli
         throw new PodmanMachineNotRunningException(
             $"Failed to list Podman machines: {listResult.Error}");
 
-      MachineInfo target;
+      // A successful ListAsync carries non-null Data by the driver contract (the !Success
+      // path above already threw), so the enumerations below are safe.
+      MachineInfo? target;
       if (!string.IsNullOrEmpty(config.MachineName))
-        target = listResult.Data.FirstOrDefault(
+        target = listResult.Data!.FirstOrDefault(
             m => string.Equals(m.Name, config.MachineName,
                 StringComparison.OrdinalIgnoreCase));
       else
       {
-        target = listResult.Data.FirstOrDefault(m => m.Default);
+        target = listResult.Data!.FirstOrDefault(m => m.Default);
         if (target == null)
         {
           // No machine is flagged default (e.g. after `podman system connection` edits) and more
           // than one exists: guessing which one to start can target the wrong machine and hang
           // for the full readiness timeout against an unrelated VM. Fail fast with guidance
           // instead (P-M2).
-          if (listResult.Data.Count > 1)
+          if (listResult.Data!.Count > 1)
             throw new PodmanMachineNotRunningException(
                 "Multiple Podman machines exist and none is flagged default; set " +
                 "AutoStartMachineConfig.MachineName to choose which machine to start.",

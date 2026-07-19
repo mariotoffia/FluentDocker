@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Net.Http;
@@ -18,7 +17,7 @@ namespace FluentDocker.Drivers.Connection
     public override bool CanWrite => false;
     public override long Length => _inner.Length;
     public override long Position { get => _inner.Position; set => _inner.Position = value; }
-    public string ContentType => _response.Content.Headers.ContentType?.MediaType;
+    public string? ContentType => _response.Content.Headers.ContentType?.MediaType;
 
     private bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 

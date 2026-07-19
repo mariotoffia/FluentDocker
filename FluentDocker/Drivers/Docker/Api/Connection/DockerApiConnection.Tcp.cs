@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -152,8 +151,9 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         List<X509Certificate2> ownedCertificates)
     {
       ValidateCertificatePath(config);
-      var certPath = Path.Combine(config.CertificatePath, "cert.pem");
-      var keyPath = Path.Combine(config.CertificatePath, "key.pem");
+      // ValidateCertificatePath throws unless CertificatePath resolves to an existing directory.
+      var certPath = Path.Combine(config.CertificatePath!, "cert.pem");
+      var keyPath = Path.Combine(config.CertificatePath!, "key.pem");
 
       if (File.Exists(certPath) && File.Exists(keyPath))
       {
@@ -170,7 +170,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         return;
       }
 
-      var caPath = Path.Combine(config.CertificatePath, "ca.pem");
+      var caPath = Path.Combine(config.CertificatePath!, "ca.pem");
       if (File.Exists(caPath))
       {
         // Load the WHOLE ca.pem bundle (intermediate + root), not just the first block — enterprise
@@ -182,7 +182,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
           ownedCertificates.Add(caCert);
         sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
             ModelTlsValidation.ValidateWithCustomRoot(
-                caCerts, cert, chain, errors, config.AllowTlsHostnameMismatch);
+                caCerts, cert!, chain!, errors, config.AllowTlsHostnameMismatch);
       }
       else if (config.AllowTlsHostnameMismatch)
       {
@@ -199,7 +199,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
 
       var certPath = Path.Combine(config.CertificatePath, "cert.pem");
       var keyPath = Path.Combine(config.CertificatePath, "key.pem");
-      var caPath = Path.Combine(config.CertificatePath, "ca.pem");
+      var caPath = Path.Combine(config.CertificatePath!, "ca.pem");
       var hasCert = File.Exists(certPath);
       var hasKey = File.Exists(keyPath);
       var hasCa = File.Exists(caPath);

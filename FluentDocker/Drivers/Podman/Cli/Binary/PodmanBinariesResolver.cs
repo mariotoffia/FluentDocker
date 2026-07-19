@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,7 +25,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
     /// <param name="loggerFactory">Optional logger factory; defaults to
     /// <see cref="NullLoggerFactory.Instance"/>. The Podman CLI driver pack supplies
     /// the consumer-provided factory automatically.</param>
-    public PodmanBinariesResolver(PodmanBinaryConfiguration configuration, ILoggerFactory loggerFactory = null)
+    public PodmanBinariesResolver(PodmanBinaryConfiguration configuration, ILoggerFactory? loggerFactory = null)
     {
       _configuration = configuration ?? new PodmanBinaryConfiguration();
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<PodmanBinariesResolver>();
@@ -35,8 +34,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
           _configuration.Sudo,
           _configuration.SudoPassword,
           _configuration.SearchPaths)];
-      MainPodmanClient = Binaries.FirstOrDefault(x => x.Type == PodmanBinaryType.PodmanClient);
-      PodmanRemote = Binaries.FirstOrDefault(x => x.Type == PodmanBinaryType.PodmanRemote);
+      // Validated non-null by the guard below before the constructor returns; the interface
+      // exposes MainPodmanClient as non-null, so keep the invariant rather than widen the type.
+      MainPodmanClient = Binaries.FirstOrDefault(x => x.Type == PodmanBinaryType.PodmanClient)!;
+      // The remote client is optional; the interface contract is non-null and the only reader
+      // (Resolve) guards with '?? throw', so conform to that contract here.
+      PodmanRemote = Binaries.FirstOrDefault(x => x.Type == PodmanBinaryType.PodmanRemote)!;
 
       if (MainPodmanClient == null)
       {
@@ -143,7 +146,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
     }
 
     private IEnumerable<PodmanBinary> ResolveFromPaths(
-        SudoMechanism sudo, string password, params string[] paths)
+        SudoMechanism sudo, string? password, params string[]? paths)
     {
       var isWindows = IsWindows();
       if (paths == null || paths.Length == 0)
@@ -169,7 +172,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
         var type = name.Equals(remoteFile, StringComparison.OrdinalIgnoreCase)
             ? PodmanBinaryType.PodmanRemote
             : PodmanBinaryType.PodmanClient;
-        return new PodmanBinary(dir, name, sudo, password, type);
+        return new PodmanBinary(dir, name, sudo, password!, type);
       }
 
       var list = new List<PodmanBinary>();

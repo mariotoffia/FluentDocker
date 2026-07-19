@@ -1,6 +1,6 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -24,10 +24,10 @@ namespace FluentDocker.Drivers.Docker.Api
   {
     private readonly Dictionary<Type, object> _drivers = [];
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
-    private DriverContext _context;
+    private DriverContext? _context;
     // CA1859: Must stay as interface — tests inject MockDockerApiConnection via reflection.
 #pragma warning disable CA1859
-    private IDockerApiConnection _connection;
+    private IDockerApiConnection _connection = null!;
 #pragma warning restore CA1859
     private ILogger<DockerApiDriverPack> _logger = NullLogger<DockerApiDriverPack>.Instance;
     // Written under the init/dispose locks but read lock-free (IsHealthyAsync,
@@ -35,14 +35,14 @@ namespace FluentDocker.Drivers.Docker.Api
     // for the driver-field writes published before it (same pattern as the CLI packs).
     private bool _initialized;
 
-    private DockerApiContainerDriver _containerDriver;
-    private DockerApiImageDriver _imageDriver;
-    private DockerApiNetworkDriver _networkDriver;
-    private DockerApiVolumeDriver _volumeDriver;
-    private DockerApiSystemDriver _systemDriver;
-    private DockerApiAuthDriver _authDriver;
-    private DockerApiStreamDriver _streamDriver;
-    private DockerApiServiceDriver _serviceDriver;
+    private DockerApiContainerDriver _containerDriver = null!;
+    private DockerApiImageDriver _imageDriver = null!;
+    private DockerApiNetworkDriver _networkDriver = null!;
+    private DockerApiVolumeDriver _volumeDriver = null!;
+    private DockerApiSystemDriver _systemDriver = null!;
+    private DockerApiAuthDriver _authDriver = null!;
+    private DockerApiStreamDriver _streamDriver = null!;
+    private DockerApiServiceDriver _serviceDriver = null!;
     private int _disposed;
 
     /// <inheritdoc />
@@ -172,25 +172,25 @@ namespace FluentDocker.Drivers.Docker.Api
     #region ISysCtl
 
     /// <inheritdoc />
-    public T SysCtl<T>(string driverId) where T : class
+    public T SysCtl<T>(string? driverId) where T : class
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(typeof(T), out var driver))
         return (T)driver;
-      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(typeof(T)));
+      throw new InterfaceNotSupportedException(driverId!, TypeNameFormatter.Format(typeof(T)));
     }
 
     /// <inheritdoc />
-    public object SysCtl(string driverId, Type interfaceType)
+    public object SysCtl(string? driverId, Type interfaceType)
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(interfaceType, out var driver))
         return driver;
-      throw new InterfaceNotSupportedException(driverId, TypeNameFormatter.Format(interfaceType));
+      throw new InterfaceNotSupportedException(driverId!, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <inheritdoc />
-    public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+    public bool TrySysCtl<T>(string? driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(typeof(T), out var driver))
@@ -207,7 +207,7 @@ namespace FluentDocker.Drivers.Docker.Api
     #region IDriverInterfaceResolver
 
     /// <inheritdoc />
-    public bool TryResolve(Type interfaceType, out object implementation)
+    public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
     {
       ThrowIfNotInitialized();
       return _drivers.TryGetValue(interfaceType, out implementation);
@@ -280,12 +280,12 @@ namespace FluentDocker.Drivers.Docker.Api
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
 
-      IDockerApiConnection connection = null;
+      IDockerApiConnection? connection = null;
       await _initializeLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
       try
       {
         connection = _connection;
-        _connection = null;
+        _connection = null!;
         // Do not Clear() _drivers: resolution reads it lock-free (IDriverPack contract),
         // so mutating it here is a torn-read data race with an in-flight resolver. The
         // _disposed guard fences new callers; the dictionary stays immutable after init.

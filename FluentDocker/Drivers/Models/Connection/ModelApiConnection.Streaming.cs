@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Net.Http;
@@ -28,7 +27,7 @@ namespace FluentDocker.Drivers.Models.Connection
       // Streaming is exempt from the whole-request timeout (SSE can run for a long time), but the
       // first-byte/header wait still has its own budget so a wedged runner cannot hang.
       var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
-      HttpResponseMessage response = null;
+      HttpResponseMessage? response = null;
       var transferred = false;
       using var headerCts = _streamFirstByteTimeout is null
           ? null
@@ -69,7 +68,7 @@ namespace FluentDocker.Drivers.Models.Connection
           // discard the body. Dispose the failed response before throwing so it does not
           // leak — ownership has not yet been transferred to ResponseOwningStream.
           var status = response.StatusCode;
-          string body;
+          string? body;
           try
           {
             body = await ReadBoundedErrorBodyAsync(response, ct).ConfigureAwait(false);
@@ -259,9 +258,9 @@ namespace FluentDocker.Drivers.Models.Connection
     /// message. Caller cancellation propagates; any other read failure is swallowed (it must not
     /// mask the underlying HTTP failure).
     /// </summary>
-    private async Task<string> ReadBoundedErrorBodyAsync(HttpResponseMessage response, CancellationToken ct)
+    private async Task<string?> ReadBoundedErrorBodyAsync(HttpResponseMessage response, CancellationToken ct)
     {
-      CancellationTokenSource idleCts = null;
+      CancellationTokenSource? idleCts = null;
       try
       {
         idleCts = _streamReadIdleTimeout is null
@@ -303,8 +302,8 @@ namespace FluentDocker.Drivers.Models.Connection
     /// Reads at most <see cref="MaxErrorBodyBytes"/> bytes of the response body and decodes
     /// them as UTF-8, so a pathological error body cannot force unbounded buffering.
     /// </summary>
-    private static async Task<string> ReadBoundedBodyTextAsync(
-        HttpResponseMessage response, CancellationTokenSource idleCts, TimeSpan? idleTimeout, CancellationToken ct)
+    private static async Task<string?> ReadBoundedBodyTextAsync(
+        HttpResponseMessage response, CancellationTokenSource? idleCts, TimeSpan? idleTimeout, CancellationToken ct)
     {
       ArmIdleTimer(idleCts, idleTimeout);
       await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
@@ -322,7 +321,7 @@ namespace FluentDocker.Drivers.Models.Connection
       return total == 0 ? null : Encoding.UTF8.GetString(buffer, 0, total);
     }
 
-    private static void ArmIdleTimer(CancellationTokenSource cts, TimeSpan? timeout)
+    private static void ArmIdleTimer(CancellationTokenSource? cts, TimeSpan? timeout)
     {
       if (cts is not null && timeout is not null)
         cts.CancelAfter(timeout.GetValueOrDefault());

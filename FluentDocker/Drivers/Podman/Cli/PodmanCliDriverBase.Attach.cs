@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Diagnostics;
 using System.Text;
@@ -39,7 +38,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// the returned <see cref="AttachResult"/>.
     /// </param>
     protected AttachResult ExecuteAttachProcess(
-        DriverContext context, string arguments, CancellationToken cancellationToken = default)
+        DriverContext? context, string arguments, CancellationToken cancellationToken = default)
     {
       cancellationToken.ThrowIfCancellationRequested();
 

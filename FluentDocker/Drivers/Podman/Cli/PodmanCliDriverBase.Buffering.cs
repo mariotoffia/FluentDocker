@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Text;
@@ -23,7 +22,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     /// <exception cref="DriverException">Thrown when the output exceeds the cap.</exception>
     private static async Task<string> ReadBoundedAsync(
-        TextReader reader, int maxBytes, CancellationToken cancellationToken, StringBuilder sink = null)
+        TextReader reader, int maxBytes, CancellationToken cancellationToken, StringBuilder? sink = null)
     {
       // One UTF-16 char is at least one byte; capping the char count at maxBytes is a
       // safe (slightly conservative) upper bound on the byte size and avoids re-encoding.
@@ -55,7 +54,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// child process cannot block on a full stderr pipe.
     /// </summary>
     private static async Task<string> ReadBoundedTruncatingAsync(
-        TextReader reader, int maxBytes, CancellationToken cancellationToken, StringBuilder sink = null)
+        TextReader reader, int maxBytes, CancellationToken cancellationToken, StringBuilder? sink = null)
     {
       var sb = sink ?? new StringBuilder();
       var buffer = new char[8192];

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Diagnostics;
 using System.Text;
@@ -57,10 +56,10 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// differing from the component's own context resolves a one-shot binary for this call —
     /// the merged values are honored, not silently ignored in favor of the pack-init resolver.
     /// </summary>
-    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
+    private (string BinaryPath, SudoMechanism Sudo, string? SudoPassword) ResolveBinaryInfo()
         => ResolveBinaryInfo(Context);
 
-    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo(DriverContext context)
+    private (string BinaryPath, SudoMechanism Sudo, string? SudoPassword) ResolveBinaryInfo(DriverContext context)
     {
       var contextSudo = context?.Sudo ?? SudoMechanism.None;
       var contextPassword = context?.SudoPassword;
@@ -71,7 +70,8 @@ namespace FluentDocker.Drivers.Podman.Cli
         {
           Sudo = contextSudo,
           SudoPassword = contextPassword,
-          DefaultShell = context.DefaultShell,
+          // HasPerOperationBinaryOverride returned true, which is only possible for a non-null context.
+          DefaultShell = context!.DefaultShell,
           BinaryName = context.BinaryName,
           SearchPaths = context.SearchPaths
         });
@@ -97,7 +97,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// them for this call). String/reference comparison suffices because
     /// <see cref="CreateEffectiveContext"/> passes component values through unchanged.
     /// </summary>
-    private bool HasPerOperationBinaryOverride(DriverContext context)
+    private bool HasPerOperationBinaryOverride(DriverContext? context)
     {
       if (context == null || BinaryResolver == null)
         return false;
@@ -115,7 +115,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, CancellationToken cancellationToken)
-        => await ExecuteCommandAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false);
+        => await ExecuteCommandAsync((DriverContext?)null, arguments, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// Executes a Podman command asynchronously using the given driver context: spawns the
@@ -128,7 +128,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        DriverContext context, string arguments, CancellationToken cancellationToken)
+        DriverContext? context, string arguments, CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -145,7 +145,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, TimeSpan timeout, CancellationToken cancellationToken)
-        => await ExecuteCommandAsync((DriverContext)null, arguments, timeout, cancellationToken).ConfigureAwait(false);
+        => await ExecuteCommandAsync((DriverContext?)null, arguments, timeout, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// Executes a Podman command asynchronously using the given driver context and an explicit
@@ -160,7 +160,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        DriverContext context, string arguments, TimeSpan timeout, CancellationToken cancellationToken)
+        DriverContext? context, string arguments, TimeSpan timeout, CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -174,7 +174,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// </summary>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
         string arguments, string stdinData, CancellationToken cancellationToken)
-        => await ExecuteCommandAsync((DriverContext)null, arguments, stdinData, cancellationToken).ConfigureAwait(false);
+        => await ExecuteCommandAsync((DriverContext?)null, arguments, stdinData, cancellationToken).ConfigureAwait(false);
 
     /// <summary>Executes a Podman command asynchronously with data piped to stdin, using the given driver context.</summary>
     /// <param name="context">Driver context supplying host/sudo settings and timeout.</param>
@@ -183,7 +183,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The command result.</returns>
     protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        DriverContext context, string arguments, string stdinData, CancellationToken cancellationToken)
+        DriverContext? context, string arguments, string stdinData, CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -201,7 +201,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// at the 4 MiB buffered cap.
     /// </summary>
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(string arguments, CancellationToken cancellationToken)
-        => ExecuteUnboundedCommandAsync((DriverContext)null, arguments, cancellationToken);
+        => ExecuteUnboundedCommandAsync((DriverContext?)null, arguments, cancellationToken);
 
     /// <summary>
     /// Executes an unbounded Podman command using the given driver context: honors only
@@ -213,7 +213,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The command result.</returns>
     protected Task<SimpleCommandResult> ExecuteUnboundedCommandAsync(
-        DriverContext context, string arguments, CancellationToken cancellationToken)
+        DriverContext? context, string arguments, CancellationToken cancellationToken)
         => ExecuteUnboundedProcessAsync(context, arguments, cancellationToken);
 
     /// <summary>
@@ -225,8 +225,8 @@ namespace FluentDocker.Drivers.Podman.Cli
     // Instance (not static) so the overridable MaxNonStreamingOutputBytes cap is readable.
     private async Task<SimpleCommandResult> ExecuteProcessAsync(
         string fileName, string arguments,
-        string stdinData,
-        SudoMechanism sudo, string sudoPassword,
+        string? stdinData,
+        SudoMechanism sudo, string? sudoPassword,
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
@@ -244,9 +244,9 @@ namespace FluentDocker.Drivers.Podman.Cli
         linked.CancelAfter(timeout);
       var linkedToken = linked.Token;
 
-      Process process = null;
-      Task<string> outputTask = null;
-      Task<string> errorTask = null;
+      Process? process = null;
+      Task<string>? outputTask = null;
+      Task<string>? errorTask = null;
       var outputSink = new StringBuilder();
       var errorSink = new StringBuilder();
       try
@@ -353,7 +353,7 @@ namespace FluentDocker.Drivers.Podman.Cli
         return new SimpleCommandResult
         {
           Success = false,
-          Output = output,
+          Output = output ?? string.Empty,
           Error = string.IsNullOrEmpty(error) ? ex.Message : $"{ex.Message}\n{error}",
           ExitCode = GetExitCodeOrDefault(process)
         };

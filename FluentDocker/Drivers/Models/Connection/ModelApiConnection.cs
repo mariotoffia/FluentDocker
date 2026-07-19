@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -47,7 +46,7 @@ namespace FluentDocker.Drivers.Models.Connection
     // transport BaseAddress is the placeholder http://localhost (never dialed), so the
     // EndpointUnreachable remediation quotes THIS path instead of that misleading address. Null for
     // TCP/HTTP(S) connections.
-    private readonly string _unixSocketPath;
+    private readonly string? _unixSocketPath;
     private int _disposed;
 
     /// <summary>
@@ -57,8 +56,8 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <param name="config">Optional transport configuration.</param>
     /// <param name="loggerFactory">Optional logger factory.</param>
     /// <param name="apiKey">Optional bearer token (sent as <c>Authorization: Bearer …</c>, never logged).</param>
-    public ModelApiConnection(ModelRunnerEndpoint endpoint, ModelApiConnectionConfig config = null,
-        ILoggerFactory? loggerFactory = null, string apiKey = null)
+    public ModelApiConnection(ModelRunnerEndpoint endpoint, ModelApiConnectionConfig? config = null,
+        ILoggerFactory? loggerFactory = null, string? apiKey = null)
     {
       ArgumentNullException.ThrowIfNull(endpoint);
       config ??= new ModelApiConnectionConfig();
@@ -172,7 +171,7 @@ namespace FluentDocker.Drivers.Models.Connection
         timeout > TimeSpan.Zero ? timeout : Timeout.InfiniteTimeSpan;
 
     /// <inheritdoc />
-    public Uri BaseAddress => _httpClient.BaseAddress;
+    public Uri BaseAddress => _httpClient.BaseAddress!;
 
     /// <inheritdoc />
     public TimeSpan? StreamFirstByteTimeout => _streamFirstByteTimeout;
@@ -193,7 +192,7 @@ namespace FluentDocker.Drivers.Models.Connection
         SendWithTimeoutAsync(c => SendAsync(HttpMethod.Delete, path, null, c), ct);
 
     private async Task<HttpResponseMessage> SendAsync(
-        HttpMethod method, string path, HttpContent content, CancellationToken ct)
+        HttpMethod method, string path, HttpContent? content, CancellationToken ct)
     {
       using var request = new HttpRequestMessage(method, path) { Content = content };
       return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
@@ -340,7 +339,7 @@ namespace FluentDocker.Drivers.Models.Connection
       return ValueTask.CompletedTask;
     }
 
-    private static void ValidateApiKeyTransport(ModelRunnerEndpoint endpoint, ModelApiConnectionConfig config, string apiKey)
+    private static void ValidateApiKeyTransport(ModelRunnerEndpoint endpoint, ModelApiConnectionConfig config, string? apiKey)
     {
       if (string.IsNullOrEmpty(apiKey))
         return;
@@ -480,7 +479,7 @@ namespace FluentDocker.Drivers.Models.Connection
           // mismatch and a missing certificate are still rejected by default (see
           // ModelTlsValidation). Without ca.pem the system trust store applies (no callback).
           sslOptions.RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
-              ModelTlsValidation.ValidateWithCustomRoot(caCerts, cert, chain, errors, config.AllowTlsHostnameMismatch);
+              ModelTlsValidation.ValidateWithCustomRoot(caCerts, cert!, chain!, errors, config.AllowTlsHostnameMismatch);
         }
       }
       else if (!config.VerifyTls)

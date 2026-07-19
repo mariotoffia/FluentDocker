@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -20,7 +19,7 @@ namespace FluentDocker.Drivers.Docker.Api
         var content = body != null
             ? new StringContent(JsonHelper.Serialize(body), Encoding.UTF8, "application/json")
             : null;
-        var response = await Connection.PostAsync(path, content, headers, ct).ConfigureAwait(false);
+        var response = await Connection.PostAsync(path, content!, headers, ct).ConfigureAwait(false);
         return await HandleResponseAsync(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))
@@ -38,7 +37,7 @@ namespace FluentDocker.Drivers.Docker.Api
         var content = body != null
             ? new StringContent(JsonHelper.Serialize(body), Encoding.UTF8, "application/json")
             : null;
-        var response = await Connection.PostAsync(path, content, headers, ct).ConfigureAwait(false);
+        var response = await Connection.PostAsync(path, content!, headers, ct).ConfigureAwait(false);
         return await HandleJsonElementResponseAsync(response, ct).ConfigureAwait(false);
       }
       catch (Exception ex) when (IsConnectionError(ex, ct))

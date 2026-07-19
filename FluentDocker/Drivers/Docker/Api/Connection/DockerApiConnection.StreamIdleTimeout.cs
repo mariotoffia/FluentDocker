@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Buffers;
 using System.IO;
@@ -53,7 +52,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         // fires, inner.ReadAsync is abandoned but still owns whatever buffer we handed it; the caller
         // recycles its buffer to ArrayPool the moment we throw, so the abandoned read must never hold it.
         var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
-        Task<int> readTask = null;
+        Task<int>? readTask = null;
         try
         {
           readTask = inner.ReadAsync(rented.AsMemory(0, buffer.Length), cancellationToken).AsTask();
@@ -79,7 +78,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
                 static (task, state) =>
                 {
                   _ = task.Exception; // observe a late fault so it is never unobserved
-                  ArrayPool<byte>.Shared.Return((byte[])state);
+                  ArrayPool<byte>.Shared.Return((byte[])state!);
                 },
                 rented, CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);

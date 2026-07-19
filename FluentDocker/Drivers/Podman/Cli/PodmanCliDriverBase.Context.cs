@@ -1,4 +1,3 @@
-#nullable disable warnings
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -7,13 +6,16 @@ namespace FluentDocker.Drivers.Podman.Cli
 {
   public abstract partial class PodmanCliDriverBase
   {
-    private DriverContext CreateEffectiveContext(DriverContext operationContext)
+    private DriverContext CreateEffectiveContext(DriverContext? operationContext)
     {
       var component = Context;
       if (operationContext == null)
         return component;
 
-      return new DriverContext(operationContext.DriverId ?? component?.DriverId)
+      // DriverContext.DriverId is nullable, but its constructor parameter is annotated
+      // non-null in the (already-migrated) model type; a null id is a legitimate value here
+      // and is stored as-is, so bridge the loose contract without changing behavior.
+      return new DriverContext((operationContext.DriverId ?? component?.DriverId)!)
       {
         LoggerFactory = operationContext.LoggerFactory ?? component?.LoggerFactory ?? NullLoggerFactory.Instance,
         Host = string.IsNullOrEmpty(operationContext.Host) ? component?.Host : operationContext.Host,

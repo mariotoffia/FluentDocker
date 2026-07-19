@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Net;
@@ -31,7 +30,7 @@ namespace FluentDocker.Drivers.Docker.Api
         try
         {
           var data = JsonSerializer.Deserialize<T>(body, JsonHelper.CaseInsensitiveOptions);
-          return ApiResult<T>.Ok(data, (int)response.StatusCode);
+          return ApiResult<T>.Ok(data!, (int)response.StatusCode);
         }
         catch (JsonException ex)
         {
@@ -65,7 +64,7 @@ namespace FluentDocker.Drivers.Docker.Api
         {
           var data = await JsonSerializer.DeserializeAsync(stream, typeInfo, ct)
               .ConfigureAwait(false);
-          return ApiResult<T>.Ok(data, (int)response.StatusCode);
+          return ApiResult<T>.Ok(data!, (int)response.StatusCode);
         }
         catch (JsonException ex)
         {
@@ -137,7 +136,7 @@ namespace FluentDocker.Drivers.Docker.Api
       return ApiResult.Failure((int)response.StatusCode, errorMessage, body);
     }
 
-    private static string ExtractErrorMessage(string body)
+    private static string? ExtractErrorMessage(string body)
     {
       if (string.IsNullOrWhiteSpace(body))
         return null;

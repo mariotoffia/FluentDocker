@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Globalization;
 using System.Net.Http;
@@ -19,7 +18,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
     /// <summary>Creates a driver error context with HTTP status metadata.</summary>
     protected ErrorContext CreateErrorContext(
-        string operation, int statusCode, string responseBody = null)
+        string operation, int statusCode, string? responseBody = null)
     {
       return new ErrorContext(operation)
       {

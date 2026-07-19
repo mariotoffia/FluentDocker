@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -39,7 +38,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// sudo/global-arg handling of the bounded <c>ExecuteProcessAsync</c>.
     /// </summary>
     private async Task<SimpleCommandResult> ExecuteUnboundedProcessAsync(
-        DriverContext context, string arguments, CancellationToken cancellationToken)
+        DriverContext? context, string arguments, CancellationToken cancellationToken)
     {
       var effectiveContext = CreateEffectiveContext(context);
       var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
@@ -49,9 +48,9 @@ namespace FluentDocker.Drivers.Podman.Cli
       var (processFileName, processArguments, passwordForStdin) =
           BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
 
-      Process process = null;
-      Task outTask = null;
-      Task errTask = null;
+      Process? process = null;
+      Task? outTask = null;
+      Task? errTask = null;
       // Bounded rolling tails preserve the END of each stream — where podman prints the meaningful
       // result line and the freshest error context. Hoisted so the catch blocks can drain the
       // readers (avoiding unobserved tasks) and surface stderr in a failure result.
@@ -139,7 +138,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     private static async Task ReadTailAsync(TextReader reader, OutputTail tail, CancellationToken cancellationToken)
     {
       var lineReader = new BoundedLineReader(reader);
-      string line;
+      string? line;
       while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         tail.Append(line);
     }

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -12,10 +11,10 @@ namespace FluentDocker.Drivers.Podman.Cli
   {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
 
-    private static async Task<Exception> TryWriteStandardInputAsync(
+    private static async Task<Exception?> TryWriteStandardInputAsync(
         Process process,
-        string passwordForStdin,
-        string stdinData,
+        string? passwordForStdin,
+        string? stdinData,
         CancellationToken cancellationToken)
     {
       try
@@ -39,7 +38,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
     }
 
-    private static async Task<string> TryReadStringTaskAsync(Task<string> task)
+    private static async Task<string?> TryReadStringTaskAsync(Task<string>? task)
     {
       if (task == null)
         return null;
@@ -53,7 +52,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       }
     }
 
-    private static async Task TryObserveTaskAsync(Task task)
+    private static async Task TryObserveTaskAsync(Task? task)
     {
       if (task == null)
         return;
@@ -72,17 +71,17 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <see cref="FluentDocker.Model.Drivers.ErrorContext"/> — enough to see why a command
     /// hung/timed out without dragging a multi-MiB buffer into the exception.
     /// </summary>
-    private static string DiagnosticTail(string text, int maxChars = 4096) =>
+    private static string? DiagnosticTail(string? text, int maxChars = 4096) =>
         string.IsNullOrEmpty(text) || text.Length <= maxChars ? text : text[^maxChars..];
 
     /// <summary>
     /// Snapshot of a reader sink after its (possibly cancelled) task has been awaited:
     /// the reader no longer appends at that point, so the read is race-free.
     /// </summary>
-    private static string SinkSnapshot(System.Text.StringBuilder sink) =>
+    private static string? SinkSnapshot(System.Text.StringBuilder? sink) =>
         sink is { Length: > 0 } ? sink.ToString() : null;
 
-    private static int GetExitCodeOrDefault(Process process)
+    private static int GetExitCodeOrDefault(Process? process)
     {
       try
       {

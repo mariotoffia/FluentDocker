@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -44,7 +43,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <returns>An async stream of stdout lines.</returns>
     /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(
-        DriverContext context,
+        DriverContext? context,
         string arguments,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -85,13 +84,13 @@ namespace FluentDocker.Drivers.Podman.Cli
       // pathological child cannot force unbounded buffering.
       var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, cancellationToken);
       var reader = new BoundedLineReader(process.StandardOutput);
-      string failure = null;
+      string? failure = null;
       var failureExitCode = 0;
-      string failureError = null;
+      string? failureError = null;
 
       try
       {
-        string line;
+        string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           yield return line;
 
@@ -155,7 +154,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <returns>Async enumerable of stdout and stderr lines, in arrival order.</returns>
     /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
     protected async IAsyncEnumerable<string> ExecuteStreamingCommandWithProgressAsync(
-        DriverContext context,
+        DriverContext? context,
         string arguments,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -200,7 +199,7 @@ namespace FluentDocker.Drivers.Podman.Cli
           });
 
       var pump = PumpBothStreamsAsync(process, channel.Writer, cancellationToken);
-      string failure = null;
+      string? failure = null;
       var failureExitCode = 0;
       var tail = new Queue<string>();
 
@@ -304,7 +303,7 @@ namespace FluentDocker.Drivers.Podman.Cli
           });
       var tail = new Queue<string>();
       var pump = PumpSourceStreamsAsync(process, channel.Writer, stdout, stderr, tail, cancellationToken);
-      string failure = null;
+      string? failure = null;
       var failureExitCode = 0;
 
       try
@@ -366,7 +365,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       async Task PumpAsync(TextReader reader)
       {
         var lineReader = new BoundedLineReader(reader);
-        string line;
+        string? line;
         while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
           await writer.WriteAsync(line, cancellationToken).ConfigureAwait(false);
       }
@@ -393,7 +392,7 @@ namespace FluentDocker.Drivers.Podman.Cli
       async Task PumpAsync(TextReader reader, LogStreamSource source, bool emit)
       {
         var lineReader = new BoundedLineReader(reader);
-        string line;
+        string? line;
         while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         {
           lock (tail)

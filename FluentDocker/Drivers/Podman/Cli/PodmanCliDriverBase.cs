@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -32,7 +31,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <summary>
     /// The driver context.
     /// </summary>
-    protected DriverContext Context { get; private set; }
+    protected DriverContext Context { get; private set; } = null!;
 
     /// <summary>
     /// Logger for this driver component. Category equals the concrete derived type's FQN.
@@ -42,7 +41,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <summary>
     /// The binary resolver for resolving Podman command paths.
     /// </summary>
-    protected IPodmanBinaryResolver BinaryResolver { get; private set; }
+    protected IPodmanBinaryResolver BinaryResolver { get; private set; } = null!;
 
     /// <summary>
     /// Null-safe enumeration source. The fluent builders null out empty collections before
@@ -99,7 +98,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <param name="context">The driver context (may be null).</param>
     /// <param name="logger">Optional logger used for one-time warnings about ignored settings.</param>
     /// <returns>A string of global flags to prepend to Podman commands, or empty string.</returns>
-    public static string BuildGlobalArgs(DriverContext context, ILogger logger = null)
+    public static string BuildGlobalArgs(DriverContext context, ILogger? logger = null)
     {
       if (context == null)
         return "";
@@ -131,18 +130,20 @@ namespace FluentDocker.Drivers.Podman.Cli
       return $"--url {QuoteArgumentIfNeeded(context.Host)}";
     }
 
-    private static void WarnCertificatePathIgnoredOnce(DriverContext context, ILogger logger)
+    private static void WarnCertificatePathIgnoredOnce(DriverContext context, ILogger? logger)
     {
       if (logger == null)
         return;
 
-      var key = context.DriverId ?? context.Host ?? context.CertificatePath;
+      // WarnCertificatePathIgnoredOnce is only called when CertificatePath is non-empty
+      // (guarded by the caller), so the final coalesce operand is non-null.
+      var key = context.DriverId ?? context.Host ?? context.CertificatePath!;
       if (CertificateWarnings.TryAdd(key, 0))
         logger.LogWarning(
             "Podman CLI ignores DriverContext.CertificatePath because podman CLI does not expose Docker-style TLS certificate flags.");
     }
 
-    private static void WarnVerifyTlsIgnoredOnce(DriverContext context, ILogger logger)
+    private static void WarnVerifyTlsIgnoredOnce(DriverContext context, ILogger? logger)
     {
       if (logger == null)
         return;
@@ -211,8 +212,8 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// The password is NEVER placed on the command line — it is returned separately
     /// for writing to stdin.
     /// </summary>
-    private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
-        string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword)
+    private static (string FileName, string Arguments, string? PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string? sudoPassword)
     {
       return sudo switch
       {
@@ -225,7 +226,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <summary>
     /// Safely kills a process if it is still running, suppressing any errors.
     /// </summary>
-    private static void KillProcessSafely(Process process, ILogger logger = null)
+    private static void KillProcessSafely(Process? process, ILogger? logger = null)
     {
       if (process == null)
         return;

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -28,7 +27,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <summary>
     /// The driver context.
     /// </summary>
-    protected DriverContext Context { get; private set; }
+    protected DriverContext Context { get; private set; } = null!;
 
     /// <summary>
     /// Logger for this driver component. Category equals the concrete derived type's FQN.
@@ -39,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <summary>
     /// The binary resolver for resolving Docker command paths.
     /// </summary>
-    protected IBinaryResolver BinaryResolver { get; private set; }
+    protected IBinaryResolver? BinaryResolver { get; private set; }
 
     /// <summary>
     /// Creates a new instance without a binary resolver.
@@ -216,7 +215,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="error">The captured error text.</param>
     /// <param name="fallbackCode">Code to use if the text does not indicate a connection failure.</param>
     /// <returns>An error code.</returns>
-    protected static string FailureCode(string error, string fallbackCode)
+    protected static string FailureCode(string? error, string fallbackCode)
     {
       if (IsDaemonConnectionError(error))
         return ErrorCodes.Api.ConnectionFailed;
@@ -227,7 +226,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// True if <paramref name="error"/> matches one of the Docker CLI's known
     /// daemon-unreachable messages (e.g. "Cannot connect to the Docker daemon").
     /// </summary>
-    protected static bool IsDaemonConnectionError(string error)
+    protected static bool IsDaemonConnectionError(string? error)
     {
       if (string.IsNullOrEmpty(error))
         return false;
@@ -280,8 +279,8 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// The password is NEVER placed on the command line — it is returned separately
     /// for writing to stdin.
     /// </summary>
-    private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
-        string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword)
+    private static (string FileName, string Arguments, string? PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string? sudoPassword)
         => BuildSudoCommand(binaryPath, arguments, sudo, sudoPassword, null);
 
     /// <summary>
@@ -293,9 +292,9 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// matching <c>env_keep</c>; sudo fails loudly otherwise, which beats a silent drop.
     /// The password is NEVER placed on the command line — it is returned separately for stdin.
     /// </summary>
-    private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
-        string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword,
-        IReadOnlyCollection<string> preserveEnvironmentNames)
+    private static (string FileName, string Arguments, string? PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string? sudoPassword,
+        IReadOnlyCollection<string>? preserveEnvironmentNames)
     {
       var preserve = sudo != SudoMechanism.None && preserveEnvironmentNames is { Count: > 0 }
           ? $"--preserve-env={string.Join(",", preserveEnvironmentNames)} "
@@ -315,8 +314,8 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <c>--preserve-env</c> list cannot be malformed or smuggle extra arguments.
     /// </summary>
     /// <exception cref="DriverException">A name is not a plain POSIX identifier.</exception>
-    private static List<string> ValidatedPreserveEnvNames(
-        IDictionary<string, string> environment, SudoMechanism sudo)
+    private static List<string>? ValidatedPreserveEnvNames(
+        IDictionary<string, string>? environment, SudoMechanism sudo)
     {
       if (sudo == SudoMechanism.None || environment == null || environment.Count == 0)
         return null;
@@ -353,7 +352,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <summary>
     /// Safely kills a process if it is still running, suppressing any errors.
     /// </summary>
-    private static void KillProcessSafely(Process process, ILogger logger = null)
+    private static void KillProcessSafely(Process? process, ILogger? logger = null)
     {
       if (process == null)
         return;
@@ -417,14 +416,14 @@ namespace FluentDocker.Drivers.Docker.Cli
     public bool Success { get; set; }
 
     /// <summary>
-    /// Standard output from the command.
+    /// Standard output from the command. Empty (never null) when the command produced no stdout.
     /// </summary>
-    public string Output { get; set; }
+    public string Output { get; set; } = string.Empty;
 
     /// <summary>
-    /// Standard error from the command.
+    /// Standard error from the command. Empty (never null) when the command produced no stderr.
     /// </summary>
-    public string Error { get; set; }
+    public string Error { get; set; } = string.Empty;
 
     /// <summary>
     /// Exit code from the command.

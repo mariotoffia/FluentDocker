@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,8 +19,10 @@ namespace FluentDocker.Drivers.Podman.Cli
         // so mutating it here is a torn-read data race with an in-flight resolver. The
         // _disposed guard fences new callers; the dictionary stays immutable after init.
         Volatile.Write(ref _initialized, false);
-        _context = null;
-        _binaryResolver = null;
+        // Fields are declared with the null! "provably set before read" hatch; clearing them on
+        // dispose keeps that declaration truthful (post-dispose reads are gated by _disposed).
+        _context = null!;
+        _binaryResolver = null!;
       }
       finally
       {

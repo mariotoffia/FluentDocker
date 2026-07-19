@@ -1,4 +1,3 @@
-#nullable disable warnings
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Drivers.Docker.Cli.Binary
@@ -16,19 +15,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// <summary>
     /// Gets or sets the password for sudo (when Sudo is set to Password).
     /// </summary>
-    public string SudoPassword { get; set; }
+    public string? SudoPassword { get; set; }
 
     /// <summary>
     /// Gets or sets the default shell to use for sudo commands.
     /// Defaults to "bash".
     /// </summary>
-    public string DefaultShell { get; set; } = "bash";
+    public string? DefaultShell { get; set; } = "bash";
 
     /// <summary>
     /// Gets or sets custom search paths for Docker binaries.
     /// If null or empty, uses PATH environment variable.
     /// </summary>
-    public string[] SearchPaths { get; set; }
+    public string[]? SearchPaths { get; set; }
 
     /// <summary>
     /// Gets or sets the name of the client binary to resolve and invoke.
@@ -41,7 +40,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// launchers are never discovered. Point <see cref="SearchPaths"/> at the shim's target
     /// directory — the directory containing the real <c>.exe</c> — instead.
     /// </remarks>
-    public string BinaryName { get; set; } = "docker";
+    public string? BinaryName { get; set; } = "docker";
 
     /// <summary>
     /// Creates a new instance with default settings.
@@ -55,7 +54,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// </summary>
     /// <param name="sudo">The sudo mechanism to use.</param>
     /// <param name="password">The sudo password (if required).</param>
-    public BinaryConfiguration(SudoMechanism sudo, string password = null)
+    public BinaryConfiguration(SudoMechanism sudo, string? password = null)
     {
       Sudo = sudo;
       SudoPassword = password;

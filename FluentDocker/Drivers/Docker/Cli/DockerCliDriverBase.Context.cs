@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
@@ -15,13 +14,13 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// Nullable values, including <see cref="DriverContext.VerifyTls"/>, inherit the
     /// component value when the operation does not set them.
     /// </remarks>
-    protected DriverContext CreateEffectiveContext(DriverContext operationContext)
+    protected DriverContext CreateEffectiveContext(DriverContext? operationContext)
     {
       var component = Context;
       if (operationContext == null)
         return component;
 
-      return new DriverContext(operationContext.DriverId ?? component?.DriverId)
+      return new DriverContext((operationContext.DriverId ?? component?.DriverId)!)
       {
         LoggerFactory = operationContext.LoggerFactory ?? component?.LoggerFactory ?? NullLoggerFactory.Instance,
         Host = string.IsNullOrEmpty(operationContext.Host) ? component?.Host : operationContext.Host,
