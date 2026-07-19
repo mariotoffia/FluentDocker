@@ -240,6 +240,59 @@ namespace FluentDocker.Tests.CoreTests.Service
       finally { kernel.Dispose(); }
     }
 
+    [Fact]
+    public async Task PullImageAsync_DigestReference_InspectsByDigestNotTag()
+    {
+      const string digestRef = "repo@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+      var mockPack = new MockDriverPack();
+      mockPack.SetupImagePull();
+      mockPack.SetupImageInspect("sha256:pulleddigest");
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = new HostService(kernel, "docker", "test-host");
+        await service.PullImageAsync(
+            digestRef,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        mockPack.ImageDriver.Verify(d => d.InspectAsync(
+            It.IsAny<DriverContext>(),
+            It.Is<string>(s => s == digestRef),
+            It.IsAny<CancellationToken>()), Times.Once);
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    [Fact]
+    public async Task PullImageAsync_DigestReferenceWithNonDefaultTag_ThrowsArgumentException()
+    {
+      // SVC-6: HasExplicitImageTag returns false for digest refs, so a conflicting non-default tag
+      // must be rejected explicitly instead of being silently dropped by the driver.
+      const string digestRef = "repo@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+      var mockPack = new MockDriverPack();
+      mockPack.SetupImagePull();
+      mockPack.SetupImageInspect("sha256:pulleddigest");
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = new HostService(kernel, "docker", "test-host");
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => service.PullImageAsync(
+                digestRef, "1.0",
+                cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal("tag", ex.ParamName);
+        mockPack.ImageDriver.Verify(d => d.PullAsync(
+            It.IsAny<DriverContext>(),
+            It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<IProgress<ImagePullProgress>>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+      }
+      finally { kernel.Dispose(); }
+    }
+
     #endregion
 
     #region Image Management -- BuildImageAsync
@@ -412,7 +465,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task CreateContainerAsync_FullConfig_MapsAllOptions()
     {
-      ContainerCreateConfig capturedConfig = null;
+      ContainerCreateConfig? capturedConfig = null;
       var mockPack = new MockDriverPack();
       mockPack.ContainerDriver
           .Setup(d => d.CreateAsync(
@@ -437,7 +490,8 @@ namespace FluentDocker.Tests.CoreTests.Service
           Privileged = true,
           Network = "my-net",
           MemoryLimit = 536870912,
-          CpuQuota = 50000
+          CpuQuota = 50000,
+          RestartPolicy = "unless-stopped"
         };
         await service.CreateContainerAsync(
             "alpine:latest", config,
@@ -451,7 +505,9 @@ namespace FluentDocker.Tests.CoreTests.Service
         Assert.True(capturedConfig.Privileged);
         Assert.Equal("my-net", capturedConfig.NetworkMode);
         Assert.Equal(536870912, capturedConfig.MemoryLimit);
-        Assert.Equal(50000, capturedConfig.CpuShares);
+        Assert.Equal(50000, capturedConfig.CpuQuota);
+        Assert.Null(capturedConfig.CpuShares);
+        Assert.Equal("unless-stopped", capturedConfig.RestartPolicy);
       }
       finally { kernel.Dispose(); }
     }

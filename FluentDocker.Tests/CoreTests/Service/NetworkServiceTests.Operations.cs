@@ -75,8 +75,9 @@ namespace FluentDocker.Tests.CoreTests.Service
             async () => await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("network has active endpoints", ex.Message);
-        // State should remain Running on failure
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        // Genuine failure → Unknown (canonical ContainerService contract): a partial remove
+        // leaves the real state uncertain, so the prior state must not be assumed.
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
       }
       finally
       {
@@ -234,12 +235,12 @@ namespace FluentDocker.Tests.CoreTests.Service
     #region PauseAsync / StopAsync — Unsupported Operations
 
     [Fact]
-    public async Task PauseAsync_ThrowsNotSupportedException()
+    public async Task PauseAsync_ThrowsFluentDockerNotSupportedException()
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new NetworkService(kernel, "docker", "net123", "my-network");
 
-      var ex = await Assert.ThrowsAsync<NotSupportedException>(
+      var ex = await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
           async () => await service.PauseAsync(TestContext.Current.CancellationToken));
 
       Assert.Contains("paused", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -247,12 +248,12 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StopAsync_ThrowsNotSupportedException()
+    public async Task StopAsync_ThrowsFluentDockerNotSupportedException()
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new NetworkService(kernel, "docker", "net123", "my-network");
 
-      var ex = await Assert.ThrowsAsync<NotSupportedException>(
+      var ex = await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
           async () => await service.StopAsync(TestContext.Current.CancellationToken));
 
       Assert.Contains("stopped", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -337,8 +338,8 @@ namespace FluentDocker.Tests.CoreTests.Service
         // Act — should not throw; DisposeCoreAsync catches exceptions
         await service.DisposeAsync();
 
-        // Assert — state stays Running because remove failed
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        // Assert — state is Unknown: the genuine remove failure leaves the real state uncertain
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
       }
       finally
       {

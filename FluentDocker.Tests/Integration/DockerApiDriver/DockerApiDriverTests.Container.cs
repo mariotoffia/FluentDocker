@@ -349,6 +349,10 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
 
         Assert.True(copyResult.Success,
             $"CopyFrom failed: {copyResult.Error}");
+        var copiedPath = Path.Combine(tempDir, "container-file.txt");
+        Assert.True(File.Exists(copiedPath));
+        Assert.Equal("api-from-container",
+            (await File.ReadAllTextAsync(copiedPath, TestContext.Current.CancellationToken)).Trim());
       }
       finally
       {

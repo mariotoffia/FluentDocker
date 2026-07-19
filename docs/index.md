@@ -14,59 +14,66 @@ permalink: /
 
 FluentDocker is a .NET library providing a fluent API for Docker and Docker Compose. It simplifies container management for development, testing, and CI/CD pipelines.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## New Here?
 
-Start with this sequence:
+First 30 minutes, in order:
 
-1. [Learning Path](learning-path.html) for a beginner-to-advanced map
-2. [Getting Started](getting-started.html) for your first working container
-3. One focused topic: [Containers](containers.html) or [Compose](compose.html)
+1. [Install and verify prerequisites](getting-started.md#installation)
+2. [Run your first container](getting-started.md#your-first-container)
+3. [Add one wait strategy](getting-started.md#with-wait-strategy)
+4. [Review cleanup and exception basics](getting-started.md#exception-handling)
 
-## What's New in v3.0.0
+Finish those four steps before opening the architecture or extensibility guides. Then pick
+a focused topic — [Containers](containers.md) or [Compose](compose.md) — or follow a
+[reading plan by role](#reading-plans-by-role).
 
-- **Namespace renamed**: `Ductus.FluentDocker` → `FluentDocker`
-- **Full async/await support** with CancellationToken
-- **Driver Layer architecture** replacing Commands namespace
-- **Kernel + WithinDriver() scoping** for multi-driver support
-- **Lambda-based builder API** — `UseContainer(Action<IContainerBuilder>)`
-- **Container Stats** — CPU, memory, network monitoring
-- **Label-based filtering** — 5.5x faster container cleanup
-- **Static IPv4/IPv6** assignment for containers
-- **Directory copy** support (recursive)
-- **Docker Compose V2** — uses `docker compose`
+## What's New in the 3.2 preview
 
-See the [Migration Guide](migration.html) for upgrading from v2.x.
+The 3.2 release line adds preview Docker Model Runner support for local LLM workflows.
+
+- **Docker Model Runner (local LLMs)** — manage and consume local models behind the
+  same `Builder → WithinDriver → UseModelRunner()` pattern: chat, streaming chat, and
+  embeddings. See [Model Runner](model-runner.md) *(preview)*.
+
+## Release History
+
+See the [CHANGELOG](https://github.com/mariotoffia/FluentDocker/blob/master/CHANGELOG.md) for current release notes and migration-impacting changes.
 
 ## Quick Start (Beginner)
-
-```csharp
-using System.Linq;
-using FluentDocker.Builders;
-using FluentDocker.Kernel;
-
-// Multiple kernels per app are supported.
-using var kernel = await FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .BuildAsync();
-```
 
 ### 1) Run one container
 
 ```csharp
+using System;
+using System.Linq;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
 using FluentDocker.Services.Extensions;
 
+// A kernel is the composition root; multiple kernels per app are supported.
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+
 await using var results = await new Builder()
-    .WithinDriver("docker", kernel)
+    .WithinDockerCli("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .ExposePort("80")
         .WaitForPort("80/tcp", 30000))
     .BuildAsync();
 
-var endpoint = results.Containers.First()
-    .ToHostExposedEndpoint("80/tcp");
+var endpoint = await results.Containers.First()
+    .ToHostExposedEndpointAsync("80/tcp");
 Console.WriteLine($"Endpoint: {endpoint.Address}:{endpoint.Port}");
 ```
+
+> Prefer `await using` + `BuildAsync()`; the synchronous `Build()` wrapper exists only
+> for code that cannot be async.
 
 ### 2) Run multi-service compose
 
@@ -87,9 +94,12 @@ var compose = results.ComposeServices.First();
 
 ### Podman container runtime
 
+See [Podman production notes](podman.md) for machine behavior (macOS/Windows vs Linux),
+readiness waits, cancellation, and output caps.
+
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
-    .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault())
+await using var kernel = await FluentDockerKernel.Create()
+    .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault()) // macOS/Windows only
     .BuildAsync();
 
 await using var results = await new Builder()
@@ -108,8 +118,8 @@ using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 
-using var kernel = await FluentDockerKernel.Create()
-    .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault())
+await using var kernel = await FluentDockerKernel.Create()
+    .WithPodmanCli("podman", d => d.WithAutoStartMachine().AsDefault()) // macOS/Windows only
     .BuildAsync();
 
 var context = new DriverContext("podman");
@@ -122,6 +132,8 @@ await kube.DownAsync(context, "pod.yaml");
 `DriverContext` carries per-operation driver state (driver ID, host URI, certs, sudo, timeouts). End-users only construct one when invoking a driver via `SysCtl<T>` directly — the builder/kernel flow supplies it implicitly.
 
 ## Installation
+
+> **Preview:** the published NuGet is 3.1.0. These docs describe 3.2.0-preview.2 — until it ships, build it from the [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support) branch into a local feed ([Consume the preview](getting-started.md#consume-the-preview)); 3.1.0's `WithPort` is container-first (host-first here).
 
 ```bash
 dotnet add package FluentDocker
@@ -136,54 +148,97 @@ dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
 
 | Topic | Description |
 |-------|-------------|
-| [Learning Path](learning-path.html) | Recommended beginner to advanced journey |
-| [Getting Started](getting-started.html) | Installation, prerequisites, first container |
-| [Containers](containers.html) | Core lifecycle, ports, env vars, waits |
-| [Docker Compose](compose.html) | First multi-service workflow |
+| [Getting Started](getting-started.md) | Installation, prerequisites, first container |
+| [Containers](containers.md) | Core lifecycle, ports, env vars, waits |
+| [Docker Compose](compose.md) | First multi-service workflow |
 
 ### Level 2: Daily Usage
 
 | Topic | Description |
 |-------|-------------|
-| [Networking](networking.html) | Networks, aliases, static IPs |
-| [Volumes](volumes.html) | Persistence and bind mounts |
-| [Images](images.html) | Build image workflows |
-| [Testing](testing.html) | Testing.Core and adapters |
-| [Utilities](utilities.html) | Helpers and extension methods |
-| [Error Handling](architecture.html#error-handling) | Exceptions and error codes |
+| [Networking](networking.md) | Networks, aliases, static IPs |
+| [Volumes](volumes.md) | Persistence and bind mounts |
+| [Images](images.md) | Build image workflows |
+| [Model Runner (LLMs)](model-runner.md) | Manage and consume local LLMs via Docker Model Runner *(preview, since v3.2)* |
+| [Testing](testing.md) | Testing.Core and adapters |
+| [Utilities](utilities.md) | Helpers and extension methods |
+| [Error Handling](architecture.md#error-handling) | Exceptions and error codes |
+| [Troubleshooting](troubleshooting.md) | Common failures, symptoms, and fixes |
 
 ### Level 3: Advanced
 
 | Topic | Description |
 |-------|-------------|
-| [Architecture](architecture.html) | Kernel/driver internals and async model |
-| [Driver Extensibility](extensibility.html) | Driver-aware extension model |
-| [Migration](migration.html) | Upgrade from v2.x to v3.x |
+| [Docker API Driver](docker-api.md) | Binary-free TCP+TLS driver: registry auth, TLS, streams |
+| [Podman](podman.md) | Podman runtime: machines, readiness, cancellation, output caps |
+| [Advanced Drivers](advanced-drivers.md) | Swarm stacks/services, pods, manifests, machines, streaming, prune |
+| [Architecture](architecture.md) | Kernel/driver internals and async model |
+| [Service Lifecycle](service-lifecycle.md) | Running state, `StateChange` events, and lifecycle hooks |
+| [Driver Extensibility](extensibility.md) | Driver-aware extension model |
+| [API Reference](api-reference.md) | Generated type-level reference |
+| [Migration](migration.md) | Upgrade from v2.x to v3.x |
+
+## Reading Plans by Role
+
+Pick the plan that matches your goal and read the pages in order.
+
+### Application Developer
+
+1. [Getting Started](getting-started.md)
+2. [Containers](containers.md)
+3. [Compose](compose.md)
+4. [Volumes](volumes.md)
+5. [Error Handling](architecture.md#error-handling)
+
+### Test Engineer
+
+1. [Getting Started](getting-started.md)
+2. [Testing](testing.md)
+3. [Test Categories](testing/test-categories.md)
+4. [Compose](compose.md)
+5. [Networking](networking.md)
+
+### Platform / Library Engineer
+
+1. [Getting Started](getting-started.md)
+2. [Architecture](architecture.md)
+3. [Service Lifecycle](service-lifecycle.md)
+4. [Driver Extensibility](extensibility.md)
+5. [Error Handling](architecture.md#error-handling)
+6. [Migration Guide](migration.md)
 
 ## Architecture
 
-FluentDocker uses a three-layer architecture:
+FluentDocker uses a five-layer architecture:
 
-```
+```text
 ┌─────────────────────────────────┐
 │         Fluent API              │  Builder pattern
 ├─────────────────────────────────┤
 │       Services Layer            │  Container, Network, Volume
 ├─────────────────────────────────┤
+│      Kernel (instantiable)      │  DriverRegistry, SysCtl() driver access
+├─────────────────────────────────┤
 │        Driver Layer             │  Docker CLI, API, Podman
+├─────────────────────────────────┤
+│          Model Layer            │  DTOs, enums, value objects
 └─────────────────────────────────┘
 ```
+
+See [Architecture](architecture.md#overview) for the full model with concurrent driver
+instances.
 
 ## Linux Users
 
 Docker requires sudo by default. Configure via the kernel builder:
 
 ```csharp
+using FluentDocker.Kernel;
 using FluentDocker.Model.Common;
 
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
-        .WithSudo(SudoMechanism.NoPassword)
+        .WithSudo(SudoMechanism.NoPassword) // SudoMechanism is experimental
         .AsDefault())
     .BuildAsync();
 ```
@@ -194,7 +249,8 @@ Or avoid sudo entirely: `sudo usermod -aG docker $USER`
 
 - [GitHub Repository](https://github.com/mariotoffia/FluentDocker)
 - [NuGet Package](https://www.nuget.org/packages/FluentDocker)
-- [Architecture Docs](architecture.html)
+- [Architecture Docs](architecture.md)
+- [Runnable Examples](../Examples/README.md) — end-to-end sample projects
 
 ## License
 

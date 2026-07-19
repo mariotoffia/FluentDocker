@@ -35,41 +35,49 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = new List<string> { "service", "create" };
 
         if (!string.IsNullOrEmpty(config.Name))
-          args.Add($"--name {config.Name}");
+          args.Add($"--name {QuotePositionalArgument(config.Name, nameof(config.Name))}");
         if (config.Replicas.HasValue)
-          args.Add($"--replicas {config.Replicas.Value}");
+          args.Add($"--replicas {FormatInvariant(config.Replicas.Value)}");
         if (!string.IsNullOrEmpty(config.Mode))
-          args.Add($"--mode {config.Mode}");
+          args.Add($"--mode {QuoteArgumentIfNeeded(config.Mode)}");
         foreach (var env in config.Environment)
-          args.Add($"-e {env.Key}={env.Value}");
+          args.Add($"-e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
         foreach (var label in config.Labels)
-          args.Add($"--label {label.Key}={label.Value}");
+          args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
         foreach (var port in config.Ports)
-          args.Add($"-p {port.PublishedPort}:{port.TargetPort}/{port.Protocol}");
+          args.Add($"-p {QuoteArgumentIfNeeded($"{FormatInvariant(port.PublishedPort)}:{FormatInvariant(port.TargetPort)}/{port.Protocol}")}");
         foreach (var network in config.Networks)
-          args.Add($"--network {network}");
+          args.Add($"--network {QuoteArgumentIfNeeded(network)}");
         if (config.Detach)
           args.Add("-d");
         if (config.Quiet)
           args.Add("-q");
 
-        args.Add(config.Image);
+        args.Add(QuotePositionalArgument(config.Image, nameof(config.Image)));
         if (config.Command != null)
-          args.AddRange(config.Command);
+          foreach (var cmd in config.Command)
+            args.Add(QuoteArgumentIfNeeded(cmd));
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var command = string.Join(" ", args);
+        var result = config.Detach
+            ? await ExecuteCommandAsync(context, command, cancellationToken).ConfigureAwait(false)
+            : await ExecuteUnboundedCommandAsync(context, command, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ServiceCreateResult>.Fail(
-              result.Error ?? "Service create failed", ErrorCodes.Service.CreateFailed);
+              ErrorOrDefault(result, "Service create failed"), FailureCode(result.Error, ErrorCodes.Service.CreateFailed));
         }
 
         return CommandResponse<ServiceCreateResult>.Ok(new ServiceCreateResult { Id = result.Output.Trim() });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<ServiceCreateResult>.Fail(ex.Message, ErrorCodes.Service.CreateFailed);
+        return CommandResponse<ServiceCreateResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.CreateFailed));
       }
     }
 
@@ -81,14 +89,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"service rm {string.Join(" ", serviceIds)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"service rm {string.Join(" ", serviceIds.Select(id => QuotePositionalArgument(id, nameof(serviceIds))))}", cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Service rm failed", ErrorCodes.Service.RemoveFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Service rm failed"), FailureCode(result.Error, ErrorCodes.Service.RemoveFailed));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Service.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.RemoveFailed));
       }
     }
 
@@ -104,28 +116,32 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = new List<string> { "service", "update" };
 
         if (!string.IsNullOrEmpty(config.Image))
-          args.Add($"--image {config.Image}");
+          args.Add($"--image {QuotePositionalArgument(config.Image, nameof(config.Image))}");
         if (config.Replicas.HasValue)
-          args.Add($"--replicas {config.Replicas.Value}");
+          args.Add($"--replicas {FormatInvariant(config.Replicas.Value)}");
         foreach (var env in config.EnvAdd)
-          args.Add($"--env-add {env.Key}={env.Value}");
+          args.Add($"--env-add {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
         foreach (var env in config.EnvRm)
-          args.Add($"--env-rm {env}");
+          args.Add($"--env-rm {QuoteArgumentIfNeeded(env)}");
         if (config.Force)
           args.Add("--force");
         if (config.Detach)
           args.Add("-d");
 
-        args.Add(serviceId);
+        args.Add(QuotePositionalArgument(serviceId, nameof(serviceId)));
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Service update failed", ErrorCodes.Service.UpdateFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Service update failed"), FailureCode(result.Error, ErrorCodes.Service.UpdateFailed));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Service.UpdateFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.UpdateFailed));
       }
     }
 
@@ -141,69 +157,73 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "service rollback";
         if (detach)
           args += " -d";
-        args += $" {serviceId}";
+        args += $" {QuotePositionalArgument(serviceId, nameof(serviceId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Service rollback failed", ErrorCodes.Service.RollbackFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Service rollback failed"), FailureCode(result.Error, ErrorCodes.Service.RollbackFailed));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Service.RollbackFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.RollbackFailed));
       }
     }
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<ServiceInfo>>> ListAsync(
         DriverContext context,
-        ServiceListFilter filter = null,
+        ServiceListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
         var args = "service ls --format \"{{json .}}\"";
-        if (filter?.Quiet == true)
-          args = "service ls -q";
-        else if (filter != null)
+        if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Name))
-            args += $" --filter name={filter.Name}";
+            args += $" --filter {QuoteArgumentIfNeeded($"name={filter.Name}")}";
           if (!string.IsNullOrEmpty(filter.Id))
-            args += $" --filter id={filter.Id}";
+            args += $" --filter {QuoteArgumentIfNeeded($"id={filter.Id}")}";
           foreach (var label in filter.Labels)
-            args += $" --filter label={label.Key}={label.Value}";
+            args += $" --filter {QuoteArgumentIfNeeded($"label={label.Key}={label.Value}")}";
+          if (!string.IsNullOrEmpty(filter.Mode))
+            args += $" --filter {QuoteArgumentIfNeeded($"mode={filter.Mode}")}";
         }
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<ServiceInfo>>.Fail(
-              result.Error ?? "Service list failed", ErrorCodes.Service.ListFailed);
+              ErrorOrDefault(result, "Service list failed"), FailureCode(result.Error, ErrorCodes.Service.ListFailed));
         }
 
-        var services = new List<ServiceInfo>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        if (!DockerCliJsonLineParser.TryParse(
+                result.Output,
+                Logger,
+                "Service list JSON parsing failed",
+                out List<ServiceInfo> services,
+                out var parseError))
         {
-          try
-          {
-            var svc = JsonSerializer.Deserialize<ServiceInfo>(line, JsonHelper.CaseInsensitiveOptions);
-            if (svc != null)
-              services.Add(svc);
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Service list JSON parsing failed");
-          }
+          return CommandResponse<IList<ServiceInfo>>.Fail(parseError, ErrorCodes.Service.ListFailed);
         }
 
-        return CommandResponse<IList<ServiceInfo>>.Ok(services);
+        return CommandResponse<IList<ServiceInfo>>.Ok(filter?.Quiet == true
+            ? services.Select(s => new ServiceInfo { Id = s.Id }).ToList()
+            : services);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<ServiceInfo>>.Fail(ex.Message, ErrorCodes.Service.ListFailed);
+        return CommandResponse<IList<ServiceInfo>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.ListFailed));
       }
     }
 
@@ -219,14 +239,28 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = "service inspect";
         if (pretty)
           args += " --pretty";
-        args += $" {serviceId}";
+        args += $" {QuotePositionalArgument(serviceId, nameof(serviceId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ServiceDetails>.Fail(
-              result.Error ?? "Service inspect failed", ErrorCodes.Service.InspectFailed);
+              ErrorOrDefault(result, "Service inspect failed"),
+              result.Error?.Contains("no such service", StringComparison.OrdinalIgnoreCase) == true
+                  ? ErrorCodes.Service.NotFound
+                  : FailureCode(result.Error, ErrorCodes.Service.InspectFailed));
+        }
+
+        // --pretty emits human-readable text, not JSON: return it raw instead of feeding it
+        // to the JSON parser (which could never succeed for this mode).
+        if (pretty)
+        {
+          return CommandResponse<ServiceDetails>.Ok(new ServiceDetails
+          {
+            Id = serviceId,
+            Pretty = result.Output
+          });
         }
 
         var details = ParseServiceInspect(result.Output);
@@ -234,9 +268,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
             ? CommandResponse<ServiceDetails>.Ok(details)
             : CommandResponse<ServiceDetails>.Fail("Service not found", ErrorCodes.Service.NotFound);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<ServiceDetails>.Fail(ex.Message, ErrorCodes.Service.InspectFailed);
+        return CommandResponse<ServiceDetails>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.InspectFailed));
       }
     }
 
@@ -244,42 +282,49 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<IList<ServiceTask>>> GetTasksAsync(
         DriverContext context,
         string serviceId,
-        ServiceTaskFilter filter = null,
+        ServiceTaskFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var args = $"service ps --format \"{{{{json .}}}}\" {serviceId}";
+        var args = "service ps";
+        AddFilter(ref args, "id", filter?.Id);
+        AddFilter(ref args, "name", filter?.Name);
+        AddFilter(ref args, "node", filter?.Node);
+        AddFilter(ref args, "desired-state", filter?.DesiredState);
+        if (filter?.NoTrunc == true)
+          args += " --no-trunc";
+        if (filter?.NoResolve == true)
+          args += " --no-resolve";
+        args += $" --format \"{{{{json .}}}}\" {QuotePositionalArgument(serviceId, nameof(serviceId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<ServiceTask>>.Fail(
-              result.Error ?? "Service ps failed", ErrorCodes.Service.TasksFailed);
+              ErrorOrDefault(result, "Service ps failed"), FailureCode(result.Error, ErrorCodes.Service.TasksFailed));
         }
 
-        var tasks = new List<ServiceTask>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
-        {
-          try
-          {
-            var task = JsonSerializer.Deserialize<ServiceTask>(line, JsonHelper.CaseInsensitiveOptions);
-            if (task != null)
-              tasks.Add(task);
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Service task JSON parsing failed");
-          }
-        }
+        if (!DockerCliJsonLineParser.TryParse<ServiceTask>(
+            result.Output,
+            Logger,
+            "Service task JSON parsing failed",
+            out var tasks,
+            out var parseError))
+          return CommandResponse<IList<ServiceTask>>.Fail(parseError, ErrorCodes.Service.TasksFailed);
 
-        return CommandResponse<IList<ServiceTask>>.Ok(tasks);
+        return CommandResponse<IList<ServiceTask>>.Ok(filter?.Quiet == true
+              ? tasks.Select(t => new ServiceTask { Id = t.Id }).ToList()
+              : tasks);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<ServiceTask>>.Fail(ex.Message, ErrorCodes.Service.TasksFailed);
+        return CommandResponse<IList<ServiceTask>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.TasksFailed));
       }
     }
 
@@ -287,28 +332,38 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context,
         string serviceId,
-        ServiceLogsConfig config = null,
+        ServiceLogsConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var args = "service logs";
         if (config?.Follow == true)
-          args += " -f";
+        {
+          return CommandResponse<string>.Fail(
+              "GetLogsAsync does not support follow=true because 'docker service logs -f' " +
+              "streams indefinitely. Use a streaming logs API instead.",
+              ErrorCodes.Service.LogsFailed);
+        }
+
+        var args = "service logs";
         if (config?.Timestamps == true)
           args += " -t";
         if (config?.Tail.HasValue == true)
-          args += $" --tail {config.Tail.Value}";
-        args += $" {serviceId}";
+          args += $" --tail {FormatInvariant(config.Tail.Value)}";
+        args += $" {QuotePositionalArgument(serviceId, nameof(serviceId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
-            ? CommandResponse<string>.Ok(result.Output)
-            : CommandResponse<string>.Fail(result.Error ?? "Service logs failed", ErrorCodes.Service.LogsFailed);
+            ? CommandResponse<string>.Ok(MergeOutputAndError(result.Output, result.Error))
+            : CommandResponse<string>.Fail(ErrorOrDefault(result, "Service logs failed"), FailureCode(result.Error, ErrorCodes.Service.LogsFailed));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Service.LogsFailed);
+        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.LogsFailed));
       }
     }
 
@@ -321,19 +376,21 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var scaleArgs = string.Join(" ", serviceReplicas.Select(sr => $"{sr.Key}={sr.Value}"));
-        var args = $"service scale {scaleArgs}";
-        if (detach)
-          args = args.Replace("service scale", "service scale -d");
+        var scaleArgs = string.Join(" ", serviceReplicas.Select(sr => QuotePositionalArgument($"{sr.Key}={FormatInvariant(sr.Value)}", nameof(serviceReplicas))));
+        var args = detach ? $"service scale -d {scaleArgs}" : $"service scale {scaleArgs}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Service scale failed", ErrorCodes.Service.ScaleFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Service scale failed"), FailureCode(result.Error, ErrorCodes.Service.ScaleFailed));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Service.ScaleFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Service.ScaleFailed));
       }
     }
 
@@ -341,7 +398,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// Parses the JSON output from docker service inspect into a ServiceDetails.
     /// Handles the nested Version object (Version.Index).
     /// </summary>
-    internal static ServiceDetails ParseServiceInspect(string json)
+    internal static ServiceDetails? ParseServiceInspect(string json)
     {
       var root = JsonHelper.ParseElement(json);
       if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
@@ -358,16 +415,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var details = new ServiceDetails
       {
         Id = obj.GetStringOrDefault("ID"),
-        Version = spec != null ? obj.Prop("Version")?.GetInt64OrDefault("Index") ?? 0 : 0,
+        Version = obj.Prop("Version")?.GetInt64OrDefault("Index") ?? 0,
         Name = spec?.GetStringOrDefault("Name"),
         Image = containerSpec?.GetStringOrDefault("Image"),
         RawJson = json
       };
-
-      // Fix: Version is from obj, not spec
-      var versionEl = obj.Prop("Version");
-      if (versionEl.HasValue)
-        details.Version = versionEl.Value.GetInt64OrDefault("Index");
 
       // Mode and replicas
       var mode = spec?.Prop("Mode");
@@ -409,14 +461,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           details.Labels[kv.Key] = kv.Value;
       }
 
-      // Timestamps — ServiceDetails does not yet have date fields; parse is a no-op placeholder
-      if (obj.Prop("CreatedAt").HasValue)
-        _ = DateTime.TryParse(obj.GetStringOrDefault("CreatedAt"), out _);
-      if (obj.Prop("UpdatedAt").HasValue)
-        _ = DateTime.TryParse(obj.GetStringOrDefault("UpdatedAt"), out _);
-
       return details;
+    }
+
+    private static void AddFilter(ref string args, string name, string? value)
+    {
+      if (!string.IsNullOrEmpty(value))
+        args += $" --filter {QuoteArgumentIfNeeded($"{name}={value}")}";
     }
   }
 }
-

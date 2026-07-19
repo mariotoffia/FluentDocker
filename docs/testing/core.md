@@ -10,6 +10,16 @@ nav_order: 1
 The testing core lives inside the main `FluentDocker` assembly under the namespace
 `FluentDocker.Testing.Core`. No separate NuGet package is needed.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](../getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
+**Packaging decision:** testing support ships in the production assembly so the
+framework adapter packages stay thin and no fourth core package is needed. The
+unused testing plugin host was removed before the preview API freeze, deleting
+213 lines of public `FluentDocker.Testing.Core.Plugins` surface instead of
+carrying dead API.
+
 ## Step by Step
 
 - Basics: [Core Types](#core-types), [Wait Conditions (Builder)](#wait-conditions-builder)
@@ -92,6 +102,147 @@ automatically truncated to `MaxDiagnosticLogLines` (default: 200). This prevents
 excessive memory usage from very large log outputs. The truncated output includes
 a count of omitted lines.
 
+### Orphan Cleanup
+
+Resources created by the testing core are tagged with the `fluentdocker.managed`
+label. `CleanupOrphansOnInit` defaults to **true**, so `InitializeAsync` removes
+managed resources left behind by earlier sessions. Set it to `false` to opt out:
+
+```csharp
+var options = new DockerResourceOptions
+{
+    CleanupOrphansOnInit = false // opt out; defaults to true
+};
+```
+
+Orphan cleanup scans **containers, networks and volumes only**. Resources created
+through Docker Compose, Swarm stacks, or Kubernetes YAML are not
+removed by orphan cleanup unless they individually carry the `fluentdocker.managed`
+label.
+
+`EnableSessionLabels` is applied directly by `ContainerResource`, `NetworkResource`,
+`VolumeResource`, and the top-level `UseContainer`/`UseNetwork`/`UseVolume` resources
+of a `TopologyResource`. `ComposeResource` adds a generated overlay when Compose
+can render the project config. Swarm stacks and Podman Kubernetes YAML still cannot
+be labeled automatically; use unique names and stack/kube-specific cleanup for
+those resources.
+
+`OrphanCleanupMinimumAge` (a `TimeSpan`, default 1 hour) bounds what cleanup may
+remove: only managed resources **older** than this age are eligible. Keep the
+default on shared daemons. Once older than `OrphanCleanupMinimumAge`, orphan
+cleanup removes managed **stopped containers** and **unused** networks/volumes
+from other sessions. Running containers, and networks/volumes still in use, are
+preserved.
+
+```csharp
+var options = new DockerResourceOptions
+{
+    CleanupOrphansOnInit = true,
+    OrphanCleanupMinimumAge = TimeSpan.FromHours(1) // default
+};
+```
+
+Keep the default unless you run cleanup outside of parallel test execution.
+
+### Session isolation
+
+Every managed resource is labeled with `fluentdocker.session`. By default each
+test process gets its own session id; set `FLUENTDOCKER_TEST_SESSION=<shared-id>`
+to group sibling test processes into one live session:
+
+```bash
+export FLUENTDOCKER_TEST_SESSION="${CI_PIPELINE_ID:-local-dev}"
+```
+
+Use the same value for all processes in one CI job and a different value for
+unrelated jobs. Orphan cleanup preserves the current session, so this prevents a
+parallel process from treating a sibling's resources as abandoned. Exit reaping is
+on by default, but shared-session processes skip it regardless (unless
+`FLUENTDOCKER_TEST_REAPER_ON_EXIT=0` has already disabled it) so one process cannot
+delete a sibling process's live fixtures.
+
+### Cleaning up managed containers by hand
+
+Every resource the testing core creates carries the `fluentdocker.managed=true`
+label, so a CI job can reap leftovers without going through the framework:
+
+```bash
+docker ps -aq --filter label=fluentdocker.managed=true | xargs -r docker rm -f
+```
+
+On a **shared** daemon this cuts both ways: orphan cleanup removes managed
+stopped containers and unused networks/volumes once they are eligible, while
+running containers and networks/volumes still in use are preserved. Use the
+manual `docker rm -f` sweep only on daemons where that is safe.
+
+### Cleaning up leaked containers in CI
+
+The testing core removes its containers when the fixture is disposed — that is,
+during normal test teardown. When a CI runner sends `SIGKILL` (`kill -9`) — job
+timeout, cancelled pipeline, agent teardown — the process dies before disposal runs,
+so session-labeled containers stay up. The next run won't reclaim running
+containers at any age; that is deliberate fail-safe behavior. Exit reaping (on by
+default unless `FLUENTDOCKER_TEST_REAPER_ON_EXIT=0`) covers catchable exits only;
+for SIGKILL run an explicit `docker rm -f`/`podman rm -f` sweep when CI owns the daemon.
+
+Reap them explicitly at the start (or end) of the job. Every managed resource carries
+the `fluentdocker.managed=true` label:
+
+```bash
+docker ps -aq --filter label=fluentdocker.managed=true | xargs -r docker rm -f
+```
+
+Podman uses the same label:
+
+```bash
+podman ps -aq --filter label=fluentdocker.managed=true | xargs -r podman rm -f
+```
+
+Add this step when jobs run on ephemeral or shared CI agents, or anywhere a forced kill
+can interrupt teardown. `xargs -r` skips the `rm` call when nothing matches, so the step
+is a no-op on a clean daemon.
+
+### Reaping leaked running containers (`FLUENTDOCKER_REAP_RUNNING_AFTER`)
+
+`SIGKILL` (`kill -9`) can't be caught, so a job killed mid-run leaves its
+session-labeled **running** containers up with no exit reaper. Orphan cleanup never
+reaps running containers by default, so those leaks survive into the next run.
+
+`FLUENTDOCKER_REAP_RUNNING_AFTER` opts in: the orphan sweep then reclaims crash-leaked
+managed running containers older than the ceiling you set. The value is a duration —
+`24h`, `30m`, `2d`, or a bare number read as hours. Unset, invalid, or `<= 0` leaves it
+off (the default fail-safe: running foreign-session containers are never reaped).
+
+This env var is the **sole** age gate for running containers and is independent of
+`OrphanCleanupMinimumAge`, which gates only stopped containers and unused
+networks/volumes. Set a ceiling longer than your slowest test so a live sibling job is
+never reaped.
+
+```bash
+export FLUENTDOCKER_REAP_RUNNING_AFTER=24h
+```
+
+## Skipping when Docker is unavailable
+
+`DockerAvailability.IsAvailableAsync` (in `FluentDocker.Testing.Core`) probes the
+target runtime and returns `false` on availability failures (daemon down, binary missing,
+internal timeout). It honors the caller's `CancellationToken` — a cancelled token
+propagates `OperationCanceledException` rather than reporting "unavailable". Optional
+`kernelFactory`/`driverId` arguments select a non-default runtime.
+
+```csharp
+using FluentDocker.Testing.Core;
+
+// xUnit v3
+Assert.SkipWhen(!await DockerAvailability.IsAvailableAsync(), "Docker not available");
+
+// NUnit
+if (!await DockerAvailability.IsAvailableAsync()) Assert.Ignore("Docker not available");
+
+// MSTest
+if (!await DockerAvailability.IsAvailableAsync()) Assert.Inconclusive("Docker not available");
+```
+
 ## Wait Conditions (Builder)
 
 The container builder provides built-in wait conditions that block until the
@@ -136,10 +287,11 @@ builder.UseImage("my-api:latest")
        .WaitForHttp("8080/tcp", path: "/health", timeoutMs: 30_000);
 ```
 
-Advanced HTTP wait with custom method and response handling:
+Advanced HTTP wait with a full URL, custom method, and response handling. This is the
+separate `WaitForHttpUrl` overload — the simple port+path `WaitForHttp` above still exists:
 
 ```csharp
-builder.WaitForHttp(
+builder.WaitForHttpUrl(
     url: "http://localhost:8080/ready",
     timeoutMs: 30_000,
     method: HttpMethod.Post,
@@ -171,7 +323,7 @@ builder.Wait((container, attempt) =>
     // Return -1 to signal success
     // Return 0 to continue immediately
     // Return N > 0 to wait N ms before next poll
-    if (attempt > 30) return -1; // give up after 30 attempts
+    if (attempt > 30) return -1; // -1 = ready (not "give up"); use timeoutMs to fail
     return 1000; // poll every second
 });
 ```
@@ -214,7 +366,7 @@ var resource = new ContainerResource(kernel,
 
 resource.OnAfterReady(async _ =>
 {
-    var endpoint = resource.Container.ToHostExposedEndpoint("5432/tcp");
+    var endpoint = await resource.Container.ToHostExposedEndpointAsync("5432/tcp");
     var connStr = $"Host=localhost;Port={endpoint.Port};" +
                   "Username=postgres;Password=test";
 
@@ -278,7 +430,7 @@ public static async Task ClassInit(TestContext ctx)
             r.OnAfterReady(async _ =>
             {
                 // Wait for Postgres to be connectable
-                var ep = r.Container.ToHostExposedEndpoint("5432/tcp");
+                var ep = await r.Container.ToHostExposedEndpointAsync("5432/tcp");
                 // ... poll connection ...
             });
 
@@ -307,9 +459,29 @@ public async Task Setup()
 }
 ```
 
+### Fixture lifetime by framework
+
+The fixture base classes provision a container at different scopes. A suite ported
+across frameworks without adjusting for this runs slower (or shares state) silently:
+
+| Adapter | Base class | Provisioning scope | Hook |
+|---|---|---|---|
+| xUnit | `XunitContainerFixtureBase` | per class/collection fixture | `IAsyncLifetime` |
+| MSTest | `MsTestPerTestContainerFixtureBase` | per **test method** | `[TestInitialize]`/`[TestCleanup]` |
+| MSTest | `MsTestClassContainerFixtureBase<T>` | per class | guarded `[TestInitialize]`/`[ClassCleanup]` |
+| NUnit | `NUnitContainerFixtureBase` | per class | `[OneTimeSetUp]`/`[OneTimeTearDown]` |
+
+`MsTestPerTestContainerFixtureBase` starts a fresh container for every test method; use
+`MsTestClassContainerFixtureBase<T>` for one container per class.
+
 ## Diagnostics
 
-When initialization fails, the `Diagnostics` property is populated with:
+When initialization fails, FluentDocker throws `ResourceInitializationException`.
+Its `Diagnostics` property remains reachable even when an adapter disposes the
+failed resource and kernel. The resource's `Diagnostics` property is also
+populated while the resource object is still in scope.
+
+Diagnostics include:
 - `Failure` - the exception
 - `Logs` - container/service logs (if `CaptureLogsOnFailure` is true), truncated
   to `MaxDiagnosticLogLines`
@@ -317,6 +489,19 @@ When initialization fails, the `Diagnostics` property is populated with:
 - `OperationContext` - additional context
 - `ResourceName` (string) - the name of the resource that failed
 - `DriverId` (string) - the driver ID used by the resource
+
+For compatibility, container readiness failures that expose
+`ex.Data["ContainerLogTail"]` copy that value onto the thrown
+`ResourceInitializationException`.
+
+### When teardown fails
+
+If graceful disposal fails, `DisposeAsync` records the failure in
+`LastTeardownDiagnostics`. When `ForceRemoveOnDispose` is true, FluentDocker then
+tries a fresh-token force remove. If force remove succeeds, disposal completes and
+`LastTeardownDiagnostics.ForceRemoveException` is null. If force remove also
+fails, `DisposeAsync` rethrows the graceful teardown exception and leaves the
+resource handles available so you can inspect diagnostics or retry cleanup.
 
 ## ResourceLifecycle (Advanced)
 
@@ -354,6 +539,22 @@ automatically cleaned up before the exception propagates.
 | `CreateDefaultDockerKernelAsync()` | Docker CLI kernel (used when no factory is specified) |
 | `CreateDefaultPodmanKernelAsync()` | Podman CLI kernel |
 
+### Capturing framework logs
+
+Framework and resource warnings are written through the **kernel's**
+`ILoggerFactory`. The default kernels (`CreateDefaultDockerKernelAsync` /
+`CreateDefaultPodmanKernelAsync`, used when no factory is specified) fall back to
+`NullLoggerFactory.Instance`, so nothing is emitted. To capture the output, build
+the kernel with a real `ILoggerFactory` — either override the fixture's
+`KernelFactory` property or pass a `kernelFactory` to the helper:
+
+```csharp
+protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
+    () => FluentDockerKernel.Create(myLoggerFactory) // your ILoggerFactory
+        .WithDockerCli("docker-cli", d => d.AsDefault())
+        .BuildAsync();
+```
+
 ## Usage Example
 
 ```csharp
@@ -363,7 +564,7 @@ var kernel = await FluentDockerKernel.Create()
 
 await using var resource = new ContainerResource(kernel, builder =>
     builder.UseImage("redis:alpine")
-           .WithName("test-redis")
+           .WithName($"test-redis-{Guid.NewGuid():N}") // unique — parallel-safe
            .WaitForPort("6379/tcp"));
 
 await resource.InitializeAsync();

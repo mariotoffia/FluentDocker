@@ -21,7 +21,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public DockerBinary(string path, string binary, SudoMechanism sudo, string password)
     {
       Path = path;
-      Binary = binary.ToLower();
+      Binary = binary;
       Type = Translate(binary);
       Sudo = sudo;
       SudoPassword = password;
@@ -38,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public DockerBinary(string path, string binary, SudoMechanism sudo, string password, DockerBinaryType type)
     {
       Path = path;
-      Binary = binary.ToLower();
+      Binary = binary;
       Type = type;
       Sudo = sudo;
       SudoPassword = password;
@@ -56,7 +56,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// <exception cref="ArgumentException">Thrown when the binary name is not recognized.</exception>
     public static DockerBinaryType Translate(string binary)
     {
-      return binary.ToLower() switch
+      return binary.ToLowerInvariant() switch
       {
         "docker" or "docker.exe" => DockerBinaryType.DockerClient,
         "dockercli" or "dockercli.exe" => DockerBinaryType.Cli,

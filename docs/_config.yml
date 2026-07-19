@@ -36,6 +36,14 @@ heading_anchors: true
 back_to_top: true
 back_to_top_text: "Back to top"
 
+# Front-matter defaults — every page renders with the theme layout even if its
+# own front matter omits `layout`. Keeps generated and hand-written pages styled.
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
 # Exclude from build
 exclude:
   - Gemfile

@@ -13,7 +13,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Ported from V2 FluentContainerBasicTests.cs
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "FluentContainer")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "FluentContainer")]
   [Collection("DockerDriver")]
   public partial class FluentContainerTests : DockerDriverTestBase
   {
@@ -262,10 +263,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           {
             ["POSTGRES_PASSWORD"] = "mysecretpassword"
           },
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/var/lib/postgresql/data"
-          },
+          Volumes = [$"{volumeName}:/var/lib/postgresql/data"],
           Detach = true
         }, TestContext.Current.CancellationToken);
 

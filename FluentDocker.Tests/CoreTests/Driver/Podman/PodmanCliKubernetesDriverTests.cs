@@ -114,7 +114,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParsePlayOutput_Null_ReturnsEmpty()
     {
-      var result = InvokeParsePlayOutput(null);
+      var result = InvokeParsePlayOutput(null!);
       Assert.NotNull(result);
       Assert.Empty(result.Pods);
     }
@@ -207,16 +207,31 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParsePlayOutput_BareHexIds_ReturnsPods()
+    public void ParsePlayOutput_LineBasedPluralContainers_ReturnsContainers()
     {
-      var output = "abc123def456abc1\nc1aaa111bbb222cc\n";
+      var output = "Pod:\nabc123def456abc1\nContainers:\nc1aaa111bbb222cc\nContainers:\nc2ddd333eee444ff\n";
 
       var result = InvokeParsePlayOutput(output);
 
       Assert.Single(result.Pods);
-      Assert.Equal("abc123def456abc1", result.Pods[0].Id);
-      Assert.Single(result.Pods[0].Containers);
+      Assert.Equal(2, result.Pods[0].Containers.Count);
       Assert.Equal("c1aaa111bbb222cc", result.Pods[0].Containers[0]);
+      Assert.Equal("c2ddd333eee444ff", result.Pods[0].Containers[1]);
+    }
+
+    [Fact]
+    public void ParsePlayOutput_BareHexIds_ReturnsPods()
+    {
+      var podId = new string('a', 64);
+      var containerId = new string('b', 64);
+      var output = $"{podId}\n{containerId}\n";
+
+      var result = InvokeParsePlayOutput(output);
+
+      Assert.Single(result.Pods);
+      Assert.Equal(podId, result.Pods[0].Id);
+      Assert.Single(result.Pods[0].Containers);
+      Assert.Equal(containerId, result.Pods[0].Containers[0]);
     }
 
     #endregion
@@ -242,7 +257,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildPlayArgs",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [config]);
+      return (string)method.Invoke(null, [config])!;
     }
 
     private static KubePlayResult InvokeParsePlayOutput(string output)
@@ -251,7 +266,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParsePlayOutput",
           BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
       Assert.NotNull(method);
-      return (KubePlayResult)method.Invoke(null, [output]);
+      return (KubePlayResult)method.Invoke(null, [output])!;
     }
 
     #endregion

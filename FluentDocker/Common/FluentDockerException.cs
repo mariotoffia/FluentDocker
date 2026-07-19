@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 namespace FluentDocker.Common
@@ -18,7 +19,7 @@ namespace FluentDocker.Common
     }
 
     /// <summary>Creates a new instance with the specified message and inner exception.</summary>
-    public FluentDockerException(string message, Exception innerException) : base(message, innerException)
+    public FluentDockerException(string message, Exception? innerException) : base(message, innerException)
     {
     }
   }

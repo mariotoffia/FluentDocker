@@ -2,6 +2,7 @@ using System;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
 
 namespace FluentDocker.Kernel
 {
@@ -11,17 +12,27 @@ namespace FluentDocker.Kernel
   internal sealed class DockerCliDriverBuilder(string driverId) : IDockerCliDriverBuilder
   {
     private readonly string _driverId = driverId;
-    private string _host;
-    private string _certificatePath;
+    private string? _host;
+    private string? _certificatePath;
     private bool _isDefault;
     private SudoMechanism _sudo = SudoMechanism.None;
-    private string _sudoPassword;
-    private string _binaryName;
-    private string[] _searchPaths;
+    private string? _sudoPassword;
+    private string? _binaryName;
+    private string[]? _searchPaths;
+    private ModelRunnerEndpoint? _modelEndpoint;
+    private TimeSpan? _requestTimeout;
 
     public IDockerCliDriverBuilder AtHost(string host)
     {
       _host = host;
+      return this;
+    }
+
+    public IDockerCliDriverBuilder WithRequestTimeout(TimeSpan timeout)
+    {
+      if (timeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Request timeout must be positive.");
+      _requestTimeout = timeout;
       return this;
     }
 
@@ -37,7 +48,7 @@ namespace FluentDocker.Kernel
       return this;
     }
 
-    public IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string password = null)
+    public IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string? password = null)
     {
       _sudo = mechanism;
       _sudoPassword = password;
@@ -51,6 +62,12 @@ namespace FluentDocker.Kernel
       return this;
     }
 
+    public IDockerCliDriverBuilder WithModelRunnerEndpoint(ModelRunnerEndpoint endpoint)
+    {
+      _modelEndpoint = endpoint;
+      return this;
+    }
+
     internal KernelBuilder.DriverConfiguration Build()
     {
       var context = new DriverContext(_driverId)
@@ -61,12 +78,14 @@ namespace FluentDocker.Kernel
         SudoPassword = _sudoPassword,
         BinaryName = _binaryName,
         SearchPaths = _searchPaths,
+        ModelRunnerEndpoint = _modelEndpoint,
+        RequestTimeout = _requestTimeout,
       };
 
       return new KernelBuilder.DriverConfiguration
       {
         DriverId = _driverId,
-        DriverPack = new DockerCliDriverPack(),
+        DriverPackFactory = static () => new DockerCliDriverPack(),
         Context = context,
         IsDefault = _isDefault,
       };

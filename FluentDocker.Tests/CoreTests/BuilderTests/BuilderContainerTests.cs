@@ -96,7 +96,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c
               .UseImage("nginx:alpine")
-              .WithPort("80/tcp", "8080")
+              .WithPort("8080", "80/tcp")
               .ExposePort("443"))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
@@ -133,8 +133,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
           It.Is<ContainerCreateConfig>(cfg =>
               cfg.Volumes != null &&
-              cfg.Volumes.ContainsKey("/host/data") &&
-              cfg.Volumes["/host/data"] == "/container/data"),
+              cfg.Volumes.Contains("/host/data:/container/data")),
           It.IsAny<System.Threading.CancellationToken>()), Times.Once);
     }
 

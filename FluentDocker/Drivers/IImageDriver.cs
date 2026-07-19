@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
-using FluentDocker.Model.Images;
 
 namespace FluentDocker.Drivers
 {
@@ -28,7 +27,7 @@ namespace FluentDocker.Drivers
         DriverContext context,
         string image,
         string tag = "latest",
-        IProgress<ImagePullProgress> progress = null,
+        IProgress<ImagePullProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -41,7 +40,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<Unit>> PushAsync(
         DriverContext context,
         string image,
-        IProgress<ImagePushProgress> progress = null,
+        IProgress<ImagePushProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -56,10 +55,20 @@ namespace FluentDocker.Drivers
     /// <param name="progress">Progress reporter</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Build result with image ID</returns>
+    /// <remarks>
+    /// The Docker API driver uses the legacy Engine builder endpoint; BuildKit-only
+    /// Dockerfile syntax requires the Docker CLI driver.
+    /// Transport failures return <see cref="ErrorCodes.Api.ConnectionFailed"/>; request
+    /// timeouts return <see cref="ErrorCodes.General.Timeout"/>. Caller cancellation is
+    /// propagated as <see cref="OperationCanceledException"/>.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context,
         ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress = null,
+        IProgress<ImageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -75,7 +84,7 @@ namespace FluentDocker.Drivers
     /// <returns>List of images</returns>
     Task<CommandResponse<IList<Image>>> ListAsync(
         DriverContext context,
-        ImageListFilter filter = null,
+        ImageListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -129,6 +138,13 @@ namespace FluentDocker.Drivers
     /// <param name="force">Force removal</param>
     /// <param name="noPrune">Don't remove untagged parents</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// Transport failures return <see cref="ErrorCodes.Api.ConnectionFailed"/>; request
+    /// timeouts return <see cref="ErrorCodes.General.Timeout"/>.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<ImageRemoveResult>> RemoveAsync(
         DriverContext context,
         string imageId,
@@ -146,7 +162,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<ImagePruneResult>> PruneAsync(
         DriverContext context,
         bool all = false,
-        Dictionary<string, string> filter = null,
+        Dictionary<string, string>? filter = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -191,9 +207,9 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<string>> ImportAsync(
         DriverContext context,
         string source,
-        string repository = null,
-        string tag = null,
-        string message = null,
+        string? repository = null,
+        string? tag = null,
+        string? message = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -207,13 +223,13 @@ namespace FluentDocker.Drivers
   public class ImagePullProgress
   {
     /// <summary>Status message for the current pull step (e.g. "Downloading", "Pull complete").</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Human-readable progress bar (e.g. "[=====>   ] 5.12MB/10.24MB").</summary>
-    public string Progress { get; set; }
+    public string? Progress { get; set; }
 
     /// <summary>Layer digest being processed. Null for non-layer-specific messages.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Bytes downloaded so far for the current layer.</summary>
     public long Current { get; set; }
@@ -228,13 +244,13 @@ namespace FluentDocker.Drivers
   public class ImagePushProgress
   {
     /// <summary>Status message for the current push step (e.g. "Pushing", "Layer already exists").</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Human-readable progress bar for the upload.</summary>
-    public string Progress { get; set; }
+    public string? Progress { get; set; }
 
     /// <summary>Layer digest being uploaded. Null for non-layer-specific messages.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Bytes uploaded so far for the current layer.</summary>
     public long Current { get; set; }
@@ -249,16 +265,16 @@ namespace FluentDocker.Drivers
   public class ImageBuildProgress
   {
     /// <summary>Build output stream text (e.g. "Step 1/5 : FROM alpine:latest").</summary>
-    public string Stream { get; set; }
+    public string? Stream { get; set; }
 
     /// <summary>Status message for the build step.</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Image ID associated with the build event. Null for regular stream output.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Error message if the build step failed. Null on success.</summary>
-    public string Error { get; set; }
+    public string? Error { get; set; }
   }
 
   #endregion
@@ -271,10 +287,10 @@ namespace FluentDocker.Drivers
   public class ImageBuildConfig
   {
     /// <summary>Path to Dockerfile or build context.</summary>
-    public string BuildContext { get; set; }
+    public string? BuildContext { get; set; }
 
     /// <summary>Dockerfile name (if not "Dockerfile").</summary>
-    public string DockerfileName { get; set; }
+    public string? DockerfileName { get; set; }
 
     /// <summary>Tags to apply to the built image.</summary>
     public List<string> Tags { get; set; } = [];
@@ -283,7 +299,7 @@ namespace FluentDocker.Drivers
     public Dictionary<string, string> BuildArgs { get; set; } = [];
 
     /// <summary>Target build stage (for multi-stage builds).</summary>
-    public string Target { get; set; }
+    public string? Target { get; set; }
 
     /// <summary>Labels to apply.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];
@@ -304,10 +320,10 @@ namespace FluentDocker.Drivers
     public bool Squash { get; set; }
 
     /// <summary>Platform to build for.</summary>
-    public string Platform { get; set; }
+    public string? Platform { get; set; }
 
     /// <summary>Network mode during build.</summary>
-    public string NetworkMode { get; set; }
+    public string? NetworkMode { get; set; }
 
     /// <summary>Memory limit for build.</summary>
     public long? Memory { get; set; }
@@ -325,7 +341,7 @@ namespace FluentDocker.Drivers
     public bool All { get; set; }
 
     /// <summary>Filter by reference (name:tag).</summary>
-    public string Reference { get; set; }
+    public string? Reference { get; set; }
 
     /// <summary>Show dangling images only.</summary>
     public bool? Dangling { get; set; }
@@ -334,10 +350,10 @@ namespace FluentDocker.Drivers
     public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Filter by before image.</summary>
-    public string Before { get; set; }
+    public string? Before { get; set; }
 
     /// <summary>Filter by since image.</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
   }
 
   #endregion
@@ -350,7 +366,7 @@ namespace FluentDocker.Drivers
   public class ImageBuildResult
   {
     /// <summary>Built image ID.</summary>
-    public string ImageId { get; set; }
+    public string? ImageId { get; set; }
 
     /// <summary>Build warnings.</summary>
     public List<string> Warnings { get; set; } = [];
@@ -389,34 +405,37 @@ namespace FluentDocker.Drivers
   public class ImageLayer
   {
     /// <summary>Layer ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Created by command.</summary>
-    public string CreatedBy { get; set; }
+    public string? CreatedBy { get; set; }
 
     /// <summary>Creation time.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime Created { get; set; }
 
     /// <summary>Layer size in bytes.</summary>
     public long Size { get; set; }
 
     /// <summary>Comment.</summary>
-    public string Comment { get; set; }
+    public string? Comment { get; set; }
 
     /// <summary>Tags associated with this layer.</summary>
     public List<string> Tags { get; set; } = [];
   }
 
   /// <summary>
-  /// Represents an image.
+  /// Represents an image. This <c>FluentDocker.Drivers</c> type is the canonical port entity for
+  /// image data crossing the driver boundary; it is distinct from the CLI/API parsing models under
+  /// <c>FluentDocker.Model.Images</c>.
   /// </summary>
   public class Image
   {
     /// <summary>Image ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Parent image ID.</summary>
-    public string ParentId { get; set; }
+    public string? ParentId { get; set; }
 
     /// <summary>Repository tags.</summary>
     public List<string> RepoTags { get; set; } = [];
@@ -425,6 +444,7 @@ namespace FluentDocker.Drivers
     public List<string> RepoDigests { get; set; } = [];
 
     /// <summary>Creation time.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime Created { get; set; }
 
     /// <summary>Image size in bytes.</summary>
@@ -440,10 +460,10 @@ namespace FluentDocker.Drivers
     public int Containers { get; set; }
 
     /// <summary>Architecture.</summary>
-    public string Architecture { get; set; }
+    public string? Architecture { get; set; }
 
     /// <summary>Operating system.</summary>
-    public string Os { get; set; }
+    public string? Os { get; set; }
   }
 
   #endregion

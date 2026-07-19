@@ -1,16 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
-
 namespace FluentDocker.Drivers.Docker.Cli.Components
 {
   /// <summary>
@@ -32,28 +31,37 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         DriverContext context,
         string image,
         string tag = "latest",
-        IProgress<ImagePullProgress> progress = null,
+        IProgress<ImagePullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var fullImage = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
-        var result = await ExecuteCommandAsync($"pull {QuoteArgumentIfNeeded(fullImage)}", cancellationToken).ConfigureAwait(false);
+        var fullImage = ShouldAppendTag(image, tag) ? $"{image}:{tag}" : image;
+        var result = await ExecuteProgressCommandAsync(
+            context,
+            $"pull {QuotePositionalArgument(fullImage, nameof(image))}",
+            progress,
+            CreatePullProgress,
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image pull failed",
-              ErrorCodes.Image.PullFailed,
+              ErrorOrDefault(result, "Image pull failed"),
+              FailureCode(result.Error, ErrorCodes.Image.PullFailed),
               CreateErrorContext(context, "PullImage", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.PullFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.PullFailed));
       }
     }
 
@@ -61,27 +69,36 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> PushAsync(
         DriverContext context,
         string image,
-        IProgress<ImagePushProgress> progress = null,
+        IProgress<ImagePushProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var result = await ExecuteCommandAsync($"push {QuoteArgumentIfNeeded(image)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteProgressCommandAsync(
+            context,
+            $"push {QuotePositionalArgument(image, nameof(image))}",
+            progress,
+            CreatePushProgress,
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image push failed",
-              ErrorCodes.Image.PushFailed,
+              ErrorOrDefault(result, "Image push failed"),
+              FailureCode(result.Error, ErrorCodes.Image.PushFailed),
               CreateErrorContext(context, "PushImage", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.PushFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.PushFailed));
       }
     }
 
@@ -129,41 +146,56 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args.Add($"--network {QuoteArgumentIfNeeded(config.NetworkMode)}");
 
       if (!string.IsNullOrEmpty(iidFilePath))
-        args.Add($"--iidfile \"{iidFilePath}\"");
+        args.Add($"--iidfile {QuoteArgumentIfNeeded(iidFilePath)}");
 
-      args.Add(QuoteArgumentIfNeeded(config.BuildContext ?? "."));
+      args.Add(QuotePositionalArgument(config.BuildContext ?? ".", nameof(config.BuildContext)));
 
       return string.Join(" ", args);
+    }
+
+    private static bool ShouldAppendTag(string image, string tag)
+    {
+      if (string.IsNullOrEmpty(tag) || string.IsNullOrEmpty(image) || image.Contains('@', StringComparison.Ordinal))
+        return false;
+
+      var lastSlash = image.LastIndexOf('/');
+      var lastSegment = lastSlash < 0 ? image : image[(lastSlash + 1)..];
+      return !lastSegment.Contains(':', StringComparison.Ordinal);
     }
 
     /// <inheritdoc />
     public async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context,
         ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress = null,
+        IProgress<ImageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
         // Write image ID to a temp file for deterministic extraction.
         // Both legacy builder and BuildKit honour --iidfile.
-        var iidFile = Path.Combine(Path.GetTempPath(), $"docker-iid-{Guid.NewGuid():N}");
+        var iidFile = CreateIidFilePath();
 
         try
         {
-          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
+          var result = await ExecuteProgressCommandAsync(
+              context,
+              BuildBuildArgs(config, iidFile),
+              progress,
+              CreateBuildProgress,
+              cancellationToken).ConfigureAwait(false);
 
           if (!result.Success)
           {
             return CommandResponse<ImageBuildResult>.Fail(
-                result.Error ?? "Image build failed",
-                ErrorCodes.Image.BuildFailed,
+                ErrorOrDefault(result, "Image build failed"),
+                FailureCode(result.Error, ErrorCodes.Image.BuildFailed),
                 CreateErrorContext(context, "BuildImage", result),
                 result.ExitCode);
           }
 
           var imageId = File.Exists(iidFile)
-              ? (await File.ReadAllTextAsync(iidFile, cancellationToken)).Trim()
+              ? (await File.ReadAllTextAsync(iidFile, cancellationToken).ConfigureAwait(false)).Trim()
               : null;
 
           if (string.IsNullOrEmpty(imageId))
@@ -183,13 +215,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         }
         finally
         {
-          if (File.Exists(iidFile))
-            File.Delete(iidFile);
+          try
+          {
+            if (File.Exists(iidFile))
+              File.Delete(iidFile);
+          }
+          catch (IOException)
+          {
+          }
+          catch (UnauthorizedAccessException)
+          {
+          }
         }
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<ImageBuildResult>.Fail(ex.Message, ErrorCodes.Image.BuildFailed);
+        return CommandResponse<ImageBuildResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.BuildFailed));
       }
     }
 
@@ -200,7 +245,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Image>>> ListAsync(
         DriverContext context,
-        ImageListFilter filter = null,
+        ImageListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -213,16 +258,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (filter != null)
         {
           if (!string.IsNullOrEmpty(filter.Reference))
-            args.Append($" --filter reference={filter.Reference}");
+            args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"reference={filter.Reference}")}");
 
           if (filter.Dangling.HasValue)
-            args.Append($" --filter dangling={(filter.Dangling.Value ? "true" : "false")}");
+            args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"dangling={(filter.Dangling.Value ? "true" : "false")}")}");
 
           if (!string.IsNullOrEmpty(filter.Before))
-            args.Append($" --filter before={filter.Before}");
+            args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"before={filter.Before}")}");
 
           if (!string.IsNullOrEmpty(filter.Since))
-            args.Append($" --filter since={filter.Since}");
+            args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"since={filter.Since}")}");
 
           if (filter.Labels != null)
           {
@@ -231,66 +276,65 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               var labelValue = string.IsNullOrEmpty(label.Value)
                   ? label.Key
                   : $"{label.Key}={label.Value}";
-              args.Append($" --filter label={labelValue}");
+              args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"label={labelValue}")}");
             }
           }
         }
 
-        var result = await ExecuteCommandAsync(args.ToString(), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args.ToString(), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<Image>>.Fail(
-              result.Error ?? "Image list failed",
-              ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "Image list failed"),
+              FailureCode(result.Error, ErrorCodes.General.Unknown));
         }
 
+        if (!DockerCliJsonLineParser.TryParse<DockerImageDto>(
+            result.Output,
+            Logger,
+            "Image list JSON parsing failed",
+            out var dtos,
+            out var parseError))
+          return CommandResponse<IList<Image>>.Fail(parseError, ErrorCodes.General.Unknown);
+
         var images = new List<Image>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var line in lines)
+        foreach (var dto in dtos)
         {
-          try
+          var image = new Image
           {
-            // docker images JSON has Repository, Tag, ID fields
-            // We need to map to Image class with RepoTags
-            var dto = JsonSerializer.Deserialize<DockerImageDto>(line, JsonHelper.CaseInsensitiveOptions);
-            if (dto != null)
-            {
-              var image = new Image
-              {
-                Id = dto.ID,
-                Size = ParseSize(dto.Size),
-                VirtualSize = ParseSize(dto.VirtualSize),
-                Containers = int.TryParse(dto.Containers, out var count) ? count : 0
-              };
+            Id = dto.ID,
+            Size = ParseSize(dto.Size),
+            VirtualSize = ParseSize(dto.VirtualSize),
+            Containers = int.TryParse(dto.Containers, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) ? count : 0
+          };
 
-              // Construct RepoTags from Repository and Tag
-              if (!string.IsNullOrEmpty(dto.Repository) && !string.IsNullOrEmpty(dto.Tag))
-              {
-                image.RepoTags.Add($"{dto.Repository}:{dto.Tag}");
-              }
-
-              // Parse CreatedAt if present
-              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, out var created))
-              {
-                image.Created = created;
-              }
-
-              images.Add(image);
-            }
-          }
-          catch (Exception ex)
+          if (!string.IsNullOrEmpty(dto.Repository) && !string.IsNullOrEmpty(dto.Tag))
           {
-            Logger.LogError(ex, "Image list JSON parsing failed");
+            image.RepoTags.Add($"{dto.Repository}:{dto.Tag}");
           }
+
+          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out DateTime created))
+          {
+            image.Created = created;
+          }
+          else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
+          {
+            Logger.LogDebug("Unparseable image CreatedAt '{CreatedAt}'", dto.CreatedAt);
+          }
+
+          images.Add(image);
         }
 
         return CommandResponse<IList<Image>>.Ok(images);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Image>>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<IList<Image>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -299,14 +343,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private sealed class DockerImageDto
     {
-      public string ID { get; set; }
-      public string Repository { get; set; }
-      public string Tag { get; set; }
-      public string Size { get; set; }
-      public string VirtualSize { get; set; }
-      public string CreatedAt { get; set; }
-      public string Containers { get; set; }
-      public string Digest { get; set; }
+      public string ID { get; set; } = string.Empty;
+      public string Repository { get; set; } = string.Empty;
+      public string Tag { get; set; } = string.Empty;
+      public string Size { get; set; } = string.Empty;
+      public string VirtualSize { get; set; } = string.Empty;
+      public string CreatedAt { get; set; } = string.Empty;
+      public string Containers { get; set; } = string.Empty;
+      public string Digest { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -314,51 +358,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private sealed class DockerHistoryDto
     {
-      public string ID { get; set; }
-      public string CreatedBy { get; set; }
-      public string CreatedAt { get; set; }
-      public string CreatedSince { get; set; }
-      public string Size { get; set; }
-      public string Comment { get; set; }
+      public string ID { get; set; } = string.Empty;
+      public string CreatedBy { get; set; } = string.Empty;
+      public string CreatedAt { get; set; } = string.Empty;
+      public string CreatedSince { get; set; } = string.Empty;
+      public string Size { get; set; } = string.Empty;
+      public string Comment { get; set; } = string.Empty;
     }
 
-    /// <summary>
-    /// Parses size string like "1.05GB", "125MB", "9.18MB" to bytes.
-    /// Docker CLI uses SI units (base-1000): KB=1000, MB=1000000, etc.
-    /// Longer suffixes are checked first to avoid "TB" matching "B".
-    /// </summary>
-    private static long ParseSize(string sizeStr)
-    {
-      if (string.IsNullOrEmpty(sizeStr))
-        return 0;
-
-      sizeStr = sizeStr.Trim();
-      if (sizeStr == "N/A" || sizeStr == "0B")
-        return 0;
-
-      // Ordered longest-suffix-first to prevent "TB" matching "B" suffix.
-      ReadOnlySpan<(string Suffix, long Multiplier)> units =
-      [
-        ("TB", 1_000_000_000_000L),
-        ("GB", 1_000_000_000L),
-        ("MB", 1_000_000L),
-        ("KB", 1_000L),
-        ("B", 1L),
-      ];
-
-      foreach (var (suffix, multiplier) in units)
-      {
-        if (sizeStr.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-        {
-          var numberPart = sizeStr.Substring(0, sizeStr.Length - suffix.Length).Trim();
-          if (double.TryParse(numberPart, System.Globalization.NumberStyles.Float,
-              System.Globalization.CultureInfo.InvariantCulture, out var number))
-            return (long)(number * multiplier);
-        }
-      }
-
-      return 0;
-    }
+    private static long ParseSize(string sizeStr) => CliOutputParser.ParseByteValue(sizeStr);
 
     /// <inheritdoc />
     public async Task<CommandResponse<Image>> InspectAsync(
@@ -368,16 +376,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"image inspect {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"image inspect {QuotePositionalArgument(imageId, nameof(imageId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Image>.Fail(
-              result.Error ?? "Image inspect failed",
+              ErrorOrDefault(result, "Image inspect failed"),
+              result.Error?.Contains("No such image", StringComparison.OrdinalIgnoreCase) == true
+                  ? ErrorCodes.Image.NotFound
+                  : FailureCode(result.Error, ErrorCodes.Image.InspectFailed));
+        }
+
+        var images = JsonHelper.TryDeserialize<List<Image>>(result.Output);
+        if (images == null)
+        {
+          Logger.LogError("Image inspect JSON parsing failed");
+          return CommandResponse<Image>.Fail(
+              "Image inspect JSON parsing failed",
               ErrorCodes.Image.InspectFailed);
         }
 
-        var images = JsonSerializer.Deserialize<List<Image>>(result.Output, JsonHelper.CaseInsensitiveOptions);
         var image = images?.FirstOrDefault();
 
         if (image == null)
@@ -389,9 +407,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<Image>.Ok(image);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Image>.Fail(ex.Message, ErrorCodes.Image.InspectFailed);
+        return CommandResponse<Image>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.InspectFailed));
       }
     }
 
@@ -404,55 +426,57 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       try
       {
         // Quote the format string to ensure it's treated as a single argument
-        var result = await ExecuteCommandAsync($"history --format \"{{{{json .}}}}\" --no-trunc {QuoteArgumentIfNeeded(imageId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"history --format \"{{{{json .}}}}\" --no-trunc {QuotePositionalArgument(imageId, nameof(imageId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<ImageLayer>>.Fail(
-              result.Error ?? "Image history failed",
-              ErrorCodes.Image.HistoryFailed,
+              ErrorOrDefault(result, "Image history failed"),
+              FailureCode(result.Error, ErrorCodes.Image.HistoryFailed),
               CreateErrorContext(context, "HistoryImage", result),
               result.ExitCode);
         }
 
+        if (!DockerCliJsonLineParser.TryParse<DockerHistoryDto>(
+            result.Output,
+            Logger,
+            "Image history JSON parsing failed",
+            out var dtos,
+            out var parseError))
+          return CommandResponse<IList<ImageLayer>>.Fail(parseError, ErrorCodes.Image.HistoryFailed);
+
         var layers = new List<ImageLayer>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        foreach (var dto in dtos)
         {
-          try
+          var layer = new ImageLayer
           {
-            // Docker history JSON has ID, CreatedAt, CreatedBy, Size, Comment fields
-            var dto = JsonSerializer.Deserialize<DockerHistoryDto>(line, JsonHelper.CaseInsensitiveOptions);
-            if (dto != null)
-            {
-              var layer = new ImageLayer
-              {
-                Id = dto.ID,
-                CreatedBy = dto.CreatedBy,
-                Comment = dto.Comment,
-                Size = ParseSize(dto.Size)
-              };
+            Id = dto.ID,
+            CreatedBy = dto.CreatedBy,
+            Comment = dto.Comment,
+            Size = ParseSize(dto.Size)
+          };
 
-              // Parse CreatedAt if present
-              if (!string.IsNullOrEmpty(dto.CreatedAt) && DateTime.TryParse(dto.CreatedAt, out var created))
-              {
-                layer.Created = created;
-              }
-
-              layers.Add(layer);
-            }
-          }
-          catch (Exception ex)
+          if (DockerCliTimestampParser.TryParse(dto.CreatedAt, out DateTime created))
           {
-            Logger.LogError(ex, "Image history JSON parsing failed");
+            layer.Created = created;
           }
+          else if (!string.IsNullOrEmpty(dto.CreatedAt) && Logger.IsEnabled(LogLevel.Debug))
+          {
+            Logger.LogDebug("Unparseable history CreatedAt '{CreatedAt}'", dto.CreatedAt);
+          }
+
+          layers.Add(layer);
         }
 
         return CommandResponse<IList<ImageLayer>>.Ok(layers);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<IList<ImageLayer>>.Fail(ex.Message, ErrorCodes.Image.HistoryFailed);
+        return CommandResponse<IList<ImageLayer>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.HistoryFailed));
       }
     }
 

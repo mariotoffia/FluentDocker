@@ -106,7 +106,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal("/var/run/netns/abc", ns.SandboxKey);
       Assert.Equal("10.88.0.1", ns.Gateway);
       Assert.Equal("10.88.0.5", ns.IPAddress);
-      Assert.Equal("16", ns.IPPrefixLen);
+      Assert.Equal(16, ns.IPPrefixLen);
       Assert.Equal("02:42:0a:58:00:05", ns.MacAddress);
 
       // Ports

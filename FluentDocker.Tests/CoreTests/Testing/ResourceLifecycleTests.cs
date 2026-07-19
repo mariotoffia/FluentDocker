@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Testing.Core;
 using FluentDocker.Tests.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
@@ -55,7 +56,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
           .CreateAndInitializeAsync(
               k => new ContainerResource(
                   k, b => b.UseImage("alpine:latest")),
-              kernelFactory: null,
+              kernelFactory: null!,
               defaultKernelFactory: () =>
               {
                 defaultFactoryCalled = true;
@@ -114,8 +115,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       await Assert.ThrowsAsync<ArgumentNullException>(
           () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
-              null,
-              () => Task.FromResult<FluentDockerKernel>(null),
+              null!,
+              () => Task.FromResult<FluentDockerKernel>(null!),
               cancellationToken: TestContext.Current.CancellationToken));
     }
 
@@ -125,7 +126,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
               _ => new FakeResource(),
-              () => Task.FromResult<FluentDockerKernel>(null),
+              () => Task.FromResult<FluentDockerKernel>(null!),
               cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.Contains("Kernel factory returned null", ex.Message);
@@ -139,7 +140,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.CreateAndInitializeAsync<FakeResource>(
-              _ => null,
+              _ => null!,
               () => Task.FromResult(kernel),
               cancellationToken: TestContext.Current.CancellationToken));
 
@@ -165,6 +166,30 @@ namespace FluentDocker.Tests.CoreTests.Testing
               cancellationToken: TestContext.Current.CancellationToken));
 
       Assert.True(disposeWasCalled, "Resource should be disposed on init failure");
+      Assert.Throws<ObjectDisposedException>(() => kernel.DefaultDriverId);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task InitializeAsync_Timeout_CollectsDiagnosticsWithLiveToken()
+    {
+      var (kernel, _) = await MockKernelBuilderExtensions
+          .CreateWithMockDriverAsync();
+      await using (kernel)
+      {
+        var resource = new TimeoutDiagnosticsResource(
+            kernel,
+            new DockerResourceOptions
+            {
+              InitializationTimeout = TimeSpan.FromMilliseconds(50)
+            });
+
+        var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
+            () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+        Assert.IsType<TimeoutException>(ex.InnerException);
+
+        Assert.False(resource.DiagnosticsTokenWasCanceled);
+      }
     }
 
     [Fact]
@@ -192,21 +217,34 @@ namespace FluentDocker.Tests.CoreTests.Testing
       await ResourceLifecycle.DisposeAsync(fakeResource, kernel);
 
       Assert.True(resourceDisposed);
+      Assert.Throws<ObjectDisposedException>(() => kernel.DefaultDriverId);
     }
 
     [Fact]
-    public async Task DisposeAsync_ResourceThrows_StillDisposesKernel()
+    public async Task DisposeAsync_ResourceThrows_DisposesKernel()
     {
       var (kernel, _) = await MockKernelBuilderExtensions
           .CreateWithMockDriverAsync();
 
       var throwingResource = new FakeResource(throwOnDispose: true);
 
-      // The method should let the exception propagate, but kernel
-      // is in the finally block so it will be disposed regardless.
-      // Since DisposeAsync uses try/finally, exception is re-thrown.
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => ResourceLifecycle.DisposeAsync(throwingResource, kernel));
+
+      Assert.Equal("Simulated dispose failure", ex.Message);
+      Assert.Throws<ObjectDisposedException>(() => kernel.DefaultDriverId);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_ResourceThrows_StillCallsKernelDispose()
+    {
+      var kernel = new TrackingKernel();
+      var throwingResource = new FakeResource(throwOnDispose: true);
+
       await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.DisposeAsync(throwingResource, kernel));
+
+      Assert.True(kernel.DisposeWasCalled);
     }
 
     [Fact]
@@ -289,7 +327,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       private readonly bool _throwOnInit = throwOnInit;
       private readonly bool _throwOnDispose = throwOnDispose;
-      private readonly Action _onDispose = onDispose;
+      private readonly Action? _onDispose = onDispose;
 
       public bool IsInitialized { get; private set; }
 
@@ -308,6 +346,49 @@ namespace FluentDocker.Tests.CoreTests.Testing
           throw new InvalidOperationException("Simulated dispose failure");
         IsInitialized = false;
         return ValueTask.CompletedTask;
+      }
+    }
+
+    private sealed class TrackingKernel()
+        : FluentDockerKernel(
+            new DriverRegistry(NullLoggerFactory.Instance),
+            NullLoggerFactory.Instance)
+    {
+      public bool DisposeWasCalled { get; private set; }
+
+      public override async ValueTask DisposeAsync()
+      {
+        DisposeWasCalled = true;
+        await base.DisposeAsync().ConfigureAwait(false);
+      }
+    }
+
+    public sealed class TimeoutDiagnosticsResource(
+        FluentDockerKernel kernel,
+        DockerResourceOptions options) : ResourceBase(kernel, options)
+    {
+      public bool DiagnosticsTokenWasCanceled { get; private set; }
+
+      protected override Task PreflightAsync(CancellationToken cancellationToken)
+          => Task.CompletedTask;
+
+      protected override async Task ProvisionAsync(CancellationToken cancellationToken)
+      {
+        await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+      }
+
+      protected override Task TeardownAsync(CancellationToken cancellationToken)
+          => Task.CompletedTask;
+
+      protected override Task ForceRemoveAsync(CancellationToken cancellationToken)
+          => Task.CompletedTask;
+
+      protected override Task<ResourceDiagnostics> CollectDiagnosticsAsync(
+          Exception failure,
+          CancellationToken cancellationToken = default)
+      {
+        DiagnosticsTokenWasCanceled = cancellationToken.IsCancellationRequested;
+        return Task.FromResult(new ResourceDiagnostics { Failure = failure });
       }
     }
 

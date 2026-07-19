@@ -1,10 +1,10 @@
 # FluentDocker
 
-[![CI](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml/badge.svg)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml)
+[![CI (build + unit)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml/badge.svg)](https://github.com/mariotoffia/FluentDocker/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mariotoffia/FluentDocker/branch/master/graph/badge.svg)](https://codecov.io/gh/mariotoffia/FluentDocker)
 [![Release](https://img.shields.io/github/v/release/mariotoffia/FluentDocker?sort=semver&display_name=tag&color=brightgreen)](https://github.com/mariotoffia/FluentDocker/releases/latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![.NET](https://img.shields.io/badge/.NET-net8.0%20%7C%20net10.0-blueviolet)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-net10.0-blueviolet)](https://dotnet.microsoft.com/)
 
 | Package | NuGet | Downloads |
 |---------|:-----:|:---------:|
@@ -13,528 +13,280 @@
 | Testing.MsTest | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.MsTest.svg)](https://www.nuget.org/packages/FluentDocker.Testing.MsTest) |
 | Testing.NUnit | [![NuGet](https://img.shields.io/nuget/v/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit) | [![Downloads](https://img.shields.io/nuget/dt/FluentDocker.Testing.NUnit.svg)](https://www.nuget.org/packages/FluentDocker.Testing.NUnit) |
 
----
-
-## Quick Start
-
-```csharp
-using System.Linq;
-using FluentDocker.Builders;
-using FluentDocker.Drivers.Podman;
-using FluentDocker.Kernel;
-using FluentDocker.Model.Drivers;
-
-// Multiple kernels per app are supported.
-// This kernel registers both Docker CLI and Podman CLI.
-using var kernel = await FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .WithPodmanCli("podman", d => d.WithAutoStartMachine())
-    .BuildAsync();
-```
-
-### 1) Standard container (Docker CLI)
-
-```csharp
-await using var results = await new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("nginx:alpine")
-        .ExposePort("80")
-        .WaitForPort("80/tcp", 30000))
-    .BuildAsync();
-
-var endpoint = results.Containers.First()
-    .ToHostExposedEndpoint("80/tcp");
-Console.WriteLine($"Docker endpoint: {endpoint.Address}:{endpoint.Port}");
-```
-
-### 2) Standard container (Podman CLI)
-
-```csharp
-await using var results = await new Builder()
-    .WithinPodmanCli("podman", kernel)
-    .UseContainer(c => c
-        .UseImage("nginx:alpine")
-        .ExposePort("80")
-        .WaitForPort("80/tcp", 30000))
-    .BuildAsync();
-
-var endpoint = results.Containers.First()
-    .ToHostExposedEndpoint("80/tcp");
-Console.WriteLine($"Podman endpoint: {endpoint.Address}:{endpoint.Port}");
-```
-
-### 3) Docker Compose (Docker CLI)
-
-```csharp
-await using var results = await new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseCompose(c => c
-        .WithComposeFile("docker-compose.yml")
-        .WithRemoveOrphans()
-        .WithWait()
-        .WithWaitTimeout(30))
-    .BuildAsync();
-
-var compose = results.ComposeServices.First();
-```
-
-### 4) Podman Kubernetes (kube play / kube down)
-
-```csharp
-var context = new DriverContext("podman");
-var kube = kernel.SysCtl<IPodmanKubernetesDriver>("podman");
-
-await kube.PlayAsync(context, new KubePlayConfig
-{
-    YamlPath = "pod.yaml",
-    Replace = true
-});
-
-// Teardown
-await kube.DownAsync(context, "pod.yaml");
-```
+> **CI badge scope:** the green CI badge proves **build + unit tests** on `net10.0`.
+> Docker, Podman, and Docker Model Runner integration suites run **on demand** (PR label,
+> schedule, or manual dispatch) and when Docker is available — they are **not** part of every
+> CI run. See the [release-verification table](docs/testing/test-categories.md#release-verification)
+> for what to run before shipping.
 
 ---
 
-### 5) Test Support
+FluentDocker is a strong-named, **async-first** .NET library that drives Docker, Podman,
+and (preview) Docker Model Runner behind one fluent `Builder → WithinDriver → UseXxx`
+API. It targets `net10.0` and is designed for development, testing, and
+CI/CD.
 
-FluentDocker supports xUnit, MSTest, and NUnit via adapter packages.
-See [Test Support](#test-support) below for examples.
+## Install
 
-## Installation
+> **Caveat — read before installing:** 3.2.0-preview.2 is **not on NuGet yet**, so
+> `dotnet add package … --prerelease` currently resolves the latest published package,
+> **3.1.0** — whose `WithPort` is container-first while every doc here teaches the
+> host-first 3.2 semantics. Until the preview ships, build it from the
+> `featrure/model-support` branch into a local feed and reference `3.2.0-preview.2` from
+> there: see **[Consume the preview](docs/getting-started.md#consume-the-preview)** for the
+> copy-paste recipe. Don't run these samples against 3.1.0.
 
 ```bash
 dotnet add package FluentDocker
-dotnet add package FluentDocker.Testing.Xunit   # xUnit adapter
-dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter
-dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter
+dotnet add package FluentDocker.Testing.Xunit   # xUnit adapter (optional)
+dotnet add package FluentDocker.Testing.MsTest  # MSTest adapter (optional)
+dotnet add package FluentDocker.Testing.NUnit   # NUnit adapter (optional)
 ```
 
----
+### Coming from Ductus.FluentDocker 2.x?
 
-> **v3.0.0** is a major rewrite — multi-driver kernel, async-first API, Podman support, new test packages. See the [3.0.0 release notes](https://github.com/mariotoffia/FluentDocker/releases/tag/3.0.0) and the [migration guide](docs/migration.md) for the full feature list and breaking changes.
+The package IDs changed in 3.0 — the `Ductus.` prefix is gone:
 
-## Features
+| 2.x package (legacy) | 3.x package |
+|---|---|
+| `Ductus.FluentDocker` | `FluentDocker` |
+| `Ductus.FluentDocker.XUnit` | `FluentDocker.Testing.Xunit` (xUnit **v3** only) |
+| `Ductus.FluentDocker.MsTest` | `FluentDocker.Testing.MsTest` |
+| — | `FluentDocker.Testing.NUnit` (new) |
 
-### Container Management
+The old `Ductus.*` packages stay on NuGet for existing 2.x users but receive no further
+feature releases; new development happens only under the new IDs. The 3.x API is a
+redesign (async-first, kernel/driver architecture), not a drop-in swap — follow the
+**[migration guide](docs/migration.md)** and the
+**[testing migration guide](docs/testing/migration-from-legacy.md)** when upgrading.
+
+## Quick Start
+
+Start an nginx container and read its published endpoint. Every `using` below is
+required to compile in a clean project — `System.Linq` supplies `First()`, while
+`ToHostExposedEndpointAsync` is an instance method on `IContainerService` (no extra
+import needed).
 
 ```csharp
-// Create and start
-using var results = new Builder()
+using System;
+using System.Linq;                          // First()
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+
+// A kernel is the composition root; register one or more drivers. Multiple kernels
+// per app are supported.
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d.AsDefault())
+    .BuildAsync();
+
+// await using + BuildAsync() is the first-class path: the whole graph is torn down
+// (containers stopped and removed) when the results are disposed.
+await using var results = await new Builder()
     .WithinDockerCli("docker", kernel)
     .UseContainer(c => c
-        .UseImage("nginx:latest")
-        .ExposePort("80"))
-    .Build();
+        .UseImage("nginx:alpine")
+        .ExposePort("80")
+        .WaitForPort("80/tcp", 30000))
+    .BuildAsync();
 
-var container = results.Containers.First();
-
-// Get configuration
-var config = container.GetConfiguration(true);
-
-// Container stats (v3)
-var stats = await container.GetStatsAsync();
-Console.WriteLine($"CPU: {stats.CpuPercent:F2}%");
+var endpoint = await results.Containers.First().ToHostExposedEndpointAsync("80/tcp");
+Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 ```
 
-### Port Mapping
+> A synchronous `Build()` wrapper exists, but it blocks on the async pipeline.
+> Prefer `await using` + `BuildAsync()`, and avoid the sync wrapper inside ASP.NET,
+> UI, or async test contexts where sync-over-async can deadlock.
 
-```csharp
-// Explicit: host port 8080 → container port 80
-.ExposePort(8080, 80)
+## Start Here
 
-// Random: let Docker choose host port
-.ExposePort("80")
+New to FluentDocker? Start with the getting-started guide, then use the documentation
+index to go deeper:
 
-// Resolve actual endpoint
-var endpoint = container.ToHostExposedEndpoint("80/tcp");
-```
-
-### Wait Strategies
-
-```csharp
-.WaitForPort("5432/tcp", 30000)           // Wait for port
-.WaitForProcess("postgres", 30000)         // Wait for process
-.WaitForLogMessage("ready", 30000)         // Wait for log message
-```
-
-### Networks with Static IP
-
-```csharp
-using var nwResults = new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseNetwork(n => n
-        .WithName("my-network")
-        .WithSubnet("10.18.0.0/16"))
-    .Build();
-
-var network = nwResults.Networks.First();
-
-using var cResults = new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("nginx")
-        .WithNetwork("my-network")
-        .UseIpV4("10.18.0.100"))
-    .Build();
-```
-
-### Volume Mounts
-
-```csharp
-// Host path mount
-.WithVolume("/host/path", "/container/path")
-
-// Named volume
-.WithVolume("my-vol", "/data")
-```
-
-### File Operations
-
-```csharp
-// Copy to container
-await container.CopyToAsync("/local/file", "/container/file");
-await container.CopyToAsync("/local/dir", "/container/dir");  // v3: directories
-
-// Copy from container
-await container.CopyFromAsync("/container/file", "/local/file");
-```
-
-### Image Building
-
-```csharp
-// Inline Dockerfile
-using var imgResults = new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseImage("mynode:latest", img => img
-        .From("node:18-alpine")
-        .Run("npm install -g nodemon")
-        .ExposePorts(8080)
-        .Command("node", "app.js"))
-    .Build();
-```
-
----
+- [Getting Started](docs/getting-started.md) — first working container
+- [Documentation index](docs/index.md) — guides by level and reading plans by role
+- **[Documentation site](https://mariotoffia.github.io/FluentDocker/)** — built by the Pages
+  workflow on pushes to `master`/`main` that touch `docs/**`, `FluentDocker/**`, or the
+  workflow itself; 3.2 preview pages publish from [`docs/`](docs) once merged there.
 
 ## Drivers
 
-FluentDocker ships with three drivers:
+FluentDocker ships three drivers, all resolved from the kernel by id:
 
-- Docker CLI
-- Docker API
-- Podman CLI
+- **Docker CLI** — shells out to the `docker` binary.
+- **Docker API** — talks to the Docker Engine REST API over Unix socket, named pipe, or
+  TCP+TLS; no CLI binary required. See [production notes](docs/docker-api.md).
+- **Podman CLI** — shells out to `podman`; adds pods, machines, Kubernetes play, and
+  multi-arch manifests. See [production notes](docs/podman.md).
 
-All drivers share a common core (`IContainerDriver`, `IImageDriver`,
-`INetworkDriver`, `IVolumeDriver`, `ISystemDriver`, `IAuthDriver`,
-`IStreamDriver`) and add driver-specific capabilities on top.
-
-### Quick Driver Examples (Start Here)
-
-Use these imports in the snippets below:
-
-```csharp
-using System.Collections.Generic;
-using System.Linq;
-using FluentDocker.Builders;
-using FluentDocker.Drivers;
-using FluentDocker.Drivers.Podman;
-using FluentDocker.Kernel;
-using FluentDocker.Model.Drivers;
-```
-
-Example: create a kernel with both Docker CLI and Podman CLI
-(multiple kernels per app are also supported):
-
-```csharp
-using var kernel = await FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .WithPodmanCli("podman", d => d
-        .WithAutoStartMachine() // macOS/Windows: ensure Podman VM is running
-        .AsDefault())
-    .BuildAsync();
-```
-
-#### 1) Standard container (Docker CLI)
-
-```csharp
-await using var dockerResults = await new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("nginx:alpine")
-        .ExposePort("80")
-        .WaitForPort("80/tcp", 30000))
-    .BuildAsync();
-
-var dockerEndpoint = dockerResults.Containers.First()
-    .ToHostExposedEndpoint("80/tcp");
-```
-
-#### 2) Standard container (Podman CLI)
-
-```csharp
-await using var podmanResults = await new Builder()
-    .WithinPodmanCli("podman", kernel)
-    .UseContainer(c => c
-        .UseImage("nginx:alpine")
-        .ExposePort("80")
-        .WaitForPort("80/tcp", 30000))
-    .BuildAsync();
-
-var podmanEndpoint = podmanResults.Containers.First()
-    .ToHostExposedEndpoint("80/tcp");
-```
-
-#### 3) Docker Compose (Docker CLI)
-
-```csharp
-await using var composeResults = await new Builder()
-    .WithinDockerCli("docker", kernel)
-    .UseCompose(c => c
-        .WithComposeFile("docker-compose.yml")
-        .WithRemoveOrphans()
-        .WithWait())
-    .BuildAsync();
-
-var compose = composeResults.ComposeServices.First();
-```
-
-#### 4) Kubernetes play/down (Podman CLI)
-
-```csharp
-var podmanContext = new DriverContext("podman");
-var kube = kernel.SysCtl<IPodmanKubernetesDriver>("podman");
-
-var play = await kube.PlayAsync(podmanContext,
-    new KubePlayConfig
-    {
-        YamlPath = "pod.yaml",
-        Replace = true
-    });
-
-// Teardown when done
-await kube.DownAsync(podmanContext, "pod.yaml");
-```
-
-#### 5) Swarm stack deploy/remove (Docker CLI)
-
-```csharp
-// Requires Docker Swarm mode: docker swarm init
-var dockerContext = new DriverContext("docker");
-var stacks = kernel.SysCtl<IStackDriver>("docker");
-
-var deploy = await stacks.DeployAsync(dockerContext,
-    new StackDeployConfig
-    {
-        StackName = "web",
-        ComposeFiles = new List<string> { "docker-stack.yml" }
-    });
-
-var services = await stacks.GetServicesAsync(dockerContext, "web");
-
-// Teardown when done
-await stacks.RemoveAsync(dockerContext, new[] { "web" });
-```
-
-### Capability per Driver
+All drivers share the core ports (`IContainerDriver`, `IImageDriver`, `INetworkDriver`,
+`IVolumeDriver`, `ISystemDriver`, `IAuthDriver`, `IStreamDriver`) and add driver-specific
+capabilities on top.
 
 | Capability | Docker CLI | Docker API | Podman CLI |
 |---|:---:|:---:|:---:|
-| Container / Image / Network / Volume | yes | yes | yes |
-| System / Auth / Streaming | yes | yes | yes |
-| Compose | yes | - | - |
-| Stack (Swarm) | yes | - | - |
-| Service (Swarm) | yes | yes | - |
-| Pods | - | - | yes |
-| Kubernetes play/generate | - | - | yes |
-| Machine management | - | - | yes |
-| Multi-arch manifests | - | - | yes |
+| [Container / Image / Network / Volume](docs/containers.md) | yes | yes | yes |
+| [System / Auth / Streaming](docs/advanced-drivers.md#streaming) | yes | yes | yes |
+| [Compose](docs/compose.md) | yes | - | - |
+| [Stack (Swarm)](docs/advanced-drivers.md#stack-swarm) | yes | - | - |
+| [Service (Swarm)](docs/advanced-drivers.md#service-swarm) | yes | yes | - |
+| [Pods](docs/advanced-drivers.md#pods) | - | - | yes |
+| [Kubernetes play/generate](docs/podman.md) | - | - | yes |
+| [Machine management](docs/advanced-drivers.md#machine-management) | - | - | yes |
+| [Multi-arch manifests](docs/advanced-drivers.md#multi-arch-manifests) | - | - | yes |
 
-### Kernel Setup
-
-Register one or more drivers in the kernel builder:
+Register multiple drivers in one kernel and switch scope with `WithinDriver` (or the
+typed `WithinDockerCli` / `WithinDockerApi` / `WithinPodmanCli`). See
+[Driver scopes](docs/getting-started.md#driver-scopes) for when to use each:
 
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
+using System;
+using FluentDocker.Kernel;
+
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .WithDockerApi("docker-api", d => d
         .WithConnectionTimeout(TimeSpan.FromSeconds(30)))
-    .WithPodmanCli("podman", d => d
-        .WithAutoStartMachine()
-        .AsDefault())
+    .WithPodmanCli("podman", d => d.WithAutoStartMachine()) // macOS/Windows only
     .BuildAsync();
 ```
 
-### Common API - Works with Any Driver
-
-The fluent builder API is shared across drivers. Switch driver scope and keep
-the same container definition style.
-
-```csharp
-await using var results = await new Builder()
-    .WithinDriver(driverId, kernel) // driverId: "docker", "docker-api", "podman"
-    .UseContainer(c => c
-        .UseImage("postgres:15-alpine")
-        .ExposePort("5432")
-        .WithEnvironment("POSTGRES_PASSWORD=secret")
-        .WaitForPort("5432/tcp", 30000))
-    .BuildAsync();
-```
-
-### Docker API — Direct Engine Communication
-
-The Docker API driver talks directly to the Docker Engine REST API over Unix
-socket, named pipe, or TCP+TLS. No Docker CLI binary is required.
-
-```csharp
-using var kernel = await FluentDockerKernel.Create()
-    .WithDockerApi("api", d => d
-        .AtHost("unix:///var/run/docker.sock")    // optional, auto-detected
-        .WithCertificates("/path/to/certs")       // optional, for TLS
-        .WithConnectionTimeout(TimeSpan.FromSeconds(15))
-        .WithRequestTimeout(TimeSpan.FromMinutes(10))
-        .AsDefault())
-    .BuildAsync();
-
-await using var results = await new Builder()
-    .WithinDockerApi("api", kernel)
-    .UseContainer(c => c
-        .UseImage("redis:7-alpine")
-        .ExposePort("6379"))
-    .BuildAsync();
-
-var stream = kernel.SysCtl<IStreamDriver>("api");
-var context = new DriverContext("api");
-await foreach (var ev in stream.StreamEventsAsync(context))
-    Console.WriteLine($"Event: {ev.Action} on {ev.Type}");
-```
-
-### Podman-Specific Features via Driver Layer
-
-Access Podman-only capabilities through `SysCtl<T>` or `TrySysCtl<T>`:
-
-```csharp
-var context = new DriverContext("podman");
-
-// Pods
-var pods = kernel.SysCtl<IPodmanPodDriver>("podman");
-await pods.CreatePodAsync(context, new PodCreateConfig { Name = "my-pod" });
-
-// Machine management
-var machines = kernel.SysCtl<IPodmanMachineDriver>("podman");
-var list = await machines.ListAsync(context);
-
-// Multi-arch manifests
-var manifest = kernel.SysCtl<IPodmanManifestDriver>("podman");
-await manifest.CreateAsync(context,
-    new ManifestCreateConfig
-    {
-        Name = "myapp:latest",
-        Images = new List<string> { "myapp:amd64", "myapp:arm64" }
-    });
-```
-
-### Writing Driver-Portable Code
-
-Use `TrySysCtl<T>` when you want optional driver-specific behavior:
-
-```csharp
-if (kernel.TrySysCtl<IPodmanPodDriver>(driverId, out var podDriver))
-{
-    await podDriver.CreatePodAsync(context,
-        new PodCreateConfig { Name = "my-pod" });
-}
-```
-
----
+Maintained driver notes and guides cover [Compose](docs/compose.md),
+[Docker API](docs/docker-api.md), [Podman](docs/podman.md), [Networking](docs/networking.md),
+[Volumes](docs/volumes.md), [Model Runner](docs/model-runner.md), [Testing](docs/testing.md),
+[Migration](docs/migration.md), [Troubleshooting](docs/troubleshooting.md),
+[Architecture](docs/architecture.md), and [Utilities](docs/utilities.md).
 
 ## Test Support
 
-FluentDocker v3 includes `FluentDocker.Testing.Core` in the main assembly.
-Framework-specific adapters are available as separate packages.
-
-### xUnit (Testing.Core)
+`FluentDocker.Testing.Core` ships inside the main assembly; framework adapters are
+separate packages (`FluentDocker.Testing.Xunit` targets **xUnit v3**).
+Recommended entry points are `XunitContainerFixtureBase`,
+`NUnitContainerFixtureBase`, and `MsTestPerTestContainerFixtureBase` (or
+`MsTestClassContainerFixtureBase<T>` when a class-shared MSTest container is
+needed).
 
 ```csharp
-// Option A — Abstract base (recommended):
+using FluentDocker.Builders;
+using FluentDocker.Testing.Xunit;
+
+// xUnit v3 — abstract base fixture (recommended):
 public class MyRedisFixture : XunitContainerFixtureBase
 {
   protected override void ConfigureContainer(IContainerBuilder builder)
     => builder
         .UseImage("redis:alpine")
-        .ExposePort(6379)
+        .ExposePort("6379")
         .WaitForPort("6379/tcp");
 }
-
-// Option B — Configure + IAsyncLifetime:
-public class MyRedisFixture : XunitContainerFixture
-{
-  public MyRedisFixture()
-  {
-    Configure(builder => builder
-        .UseImage("redis:alpine")
-        .ExposePort(6379)
-        .WaitForPort("6379/tcp"));
-  }
-}
 ```
 
-### MSTest (Testing.Core)
+See the [testing docs](docs/testing.md) for NUnit, MSTest, Compose, Swarm stack,
+Podman Kubernetes, topology, and model resource types.
 
-```csharp
-using FluentDocker.Testing.MsTest;
+## Docker Model Runner — Local LLMs *(preview, 3.2.0-preview.2)*
 
-[TestClass]
-public class MyTests
-{
-    private static FluentDockerKernel _kernel;
-    private static ContainerResource _resource;
+> **Preview — not on NuGet yet.** Model Runner support lands in **3.2.0-preview.2**, which
+> isn't published yet; build it from the [`featrure/model-support`](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support)
+> branch into a local feed to use it — see [Consume the preview](docs/getting-started.md#consume-the-preview)
+> (the latest published package, 3.1.0, has no Model Runner). The inference DTO shapes
+> may still change. Everything above is the stable surface — reach for this section only once
+> you need local models.
 
-    [ClassInitialize]
-    public static async Task ClassInit(TestContext context)
-    {
-        (_kernel, _resource) = await MsTestResourceHelpers.CreateContainerAsync(
-            builder => builder
-                .UseImage("redis:alpine")
-                .WaitForPort("6379/tcp"));
-    }
+FluentDocker manages and consumes **local LLMs** through Docker Model Runner — and any
+OpenAI-compatible runner (vLLM, LM Studio, `llama-server`, hosted) — behind the same
+`Builder → WithinDriver → UseXxx` pattern. The canonical quick start, context-size
+guidance, and troubleshooting live in the model guide.
 
-    [ClassCleanup]
-    public static async Task ClassCleanup()
-    {
-        await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
-    }
-}
-```
-
-See the [full testing docs](docs/testing.md) for NUnit, Compose, Topology,
-Swarm Stack, and Podman Kubernetes resource types.
-
----
+Full guide: **[Model Runner (local LLMs)](docs/model-runner.md)** ·
+[runner plugins](docs/model-runner-plugins.md) · runnable [Examples/ModelRunner](https://github.com/mariotoffia/FluentDocker/tree/featrure/model-support/Examples/ModelRunner).
 
 ## Linux Users
 
-Docker requires sudo by default. Configure per-driver:
-`WithSudo(SudoMechanism.NoPassword)` or add user to docker group:
-`sudo usermod -aG docker $USER`
+Docker often needs `sudo`. Configure it per driver — the password (when used) is written
+to `sudo`'s **stdin**, never placed on the command line:
 
----
+```csharp
+using FluentDocker.Kernel;
+using FluentDocker.Model.Common;
+
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerCli("docker", d => d
+        .WithSudo(SudoMechanism.NoPassword)   // experimental enum; relies on NOPASSWD
+        .AsDefault())
+    .BuildAsync();
+```
+
+Or add your user to the docker group and skip sudo entirely:
+`sudo usermod -aG docker $USER`.
+
+## v3
+
+**v3.0.0** was a major rewrite — multi-driver kernel, async-first API, Podman support,
+new test packages. See the [3.0.0 release notes](https://github.com/mariotoffia/FluentDocker/releases/tag/3.0.0)
+and the [migration guide](docs/migration.md) for the full feature list and breaking
+changes.
+
+## Breaking changes (3.1.0 → 3.2.0)
+
+3.2.0 tightens the core surface. If you consume the model/DTO types directly, check
+these:
+
+- **Dropped `net8.0` — the library now single-targets `net10.0`.** net8.0 (and every
+  earlier TFM) is no longer built or published. A net8.0 project referencing 3.2.0 fails
+  to restore with a bare `NU1202` (package incompatible with `net8.0`); retarget consumers
+  to `net10.0` before upgrading.
+- **`IContainerBuilder.WithPort(hostPort, containerPort)`.** Parameter order flipped
+  from `(containerPort, hostPort)` in 3.0/3.1 to `(hostPort, containerPort)` in
+  3.2.0, matching Docker `-p host:container` and the rest of FluentDocker's port
+  APIs. Bare-number call sites recompile cleanly with swapped semantics — review
+  every `WithPort` call when upgrading. `ExposePort` and `IPodBuilder.WithPort`
+  were already host-first and are unchanged:
+
+  ```csharp
+  // 3.0/3.1
+  c.WithPort("80/tcp", "8080"); // container 80 -> host 8080
+
+  // 3.2
+  c.WithPort("8080", "80/tcp"); // host 8080 -> container 80
+  ```
+
+- **Nullable reference types.** The core `Model`, `Extensions`, and `Resources`
+  namespaces (and almost all of `Common`) are now null-annotated (`#nullable
+  enable`). Genuinely optional members are `T?`; the rest are non-null. Code
+  compiled with nullable enabled may surface new warnings where it previously
+  passed or ignored `null`.
+- **Timestamps are `DateTimeOffset`.** `Container.Created`, `ContainerState.StartedAt`,
+  `ContainerState.FinishedAt`, and `Volume.Created` changed from `DateTime` to
+  `DateTimeOffset` — the engine's UTC offset is now preserved instead of discarded.
+- **Enum values renumbered.** `RuntimeType` now starts at `Unknown = 0` and `DriverType`
+  gained `Unknown = 0`. Numeric enum values are **not** a stable contract — serialize by
+  name, never persist or transmit the number.
+- **`ComposeServiceDefinition.Isolation`** is now `ContainerIsolationTechnology`
+  (the old `ContainerIsolationType` enum was removed).
+- **Removed types:** `ContainerIsolationType`, `ContainerSpecificConfig`, `ProcessRow`,
+  `Processes`, and `PreferredDriverType` (all unused or superseded).
+- **Moved:** `CapabilityChecks`, the `KernelCapabilityExtensions` extension methods
+  (including `kernel.EnsureCapabilityAsync(...)`), and the `DriverCapability` enum moved
+  from `FluentDocker.Common` to `FluentDocker.Kernel`. Update `using FluentDocker.Common;`
+  to `using FluentDocker.Kernel;` — the extension-method move is otherwise a silent build break.
+- **Obsolete:** `ContainerBuildParams` is now `[Obsolete]` (test-only; slated for removal).
+
+For the complete list — including the builder/API and testing changes — see the
+[CHANGELOG](CHANGELOG.md).
+
+## Resources
+
+- [Documentation Site](https://mariotoffia.github.io/FluentDocker/) — full docs on GitHub Pages
+- [Migration Guide](docs/migration.md) — upgrading from v2.x
+- [Architecture](docs/architecture.md) — v3 kernel/driver internals
+- [Model Runner (local LLMs)](docs/model-runner.md) — managing & consuming local models
+- [Changelog](CHANGELOG.md) — release notes
+- [NuGet Package](https://www.nuget.org/packages/FluentDocker)
 
 ## Contributing
 
 Contributions welcome! Please adhere to `.editorconfig` for code style.
 
----
-
-## Resources
-
-- [Documentation Site](https://mariotoffia.github.io/FluentDocker/) - Full documentation on GitHub Pages
-- [Migration Guide](docs/migration.md) - Upgrading from v2.x.x
-- [Architecture Docs](docs/architecture.md) - v3 architecture details
-- [NuGet Package](https://www.nuget.org/packages/FluentDocker)
-
----
-
 ## License
 
-Apache 2.0 - See [LICENSE](LICENSE) for details.
+Apache 2.0 — see [LICENSE](LICENSE) for details.

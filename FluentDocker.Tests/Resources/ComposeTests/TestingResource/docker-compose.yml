@@ -1,0 +1,4 @@
+services:
+  app:
+    image: busybox:latest
+    command: ["sh", "-c", "while true; do sleep 1; done"]

@@ -8,48 +8,48 @@ nav_order: 5
 
 FluentDocker provides full support for Docker Compose V2 (`docker compose` command).
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
 - Basics: [Kernel Setup](#kernel-setup), [Basic Usage](#basic-usage), [Waiting for Services](#waiting-for-services)
-- Intermediate: [Project Configuration](#project-configuration), [Multiple Compose Files](#multiple-compose-files), [Access Containers](#access-containers), [Environment Variables](#environment-variables)
+- Intermediate: [Project Configuration](#project-configuration), [Multiple Compose Files](#multiple-compose-files), [Access Compose Services](#access-compose-services), [Environment Variables](#environment-variables)
 - Advanced: [Profiles](#profiles), [Target Specific Services](#target-specific-services), [Integration Tests Example](#integration-tests-example), [Cleanup Options](#cleanup-options)
 
 ## Kernel Setup
 
 Before using the builder, create a `FluentDockerKernel`. Multiple kernels per
-application (or test fixture) are supported. Many apps still reuse one kernel
-across builder calls for simplicity.
+application (or test fixture) are supported.
 
 ```csharp
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
 
-// Create once and reuse
-var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
-```
-
-For async contexts (ASP.NET, xUnit `IAsyncLifetime`), prefer the async variant:
-
-```csharp
-var kernel = await FluentDockerKernel.Create()
+// Create once and reuse across builder calls
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
+
+The kernel owns its driver instances, so dispose it when the app or fixture shuts down:
+`await using var kernel = ...` for a scoped lifetime, or hold the reference and call
+`await kernel.DisposeAsync()` (sync `Dispose()` is the fallback) on shutdown. A synchronous
+`Build()` wrapper exists for code that cannot be async.
 
 ## Basic Usage
 
 ### Start Services
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml"))
-    .Build();
+    .BuildAsync();
 
-// Services are started during Build() -- no separate Start() call.
+// Services are started during BuildAsync() -- no separate Start() call.
 var compose = results.ComposeServices.First();
 Console.WriteLine($"Project: {compose.ProjectName}");
 ```
@@ -89,24 +89,24 @@ defined in the compose file to report healthy before returning.
 ### Wait for Healthy Services
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait())
-    .Build();
+    .BuildAsync();
 ```
 
 ### Wait with Timeout
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait()
         .WithWaitTimeout(120))  // seconds
-    .Build();
+    .BuildAsync();
 ```
 
 For `--wait` to be effective, define healthchecks in your compose file:
@@ -137,45 +137,47 @@ services:
         condition: service_healthy
 ```
 
-> **Note**: If you need fine-grained wait logic (HTTP polling with custom validation,
-> port probing, etc.) after compose services are up, you can access individual
-> containers from `results.Containers` and use the container-level wait utilities.
+> **Note**: Compose builds return `IComposeService` handles. Use
+> `results.ComposeServices.First().ListServicesAsync()` for service state and published
+> host ports; `BuildResults.Containers` is only for `UseContainer(...)` builds.
 
 ## Project Configuration
 
 ### Custom Project Name
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithProjectName("my-test-project"))
-    .Build();
+    .BuildAsync();
 
 // Containers named: my-test-project-web-1, my-test-project-api-1, etc.
+// Without WithProjectName, compose derives the name from the compose-file directory;
+// FluentDocker then identifies the project via the files, so teardown still works.
 ```
 
 ### Remove Orphans
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveOrphans())  // Remove containers not in compose file
-    .Build();
+    .BuildAsync();
 ```
 
 ### Force Recreate
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithForceRecreate())  // Recreate even if unchanged
-    .Build();
+    .BuildAsync();
 ```
 
 ## Multiple Compose Files
@@ -184,26 +186,26 @@ using var results = new Builder()
 
 ```csharp
 // Base + override pattern
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFiles(
             "docker-compose.yml",
             "docker-compose.override.yml"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Environment-Specific
 
 ```csharp
 // Development environment
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFiles(
             "docker-compose.yml",
             "docker-compose.dev.yml"))
-    .Build();
+    .BuildAsync();
 ```
 
 ```yaml
@@ -216,28 +218,27 @@ services:
       - DEBUG=true
 ```
 
-## Access Containers
+## Access Compose Services
 
-### Get Specific Container
+### Get Services and Published Ports
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait())
-    .Build();
+    .BuildAsync();
 
-// Find by name
-var webContainer = results.Containers
-    .FirstOrDefault(c => c.Name.Contains("web"));
+var compose = results.ComposeServices.First();
+var services = await compose.ListServicesAsync();
 
-var apiContainer = results.Containers
-    .FirstOrDefault(c => c.Name.Contains("api"));
+var web = services.FirstOrDefault(s => s.Name == "web");
+var api = services.FirstOrDefault(s => s.Name == "api");
+Console.WriteLine($"web: {web?.State}, api: {api?.State}");
 
-// Get endpoints
-var webEndpoint = webContainer?.ToHostExposedEndpoint("80/tcp");
-var apiEndpoint = apiContainer?.ToHostExposedEndpoint("8080/tcp");
+var webPort = web?.Publishers.FirstOrDefault(p => p.TargetPort == 80)?.PublishedPort;
+var apiPort = api?.Publishers.FirstOrDefault(p => p.TargetPort == 8080)?.PublishedPort;
 ```
 
 ### Execute Commands
@@ -297,19 +298,18 @@ volumes:
 ### C# Code
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait()
         .WithWaitTimeout(120))
-    .Build();
+    .BuildAsync();
 
-var wpContainer = results.Containers
-    .First(c => c.Name.Contains("wordpress"));
-
-var endpoint = wpContainer.ToHostExposedEndpoint("80/tcp");
-Console.WriteLine($"WordPress: http://localhost:{endpoint.Port}");
+var wordpress = (await results.ComposeServices.First().ListServicesAsync())
+    .First(s => s.Name == "wordpress");
+var port = wordpress.Publishers.First(p => p.TargetPort == 80).PublishedPort;
+Console.WriteLine($"WordPress: http://localhost:{port}");
 ```
 
 ## Kafka with Zookeeper Example
@@ -353,19 +353,18 @@ services:
 ### C# Code
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait()
         .WithWaitTimeout(90))
-    .Build();
+    .BuildAsync();
 
-var kafkaContainer = results.Containers
-    .First(c => c.Name.Contains("kafka"));
-
-var endpoint = kafkaContainer.ToHostExposedEndpoint("9092/tcp");
-var bootstrapServers = $"localhost:{endpoint.Port}";
+var kafka = (await results.ComposeServices.First().ListServicesAsync())
+    .First(s => s.Name == "kafka");
+var port = kafka.Publishers.First(p => p.TargetPort == 9092).PublishedPort;
+var bootstrapServers = $"localhost:{port}";
 
 Console.WriteLine($"Kafka: {bootstrapServers}");
 ```
@@ -394,19 +393,20 @@ services:
 ### C# Code
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithWait()
         .WithWaitTimeout(60))
-    .Build();
+    .BuildAsync();
 
-var rmq = results.Containers.First(c => c.Name.Contains("rabbitmq"));
-var amqp = rmq.ToHostExposedEndpoint("5672/tcp");
-var mgmt = rmq.ToHostExposedEndpoint("15672/tcp");
-Console.WriteLine($"AMQP: amqp://guest:guest@localhost:{amqp.Port}");
-Console.WriteLine($"Management: http://localhost:{mgmt.Port}");
+var rabbit = (await results.ComposeServices.First().ListServicesAsync())
+    .First(s => s.Name == "rabbitmq");
+var amqpPort = rabbit.Publishers.First(p => p.TargetPort == 5672).PublishedPort;
+var mgmtPort = rabbit.Publishers.First(p => p.TargetPort == 15672).PublishedPort;
+Console.WriteLine($"AMQP: localhost:{amqpPort}");
+Console.WriteLine($"Management: http://localhost:{mgmtPort}");
 ```
 
 ## Build Services
@@ -414,12 +414,12 @@ Console.WriteLine($"Management: http://localhost:{mgmt.Port}");
 ### Build Images
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithBuild())  // Build images before starting
-    .Build();
+    .BuildAsync();
 ```
 
 > **Note**: For a no-cache rebuild, run `docker compose build --no-cache` separately
@@ -430,13 +430,13 @@ using var results = new Builder()
 ### Inline Environment
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithEnvironment("DB_PASSWORD", "secret")
         .WithEnvironment("API_KEY", "abc123"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Bulk Environment
@@ -448,23 +448,23 @@ var env = new Dictionary<string, string>
     ["API_KEY"] = "abc123"
 };
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithEnvironment(env))
-    .Build();
+    .BuildAsync();
 ```
 
 ### With .env File
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithEnvFile(".env"))
-    .Build();
+    .BuildAsync();
 ```
 
 ```yaml
@@ -476,7 +476,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 ```
 
-```
+```bash
 # .env file in same directory
 DB_PASSWORD=mysecret
 ```
@@ -484,15 +484,15 @@ DB_PASSWORD=mysecret
 ## Scaling Services
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithScale("worker", 3))  // Run 3 worker instances
-    .Build();
+    .BuildAsync();
 
-var workers = results.Containers
-    .Where(c => c.Name.Contains("worker"))
+var workers = (await results.ComposeServices.First().ListServicesAsync())
+    .Where(s => s.Name == "worker")
     .ToList();
 
 Console.WriteLine($"Workers: {workers.Count}");  // 3
@@ -501,17 +501,19 @@ Console.WriteLine($"Workers: {workers.Count}");  // 3
 ## Cleanup Options
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveVolumes()   // Remove volumes when disposed
         .WithRemoveImages())   // Remove images when disposed
-    .Build();
+    .BuildAsync();
 ```
 
 By default, compose services are torn down on dispose. Use `.WithRemoveVolumes()`
 and `.WithRemoveImages()` to also remove volumes and images during teardown.
+When `.ConnectToExisting()` is used, the returned compose service is borrowed:
+dispose releases local resources only and never runs `docker compose down`.
 
 ## Additional Builder Methods
 
@@ -524,76 +526,74 @@ The compose builder also supports these options:
 ## Profiles
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithProfiles("debug", "monitoring"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Target Specific Services
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .ForServices("web", "api")  // Only start web and api
         .WithNoDeps())              // Skip their dependencies
-    .Build();
+    .BuildAsync();
 ```
 
 ## Integration Tests Example
 
 ```csharp
+using System;
+using System.Linq;
+using System.Net;
+using System.Net.Http.Json;
+using System.Threading.Tasks;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using Xunit;
 public class IntegrationTestBase : IAsyncLifetime
 {
-    private FluentDockerKernel _kernel;
-    protected BuildResults Results { get; private set; }
-    protected string ApiBaseUrl { get; private set; }
-
-    public async ValueTask InitializeAsync()
-    {
-        _kernel = await FluentDockerKernel.Create()
-            .WithDockerCli("docker", d => d.AsDefault())
-            .BuildAsync();
-
-        Results = await new Builder()
-            .WithinDriver("docker", _kernel)
-            .UseCompose(c => c
-                .WithComposeFile("docker-compose.test.yml")
-                .WithRemoveOrphans()
-                .WithWait()
-                .WithWaitTimeout(60))
-            .BuildAsync();
-
-        var apiContainer = Results.Containers
-            .First(c => c.Name.Contains("api"));
-        var endpoint = apiContainer.ToHostExposedEndpoint("8080/tcp");
-        ApiBaseUrl = $"http://localhost:{endpoint.Port}";
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (Results is IAsyncDisposable ad) await ad.DisposeAsync();
-        if (_kernel is IAsyncDisposable kd) await kd.DisposeAsync();
-    }
+  private FluentDockerKernel _kernel = null!;
+  protected BuildResults Results { get; private set; } = null!;
+  protected string ApiBaseUrl { get; private set; } = "";
+  public async ValueTask InitializeAsync()
+  {
+    _kernel = await FluentDockerKernel.Create()
+      .WithDockerCli("docker", d => d.AsDefault())
+      .BuildAsync();
+    Results = await new Builder()
+      .WithinDriver("docker", _kernel)
+      .UseCompose(c => c
+        .WithComposeFile("docker-compose.test.yml")
+        .WithRemoveOrphans()
+        .WithWait()
+        .WithWaitTimeout(60))
+      .BuildAsync();
+    var api = (await Results.ComposeServices.First().ListServicesAsync())
+      .First(s => s.Name == "api");
+    var port = api.Publishers.First(p => p.TargetPort == 8080).PublishedPort;
+    ApiBaseUrl = $"http://localhost:{port}";
+  }
+  public async ValueTask DisposeAsync()
+  {
+    await Results.DisposeAsync();
+    await _kernel.DisposeAsync();
+  }
 }
-
 public class UserApiTests : IntegrationTestBase
 {
-    [Fact]
-    public async Task CreateUser_ReturnsCreated()
-    {
-        var client = new HttpClient { BaseAddress = new Uri(ApiBaseUrl) };
-        var response = await client.PostAsJsonAsync("/users", new { name = "Test" });
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-    }
+  [Fact]
+  public async Task CreateUser_ReturnsCreated()
+  {
+    var client = new System.Net.Http.HttpClient { BaseAddress = new Uri(ApiBaseUrl) };
+    var response = await client.PostAsJsonAsync("/users", new { name = "Test" });
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+  }
 }
 ```
-
-## Next Steps
-- [Containers](containers.html) - Individual container management
-- [Networking](networking.html) - Custom networks
-- [Volumes](volumes.html) - Data persistence

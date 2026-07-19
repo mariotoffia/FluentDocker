@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using System.Collections.Generic;
 using FluentDocker.Common;
@@ -161,9 +162,23 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     // ──────────────────────────────────────────────
-    //  ToEntires tests (note: misspelled in source)
+    //  ToEntires tests (obsolete misspelling) and ToEntries tests
     // ──────────────────────────────────────────────
 
+    [Fact]
+    public void ToEntries_MultipleLines_SplitsCorrectly()
+    {
+      var log = "first\nsecond\r\nthird";
+
+      var result = log.ToEntries();
+
+      Assert.Equal(3, result.Length);
+      Assert.Equal("first", result[0]);
+      Assert.Equal("second", result[1]);
+      Assert.Equal("third", result[2]);
+    }
+
+#pragma warning disable CS0618
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -192,5 +207,7 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.Equal("second", result[1]);
       Assert.Equal("third", result[2]);
     }
+#pragma warning restore CS0618
   }
 }
+#pragma warning restore CS0618

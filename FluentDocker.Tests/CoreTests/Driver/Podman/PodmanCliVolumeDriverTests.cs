@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Model.Volumes;
 using Xunit;
@@ -49,7 +50,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseVolumeList_NullString_ReturnsEmpty()
     {
-      var result = InvokeParseVolumeList(null);
+      var result = InvokeParseVolumeList(null!);
       Assert.Empty(result);
     }
 
@@ -73,10 +74,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseVolumeInspect_InvalidJson_ReturnsEmptyVolume()
+    public void ParseVolumeInspect_InvalidJson_Throws()
     {
-      var result = InvokeParseVolumeInspect("not json");
-      Assert.NotNull(result);
+      // FIX-7: unparseable non-empty volume output must fail with diagnostics.
+      var ex = Assert.Throws<TargetInvocationException>(() => InvokeParseVolumeInspect("not json"));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
     }
 
     [Fact]
@@ -134,7 +136,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseVolumeList",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<Volume>)method.Invoke(null, [json]);
+      return (IList<Volume>)method.Invoke(null, [json])!;
     }
 
     private static Volume InvokeParseVolumeInspect(string json)
@@ -143,7 +145,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseVolumeInspect",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (Volume)method.Invoke(null, [json]);
+      return (Volume)method.Invoke(null, [json])!;
     }
 
     #endregion

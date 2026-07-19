@@ -7,11 +7,15 @@ namespace FluentDocker.Drivers
 {
   /// <summary>
   /// A driver pack is a composite driver that contains multiple individual driver implementations.
-  /// It allows grouping of related driver implementations under a single registered entity
-  /// and provides SysCtl-style resolution of driver interfaces.
-  /// Also acts as a <see cref="IDriverInterfaceResolver"/> for runtime interface discovery.
+  /// It allows grouping of related driver implementations under a single registered entity and
+  /// resolves driver interfaces through <see cref="IDriverInterfaceResolver"/> (a driverId-free,
+  /// type-based lookup) — the kernel owns the driverId → pack mapping, so a pack never needs the
+  /// driverId-based <c>ISysCtl</c> contract.
+  /// Driver packs populate their interface map during <see cref="InitializeAsync"/> and must not
+  /// mutate it after initialization completes; registry resolution reads are intentionally unlocked.
   /// </summary>
-  public interface IDriverPack : ISysCtl, IDriverInterfaceResolver
+  /// <remarks>Implementations must throw <see cref="System.ObjectDisposedException"/> for operations invoked after disposal.</remarks>
+  public interface IDriverPack : IDriverInterfaceResolver
   {
     /// <summary>
     /// Gets the driver type (DockerCli, DockerApi, PodmanCli, etc.).
@@ -45,4 +49,3 @@ namespace FluentDocker.Drivers
     Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default);
   }
 }
-

@@ -9,6 +9,10 @@ has_children: true
 
 FluentDocker v3 provides test support via the Testing.Core framework:
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
 - Basics: [Testing.Core (Recommended)](#testingcore-recommended), [Quick Examples](#quick-examples)
@@ -29,38 +33,16 @@ dotnet add package FluentDocker.Testing.MsTest     # MSTest adapter
 dotnet add package FluentDocker.Testing.NUnit      # NUnit adapter
 ```
 
+> **xUnit adapter is v3 only.** `FluentDocker.Testing.Xunit` targets xUnit v3 and
+> is not compatible with xUnit v2 (`xunit` 2.x) projects.
+
 ## Quick Examples
 
-### xUnit — Per-Test (Test Base)
+### xUnit — Recommended Fixture Base
 
-Inherit from `XunitContainerTestBase`. xUnit calls `InitializeAsync` and
-`DisposeAsync` automatically for each test:
-
-```csharp
-using FluentDocker.Testing.Xunit;
-
-public class RedisTests : XunitContainerTestBase
-{
-    protected override void ConfigureContainer(IContainerBuilder b) =>
-        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
-
-    [Fact]
-    public async Task Redis_IsRunning()
-    {
-        var info = await Resource.InspectAsync();
-        Assert.True(info.State.Running);
-    }
-}
-```
-
-### xUnit — Shared Fixture (Fixture Base)
-
-Inherit from `XunitContainerFixtureBase`. xUnit calls `InitializeAsync`
-once and shares the fixture across tests in the class:
+Use `XunitContainerFixtureBase` with `IClassFixture<T>` for integration suites:
 
 ```csharp
-using FluentDocker.Testing.Xunit;
-
 public class RedisFixture : XunitContainerFixtureBase
 {
     protected override void ConfigureContainer(IContainerBuilder b) =>
@@ -81,36 +63,40 @@ public class RedisTests : IClassFixture<RedisFixture>
 }
 ```
 
+### xUnit — Per-Test Base
+
+Use `XunitContainerTestBase` only when each test method needs a fresh container:
+
+```csharp
+using FluentDocker.Testing.Xunit;
+
+public class IsolatedRedisTests : XunitContainerTestBase
+{
+    protected override void ConfigureContainer(IContainerBuilder b) =>
+        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
+
+    [Fact]
+    public async Task Redis_IsRunning()
+    {
+        var info = await Resource.InspectAsync();
+        Assert.True(info.State.Running);
+    }
+}
+```
+
 ### MSTest
 
 ```csharp
-using FluentDocker.Testing.MsTest;
-
 [TestClass]
-public class RedisTests
+public class RedisTests : MsTestPerTestContainerFixtureBase
 {
-    private static FluentDockerKernel _kernel;
-    private static ContainerResource _resource;
-
-    [ClassInitialize]
-    public static async Task ClassInit(TestContext context)
-    {
-        (_kernel, _resource) = await MsTestResourceHelpers.CreateContainerAsync(
-            builder => builder
-                .UseImage("redis:alpine")
-                .WaitForPort("6379/tcp"));
-    }
-
-    [ClassCleanup]
-    public static async Task ClassCleanup()
-    {
-        await MsTestResourceHelpers.DisposeAsync(_resource, _kernel);
-    }
+    protected override void ConfigureContainer(IContainerBuilder b) =>
+        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
 
     [TestMethod]
     public async Task Redis_IsRunning()
     {
-        var info = await _resource.InspectAsync();
+        var info = await Container.InspectAsync();
         Assert.IsTrue(info.State.Running);
     }
 }
@@ -119,55 +105,77 @@ public class RedisTests
 ### NUnit
 
 ```csharp
-using FluentDocker.Testing.NUnit;
-
 [TestFixture]
-public class RedisTests
+public class RedisTests : NUnitContainerFixtureBase
 {
-    private FluentDockerKernel _kernel;
-    private ContainerResource _resource;
-
-    [OneTimeSetUp]
-    public async Task Setup()
-    {
-        (_kernel, _resource) = await NUnitResourceHelpers.CreateContainerAsync(
-            builder => builder
-                .UseImage("redis:alpine")
-                .WaitForPort("6379/tcp"));
-    }
-
-    [OneTimeTearDown]
-    public async Task Teardown()
-    {
-        await NUnitResourceHelpers.DisposeAsync(_resource, _kernel);
-    }
+    protected override void ConfigureContainer(IContainerBuilder b) =>
+        b.UseImage("redis:alpine").WaitForPort("6379/tcp");
 
     [Test]
     public async Task Redis_IsRunning()
     {
-        var info = await _resource.InspectAsync();
+        var info = await Container.InspectAsync();
         Assert.That(info.State.Running, Is.True);
     }
 }
 ```
 
+### Fixture lifetime comparison
+
+| Adapter/base | Container lifetime |
+|---|---|
+| `XunitContainerTestBase` | One container per test method |
+| `XunitContainerFixtureBase` | One container per xUnit class/collection fixture |
+| `MsTestPerTestContainerFixtureBase` | One container per MSTest test method |
+| `MsTestClassContainerFixtureBase<TFixture>` | One container shared by one MSTest test class |
+| `NUnitContainerFixtureBase` | One container per NUnit fixture |
+
+### Adapter parity
+
+| Adapter | Fixture surface | Minimum runner |
+|---|---|---|
+| xUnit | Per-test base, class/collection fixture base, conditional fixture, and concrete resource fixtures | xUnit v3 |
+| MSTest | Per-test base, class-level CRTP base, and helpers | MSTest 3.x |
+| NUnit | One fixture base plus static helpers | NUnit 4.3.2+ |
+
+### Skip when Docker is unavailable
+
+Every `ITestResource` runs a runtime-health preflight before it provisions: if the runtime
+is down, initialization throws `ResourceInitializationException` whose `InnerException` is a
+`FluentDockerUnavailableException` (`FluentDocker.Common`) instead of a raw mid-provision
+error — catch it with
+`catch (ResourceInitializationException ex) when (ex.InnerException is FluentDockerUnavailableException)`.
+To skip rather than fail, probe first with
+`DockerAvailability.IsAvailableAsync(...)` (or `XunitContainerFixtureBase.IsDockerAvailableAsync`)
+and gate the test body — xUnit's `SkipWhenUnavailable` was removed because a fixture cannot
+skip from initialization. The [`XunitConditionalContainerFixtureBase`](testing/skip-when-unavailable.md#built-in-conditional-fixture)
+(the "conditional fixture" in the parity table above) packages this into an `IClassFixture<T>`
+that exposes `IsSkipped`/`SkipReason`. See [Skip when Docker is unavailable](testing/skip-when-unavailable.md)
+for the full recipe. MSTest and NUnit fixtures still mark the test inconclusive/ignored via
+their `SkipWhenUnavailable` option.
+
 ## Detailed Documentation
 
 | Topic | Description |
 |---|---|
-| [Core Types](testing/core.html) | Resource types, options, diagnostics, hooks, wait strategies |
-| [xUnit Adapter](testing/xunit.html) | Test bases, fixture bases, concrete fixtures |
-| [MSTest Adapter](testing/mstest.html) | Helper methods for all resource types |
-| [NUnit Adapter](testing/nunit.html) | Helper methods for all resource types |
-| [Plugins](testing/plugins.html) | Extending resources with custom plugins |
-| [Migration from Legacy](testing/migration-from-legacy.html) | Side-by-side migration examples |
+| [Core Types](testing/core.md) | Resource types, options, diagnostics, hooks, wait strategies |
+| [xUnit Adapter](testing/xunit.md) | Test bases, fixture bases, concrete fixtures |
+| [MSTest Adapter](testing/mstest.md) | Helper methods for all resource types |
+| [NUnit Adapter](testing/nunit.md) | Helper methods for all resource types |
+| [Docker Model Runner](testing/model.md) | Testing Docker Model Runner |
+| [Migration from Legacy](testing/migration-from-legacy.md) | Side-by-side migration examples |
+| [ADR 0001](adr/0001-testing-core-in-fluentdocker-package.md) | Why Testing.Core remains in the main package during preview |
 
 ## Running by Category
 
-Tests use `[Trait("Category", "...")]` attributes (`make test` runs Unit,
-`make test-integration` runs all, `dotnet test --filter "Category=X"` for a
-single category). See [Test Categories & Run Guide](test-categories.html) for
-the full reference.
+Tests use `[Trait("Category", "...")]` attributes. `make test` runs Unit;
+`make test-integration` runs only `Integration` and `PodmanIntegration`;
+use `dotnet test --filter "Category=X"` for one category. See
+[Test Categories & Run Guide](testing/test-categories.md) for the full reference.
+
+Use `make check` as the pre-push gate. It runs formatting, unit tests, adapter
+runner tests through `make test-runners`, and coverage. Runner tests stay out of
+coverage because they execute real MSTest/NUnit runners.
 
 ---
 
@@ -207,7 +215,7 @@ public class NginxTests : IAsyncLifetime
     public async Task Nginx_AcceptsConnections()
     {
         var container = _results.Containers.First();
-        var endpoint = container.ToHostExposedEndpoint("80/tcp");
+        var endpoint = await container.ToHostExposedEndpointAsync("80/tcp");
         using var client = new HttpClient();
         var response = await client.GetStringAsync(
             $"http://localhost:{endpoint.Port}");
@@ -218,5 +226,5 @@ public class NginxTests : IAsyncLifetime
 
 ## Next Steps
 
-[Core Types](testing/core.html) -- [Utilities](utilities.html) --
-[Containers](containers.html) -- [Docker Compose](compose.html)
+[Core Types](testing/core.md) -- [Utilities](utilities.md) --
+[Containers](containers.md) -- [Docker Compose](compose.md)

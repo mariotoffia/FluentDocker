@@ -6,6 +6,10 @@ gem "just-the-docs", "~> 0.8"
 group :jekyll_plugins do
   gem "jekyll-remote-theme"
   gem "jekyll-seo-tag"
+  # Rewrites relative .md links to their rendered .html permalinks so the
+  # xmldocmd-generated API reference (4000+ pages of ](Type.md) cross-links)
+  # is click-through browsable, not just search-reachable.
+  gem "jekyll-relative-links"
 end
 
 # Windows and JRuby does not include zoneinfo files

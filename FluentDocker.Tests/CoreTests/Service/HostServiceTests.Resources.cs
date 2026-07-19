@@ -218,7 +218,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task CreateVolumeAsync_WithLabelsAndOptions_PassesConfig()
     {
-      VolumeCreateConfig capturedConfig = null;
+      VolumeCreateConfig? capturedConfig = null;
       var mockPack = new MockDriverPack();
       mockPack.VolumeDriver
           .Setup(d => d.CreateAsync(
@@ -349,10 +349,10 @@ namespace FluentDocker.Tests.CoreTests.Service
         var service = new HostService(kernel, "docker", "test-host");
         var caps = (IServiceCapabilities)service;
 
-        Assert.True(caps.CanStart);
-        Assert.True(caps.CanStop);
+        Assert.False(caps.CanStart);
+        Assert.False(caps.CanStop);
         Assert.False(caps.CanPause);
-        Assert.True(caps.CanRemove);
+        Assert.False(caps.CanRemove);
       }
       finally { kernel.Dispose(); }
     }
@@ -396,7 +396,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task GetRunningContainersAsync_CallsGetContainersWithAllFalse()
     {
-      ContainerListFilter capturedFilter = null;
+      ContainerListFilter? capturedFilter = null;
       var mockPack = new MockDriverPack();
       mockPack.ContainerDriver
           .Setup(d => d.ListAsync(
@@ -450,7 +450,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     [Fact]
     public async Task GetContainersAsync_WithFilters_PassesLabels()
     {
-      ContainerListFilter capturedFilter = null;
+      ContainerListFilter? capturedFilter = null;
       var mockPack = new MockDriverPack();
       mockPack.ContainerDriver
           .Setup(d => d.ListAsync(

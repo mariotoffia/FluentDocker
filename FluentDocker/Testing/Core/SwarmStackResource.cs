@@ -17,6 +17,11 @@ namespace FluentDocker.Testing.Core
   public class SwarmStackResource : ResourceBase
   {
     private readonly StackDeployConfig _config;
+    private static readonly Action<ILogger, Exception?> MissingSessionLabels =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, nameof(MissingSessionLabels)),
+            "Swarm stack resources cannot apply FluentDocker session labels automatically; the stack name is session-scoped by default to avoid parallel-run collisions. Set DockerResourceOptions.EnableSessionLabels=false to keep the exact name, then ensure uniqueness yourself and run stack-specific cleanup for leaks.");
 
     /// <summary>
     /// Creates a swarm stack resource.
@@ -27,24 +32,35 @@ namespace FluentDocker.Testing.Core
     public SwarmStackResource(
         FluentDockerKernel kernel,
         StackDeployConfig config,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(config);
       _config = config;
       if (string.IsNullOrWhiteSpace(config.StackName))
         throw new ArgumentException("StackName must not be null or empty.", nameof(config));
+
+      // Swarm stacks cannot carry session labels, so two parallel jobs deploying the same
+      // caller-fixed StackName would collide and tear down each other's live stack. Session-scope
+      // the name by default; opt out with DockerResourceOptions.EnableSessionLabels=false.
+      // The scoped name is captured privately — the caller's config is NEVER mutated, so a
+      // shared/static config cannot be double-scoped by fixture re-init or a second resource.
+      _stackName = Options.EnableSessionLabels
+          ? SessionScopedName(config.StackName, Options.SessionId)
+          : config.StackName;
     }
+
+    private readonly string _stackName;
 
     /// <summary>
     /// The stack name used for deployment.
     /// </summary>
-    public string StackName => _config.StackName;
+    public string StackName => _stackName;
 
     /// <summary>
     /// The deployment result, available after initialization.
     /// </summary>
-    public StackDeployResult DeployResult { get; private set; }
+    public StackDeployResult? DeployResult { get; private set; }
 
     /// <summary>
     /// Lists services in the deployed stack.
@@ -59,7 +75,7 @@ namespace FluentDocker.Testing.Core
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to list services for stack '{StackName}': {result.Error}");
-      return result.Data;
+      return result.Data!;
     }
 
     /// <summary>
@@ -75,7 +91,7 @@ namespace FluentDocker.Testing.Core
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to list tasks for stack '{StackName}': {result.Error}");
-      return result.Data;
+      return result.Data!;
     }
 
     #region ResourceBase overrides
@@ -94,21 +110,35 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
+      if (Options.EnableSessionLabels)
+        MissingSessionLabels(Logger, null);
+
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
 
-      var result = await driver.DeployAsync(context, _config, cancellationToken).ConfigureAwait(false);
+      var result = await driver.DeployAsync(
+          context, CloneConfigWithScopedName(), cancellationToken).ConfigureAwait(false);
       if (!result.Success)
       {
         throw new FluentDockerException(
-            $"Stack deploy failed for '{_config.StackName}': {result.Error}");
+            $"Stack deploy failed for '{_stackName}': {result.Error}");
       }
 
-      DeployResult = result.Data
+      var deployResult = result.Data
           ?? throw new FluentDockerException(
-              $"Stack deploy for '{_config.StackName}' returned Success " +
+              $"Stack deploy for '{_stackName}' returned Success " +
               "but no result payload.");
-      ResourceName = _config.StackName;
+      if (TryCommitProvision(generation, () =>
+      {
+        DeployResult = deployResult;
+        ResourceName = _stackName;
+      }))
+      {
+        return;
+      }
+
+      await RemoveStaleStackAsync(driver, context, generation).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -117,40 +147,82 @@ namespace FluentDocker.Testing.Core
       var driver = Kernel.SysCtl<IStackDriver>(DriverId);
       var context = new DriverContext(DriverId);
       var result = await driver.RemoveAsync(
-          context, [_config.StackName], cancellationToken).ConfigureAwait(false);
+          context, [_stackName], cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         throw new FluentDockerException(
-            $"Failed to remove stack '{_config.StackName}': {result.Error}");
+            $"Failed to remove stack '{_stackName}': {result.Error}");
       DeployResult = null;
     }
 
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
-      try
-      {
-        var driver = Kernel.SysCtl<IStackDriver>(DriverId);
-        var context = new DriverContext(DriverId);
-        await driver.RemoveAsync(
-            context, [_config.StackName], cancellationToken).ConfigureAwait(false);
-      }
-      catch (Exception ex)
-      {
-        Logger.LogWarning(ex, "SwarmStack teardown failed");
-      }
-      finally
+      var driver = Kernel.SysCtl<IStackDriver>(DriverId);
+      var context = new DriverContext(DriverId);
+      var result = await driver.RemoveAsync(
+          context, [_stackName], cancellationToken).ConfigureAwait(false);
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Stack.NotFound)
       {
         DeployResult = null;
+        return;
       }
+
+      throw new DriverException(
+          $"Failed to force-remove stack '{_stackName}': {result.Error}",
+          result.ErrorCode!,
+          result.ErrorContext);
     }
 
     #endregion
+
+    /// <summary>
+    /// Snapshots the caller's config with the session-scoped stack name for deployment.
+    /// The caller-owned instance is never mutated (a shared/static config stays intact);
+    /// list/dictionary fields are copied so the deploy sees a stable snapshot.
+    /// </summary>
+    private StackDeployConfig CloneConfigWithScopedName() => new()
+    {
+      StackName = _stackName,
+      ComposeFiles = _config.ComposeFiles is null ? [] : [.. _config.ComposeFiles],
+      Orchestrator = _config.Orchestrator,
+      Namespace = _config.Namespace,
+      KubeConfig = _config.KubeConfig,
+      Prune = _config.Prune,
+      WithRegistryAuth = _config.WithRegistryAuth,
+      ResolveImage = _config.ResolveImage,
+      Environment = _config.Environment is null
+          ? new Dictionary<string, string>()
+          : new Dictionary<string, string>(_config.Environment)
+    };
 
     private void EnsureInitialized()
     {
       if (!IsInitialized)
         throw new InvalidOperationException(
             "SwarmStack resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleStackAsync(
+        IStackDriver driver,
+        DriverContext context,
+        int generation)
+    {
+      if (!ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = driver.RemoveAsync(context, [_stackName], cts.Token);
+        var result = await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && result.ErrorCode != ErrorCodes.Stack.NotFound)
+          OrphanCleanup.MarkAbandonedLateProvision(_stackName, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(_stackName, Options.SessionId);
+      }
     }
   }
 }

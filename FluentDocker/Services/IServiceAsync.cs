@@ -9,12 +9,25 @@ namespace FluentDocker.Services
   /// Async service interface with kernel/driver architecture.
   /// This is the root service interface for all FluentDocker services.
   /// </summary>
+  /// <remarks>
+  /// Built-in services make disposal idempotent, use concurrent hook registration, and raise
+  /// <see cref="StateChange"/> only when the state actually changes. State-change handlers and
+  /// hooks are isolated from lifecycle operations: thrown exceptions are logged and swallowed.
+  /// Handlers run <em>after</em> the internal state lock is released (so a handler may safely
+  /// re-enter lifecycle operations); consequently, under concurrent transitions handler delivery
+  /// order is not guaranteed. Services that implement <see cref="IServiceCapabilities"/> expose
+  /// which lifecycle operations are meaningful for their resource type.
+  /// </remarks>
   public interface IServiceAsync : IDisposable, IAsyncDisposable
   {
     /// <summary>Name or identifier of the service.</summary>
     string Name { get; }
 
-    /// <summary>Current running state of the service.</summary>
+    /// <summary>Current client-side running state of the service.</summary>
+    /// <remarks>
+    /// This value is updated by this service instance and may drift when the daemon changes the
+    /// resource externally. Use inspect/configuration APIs for authoritative container state.
+    /// </remarks>
     ServiceRunningState State { get; }
 
     /// <summary>
@@ -48,9 +61,14 @@ namespace FluentDocker.Services
     Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adds a state change hook.
+    /// Adds a state change hook and returns the service for fluent chaining.
     /// </summary>
-    IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null);
+    /// <remarks>
+    /// Pass <paramref name="uniqueName"/> when the hook must be removable. If you want a generated
+    /// removable name, use <see cref="ServiceHookExtensions.AddHookWithGeneratedName"/>.
+    /// Hooks registered for the same state run in an unspecified order.
+    /// </remarks>
+    IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null);
 
     /// <summary>
     /// Removes a hook by name.

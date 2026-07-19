@@ -1,5 +1,7 @@
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Cli.Components;
+using FluentDocker.Model.Drivers;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Docker
@@ -13,7 +15,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new ImageBuildConfig { BuildContext = "/src" };
       var result = DockerCliImageDriver.BuildBuildArgs(config, "/tmp/iid.txt");
 
-      Assert.Contains("--iidfile \"/tmp/iid.txt\"", result);
+      Assert.Contains("--iidfile /tmp/iid.txt", result);
       Assert.StartsWith("build ", result);
       Assert.EndsWith(" /src", result);
     }
@@ -22,7 +24,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void BuildBuildArgs_NullIidPath_OmitsIidFile()
     {
       var config = new ImageBuildConfig { BuildContext = "." };
-      var result = DockerCliImageDriver.BuildBuildArgs(config, null);
+      var result = DockerCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--iidfile", result);
     }
@@ -49,7 +51,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       Assert.Contains("--tag myimage:latest", result);
       Assert.Contains("--tag myimage:v1.0", result);
-      Assert.Contains("--iidfile \"/tmp/iid\"", result);
+      Assert.Contains("--iidfile /tmp/iid", result);
     }
 
     [Fact]
@@ -82,14 +84,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Contains("--force-rm", result);
       Assert.Contains("--platform linux/amd64", result);
       Assert.Contains("--network host", result);
-      Assert.Contains("--iidfile \"/tmp/iid\"", result);
+      Assert.Contains("--iidfile /tmp/iid", result);
       Assert.EndsWith(" /ctx", result);
     }
 
     [Fact]
     public void BuildBuildArgs_NullBuildContext_DefaultsToDot()
     {
-      var config = new ImageBuildConfig { BuildContext = null };
+      var config = new ImageBuildConfig { BuildContext = null! };
       var result = DockerCliImageDriver.BuildBuildArgs(config, "/tmp/iid");
 
       Assert.EndsWith(" .", result);
@@ -101,9 +103,19 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var config = new ImageBuildConfig { BuildContext = "/src" };
       var result = DockerCliImageDriver.BuildBuildArgs(config, "/tmp/iid");
 
-      var iidPos = result.IndexOf("--iidfile");
-      var ctxPos = result.LastIndexOf("/src");
+      var iidPos = result.IndexOf("--iidfile", StringComparison.Ordinal);
+      var ctxPos = result.LastIndexOf("/src", StringComparison.Ordinal);
       Assert.True(iidPos < ctxPos, "--iidfile should appear before the build context");
+    }
+
+    [Fact]
+    public void BuildBuildArgs_RejectsLeadingDashContext()
+    {
+      var ex = Assert.Throws<DriverException>(() =>
+          DockerCliImageDriver.BuildBuildArgs(new ImageBuildConfig { BuildContext = "--help" }, ".out/iid"));
+
+      Assert.Equal(ErrorCodes.General.InvalidArgument, ex.ErrorCode);
+      Assert.Contains(nameof(ImageBuildConfig.BuildContext), ex.Message);
     }
   }
 }

@@ -25,7 +25,7 @@ namespace FluentDocker.Testing.Core
     public NetworkResource(
         FluentDockerKernel kernel,
         Action<NetworkCreateConfig> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -35,7 +35,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The network ID, available after initialization.
     /// </summary>
-    public string NetworkId { get; private set; }
+    public string? NetworkId { get; private set; }
 
     /// <summary>
     /// The network name used during creation.
@@ -45,12 +45,12 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Inspects the network.
     /// </summary>
-    public async Task<Network> InspectAsync(CancellationToken cancellationToken = default)
+    public async Task<Network?> InspectAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
       var result = await driver.InspectAsync(
-          new DriverContext(DriverId), NetworkId, cancellationToken).ConfigureAwait(false);
+          new DriverContext(DriverId), NetworkId!, cancellationToken).ConfigureAwait(false);
       return result.Success ? result.Data : null;
     }
 
@@ -65,9 +65,11 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var config = new NetworkCreateConfig();
       _configure(config);
 
+      var callerName = !string.IsNullOrEmpty(config.Name);
       if (string.IsNullOrEmpty(config.Name))
         config.Name = GenerateUniqueName("net");
 
@@ -77,8 +79,6 @@ namespace FluentDocker.Testing.Core
           config.Labels[label.Key] = label.Value;
       }
 
-      ResourceName = config.Name;
-
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
       var result = await driver.CreateAsync(
           new DriverContext(DriverId), config, cancellationToken).ConfigureAwait(false);
@@ -87,7 +87,17 @@ namespace FluentDocker.Testing.Core
         throw new FluentDockerException(
             $"Failed to create network '{config.Name}': {result.Error}");
 
-      NetworkId = result.Data.Id;
+      var networkId = result.Data!.Id!;
+      if (TryCommitProvision(generation, () =>
+      {
+        ResourceName = config.Name;
+        NetworkId = networkId;
+      }))
+      {
+        return;
+      }
+
+      await RemoveStaleNetworkAsync(driver, networkId, generation, callerName).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -97,25 +107,43 @@ namespace FluentDocker.Testing.Core
         return;
 
       var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
-      await driver.RemoveAsync(
+      var result = await driver.RemoveAsync(
           new DriverContext(DriverId), NetworkId, cancellationToken).ConfigureAwait(false);
-      NetworkId = null;
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Network.NotFound)
+      {
+        NetworkId = null;
+        return;
+      }
+
+      // Genuine failure: keep NetworkId so DisposeAsync can engage ForceRemoveAsync.
+      throw new DriverException(
+          $"Failed to remove network '{NetworkId}': {result.Error}",
+          result.ErrorCode!,
+          result.ErrorContext);
     }
 
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
       var id = NetworkId;
-      NetworkId = null;
       if (string.IsNullOrEmpty(id))
         return;
 
-      try
+      var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
+      var result = await driver.RemoveAsync(
+          new DriverContext(DriverId), id, cancellationToken).ConfigureAwait(false);
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Network.NotFound)
       {
-        var driver = Kernel.SysCtl<INetworkDriver>(DriverId);
-        await driver.RemoveAsync(new DriverContext(DriverId), id, cancellationToken).ConfigureAwait(false);
+        NetworkId = null;
+        return;
       }
-      catch { /* best effort */ }
+
+      throw new DriverException(
+          $"Failed to force-remove network '{id}': {result.Error}",
+          result.ErrorCode!,
+          result.ErrorContext);
     }
 
     #endregion
@@ -125,6 +153,30 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized || string.IsNullOrEmpty(NetworkId))
         throw new InvalidOperationException(
             "Network resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleNetworkAsync(
+        INetworkDriver driver,
+        string networkId,
+        int generation,
+        bool callerName)
+    {
+      if (callerName && !ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = driver.RemoveAsync(
+            new DriverContext(DriverId), networkId, cts.Token);
+        var result = await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && result.ErrorCode != ErrorCodes.Network.NotFound)
+          OrphanCleanup.MarkAbandonedLateProvision(networkId, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(networkId, Options.SessionId);
+      }
     }
   }
 }

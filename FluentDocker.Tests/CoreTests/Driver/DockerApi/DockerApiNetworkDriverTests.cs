@@ -105,6 +105,28 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task InspectAsync_WithContainers_ReturnsParsedContainers()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/networks/net789", 200,
+          @"{""Id"":""net789"",""Name"":""custom-net"",""Containers"":{"
+          + @"""aabbcc"":{""Name"":""web"",""EndpointID"":""endpoint-1"","
+          + @"""MacAddress"":""02:42:ac:11:00:02"",""IPv4Address"":""172.17.0.2/16"","
+          + @"""IPv6Address"":""""}}}");
+
+      var result = await driver.InspectAsync(Ctx, "net789", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      var container = Assert.Single(result.Data.Containers);
+      Assert.Equal("aabbcc", container.Key);
+      Assert.Equal("web", container.Value.Name);
+      Assert.Equal("endpoint-1", container.Value.EndpointID);
+      Assert.Equal("02:42:ac:11:00:02", container.Value.MacAddress);
+      Assert.Equal("172.17.0.2/16", container.Value.IPv4Address);
+      Assert.Equal("", container.Value.IPv6Address);
+    }
+
+    [Fact]
     public async Task InspectAsync_404_ReturnsNotFoundError()
     {
       var (driver, mock) = CreateDriver();

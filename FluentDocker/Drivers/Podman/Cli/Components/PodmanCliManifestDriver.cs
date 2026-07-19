@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -18,6 +18,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// </summary>
   public class PodmanCliManifestDriver : PodmanCliDriverBase, IPodmanManifestDriver
   {
+    /// <summary>Creates a new instance with the specified binary resolver.</summary>
     public PodmanCliManifestDriver(IPodmanBinaryResolver binaryResolver)
         : base(binaryResolver) { }
 
@@ -35,20 +36,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildCreateArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Manifest create failed",
-              ErrorCodes.Manifest.CreateFailed, result.ExitCode);
+              ErrorOrDefault(result, "Manifest create failed"),
+              FailureCode(result.Error, ErrorCodes.Manifest.CreateFailed),
+              CreateErrorContext(context, "CreateManifest", result), result.ExitCode);
 
-        return CommandResponse<string>.Ok(result.Output?.TrimEnd());
+        return CommandResponse<string>.Ok(result.Output?.TrimEnd() ?? string.Empty);
       }
       catch (ArgumentException) { throw; }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
-            ex.Message, ErrorCodes.Manifest.CreateFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.CreateFailed));
       }
     }
 
@@ -63,20 +69,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"manifest rm {listName}", cancellationToken);
+            context,
+            $"manifest rm {QuotePositionalArgument(listName, nameof(listName))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Manifest remove failed",
-              ErrorCodes.Manifest.RemoveFailed, result.ExitCode);
+              ErrorOrDefault(result, "Manifest remove failed"),
+              FailureCode(result.Error, ErrorCodes.Manifest.RemoveFailed),
+              CreateErrorContext(context, "RemoveManifest", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
       catch (ArgumentException) { throw; }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(
-            ex.Message, ErrorCodes.Manifest.RemoveFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.RemoveFailed));
       }
     }
 
@@ -98,20 +110,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildAddArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Manifest add failed",
-              ErrorCodes.Manifest.AddFailed, result.ExitCode);
+              ErrorOrDefault(result, "Manifest add failed"),
+              FailureCode(result.Error, ErrorCodes.Manifest.AddFailed),
+              CreateErrorContext(context, "AddManifest", result), result.ExitCode);
 
-        return CommandResponse<string>.Ok(result.Output?.TrimEnd());
+        return CommandResponse<string>.Ok(result.Output?.TrimEnd() ?? string.Empty);
       }
       catch (ArgumentException) { throw; }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
-            ex.Message, ErrorCodes.Manifest.AddFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.AddFailed));
       }
     }
 
@@ -129,20 +146,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildAnnotateArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Manifest annotate failed",
-              ErrorCodes.Manifest.AnnotateFailed, result.ExitCode);
+              ErrorOrDefault(result, "Manifest annotate failed"),
+              FailureCode(result.Error, ErrorCodes.Manifest.AnnotateFailed),
+              CreateErrorContext(context, "AnnotateManifest", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
       catch (ArgumentException) { throw; }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(
-            ex.Message, ErrorCodes.Manifest.AnnotateFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.AnnotateFailed));
       }
     }
 
@@ -164,20 +186,25 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var args = BuildPushArgs(config);
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Manifest push failed",
-              ErrorCodes.Manifest.PushFailed, result.ExitCode);
+              ErrorOrDefault(result, "Manifest push failed"),
+              FailureCode(result.Error, ErrorCodes.Manifest.PushFailed),
+              CreateErrorContext(context, "PushManifest", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
       catch (ArgumentException) { throw; }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<Unit>.Fail(
-            ex.Message, ErrorCodes.Manifest.PushFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.PushFailed));
       }
     }
 
@@ -196,21 +223,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"manifest inspect {listName}", cancellationToken);
+            context,
+            $"manifest inspect {QuotePositionalArgument(listName, nameof(listName))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
           return CommandResponse<ManifestInspectResult>.Fail(
-              result.Error ?? "Manifest inspect failed",
-              ErrorCodes.Manifest.InspectFailed, result.ExitCode);
+              ErrorOrDefault(result, "Manifest inspect failed"),
+              FailureCode(result.Error, ErrorCodes.Manifest.InspectFailed),
+              CreateErrorContext(context, "InspectManifest", result), result.ExitCode);
 
         var parsed = ParseManifestInspect(result.Output);
         return CommandResponse<ManifestInspectResult>.Ok(parsed);
       }
       catch (ArgumentException) { throw; }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ManifestInspectResult>.Fail(
-            ex.Message, ErrorCodes.Manifest.InspectFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.InspectFailed));
       }
     }
 
@@ -225,16 +258,59 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"manifest exists {listName}", cancellationToken);
+            context,
+            $"manifest exists {QuotePositionalArgument(listName, nameof(listName))}", cancellationToken).ConfigureAwait(false);
 
-        // Exit code 0 = exists, non-zero = does not exist
-        return CommandResponse<bool>.Ok(result.Success);
+        if (result.Success)
+          return CommandResponse<bool>.Ok(true);
+
+        // Only a genuine not-found signal maps to Ok(false). A machine-down / auth / CLI failure
+        // must surface as a FAILED response so callers never mistake an outage for absence.
+        if (IsManifestNotFound(result))
+          return CommandResponse<bool>.Ok(false);
+
+        return CommandResponse<bool>.Fail(
+            ErrorOrDefault(result, "Manifest exists check failed"),
+            FailureCode(result.Error, ErrorCodes.Manifest.InspectFailed),
+            CreateErrorContext(context, "ManifestExists", result), result.ExitCode);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
         return CommandResponse<bool>.Fail(
-            ex.Message, ErrorCodes.Manifest.InspectFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Manifest.InspectFailed));
       }
+    }
+
+    /// <summary>
+    /// Classifies a FAILED <c>manifest exists</c> result as a genuine "manifest not found"
+    /// (⇒ caller gets <c>Ok(false)</c>) versus an outage / auth / CLI failure (⇒ caller gets a
+    /// FAILED response). Conservative on purpose: a plain non-zero exit with NO stderr is podman's
+    /// normal "does not exist" signal; otherwise the stderr text must explicitly say so — anything
+    /// else is treated as a failure rather than silently reported as absent.
+    /// </summary>
+    public static bool IsManifestNotFound(SimpleCommandResult result)
+    {
+      if (result == null)
+        return false;
+
+      // podman's `exists` family returns exit 1 with empty stderr for a plain miss; a real outage
+      // (exit 125, connection refused, auth, …) always carries a diagnostic stderr message.
+      if (result.ExitCode == 1 && string.IsNullOrWhiteSpace(result.Error))
+        return true;
+
+      var stderr = result.Error;
+      if (string.IsNullOrWhiteSpace(stderr))
+        return false;
+
+      // Manifest-specific wording only. Deliberately NARROW: generic "no such" / "does not exist"
+      // are excluded because podman's stopped-machine / missing-socket outage stderr reads
+      // "...connect: no such file or directory" — matching those would re-mask an outage as absence.
+      return stderr.Contains("not found", StringComparison.OrdinalIgnoreCase)
+          || stderr.Contains("manifest unknown", StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -251,12 +327,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         sb.Append(" --amend");
 
       foreach (var kvp in config.Annotations)
-        sb.Append($" --annotation \"{kvp.Key}={kvp.Value}\"");
+        sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append($" {config.Name}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(config.Name, nameof(config.Name))}");
 
       foreach (var image in config.Images)
-        sb.Append($" {image}");
+        sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(image, nameof(image))}");
 
       return sb.ToString();
     }
@@ -268,21 +344,21 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.All)
         sb.Append(" --all");
       if (!string.IsNullOrEmpty(config.Arch))
-        sb.Append($" --arch {config.Arch}");
+        sb.Append(CultureInfo.InvariantCulture, $" --arch {QuoteArgumentIfNeeded(config.Arch)}");
       if (!string.IsNullOrEmpty(config.Os))
-        sb.Append($" --os {config.Os}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os {QuoteArgumentIfNeeded(config.Os)}");
       if (!string.IsNullOrEmpty(config.Variant))
-        sb.Append($" --variant {config.Variant}");
+        sb.Append(CultureInfo.InvariantCulture, $" --variant {QuoteArgumentIfNeeded(config.Variant)}");
       if (!string.IsNullOrEmpty(config.OsVersion))
-        sb.Append($" --os-version {config.OsVersion}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os-version {QuoteArgumentIfNeeded(config.OsVersion)}");
 
       foreach (var feature in config.Features)
-        sb.Append($" --features {feature}");
+        sb.Append(CultureInfo.InvariantCulture, $" --features {QuoteArgumentIfNeeded(feature)}");
 
       foreach (var kvp in config.Annotations)
-        sb.Append($" --annotation \"{kvp.Key}={kvp.Value}\"");
+        sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append($" {config.ListName} {config.Image}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(config.ListName, nameof(config.ListName))} {QuotePositionalArgument(config.Image, nameof(config.Image))}");
 
       return sb.ToString();
     }
@@ -296,11 +372,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config.Rm)
         sb.Append(" --rm");
       if (!string.IsNullOrEmpty(config.Format))
-        sb.Append($" --format {config.Format}");
+        sb.Append(CultureInfo.InvariantCulture, $" --format {QuoteArgumentIfNeeded(config.Format)}");
       if (config.TlsVerify.HasValue)
-        sb.Append($" --tls-verify={config.TlsVerify.Value.ToString().ToLowerInvariant()}");
+        sb.Append(CultureInfo.InvariantCulture, $" --tls-verify={QuoteArgumentIfNeeded(config.TlsVerify.Value.ToString().ToLowerInvariant())}");
 
-      sb.Append($" {config.ListName} {config.Destination}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(config.ListName, nameof(config.ListName))} {QuotePositionalArgument(config.Destination, nameof(config.Destination))}");
 
       return sb.ToString();
     }
@@ -310,27 +386,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var sb = new StringBuilder("manifest annotate");
 
       if (!string.IsNullOrEmpty(config.Arch))
-        sb.Append($" --arch {config.Arch}");
+        sb.Append(CultureInfo.InvariantCulture, $" --arch {QuoteArgumentIfNeeded(config.Arch)}");
       if (!string.IsNullOrEmpty(config.Os))
-        sb.Append($" --os {config.Os}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os {QuoteArgumentIfNeeded(config.Os)}");
       if (!string.IsNullOrEmpty(config.Variant))
-        sb.Append($" --variant {config.Variant}");
+        sb.Append(CultureInfo.InvariantCulture, $" --variant {QuoteArgumentIfNeeded(config.Variant)}");
       if (!string.IsNullOrEmpty(config.OsVersion))
-        sb.Append($" --os-version {config.OsVersion}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os-version {QuoteArgumentIfNeeded(config.OsVersion)}");
 
       foreach (var feature in config.OsFeatures)
-        sb.Append($" --os-features {feature}");
+        sb.Append(CultureInfo.InvariantCulture, $" --os-features {QuoteArgumentIfNeeded(feature)}");
 
       foreach (var feature in config.Features)
-        sb.Append($" --features {feature}");
+        sb.Append(CultureInfo.InvariantCulture, $" --features {QuoteArgumentIfNeeded(feature)}");
 
       if (config.IndexAnnotation)
         sb.Append(" --index");
 
       foreach (var kvp in config.Annotations)
-        sb.Append($" --annotation \"{kvp.Key}={kvp.Value}\"");
+        sb.Append(CultureInfo.InvariantCulture, $" --annotation {QuoteArgumentIfNeeded($"{kvp.Key}={kvp.Value}")}");
 
-      sb.Append($" {config.ListName} {config.Image}");
+      sb.Append(CultureInfo.InvariantCulture, $" {QuotePositionalArgument(config.ListName, nameof(config.ListName))} {QuotePositionalArgument(config.Image, nameof(config.Image))}");
 
       return sb.ToString();
     }
@@ -363,7 +439,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             result.Manifests.Add(ParseManifestEntry(item));
         }
       }
-      catch (Exception ex) { NullLogger.Instance.LogDebug(ex, "Manifest JSON parsing skipped"); }
+      catch (Exception ex)
+      {
+        throw new FluentDockerException(
+            $"Failed to parse Podman manifest inspect output: {ex.Message}");
+      }
 
       return result;
     }
@@ -400,7 +480,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           entry.Platform.Features = new List<string>();
           foreach (var f in features.Value.EnumerateArray())
-            entry.Platform.Features.Add(f.GetString());
+            entry.Platform.Features.Add(f.GetString() ?? string.Empty);
         }
       }
 
@@ -409,7 +489,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         entry.Annotations = new Dictionary<string, string>();
         foreach (var prop in annotations.Value.EnumerateObject())
-          entry.Annotations[prop.Name] = prop.Value.GetString();
+          entry.Annotations[prop.Name] = prop.Value.GetString() ?? string.Empty;
       }
 
       return entry;

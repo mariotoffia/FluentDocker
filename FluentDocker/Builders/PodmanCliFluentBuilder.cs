@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
+using FluentDocker.Services;
 
 namespace FluentDocker.Builders
 {
@@ -13,11 +13,15 @@ namespace FluentDocker.Builders
   public class PodmanCliFluentBuilder
   {
     private readonly Builder _inner;
+    private readonly FluentDockerKernel _kernel;
+    private readonly string _driverId;
 
-    internal PodmanCliFluentBuilder(Builder inner)
+    internal PodmanCliFluentBuilder(Builder inner, FluentDockerKernel kernel, string driverId)
     {
       ArgumentNullException.ThrowIfNull(inner);
       _inner = inner;
+      _kernel = kernel;
+      _driverId = driverId;
     }
 
     /// <summary>
@@ -25,7 +29,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public PodmanCliFluentBuilder UseContainer(Action<IContainerBuilder> configure)
     {
-      _inner.UseContainer(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseContainer(configure));
       return this;
     }
 
@@ -34,7 +38,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public PodmanCliFluentBuilder UseNetwork(Action<INetworkBuilder> configure)
     {
-      _inner.UseNetwork(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseNetwork(configure));
       return this;
     }
 
@@ -43,7 +47,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public PodmanCliFluentBuilder UseVolume(Action<IVolumeBuilder> configure)
     {
-      _inner.UseVolume(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseVolume(configure));
       return this;
     }
 
@@ -52,7 +56,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public PodmanCliFluentBuilder UseImage(string imageName, Action<DockerfileBuilder> configure)
     {
-      _inner.UseImage(imageName, configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseImage(imageName, configure));
       return this;
     }
 
@@ -62,9 +66,44 @@ namespace FluentDocker.Builders
     /// </summary>
     public PodmanCliFluentBuilder UsePod(Action<IPodBuilder> configure)
     {
-      _inner.UsePod(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UsePod(configure));
       return this;
     }
+
+    /// <summary>
+    /// Enters the model runner fluent builder to manage local models and run inference.
+    /// </summary>
+    /// <remarks>
+    /// The Podman CLI pack registers no model ports today; use a model-capable pack or the
+    /// standard interface-not-supported error is surfaced.
+    /// </remarks>
+    /// <returns>A model runner builder.</returns>
+    public IModelRunnerBuilder UseModelRunner() =>
+        _inner.RunInScope(_kernel, _driverId, () => _inner.UseModelRunner());
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="IModelService"/> in the current Podman CLI scope.
+    /// </summary>
+    /// <remarks>
+    /// The Podman CLI pack registers no model ports today; use a model-capable pack or the
+    /// standard interface-not-supported error is surfaced.
+    /// </remarks>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(string reference) =>
+        _inner.RunInScope(_kernel, _driverId, () => _inner.UseModel(reference));
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="IModelService"/> from a pre-built <see cref="Model.Models.ModelReference"/>.
+    /// </summary>
+    /// <remarks>
+    /// The Podman CLI pack registers no model ports today; use a model-capable pack or the
+    /// standard interface-not-supported error is surfaced.
+    /// </remarks>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(Model.Models.ModelReference reference) =>
+        _inner.RunInScope(_kernel, _driverId, () => _inner.UseModel(reference));
 
     /// <summary>
     /// TERMINAL - Builds all operations synchronously.

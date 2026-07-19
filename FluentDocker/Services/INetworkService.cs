@@ -30,7 +30,7 @@ namespace FluentDocker.Services
     Task DisconnectAsync(string containerId, bool force = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the list of containers connected to this network.
+    /// Gets the names of containers connected to this network, falling back to IDs when names are unavailable.
     /// </summary>
     Task<IList<string>> GetConnectedContainersAsync(CancellationToken cancellationToken = default);
 
@@ -40,4 +40,3 @@ namespace FluentDocker.Services
     Task<Drivers.Network> InspectAsync(CancellationToken cancellationToken = default);
   }
 }
-

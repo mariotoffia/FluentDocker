@@ -11,6 +11,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Marked DevLocal because they require Docker Swarm mode.
   /// </summary>
   [Trait("Category", "DevLocal")]
+  [Collection("Swarm")]
   public partial class ServiceDriverTests : SwarmTestBase
   {
     #region Create and Remove
@@ -216,7 +217,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
     #region Helpers
 
-    private async Task RemoveServiceSafeAsync(string serviceName)
+    private async Task RemoveServiceSafeAsync(string? serviceName)
     {
       if (!string.IsNullOrEmpty(serviceName))
         try

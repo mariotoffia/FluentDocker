@@ -1,0 +1,149 @@
+using System;
+using FluentDocker.Drivers.Models;
+using FluentDocker.Drivers.Models.Connection;
+using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Inference;
+
+namespace FluentDocker.Services
+{
+  /// <summary>
+  /// Reconstructs an <see cref="IModelRunner"/> from the environment variables that
+  /// Docker Model Runner injects into a model-bound workload (notably via Compose):
+  /// <c>&lt;PREFIX&gt;_URL</c> and <c>&lt;PREFIX&gt;_MODEL</c> (default prefix <c>LLM</c>).
+  /// This closes the loop: code running inside a model-bound container can drive the
+  /// model through the same interface as everything else.
+  /// </summary>
+  public static class ModelRunnerEnvironment
+  {
+    private const string DefaultPrefix = "LLM";
+
+    /// <summary>
+    /// Builds a runner from the injected environment variables.
+    /// </summary>
+    /// <param name="prefix">The env-var prefix (default <c>LLM</c> → <c>LLM_URL</c>/<c>LLM_MODEL</c>).</param>
+    /// <param name="apiKey">Optional bearer token for the endpoint.</param>
+    /// <returns>An inference-capable <see cref="IModelRunner"/>.</returns>
+    /// <exception cref="InvalidOperationException">The required URL variable is not set or invalid.</exception>
+    public static IModelRunner FromEnvironment(string? prefix = null, string? apiKey = null)
+    {
+      if (!TryFromEnvironment(out var runner, prefix, apiKey))
+      {
+        var p = Normalize(prefix);
+        throw new InvalidOperationException(
+            $"Model endpoint environment variable '{p}_URL' is not set or is not a valid absolute URI. " +
+            "This factory expects the variables injected by a Docker Model Runner / Compose 'models:' binding.");
+      }
+
+      return runner!;
+    }
+
+    /// <summary>
+    /// Attempts to build a runner from the injected environment variables.
+    /// </summary>
+    /// <param name="runner">The resulting runner, or <c>null</c>.</param>
+    /// <param name="prefix">The env-var prefix (default <c>LLM</c>).</param>
+    /// <param name="apiKey">Optional bearer token.</param>
+    /// <returns><c>true</c> when <c>&lt;PREFIX&gt;_URL</c> is set to a valid absolute URI.</returns>
+    public static bool TryFromEnvironment(out IModelRunner? runner, string? prefix = null, string? apiKey = null)
+    {
+      runner = null;
+      var p = Normalize(prefix);
+
+      var url = Environment.GetEnvironmentVariable($"{p}_URL");
+      if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+          || !ModelRunnerEndpoint.IsSupportedUrl(uri))
+        return false;
+
+      var modelValue = Environment.GetEnvironmentVariable($"{p}_MODEL");
+      runner = (IModelRunner)CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), modelValue, apiKey);
+      return true;
+    }
+
+    /// <summary>
+    /// Builds a runner from explicitly-named environment variables (the Compose
+    /// long-form binding's <c>endpoint_var</c> / <c>model_var</c>).
+    /// </summary>
+    /// <param name="endpointVar">The env var holding the endpoint URL.</param>
+    /// <param name="modelVar">The env var holding the model id.</param>
+    /// <param name="apiKey">Optional bearer token.</param>
+    /// <returns>An inference-capable <see cref="IModelRunner"/>.</returns>
+    /// <exception cref="InvalidOperationException">The endpoint variable is unset or invalid.</exception>
+    public static IModelRunner FromVariables(string endpointVar, string modelVar, string? apiKey = null)
+    {
+      if (!TryFromVariables(endpointVar, modelVar, out var runner, apiKey))
+        throw new InvalidOperationException($"Model endpoint environment variable '{endpointVar}' is not set or is not a valid absolute URI.");
+
+      return runner!;
+    }
+
+    /// <summary>
+    /// Attempts to build a runner from explicitly-named environment variables.
+    /// </summary>
+    /// <param name="endpointVar">The env var holding the endpoint URL.</param>
+    /// <param name="modelVar">The env var holding the model id.</param>
+    /// <param name="runner">The resulting runner, or null.</param>
+    /// <param name="apiKey">Optional bearer token.</param>
+    /// <returns><c>true</c> when the endpoint variable is set to a valid absolute URI.</returns>
+    public static bool TryFromVariables(string endpointVar, string modelVar, out IModelRunner? runner, string? apiKey = null)
+    {
+      runner = null;
+
+      var url = Environment.GetEnvironmentVariable(endpointVar);
+      if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+          || !ModelRunnerEndpoint.IsSupportedUrl(uri))
+        return false;
+
+      runner = (IModelRunner)CreateInferenceRunner(ModelRunnerEndpoint.Raw(uri), Environment.GetEnvironmentVariable(modelVar), apiKey);
+      return true;
+    }
+
+    /// <summary>
+    /// Creates an <see cref="IInferenceModelRunner"/> for an environment-injected endpoint.
+    /// The model id is treated as a REMOTE/OpenAI inference id and preserved verbatim —
+    /// never round-tripped through <see cref="Model.Models.ModelReference"/>'s
+    /// <c>:latest</c> defaulting — so ids like <c>gpt-4o-mini</c> are sent unchanged.
+    /// </summary>
+    /// <param name="endpoint">The resolved endpoint.</param>
+    /// <param name="modelId">The verbatim model id from the environment.</param>
+    /// <param name="apiKey">Optional bearer token.</param>
+    /// <returns>A narrow <see cref="IInferenceModelRunner"/> (also satisfies <see cref="IModelRunner"/>).</returns>
+    public static IInferenceModelRunner CreateInferenceRunner(
+        ModelRunnerEndpoint endpoint, string? modelId, string? apiKey = null) =>
+        CreateInferenceRunner(endpoint, modelId, new ModelApiConnectionConfig(), apiKey);
+
+    /// <summary>
+    /// Creates an <see cref="IInferenceModelRunner"/> for an environment-injected endpoint,
+    /// applying the supplied transport <paramref name="config"/> so an env/Compose-created runner
+    /// can reach a PRODUCTION endpoint (private CA, mTLS, hostname-mismatch tolerance, custom
+    /// timeouts) — not just plaintext localhost. The model id is preserved verbatim, exactly as
+    /// in the config-less overload.
+    /// </summary>
+    /// <param name="endpoint">The resolved endpoint.</param>
+    /// <param name="modelId">The verbatim model id from the environment.</param>
+    /// <param name="config">Transport configuration (TLS + timeouts) applied to the connection.</param>
+    /// <param name="apiKey">Optional bearer token.</param>
+    /// <returns>A narrow <see cref="IInferenceModelRunner"/> (also satisfies <see cref="IModelRunner"/>).</returns>
+    public static IInferenceModelRunner CreateInferenceRunner(
+        ModelRunnerEndpoint endpoint, string? modelId, ModelApiConnectionConfig config, string? apiKey = null)
+    {
+      ArgumentNullException.ThrowIfNull(config);
+      var connection = new ModelApiConnection(endpoint, config, apiKey: apiKey);
+      var inference = new OpenAiModelInferenceDriver(connection, endpoint);
+      InferenceModelId? inferenceId = string.IsNullOrWhiteSpace(modelId) ? (InferenceModelId?)null : new InferenceModelId(modelId);
+      var model = ParseDefaultModel(modelId);
+      return new Impl.GenericOpenAiModelRunner(endpoint, model, inference, connection.PingAsync, connection, inferenceId);
+    }
+
+    private static ModelReference? ParseDefaultModel(string? modelId)
+    {
+      // ponytail: remote ids are usually bare (gpt-4o-mini); keep metadata null until
+      // ModelReference can represent a raw id without adding :latest.
+      if (string.IsNullOrWhiteSpace(modelId) || !modelId.Contains('/'))
+        return null;
+
+      return ModelReference.TryParse(modelId, out var r) ? r : null;
+    }
+
+    private static string Normalize(string? prefix) => string.IsNullOrWhiteSpace(prefix) ? DefaultPrefix : prefix;
+  }
+}

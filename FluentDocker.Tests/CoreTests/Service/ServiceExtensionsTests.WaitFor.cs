@@ -1,3 +1,5 @@
+using System;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Services;
@@ -91,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.GetLogsAsync(false, It.IsAny<CancellationToken>()))
-          .ReturnsAsync((string)null);
+          .Returns(Task.FromResult<string>(null!));
 
       // Act
       var result = await mock.Object.WaitForLogMessageAsync("any text", timeout: 200, cancellationToken: TestContext.Current.CancellationToken);
@@ -136,7 +138,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync("1234\n");
 
@@ -146,7 +148,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Assert
       Assert.True(result);
       mock.Verify(
-          s => s.ExecuteAsync("pgrep -f postgres", It.IsAny<CancellationToken>()),
+          s => s.ExecuteAsync(
+              It.Is<string[]>(cmd => cmd[0] == "pgrep" && cmd[1] == "-f" && cmd[2] == "postgres"),
+              It.IsAny<CancellationToken>()),
           Times.AtLeastOnce);
     }
 
@@ -157,7 +161,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(string.Empty);
 
@@ -175,7 +179,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync("   \n  ");
 
@@ -187,20 +191,22 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task WaitForProcessAsync_ExecuteThrows_ContinuesRetrying()
+    public async Task WaitForProcessAsync_TransientSocketExceptionThrown_ContinuesRetrying()
     {
-      // Arrange - first call throws, second returns PID
+      // Arrange - first call throws a genuinely transient error, second returns PID.
+      // IsRetriableWaitException is a whitelist (S-M4): only transient failure types like
+      // SocketException are retried here.
       var callCount = 0;
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(() =>
           {
             callCount++;
             if (callCount == 1)
-              throw new System.InvalidOperationException("Connection refused");
+              throw new SocketException((int)SocketError.ConnectionRefused);
             return "5678";
           });
 
@@ -213,6 +219,31 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task WaitForProcessAsync_NonTransientInvalidOperationException_SurfacesInsteadOfRetrying()
+    {
+      // S-M4: IsRetriableWaitException is a whitelist, not a blacklist - a programming-error-shaped
+      // exception like InvalidOperationException must surface immediately instead of being silently
+      // retried until the wait times out.
+      var callCount = 0;
+      var mock = new Mock<IContainerService>();
+      mock.Setup(s => s.Id).Returns("test-id");
+      mock.Setup(s => s.ExecuteAsync(
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(() =>
+          {
+            callCount++;
+            throw new InvalidOperationException("deterministic bug, not a transient failure");
+          });
+
+      // Act / Assert
+      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+          mock.Object.WaitForProcessAsync(
+              "nginx", timeout: 5000, cancellationToken: TestContext.Current.CancellationToken));
+      Assert.Equal(1, callCount);
+    }
+
+    [Fact]
     public async Task WaitForProcessAsync_ProcessAppearsOnSecondPoll_ReturnsTrue()
     {
       // Arrange - first call returns empty, second returns PID
@@ -220,7 +251,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var mock = new Mock<IContainerService>();
       mock.Setup(s => s.Id).Returns("test-id");
       mock.Setup(s => s.ExecuteAsync(
-              It.Is<string>(cmd => cmd.Contains("pgrep")),
+              It.Is<string[]>(cmd => cmd[0] == "pgrep"),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(() =>
           {

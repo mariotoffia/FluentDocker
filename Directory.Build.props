@@ -3,8 +3,8 @@
     <!-- Single source of truth for NuGet package version. Bump here, commit, push -->
     <!-- master. CI reads this via `dotnet msbuild -getProperty:Version` and uses it -->
     <!-- for both `dotnet pack` and the git tag. No GitVersion, no override flags. -->
-    <Version>3.1.0</Version>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Version>3.2.0-preview.2</Version>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>disable</ImplicitUsings>
     <SignAssembly>true</SignAssembly>
@@ -16,11 +16,27 @@
     <RepositoryUrl>https://github.com/mariotoffia/FluentDocker</RepositoryUrl>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <!-- Suppress until nullable is fully enabled in main lib -->
-    <NoWarn>$(NoWarn);CA1062</NoWarn>
-    <!-- Suppress culture-specific string rules (library targets invariant culture) -->
-    <NoWarn>$(NoWarn);CA1305;CA1304;CA1310;CA1311</NoWarn>
+    <!-- Official packages are deterministic CI builds: normalized paths + SourceLink
+         validation (NuGet "Reproducible" indicator). GitHub Actions sets CI=true. -->
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <!-- One symbol story for all shipped packages: embed the .pdb next to the assembly in
+         the nupkg so consumers get SourceLink stepping without a symbol server. Applies to
+         FluentDocker and the three Testing.* packages alike (non-packable projects ignore it). -->
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     <!-- CA1507: all hits are [JsonProperty] serialization keys, not symbol refs — nameof is wrong here -->
     <NoWarn>$(NoWarn);CA1507</NoWarn>
+    <!-- CA1848: logging is never on a hot path (each op brackets a process spawn / network I/O); LoggerMessage delegates not worth the boilerplate -->
+    <NoWarn>$(NoWarn);CA1848</NoWarn>
+    <!-- CA1859: advisory micro-perf (concrete-type devirtualization); all sites are cold paths (startup resolution, one-shot parse, test helpers) -->
+    <NoWarn>$(NoWarn);CA1859</NoWarn>
+    <!-- CA1720: 'Object' is the OpenAI API discriminator field ([JsonPropertyName("object")]), an external contract — like CA1507 above -->
+    <NoWarn>$(NoWarn);CA1720</NoWarn>
+    <!-- Culture/comparison analyzers promoted to errors so the cpus="1,5" locale bug class cannot regress -->
+    <WarningsAsErrors>$(WarningsAsErrors);CA1304;CA1305;CA1310;CA1311</WarningsAsErrors>
+    <!-- Zero-warning floor is ENFORCED, not aspirational: the solution builds warning-free,
+         and any new warning fails the build (locally and in CI) instead of silently raising
+         the floor until new warnings become invisible again. Per-rule opt-outs live next to
+         their justification in the individual project files. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 </Project>

@@ -91,7 +91,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       {
         Username = "user1",
         Password = "pass1",
-        Server = null
+        Server = null!
       };
       var result = await driver.LoginAsync(Ctx, config, cancellationToken: TestContext.Current.CancellationToken);
 

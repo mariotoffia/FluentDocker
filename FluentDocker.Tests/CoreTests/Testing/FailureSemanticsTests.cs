@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
-using FluentDocker.Testing.Core.Plugins;
 using FluentDocker.Tests.Mocks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -79,7 +78,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
               It.IsAny<int?>(),
               It.IsAny<CancellationToken>()))
           .Returns<DriverContext, string, int?, CancellationToken>(
-              async (_, _, _, ct) => { await Task.Delay(5000, ct); return default; });
+              async (_, _, _, ct) => { await Task.Delay(5000, ct); return default!; });
 
       // Capture the token force-remove receives
       CancellationToken capturedToken = default;
@@ -155,23 +154,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
     [Fact]
     public async Task TeardownFails_ForceRemoveSucceeds_CapturesTeardownDiagnostics()
     {
-      MockPack
-          .SetupContainerCreate()
-          .SetupContainerStart()
-          .SetupContainerInspect(running: true)
-          .SetupContainerRemove();
-
-      MockPack.ContainerDriver
-          .Setup(d => d.StopAsync(
-              It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
-              It.IsAny<int?>(),
-              It.IsAny<CancellationToken>()))
-          .ThrowsAsync(new InvalidOperationException("stop failed"));
-
-      var resource = new ContainerResource(
+      var resource = new FailingTeardownResource(
           Kernel,
-          builder => builder.UseImage("alpine:latest"),
+          teardownEx: new InvalidOperationException("teardown failed"),
+          forceRemoveEx: null,
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
       await resource.InitializeAsync(TestContext.Current.CancellationToken);
@@ -180,6 +166,7 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.NotNull(resource.LastTeardownDiagnostics);
       Assert.IsType<InvalidOperationException>(resource.LastTeardownDiagnostics.TeardownException);
       Assert.Null(resource.LastTeardownDiagnostics.ForceRemoveException);
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -192,13 +179,23 @@ namespace FluentDocker.Tests.CoreTests.Testing
           new DockerResourceOptions { ForceRemoveOnDispose = true });
 
       await resource.InitializeAsync(TestContext.Current.CancellationToken);
-      await resource.DisposeAsync();
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.DisposeAsync().AsTask());
 
+      Assert.Contains("teardown failed", ex.Message);
       Assert.NotNull(resource.LastTeardownDiagnostics);
       Assert.NotNull(resource.LastTeardownDiagnostics.TeardownException);
       Assert.NotNull(resource.LastTeardownDiagnostics.ForceRemoveException);
       Assert.Contains("teardown failed", resource.LastTeardownDiagnostics.TeardownException.Message);
       Assert.Contains("force-remove failed", resource.LastTeardownDiagnostics.ForceRemoveException.Message);
+
+      var initEx = await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.Contains("provisioned but is not initialized", initEx.Message);
+
+      await Assert.ThrowsAsync<InvalidOperationException>(
+          () => resource.DisposeAsync().AsTask());
+      Assert.Equal(2, resource.ForceRemoveAttempts);
     }
 
     [Fact]
@@ -238,8 +235,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       resource.OnAfterReady(_ =>
           throw new InvalidOperationException("Hook failure"));
 
-      await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
 
       // IsInitialized must be false because the hook threw
       Assert.False(resource.IsInitialized);
@@ -278,38 +276,6 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public void PluginRegistration_PartialFailure_RollsBackAllFactories()
-    {
-      var host = new TestPluginHost();
-
-      // First plugin registers key "alpha"
-      host.Add(new SingleKeyPlugin("plugin-a", "alpha"));
-
-      // Second plugin tries to register "beta" (new) and "alpha" (collision)
-      // The staging mechanism should prevent "beta" from being committed
-      var ex = Assert.Throws<InvalidOperationException>(
-          () => host.Add(new DualKeyPlugin("plugin-b", "beta", "alpha")));
-
-      Assert.Contains("already registered", ex.Message);
-
-      // "beta" should NOT be available because the registration was rolled back
-      Assert.False(host.HasFactory("beta"));
-
-      // "alpha" should still be available from plugin-a
-      Assert.True(host.HasFactory("alpha"));
-    }
-
-    [Fact]
-    public void PluginRegistration_Success_CommitsAllFactories()
-    {
-      var host = new TestPluginHost();
-      host.Add(new DualKeyPlugin("plugin-a", "key1", "key2"));
-
-      Assert.True(host.HasFactory("key1"));
-      Assert.True(host.HasFactory("key2"));
-    }
-
-    [Fact]
     public async Task NullDriver_ThrowsDescriptiveError()
     {
       MockPack
@@ -320,29 +286,28 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var resource = new ContainerResource(
           Kernel,
           builder => builder.UseImage("alpine:latest"),
-          new DockerResourceOptions { Driver = null });
+          new DockerResourceOptions { Driver = null! });
 
-      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
-      Assert.Contains("Driver is null", ex.Message);
+      Assert.IsType<InvalidOperationException>(ex.InnerException);
+      Assert.Contains("Driver is null", ex.InnerException.Message);
     }
 
     [Fact]
-    public async Task ResourceLifecycle_DisposeAsync_BothThrow_ProducesAggregateException()
+    public async Task ResourceLifecycle_DisposeAsync_BothThrow_RethrowsResourceAndDisposesKernel()
     {
-      // When both resource and kernel disposal throw,
-      // ResourceLifecycle.DisposeAsync should wrap both in AggregateException.
+      // Resource cleanup failed first; preserving the kernel enables retry cleanup.
       var throwingResource = new ThrowingResource(
           new InvalidOperationException("resource disposal failed"));
       var throwingKernel = new ThrowingKernel(
           new ObjectDisposedException("kernel disposal failed"));
 
-      var agg = await Assert.ThrowsAsync<AggregateException>(
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(
           () => ResourceLifecycle.DisposeAsync(throwingResource, throwingKernel));
 
-      Assert.Equal(2, agg.InnerExceptions.Count);
-      Assert.IsType<InvalidOperationException>(agg.InnerExceptions[0]);
-      Assert.IsType<ObjectDisposedException>(agg.InnerExceptions[1]);
+      Assert.Equal("resource disposal failed", ex.Message);
+      Assert.True(throwingKernel.DisposeWasCalled);
     }
 
     [Fact]
@@ -364,11 +329,13 @@ namespace FluentDocker.Tests.CoreTests.Testing
     private class FailingTeardownResource(
         FluentDockerKernel kernel,
         Exception teardownEx,
-        Exception forceRemoveEx,
+        Exception? forceRemoveEx,
         DockerResourceOptions options) : ResourceBase(kernel, options)
     {
       private readonly Exception _teardownEx = teardownEx;
-      private readonly Exception _forceRemoveEx = forceRemoveEx;
+      private readonly Exception? _forceRemoveEx = forceRemoveEx;
+
+      public int ForceRemoveAttempts { get; private set; }
 
       protected override Task PreflightAsync(CancellationToken cancellationToken)
           => Task.CompletedTask;
@@ -383,9 +350,12 @@ namespace FluentDocker.Tests.CoreTests.Testing
           => Task.FromException(_teardownEx);
 
       protected override Task ForceRemoveAsync(CancellationToken cancellationToken)
-          => _forceRemoveEx != null
-              ? Task.FromException(_forceRemoveEx)
-              : Task.CompletedTask;
+      {
+        ForceRemoveAttempts++;
+        return _forceRemoveEx != null
+            ? Task.FromException(_forceRemoveEx)
+            : Task.CompletedTask;
+      }
     }
 
     private class ThrowingResource(Exception exception) : ITestResource
@@ -403,9 +373,11 @@ namespace FluentDocker.Tests.CoreTests.Testing
     private sealed class ThrowingKernel(Exception exception) : FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance)
     {
       private readonly Exception _exception = exception;
+      public bool DisposeWasCalled { get; private set; }
 
       public override async ValueTask DisposeAsync()
       {
+        DisposeWasCalled = true;
         await base.DisposeAsync();
         throw _exception;
       }
@@ -417,30 +389,6 @@ namespace FluentDocker.Tests.CoreTests.Testing
       public Task InitializeAsync(CancellationToken cancellationToken = default)
           => Task.CompletedTask;
       public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-    }
-
-    private class SingleKeyPlugin(string id, string key) : ITestPlugin
-    {
-      private readonly string _key = key;
-      public string Id { get; } = id;
-
-      public void Register(ITestPluginRegistry registry)
-      {
-        registry.RegisterFactory<FakeResource>(_key, _ => new FakeResource());
-      }
-    }
-
-    private class DualKeyPlugin(string id, string key1, string key2) : ITestPlugin
-    {
-      private readonly string _key1 = key1;
-      private readonly string _key2 = key2;
-      public string Id { get; } = id;
-
-      public void Register(ITestPluginRegistry registry)
-      {
-        registry.RegisterFactory<FakeResource>(_key1, _ => new FakeResource());
-        registry.RegisterFactory<FakeResource>(_key2, _ => new FakeResource());
-      }
     }
 
     #endregion

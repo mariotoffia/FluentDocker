@@ -17,7 +17,7 @@ namespace FluentDocker.Tests.Mocks
     /// <summary>
     /// Sets up SystemDriver.GetInfoAsync to return success with the given info.
     /// </summary>
-    public MockDriverPack SetupSystemInfo(SystemInfo info = null)
+    public MockDriverPack SetupSystemInfo(SystemInfo? info = null)
     {
       info ??= new SystemInfo();
       SystemDriver
@@ -44,7 +44,7 @@ namespace FluentDocker.Tests.Mocks
     /// <summary>
     /// Sets up SystemDriver.GetVersionAsync to return success.
     /// </summary>
-    public MockDriverPack SetupSystemVersion(VersionInfo info = null)
+    public MockDriverPack SetupSystemVersion(VersionInfo? info = null)
     {
       info ??= new VersionInfo();
       SystemDriver
@@ -71,7 +71,7 @@ namespace FluentDocker.Tests.Mocks
     /// <summary>
     /// Sets up SystemDriver.GetDiskUsageAsync to return success.
     /// </summary>
-    public MockDriverPack SetupSystemDiskUsage(DiskUsageInfo info = null)
+    public MockDriverPack SetupSystemDiskUsage(DiskUsageInfo? info = null)
     {
       info ??= new DiskUsageInfo();
       SystemDriver
@@ -179,7 +179,7 @@ namespace FluentDocker.Tests.Mocks
     /// <summary>
     /// Sets up ImageDriver.HistoryAsync to return success.
     /// </summary>
-    public MockDriverPack SetupImageHistory(IList<ImageLayer> layers = null)
+    public MockDriverPack SetupImageHistory(IList<ImageLayer>? layers = null)
     {
       layers ??= [];
       ImageDriver

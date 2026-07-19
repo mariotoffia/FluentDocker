@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
 using FluentDocker.Testing.Core;
@@ -32,20 +33,29 @@ namespace FluentDocker.Testing.NUnit
   /// </remarks>
   public abstract class NUnitContainerFixtureBase
   {
+    private ContainerResource? _resource;
+    private FluentDockerKernel? _kernel;
+
     /// <summary>
     /// The underlying container resource, available after setup.
     /// </summary>
-    public ContainerResource? Resource { get; private set; }
+    public ContainerResource Resource
+    {
+      get { EnsureInitialized(); return _resource!; }
+    }
 
     /// <summary>
     /// Shorthand access to the running container service.
     /// </summary>
-    public IContainerService? Container => Resource?.Container;
+    public IContainerService Container => Resource.Container!;
 
     /// <summary>
     /// The kernel managing drivers for this fixture.
     /// </summary>
-    public FluentDockerKernel? Kernel { get; private set; }
+    public FluentDockerKernel Kernel
+    {
+      get { EnsureInitialized(); return _kernel!; }
+    }
 
     /// <summary>
     /// Override to configure the container. Called during setup.
@@ -63,29 +73,60 @@ namespace FluentDocker.Testing.NUnit
     /// </summary>
     protected virtual Func<Task<FluentDockerKernel>>? KernelFactory => null;
 
+    /// <summary>
+    /// When true, an unavailable Docker-compatible runtime marks the fixture ignored.
+    /// </summary>
+    protected virtual bool SkipWhenUnavailable => false;
+
+    /// <summary>Provisions the class-scoped container once before the fixture's tests (NUnit <c>[OneTimeSetUp]</c>).</summary>
     [OneTimeSetUp]
     public async Task SetUpAsync()
     {
-      var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
-          k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
-          KernelFactory!).ConfigureAwait(false);
+      if (_resource != null)
+        return;
 
-      Kernel = kernel;
-      Resource = resource;
+      (FluentDockerKernel kernel, ContainerResource resource) result;
+      try
+      {
+        result = await ResourceLifecycle.CreateAndInitializeAsync(
+            k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
+            KernelFactory!).ConfigureAwait(false);
+      }
+      catch (ResourceInitializationException ex)
+          when (SkipWhenUnavailable && ex.InnerException is FluentDockerUnavailableException)
+      {
+        Assert.Ignore(ex.InnerException.Message);
+        return;
+      }
+      catch (DriverNotAvailableException ex) when (SkipWhenUnavailable)
+      {
+        Assert.Ignore(ex.Message);
+        return;
+      }
+
+      _kernel = result.kernel;
+      _resource = result.resource;
     }
 
+    /// <summary>Tears down the class-scoped container after the fixture's tests (NUnit <c>[OneTimeTearDown]</c>).</summary>
     [OneTimeTearDown]
     public async Task TearDownAsync()
     {
-      try
-      {
-        await ResourceLifecycle.DisposeAsync(Resource!, Kernel!).ConfigureAwait(false);
-      }
-      finally
-      {
-        Resource = null;
-        Kernel = null;
-      }
+      // Clear handles only AFTER successful disposal. If cleanup throws, the public
+      // Resource/Kernel handles stay non-null for LastTeardownDiagnostics and label-based
+      // manual cleanup (docker/podman rm -f by the session label). The kernel is already
+      // disposed by ResourceLifecycle.DisposeAsync, so it cannot be reused to retry teardown;
+      // recover via the next run's orphan sweep or a manual label sweep. The exception propagates.
+      await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
+      _resource = null;
+      _kernel = null;
+    }
+
+    private void EnsureInitialized()
+    {
+      if (_resource == null)
+        throw new InvalidOperationException(
+            "Fixture has not been initialized. Call SetUpAsync first.");
     }
   }
 }

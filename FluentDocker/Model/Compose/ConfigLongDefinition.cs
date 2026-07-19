@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
@@ -11,22 +12,22 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     ///  The name of the config as it exists in Docker.
     /// </summary>
-    public string Source { get; set; }
+    public string? Source { get; set; }
     /// <summary>
     /// The path and name of the file to be mounted in the service’s task containers. Defaults to "/source" if not
     /// specified.
     /// </summary>
-    public string Target { get; set; }
+    public string? Target { get; set; }
     /// <summary>
     /// The numeric UID that owns the mounted config file within in the service’s task containers. Defaults
     /// to 0 on Linux if not specified. Not supported on Windows.
     /// </summary>
-    public string Uid { get; set; }
+    public string? Uid { get; set; }
     /// <summary>
     /// The numeric GID that owns the mounted config file within in the service’s task containers. Defaults
     /// to 0 on Linux if not specified. Not supported on Windows.
     /// </summary>
-    public string Gid { get; set; }
+    public string? Gid { get; set; }
     /// <summary>
     ///  The permissions for the file that is mounted within the service’s task containers, in octal notation. 
     /// </summary>
@@ -35,6 +36,6 @@ namespace FluentDocker.Model.Compose
     /// are mounted in a temporary filesystem, so if you set the writable bit, it is ignored. The executable bit can
     /// be set. If you aren’t familiar with UNIX file permission modes, you may find this permissions calculator useful.
     /// </remarks>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
   }
 }

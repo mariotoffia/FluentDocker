@@ -16,18 +16,18 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
   public class ImageBuilderTests
   {
     [Fact]
-    public void AsImageName_SetsImageName()
+    public void AsImageName_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.AsImageName("myapp:1.0");
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void AsImageName_ParsesTagFromName()
+    public void AsImageName_WithTag_ReturnsDockerfileBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
@@ -35,12 +35,11 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       builder.AsImageName("myapp:v2.0");
       var dockerfileBuilder = builder.From("alpine");
 
-      // Verify it returns a DockerfileBuilder
       Assert.NotNull(dockerfileBuilder);
     }
 
     [Fact]
-    public void ImageTag_AddsMultipleTags()
+    public void ImageTag_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
@@ -49,106 +48,106 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .AsImageName("myapp")
           .ImageTag("latest", "v1.0", "stable");
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void BuildArguments_ParsesKeyValuePairs()
+    public void BuildArguments_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.BuildArguments("VERSION=1.0", "DEBUG=true");
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void Label_ParsesKeyValuePairs()
+    public void Label_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.Label("maintainer=test@example.com", "version=1.0.0");
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void NoCache_SetsNoCacheFlag()
+    public void NoCache_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.NoCache();
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void AlwaysPull_SetsPullFlag()
+    public void AlwaysPull_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.AlwaysPull();
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void RemoveIntermediate_SetsRemoveFlag()
+    public void RemoveIntermediate_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.RemoveIntermediate();
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void RemoveIntermediate_WithForce_SetsBothFlags()
+    public void RemoveIntermediate_WithForce_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.RemoveIntermediate(force: true);
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void Platform_SetsPlatform()
+    public void Platform_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.Platform("linux/amd64");
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void Target_SetsTargetStage()
+    public void Target_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.Target("builder");
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
-    public void ReuseIfAlreadyExists_SetsReuseFlag()
+    public void ReuseIfAlreadyExists_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
 
       var result = builder.ReuseIfAlreadyExists();
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
@@ -197,7 +196,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
-    public void FluentChain_WorksCorrectly()
+    public void FluentChain_ReturnsBuilderForChaining()
     {
       var kernel = CreateMockKernel();
       var builder = new ImageBuilder(kernel, "docker");
@@ -214,7 +213,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .Target("production")
           .ReuseIfAlreadyExists();
 
-      Assert.NotNull(result);
+      Assert.Same(builder, result);
     }
 
     [Fact]
@@ -231,14 +230,14 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public void Constructor_RequiresKernel()
     {
-      Assert.Throws<ArgumentNullException>(() => new ImageBuilder(null, "docker"));
+      Assert.Throws<ArgumentNullException>(() => new ImageBuilder(null!, "docker"));
     }
 
     [Fact]
     public void Constructor_RequiresDriverId()
     {
       var kernel = CreateMockKernel();
-      Assert.Throws<ArgumentNullException>(() => new ImageBuilder(kernel, null));
+      Assert.Throws<ArgumentNullException>(() => new ImageBuilder(kernel, null!));
     }
 
     private static FluentDockerKernel CreateMockKernel()
@@ -250,4 +249,3 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
   }
 }
-

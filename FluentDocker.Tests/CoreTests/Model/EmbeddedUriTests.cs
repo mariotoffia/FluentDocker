@@ -19,7 +19,6 @@ namespace FluentDocker.Tests.CoreTests.Model
       var uri = new EmbeddedUri("emb:MyAssembly/My.Namespace/myfile.txt");
 
       // Assert
-      Assert.Equal("MyAssembly", uri.Host);
       Assert.Equal("MyAssembly", uri.Assembly);
       Assert.Equal("My.Namespace", uri.Namespace);
       Assert.Equal("myfile.txt", uri.Resource);
@@ -32,20 +31,19 @@ namespace FluentDocker.Tests.CoreTests.Model
       var uri = new EmbeddedUri("emb:MyAssembly/My.Namespace");
 
       // Assert
-      Assert.Equal("MyAssembly", uri.Host);
       Assert.Equal("MyAssembly", uri.Assembly);
       Assert.Equal("My.Namespace", uri.Namespace);
       Assert.Null(uri.Resource);
     }
 
     [Fact]
-    public void Constructor_AssemblyProperty_EqualsHost()
+    public void Constructor_AssemblyProperty_IsParsedFromAuthoritySegment()
     {
       // Arrange & Act
       var uri = new EmbeddedUri("emb:SomeLib/Some.NS/data.json");
 
       // Assert
-      Assert.Equal(uri.Host, uri.Assembly);
+      Assert.Equal("SomeLib", uri.Assembly);
     }
 
     [Fact]
@@ -101,6 +99,17 @@ namespace FluentDocker.Tests.CoreTests.Model
         () => new EmbeddedUri("file:MyAssembly/My.Namespace/file.txt"));
     }
 
+    [Theory]
+    [InlineData("emb:")]
+    [InlineData("emb:AssemblyOnly")]
+    [InlineData("emb:/NamespaceOnly")]
+    public void Constructor_MalformedEmbeddedUri_ThrowsArgumentException(string value)
+    {
+      var ex = Assert.Throws<ArgumentException>(() => new EmbeddedUri(value));
+
+      Assert.Contains("Expected format", ex.Message);
+    }
+
     [Fact]
     public void Constructor_CaseInsensitiveScheme_Accepted()
     {
@@ -127,23 +136,25 @@ namespace FluentDocker.Tests.CoreTests.Model
 
     #endregion
 
-    #region Implicit Conversion Tests
+    #region Explicit Conversion Tests
+
+    // The string conversion is explicit (not implicit) because it throws on malformed input.
 
     [Fact]
-    public void ImplicitConversion_NullString_ReturnsNull()
+    public void ExplicitConversion_NullString_ReturnsNull()
     {
       // Arrange & Act
-      EmbeddedUri uri = (string)null;
+      var uri = (EmbeddedUri)(string)null!; // intentional null to verify null-handling
 
       // Assert
       Assert.Null(uri);
     }
 
     [Fact]
-    public void ImplicitConversion_ValidString_ReturnsEmbeddedUri()
+    public void ExplicitConversion_ValidString_ReturnsEmbeddedUri()
     {
       // Arrange & Act
-      EmbeddedUri uri = "emb:TestAssembly/Test.Namespace/test.txt";
+      var uri = (EmbeddedUri)"emb:TestAssembly/Test.Namespace/test.txt";
 
       // Assert
       Assert.NotNull(uri);
@@ -153,12 +164,12 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void ImplicitConversion_InvalidScheme_ThrowsArgumentException()
+    public void ExplicitConversion_InvalidScheme_ThrowsArgumentException()
     {
       // Arrange & Act & Assert
       Assert.Throws<ArgumentException>(() =>
       {
-        EmbeddedUri uri = "wrong:Assembly/Namespace/Resource";
+        _ = (EmbeddedUri)"wrong:Assembly/Namespace/Resource";
       });
     }
 

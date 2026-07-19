@@ -1,10 +1,14 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Builders;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Options;
 using FluentDocker.Testing.Core;
 using FluentDocker.Testing.Xunit;
 using FluentDocker.Tests.Mocks;
@@ -33,7 +37,9 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     [Fact]
     public async Task InitializeAsync_WithCustomKernelFactory_UsesProvidedKernel()
     {
-      MockPack
+      var (ownedKernel, ownedPack) =
+          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("xunit-owned");
+      ownedPack
           .SetupContainerCreate()
           .SetupContainerStart()
           .SetupContainerInspect(running: true)
@@ -41,15 +47,14 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
           .SetupContainerRemove();
 
       var fixture = new XunitContainerFixture();
-      var capturedKernel = Kernel;
 
       await fixture.InitializeAsync(
           configure: c => c.UseImage("redis:alpine"),
-          kernelFactory: () => Task.FromResult(capturedKernel),
+          kernelFactory: () => Task.FromResult(ownedKernel),
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.NotNull(fixture.Resource);
-      Assert.Same(capturedKernel, fixture.Kernel);
+      Assert.Same(ownedKernel, fixture.Kernel);
       Assert.True(fixture.Resource.IsInitialized);
 
       await fixture.DisposeAsync();
@@ -58,7 +63,9 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     [Fact]
     public async Task DisposeAsync_CleansUpResourceAndKernel()
     {
-      MockPack
+      var (ownedKernel, ownedPack) =
+          await MockKernelBuilderExtensions.CreateWithMockDriverAsync("xunit-dispose");
+      ownedPack
           .SetupContainerCreate()
           .SetupContainerStart()
           .SetupContainerInspect(running: true)
@@ -69,7 +76,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.InitializeAsync(
           configure: c => c.UseImage("alpine:latest"),
-          kernelFactory: () => Task.FromResult(Kernel),
+          kernelFactory: () => Task.FromResult(ownedKernel),
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(fixture.Resource.IsInitialized);
@@ -84,6 +91,53 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     {
       var fixture = new XunitContainerFixture();
       // Should not throw even when never initialized
+      await fixture.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ConditionalFixture_WhenDockerUnavailable_MarksSkippedWithoutProvisioning()
+    {
+      var pack = new MockDriverPack();
+      pack.SetHealthy(false);
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("xunit-unavailable", pack);
+      var fixture = new UnavailableConditionalFixture(() => Task.FromResult(kernel));
+
+      await fixture.InitializeAsync();
+
+      Assert.True(fixture.IsSkipped);
+      Assert.Contains("not reachable", fixture.SkipReason);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      pack.ContainerDriver.Verify(
+          d => d.CreateAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerCreateConfig>(),
+              It.IsAny<CancellationToken>()),
+          Times.Never);
+      await fixture.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ConditionalFixture_WrappedUnavailableDuringProvision_SkipsInsteadOfThrowing()
+    {
+      // TSTX-3: the daemon can die BETWEEN the health probe and resource init — the
+      // unavailability then arrives wrapped in ResourceInitializationException. The fixture
+      // must convert that to a skip (like the MSTest/NUnit adapters), not error the class.
+      var pack = new MockDriverPack();
+      pack.SetHealthy(true);
+      pack.ContainerDriver
+          .Setup(d => d.CreateAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerCreateConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new FluentDockerUnavailableException("daemon went away mid-init"));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("xunit-wrapped", pack);
+      var fixture = new UnavailableConditionalFixture(() => Task.FromResult(kernel));
+
+      await fixture.InitializeAsync();
+
+      Assert.True(fixture.IsSkipped);
+      Assert.Contains("daemon went away mid-init", fixture.SkipReason);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
       await fixture.DisposeAsync();
     }
 
@@ -129,7 +183,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       var fixture = new XunitContainerFixture();
 
-      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      await Assert.ThrowsAsync<ResourceInitializationException>(() =>
           fixture.InitializeAsync(
               configure: c => c.UseImage("fail:image"),
               kernelFactory: () => Task.FromResult(testKernel),
@@ -182,6 +236,17 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       await fixture.DisposeAsync();
     }
+
+    private sealed class UnavailableConditionalFixture(
+        Func<Task<FluentDockerKernel>> kernelFactory) : XunitConditionalContainerFixtureBase
+    {
+      protected override Func<Task<FluentDockerKernel>>? KernelFactory => kernelFactory;
+
+      protected override void ConfigureContainer(IContainerBuilder builder)
+      {
+        builder.UseImage("alpine:latest");
+      }
+    }
   }
 
   [Trait("Category", "Unit")]
@@ -214,6 +279,39 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.Same(Kernel, fixture.Kernel);
 
       await fixture.DisposeAsync();
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task InitializeAsync_ModelResource_LoadsAndUnloadsModel()
+    {
+      var model = ModelReference.Parse("ai/smollm2:latest");
+      MockPack
+          .SetupModelLoad()
+          .SetupModelUnload()
+          .EnableModelDrivers();
+
+      var fixture = new XunitResourceFixture<ModelResource>();
+
+      await fixture.InitializeAsync(
+          kernel => new ModelResource(kernel, model),
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(fixture.Resource.IsInitialized);
+      Assert.Same(fixture.Resource.Service.Runner, fixture.Resource.Runner);
+      MockPack.ModelRuntimeDriver.Verify(d => d.LoadAsync(
+          It.IsAny<DriverContext>(),
+          It.Is<ModelReference>(m => m.Equals(model)),
+          It.IsAny<ModelRunOptions>(),
+          It.IsAny<CancellationToken>()), Times.Once);
+
+      await fixture.DisposeAsync();
+
+      MockPack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+          It.IsAny<DriverContext>(),
+          It.Is<ModelReference>(m => m.Equals(model)),
+          It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -295,7 +393,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       var fixture = new XunitResourceFixture<ContainerResource>();
 
-      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      await Assert.ThrowsAsync<ResourceInitializationException>(() =>
           fixture.InitializeAsync(
               kernel => new ContainerResource(kernel, c => c.UseImage("fail:img")),
               kernelFactory: () => Task.FromResult(testKernel),
@@ -345,7 +443,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
 
       Assert.NotNull(fixture.Resource);
       Assert.Same(capturedKernel, fixture.Kernel);
-      Assert.Equal("fixture-stack", fixture.StackName);
+      Assert.StartsWith("fixture-stack", fixture.StackName); // session-scoped by default
 
       await fixture.DisposeAsync();
     }

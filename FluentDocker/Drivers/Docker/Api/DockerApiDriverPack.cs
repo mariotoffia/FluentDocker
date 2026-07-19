@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers;
 using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Kernel;
@@ -20,22 +23,27 @@ namespace FluentDocker.Drivers.Docker.Api
   public class DockerApiDriverPack : IDriverPack, IAsyncDisposable
   {
     private readonly Dictionary<Type, object> _drivers = [];
-    private DriverContext _context;
+    private readonly SemaphoreSlim _initializeLock = new(1, 1);
+    private DriverContext? _context;
     // CA1859: Must stay as interface — tests inject MockDockerApiConnection via reflection.
 #pragma warning disable CA1859
-    private IDockerApiConnection _connection;
+    private IDockerApiConnection _connection = null!;
 #pragma warning restore CA1859
     private ILogger<DockerApiDriverPack> _logger = NullLogger<DockerApiDriverPack>.Instance;
+    // Written under the init/dispose locks but read lock-free (IsHealthyAsync,
+    // ThrowIfNotInitialized): Volatile.Write/Read gives the ARM64 acquire/release pairing
+    // for the driver-field writes published before it (same pattern as the CLI packs).
     private bool _initialized;
 
-    private DockerApiContainerDriver _containerDriver;
-    private DockerApiImageDriver _imageDriver;
-    private DockerApiNetworkDriver _networkDriver;
-    private DockerApiVolumeDriver _volumeDriver;
-    private DockerApiSystemDriver _systemDriver;
-    private DockerApiAuthDriver _authDriver;
-    private DockerApiStreamDriver _streamDriver;
-    private DockerApiServiceDriver _serviceDriver;
+    private DockerApiContainerDriver _containerDriver = null!;
+    private DockerApiImageDriver _imageDriver = null!;
+    private DockerApiNetworkDriver _networkDriver = null!;
+    private DockerApiVolumeDriver _volumeDriver = null!;
+    private DockerApiSystemDriver _systemDriver = null!;
+    private DockerApiAuthDriver _authDriver = null!;
+    private DockerApiStreamDriver _streamDriver = null!;
+    private DockerApiServiceDriver _serviceDriver = null!;
+    private int _disposed;
 
     /// <inheritdoc />
     public DriverType Type => DriverType.DockerApi;
@@ -52,56 +60,75 @@ namespace FluentDocker.Drivers.Docker.Api
     public async Task InitializeAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      ArgumentNullException.ThrowIfNull(context);
-      _context = context;
-      _logger = context.LoggerFactory.CreateLogger<DockerApiDriverPack>();
-
-      var connectionConfig = new DockerApiConnectionConfig
+      cancellationToken.ThrowIfCancellationRequested();
+      await _initializeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      try
       {
-        Host = context.Host,
-        CertificatePath = context.CertificatePath,
-        VerifyTls = context.VerifyTls,
-        ConnectionTimeout = context.ConnectionTimeout ?? TimeSpan.FromSeconds(30),
-        RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
-        ApiVersion = context.ApiVersion,
-      };
-      _connection = new DockerApiConnection(connectionConfig, context.LoggerFactory);
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(context);
+        if (_initialized)
+          throw new InvalidOperationException("DockerApiDriverPack is already initialized.");
+        _context = context;
+        _logger = context.LoggerFactory.CreateLogger<DockerApiDriverPack>();
 
-      _containerDriver = new DockerApiContainerDriver(_connection);
-      _imageDriver = new DockerApiImageDriver(_connection);
-      _networkDriver = new DockerApiNetworkDriver(_connection);
-      _volumeDriver = new DockerApiVolumeDriver(_connection);
-      _systemDriver = new DockerApiSystemDriver(_connection);
-      _authDriver = new DockerApiAuthDriver(_connection);
-      _streamDriver = new DockerApiStreamDriver(_connection);
-      _serviceDriver = new DockerApiServiceDriver(_connection);
+        var connectionConfig = new DockerApiConnectionConfig
+        {
+          Host = context.Host,
+          CertificatePath = context.CertificatePath,
+          VerifyTls = context.VerifyTls != false,
+          ConnectionTimeout = context.ConnectionTimeout ?? TimeSpan.FromSeconds(30),
+          RequestTimeout = context.RequestTimeout ?? TimeSpan.FromMinutes(5),
+          StreamIdleTimeout = ParseStreamIdleTimeout(context),
+          ApiVersion = context.ApiVersion,
+          AllowTlsHostnameMismatch = context.Metadata?.TryGetValue(
+              DockerApiDriverMetadataKeys.AllowTlsHostnameMismatch, out var allowMismatch) == true &&
+              bool.TryParse(allowMismatch, out var parsedAllowMismatch) &&
+              parsedAllowMismatch,
+        };
+        _connection = new DockerApiConnection(connectionConfig, context.LoggerFactory);
+        cancellationToken.ThrowIfCancellationRequested();
 
-      _containerDriver.Initialize(context);
-      _imageDriver.Initialize(context);
-      _networkDriver.Initialize(context);
-      _volumeDriver.Initialize(context);
-      _systemDriver.Initialize(context);
-      _authDriver.Initialize(context);
-      _streamDriver.Initialize(context);
-      _serviceDriver.Initialize(context);
+        _containerDriver = new DockerApiContainerDriver(_connection);
+        _imageDriver = new DockerApiImageDriver(_connection);
+        _networkDriver = new DockerApiNetworkDriver(_connection);
+        _volumeDriver = new DockerApiVolumeDriver(_connection);
+        _systemDriver = new DockerApiSystemDriver(_connection);
+        _authDriver = new DockerApiAuthDriver(_connection);
+        _streamDriver = new DockerApiStreamDriver(_connection);
+        _serviceDriver = new DockerApiServiceDriver(_connection);
 
-      _drivers[typeof(IContainerDriver)] = _containerDriver;
-      _drivers[typeof(IImageDriver)] = _imageDriver;
-      _drivers[typeof(INetworkDriver)] = _networkDriver;
-      _drivers[typeof(IVolumeDriver)] = _volumeDriver;
-      _drivers[typeof(ISystemDriver)] = _systemDriver;
-      _drivers[typeof(IAuthDriver)] = _authDriver;
-      _drivers[typeof(IStreamDriver)] = _streamDriver;
-      _drivers[typeof(IServiceDriver)] = _serviceDriver;
+        _containerDriver.Initialize(context);
+        _imageDriver.Initialize(context);
+        _networkDriver.Initialize(context);
+        _volumeDriver.Initialize(context);
+        _systemDriver.Initialize(context);
+        _authDriver.Initialize(context);
+        _streamDriver.Initialize(context);
+        _serviceDriver.Initialize(context);
 
-      _initialized = true;
-      await Task.CompletedTask;
+        _drivers[typeof(IContainerDriver)] = _containerDriver;
+        _drivers[typeof(IImageDriver)] = _imageDriver;
+        _drivers[typeof(INetworkDriver)] = _networkDriver;
+        _drivers[typeof(IVolumeDriver)] = _volumeDriver;
+        _drivers[typeof(ISystemDriver)] = _systemDriver;
+        _drivers[typeof(IAuthDriver)] = _authDriver;
+        _drivers[typeof(IStreamDriver)] = _streamDriver;
+        _drivers[typeof(IServiceDriver)] = _serviceDriver;
+
+        Volatile.Write(ref _initialized, true);
+        await Task.CompletedTask;
+      }
+      finally
+      {
+        _initializeLock.Release();
+      }
     }
 
     /// <inheritdoc />
     public Task<DriverCapabilities> GetCapabilitiesAsync(
         CancellationToken cancellationToken = default)
     {
+      ThrowIfDisposed();
       return Task.FromResult(new DriverCapabilities
       {
         SupportsContainers = true,
@@ -114,18 +141,26 @@ namespace FluentDocker.Drivers.Docker.Api
         SupportsKubernetes = false,
         SupportsMachines = false,
         SupportsManifests = false,
+        SupportsStacks = false,
+        SupportsServices = true,
+        SupportsModels = false,
       });
     }
 
     /// <inheritdoc />
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
-      if (!_initialized || _connection == null)
+      ThrowIfDisposed();
+      if (!Volatile.Read(ref _initialized) || _connection == null)
         return false;
 
       try
       {
         return await _connection.PingAsync(cancellationToken).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -137,25 +172,25 @@ namespace FluentDocker.Drivers.Docker.Api
     #region ISysCtl
 
     /// <inheritdoc />
-    public T SysCtl<T>(string driverId) where T : class
+    public T SysCtl<T>(string? driverId) where T : class
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(typeof(T), out var driver))
         return (T)driver;
-      throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+      throw new InterfaceNotSupportedException(driverId!, TypeNameFormatter.Format(typeof(T)));
     }
 
     /// <inheritdoc />
-    public object SysCtl(string driverId, Type interfaceType)
+    public object SysCtl(string? driverId, Type interfaceType)
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(interfaceType, out var driver))
         return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      throw new InterfaceNotSupportedException(driverId!, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <inheritdoc />
-    public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+    public bool TrySysCtl<T>(string? driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(typeof(T), out var driver))
@@ -172,7 +207,7 @@ namespace FluentDocker.Drivers.Docker.Api
     #region IDriverInterfaceResolver
 
     /// <inheritdoc />
-    public bool TryResolve(Type interfaceType, out object implementation)
+    public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
     {
       ThrowIfNotInitialized();
       return _drivers.TryGetValue(interfaceType, out implementation);
@@ -189,41 +224,49 @@ namespace FluentDocker.Drivers.Docker.Api
 
     #region Direct Driver Access
 
+    /// <summary>Gets the Docker API container driver.</summary>
     public IContainerDriver ContainerDriver
     {
       get { ThrowIfNotInitialized(); return _containerDriver; }
     }
 
+    /// <summary>Gets the Docker API image driver.</summary>
     public IImageDriver ImageDriver
     {
       get { ThrowIfNotInitialized(); return _imageDriver; }
     }
 
+    /// <summary>Gets the Docker API network driver.</summary>
     public INetworkDriver NetworkDriver
     {
       get { ThrowIfNotInitialized(); return _networkDriver; }
     }
 
+    /// <summary>Gets the Docker API volume driver.</summary>
     public IVolumeDriver VolumeDriver
     {
       get { ThrowIfNotInitialized(); return _volumeDriver; }
     }
 
+    /// <summary>Gets the Docker API system driver.</summary>
     public ISystemDriver SystemDriver
     {
       get { ThrowIfNotInitialized(); return _systemDriver; }
     }
 
+    /// <summary>Gets the Docker API authentication driver.</summary>
     public IAuthDriver AuthDriver
     {
       get { ThrowIfNotInitialized(); return _authDriver; }
     }
 
+    /// <summary>Gets the Docker API stream driver.</summary>
     public IStreamDriver StreamDriver
     {
       get { ThrowIfNotInitialized(); return _streamDriver; }
     }
 
+    /// <summary>Gets the Docker API Swarm service driver.</summary>
     public IServiceDriver ServiceDriver
     {
       get { ThrowIfNotInitialized(); return _serviceDriver; }
@@ -231,19 +274,60 @@ namespace FluentDocker.Drivers.Docker.Api
 
     #endregion
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      if (_connection != null)
-        await _connection.DisposeAsync().ConfigureAwait(false);
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return;
+
+      IDockerApiConnection? connection = null;
+      await _initializeLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+      try
+      {
+        connection = _connection;
+        _connection = null!;
+        // Do not Clear() _drivers: resolution reads it lock-free (IDriverPack contract),
+        // so mutating it here is a torn-read data race with an in-flight resolver. The
+        // _disposed guard fences new callers; the dictionary stays immutable after init.
+        Volatile.Write(ref _initialized, false);
+        _context = null;
+      }
+      finally
+      {
+        // Do not dispose _initializeLock: a concurrent InitializeAsync may be queued in
+        // WaitAsync; disposing it would hang/mask instead of throwing ObjectDisposedException.
+        _initializeLock.Release();
+      }
+
+      if (connection != null)
+      {
+        DockerApiRegistryAuth.Clear(connection);
+        await connection.DisposeAsync().ConfigureAwait(false);
+      }
 
       GC.SuppressFinalize(this);
     }
 
     private void ThrowIfNotInitialized()
     {
-      if (!_initialized)
+      ThrowIfDisposed();
+      if (!Volatile.Read(ref _initialized))
         throw new InvalidOperationException(
             "DockerApiDriverPack has not been initialized. Call InitializeAsync first.");
+    }
+
+    private void ThrowIfDisposed()
+    {
+      ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+    }
+
+    private static TimeSpan? ParseStreamIdleTimeout(DriverContext context)
+    {
+      if (context.Metadata?.TryGetValue(DockerApiDriverMetadataKeys.StreamIdleTimeoutTicks, out var ticksText) == true &&
+          long.TryParse(ticksText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ticks) &&
+          ticks > 0)
+        return TimeSpan.FromTicks(ticks);
+      return null;
     }
   }
 }

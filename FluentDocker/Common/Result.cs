@@ -1,11 +1,12 @@
+#nullable enable
 namespace FluentDocker.Common
 {
   /// <summary>
   /// Represents the result of a kernel or builder operation that can succeed or fail,
   /// carrying a value, log output, and error message.
-  /// For driver-level command results, use <see cref="FluentDocker.Model.Drivers.CommandResponse{T}"/> instead.
   /// </summary>
   /// <typeparam name="T">The result value type.</typeparam>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use CommandResponse<T> for driver results.")]
   public sealed class Result<T>
   {
     internal Result(bool success, T value, string log, string error)

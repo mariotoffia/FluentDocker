@@ -1,8 +1,12 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Testing.Core;
 using FluentDocker.Tests.Mocks;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Testing
@@ -92,6 +96,32 @@ namespace FluentDocker.Tests.CoreTests.Testing
     {
       Assert.Throws<ArgumentNullException>(() =>
           new NetworkResource(Kernel, null!));
+    }
+
+    [Fact]
+    public async Task DisposeAsync_GracefulRemoveFails_PropagatesInsteadOfSwallowing()
+    {
+      // The CLI/API network driver returns CommandResponse.Fail (it does not throw)
+      // when a network can't be removed. TeardownAsync must surface that instead of
+      // reporting a clean teardown — otherwise the resource leaks silently.
+      MockPack.SetupNetworkCreate("net-stuck");
+      MockPack.NetworkDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(
+              "network has active endpoints", ErrorCodes.Network.RemoveFailed));
+
+      var resource = new NetworkResource(
+          Kernel,
+          config => config.Name = "stuck-network",
+          new DockerResourceOptions { ForceRemoveOnDispose = false });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await Assert.ThrowsAsync<DriverException>(
+          () => resource.DisposeAsync().AsTask());
     }
   }
 }

@@ -7,17 +7,30 @@ on:
       - main
       - fdv3
       - 'support/**'
+    tags:
+      # Canonical release tags are v-prefixed (v3.2.0); bare numeric tags (3.2.0 —
+      # the pre-3.2 historical scheme) also trigger the release job so a maintainer
+      # pushing an old-style tag gets a LOUD failure from the tag-verify step instead
+      # of a silent no-op. See DEVELOPMENT.md "Release checklist".
+      - 'v*'
+      - '[0-9]*'
   pull_request:
   # Disabled: the weekly scheduled integration-test run fails every time (no Docker
   # daemon available on the hosted runners for the full OS matrix). Run integration
-  # tests on demand via workflow_dispatch (run_integration: true) instead. Re-enable
-  # by uncommenting once the scheduled run is reliable.
+  # tests on demand via workflow_dispatch (run_integration: true) instead. When
+  # re-adding, also restore `github.event_name == 'schedule'` arms in the
+  # integration-tests matrix/if and model-runner-benchmarks if (removed as dead code).
   # schedule:
   #   - cron: '0 6 * * 1'  # Monday 06:00 UTC
   workflow_dispatch:
     inputs:
       run_integration:
         description: 'Run integration tests'
+        required: false
+        type: boolean
+        default: false
+      run_dmr:
+        description: 'Run the real Docker Model Runner (self-hosted) gate'
         required: false
         type: boolean
         default: false
@@ -38,9 +51,9 @@ jobs:
         shell: bash
         run: |
           if [ "$GITHUB_ACTOR" == "nektos/act" ]; then
-            echo "running_in_act=true" >> $GITHUB_OUTPUT
+            echo "running_in_act=true" >> "$GITHUB_OUTPUT"
           else
-            echo "running_in_act=false" >> $GITHUB_OUTPUT
+            echo "running_in_act=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Echo environment
@@ -54,9 +67,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: '10.0.x'
 
       - name: Read release version
         id: version
@@ -73,37 +84,9 @@ jobs:
       - name: Build solution
         run: dotnet build --configuration Release --no-restore
 
-      - name: Run tests (in act)
-        if: steps.detect-env.outputs.running_in_act == 'true'
-        env:
-          TERM: dumb
-          DOTNET_CLI_UI_LANGUAGE: en-US
-        run: |
-          echo "Running in act environment"
-          dotnet test \
-            --no-build \
-            --configuration Release \
-            --framework net10.0 \
-            --filter "Category=Unit" \
-            --logger "console;verbosity=detailed"
-
-      - name: Run tests with coverage (in GitHub)
-        if: steps.detect-env.outputs.running_in_act != 'true'
-        run: >
-          dotnet test
-          --no-build
-          --configuration Release
-          --framework net10.0
-          --filter "Category=Unit"
-          --collect:"XPlat Code Coverage"
-          --results-directory ./coverage
-          --settings coverletArgs.runsettings
-
-      - name: Upload coverage reports to Codecov
-        if: steps.detect-env.outputs.running_in_act != 'true' && matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Build examples
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet build Examples/Examples.sln --configuration Release
 
       - name: Create NuGet packages
         if: matrix.os == 'ubuntu-latest'
@@ -116,9 +99,17 @@ jobs:
         run: |
           EXPECTED=("FluentDocker" "FluentDocker.Testing.Xunit" "FluentDocker.Testing.MsTest" "FluentDocker.Testing.NUnit")
           for pkg in "${EXPECTED[@]}"; do
-            ls packages/${pkg}.*.nupkg 1>/dev/null 2>&1 || { echo "MISSING: ${pkg}"; exit 1; }
+            ls "packages/${pkg}".*.nupkg 1>/dev/null 2>&1 || { echo "MISSING: ${pkg}"; exit 1; }
             echo "OK: ${pkg}"
           done
+          # Inverse check: nothing EXTRA may be packed — a future packable project must not
+          # get auto-published without review.
+          COUNT=$(ls packages/*.nupkg | wc -l)
+          if [ "$COUNT" -ne "${#EXPECTED[@]}" ]; then
+            echo "ERROR: expected exactly ${#EXPECTED[@]} packages, found $COUNT:"
+            ls packages/*.nupkg
+            exit 1
+          fi
 
       - name: List NuGet packages
         if: matrix.os == 'ubuntu-latest'
@@ -135,29 +126,153 @@ jobs:
           retention-days: 7
         continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
 
-      - name: Publish NuGet packages
-        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/'))
+  unit-tests:
+    name: Unit Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+      - name: Verify formatting
         run: |
-          dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-        continue-on-error: ${{ steps.detect-env.outputs.running_in_act == 'true' }}
-
-      - name: Create and push Git tag for release
-        if: matrix.os == 'ubuntu-latest' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/support/')) && steps.detect-env.outputs.running_in_act != 'true'
+          dotnet format whitespace FluentDocker.sln --verify-no-changes
+          dotnet format style FluentDocker.sln --verify-no-changes
+      - name: Run unit tests with coverage (net10.0)
+        run: >
+          dotnet test --no-build --configuration Release --framework net10.0
+          --filter "Category=Unit|TestCategory=Unit"
+          --collect:"XPlat Code Coverage" --results-directory ./coverage
+          --settings coverletArgs.runsettings
+      - name: Run Docker-backed testing-resource smoke (net10.0)
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        run: >
+          dotnet test --no-build --configuration Release --framework net10.0
+          --filter "FullyQualifiedName~ContainerResourceIntegrationTests"
+        timeout-minutes: 10
+      - name: Enforce coverage threshold
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
         env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERAGE_REPORT_DIR: ./coverage
+          COVERAGE_LINE_MIN: '78'
+          COVERAGE_BRANCH_MIN: '71'
+        run: bash scripts/coverage-threshold
+      - name: Generate per-assembly coverage report
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
         run: |
-          # actions/checkout@v4 does not fetch tags, so check the remote
-          # directly. `--exit-code` makes ls-remote return non-zero when no
-          # matching ref exists, which we use to decide whether to push.
-          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_VERSION" >/dev/null 2>&1; then
-            echo "Tag $RELEASE_VERSION already exists on remote, skipping"
+          dotnet tool install -g dotnet-reportgenerator-globaltool || true
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          reportgenerator "-reports:./coverage/**/coverage.opencover.xml" "-targetdir:./coverage/report" "-reporttypes:HtmlInline;TextSummary;Cobertura"
+      - name: Upload coverage report artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/**/coverage.opencover.xml
+            coverage/report/**
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Upload coverage reports to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  release:
+    name: Publish & Tag
+    needs: [build, unit-tests, integration-tests]
+    # Configure required reviewers on the 'nuget-release' environment (repo Settings → Environments) to require manual approval before publish.
+    environment: nuget-release
+    # Publish ONLY on a version-tag push. Merging to a branch no longer publishes; a
+    # maintainer releases by pushing the matching v<version> tag (canonical scheme).
+    # Bare numeric tags (old scheme) reach this job too and fail loudly in the
+    # tag-verify step below instead of silently publishing nothing.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Read release version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(dotnet msbuild FluentDocker/FluentDocker.csproj -getProperty:Version -nologo -verbosity:quiet | tr -d '[:space:]')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Verify tag matches <Version>
+        shell: bash
+        run: |
+          # The pushed tag MUST equal v<Version> from Directory.Build.props. This blocks
+          # (a) publishing a version that does not match the tag (e.g. tagging v3.2.0
+          # while props still say 3.2.0-preview.2) and (b) old-style unprefixed tags
+          # (3.2.0) silently releasing nothing.
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' does not match <Version> '${VERSION}' in Directory.Build.props (expected tag 'v${VERSION}')."
+            echo "::error::Fix <Version> or delete the tag and push the canonical 'v${VERSION}' tag. See DEVELOPMENT.md 'Release checklist'."
+            exit 1
+          fi
+          echo "OK: tag ${GITHUB_REF_NAME} matches <Version> ${VERSION}"
+      - name: Check release docs
+        # The docs/README sweep gate: no temporary branch links, no stale/preview
+        # version strings at GA. Blocks tagging a release whose docs still say the
+        # release does not exist.
+        run: make check-release-docs
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+      - run: dotnet pack --configuration Release --no-build --output packages
+      - name: Validate NuGet packages
+        run: |
+          EXPECTED=("FluentDocker" "FluentDocker.Testing.Xunit" "FluentDocker.Testing.MsTest" "FluentDocker.Testing.NUnit")
+          for pkg in "${EXPECTED[@]}"; do
+            ls "packages/${pkg}.${{ steps.version.outputs.version }}.nupkg" 1>/dev/null 2>&1 || { echo "MISSING: ${pkg} at ${{ steps.version.outputs.version }}"; exit 1; }
+            echo "OK: ${pkg}"
+          done
+          COUNT=$(ls packages/*.nupkg | wc -l)
+          if [ "$COUNT" -ne "${#EXPECTED[@]}" ]; then
+            echo "ERROR: expected exactly ${#EXPECTED[@]} packages, found $COUNT:"
+            ls packages/*.nupkg
+            exit 1
+          fi
+      - name: Publish NuGet packages
+        run: dotnet nuget push "packages/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Keep the Releases page in lockstep with NuGet (the README badge and release
+          # links depend on it). --verify-tag: never create a release for a missing tag.
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            echo "GitHub release ${GITHUB_REF_NAME} already exists — skipping creation."
           else
-            echo "Creating Git tag for version: $RELEASE_VERSION"
-            git config --global user.name "GitHub Actions"
-            git config --global user.email "actions@github.com"
-            git tag "$RELEASE_VERSION"
-            git push origin "$RELEASE_VERSION"
+            PRERELEASE_FLAG=""
+            case "${{ steps.version.outputs.version }}" in
+              *-*) PRERELEASE_FLAG="--prerelease" ;;
+            esac
+            gh release create "${GITHUB_REF_NAME}" \
+              --verify-tag \
+              --title "FluentDocker ${{ steps.version.outputs.version }}" \
+              --generate-notes \
+              ${PRERELEASE_FLAG} \
+              packages/*.nupkg
           fi
 
   # CodeQL Security Analysis
@@ -182,9 +297,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: '10.0.x'
 
       - name: Build for CodeQL
         run: |
@@ -196,18 +309,25 @@ jobs:
         with:
           category: "/language:csharp"
 
-  # Integration tests — run on PRs (ubuntu only), schedule, or manual dispatch
+  # Integration tests — run with the `test-integration` PR label, on release-tag pushes
+  # (the release job depends on this lane, so a release requires it to have run; note the
+  # docker-check step below soft-skips the suite when the runner has no Docker daemon),
+  # or on manual dispatch.
+  # Real DMR coverage now lives in the dedicated `dmr-tests` job on a self-hosted runner;
+  # this hosted lane self-skips DMR tests by design (no `docker model` on hosted runners).
+  # Integration tests do NOT run on merge to main (push to a branch) — only units do.
   integration-tests:
     name: Integration Tests (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        # PRs: ubuntu only (fast feedback). Schedule/dispatch: full matrix.
-        os: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)) && fromJson('["ubuntu-latest","macos-latest","windows-latest"]') || fromJson('["ubuntu-latest"]') }}
+        # PRs/tags: ubuntu only (fast feedback). Dispatch: full matrix.
+        os: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_integration == true) && fromJson('["ubuntu-latest","macos-latest","windows-latest"]') || fromJson('["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     if: >
-      github.event_name == 'pull_request' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'test-integration')) ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) ||
       (github.event_name == 'workflow_dispatch' && inputs.run_integration == true)
     env:
       DOTNET_NOLOGO: 'true'
@@ -217,9 +337,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: '10.0.x'
 
       - name: Check Docker availability
         id: docker-check
@@ -231,13 +349,29 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check Docker Model Runner availability
+        id: dmr-check
+        shell: bash
+        run: |
+          # The DMR (model-runner) integration tests self-skip via the xUnit dynamic-skip
+          # sentinel when the runner is absent.
+          if docker model status > /dev/null 2>&1; then
+            echo "Docker Model Runner is available — DMR integration tests will run"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Docker Model Runner not available — DMR integration tests will skip"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - run: dotnet restore
 
       - run: dotnet build --configuration Debug --no-restore
 
       - name: Run integration tests
         if: steps.docker-check.outputs.available == 'true'
-        run: dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --verbosity normal
+        run: |
+          dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --no-build --framework net10.0 --verbosity normal --filter "Category=Integration|Category=PodmanIntegration"
+          make test-nunit-integration
         timeout-minutes: 30
 
       - name: Skip integration tests (no Docker)
@@ -245,3 +379,86 @@ jobs:
         shell: bash
         run: |
           echo "Docker not available on this runner — skipping integration tests"
+
+  dmr-tests:
+    name: Docker Model Runner Gate (self-hosted)
+    # Real DMR coverage. Runs only with the `test-dmr` PR label or a manual
+    # workflow_dispatch run_dmr=true. Requires a self-hosted runner labeled `dmr`
+    # with a working `docker model` runtime.
+    if: >
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'test-dmr')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_dmr == true)
+    runs-on: [self-hosted, dmr]
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Verify Docker Model Runner is present
+        shell: bash
+        run: |
+          if ! docker model status > /dev/null 2>&1; then
+            echo "::error::This self-hosted runner has no working 'docker model' runtime."
+            exit 1
+          fi
+      - run: dotnet restore
+      - run: dotnet build --configuration Debug --no-restore
+      - name: Run real DMR tests (hard-fail on skip)
+        env:
+          FLUENTDOCKER_REQUIRE_DMR: '1'
+        run: >
+          dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj
+          --configuration Debug --no-build --framework net10.0 --verbosity normal
+          --filter "Category=Integration&Requires=Dmr"
+          --logger "trx;LogFileName=dmr.trx" --results-directory ./dmr-results
+        timeout-minutes: 30
+      - name: Assert at least one DMR test actually executed
+        shell: bash
+        run: |
+          TRX=$(find ./dmr-results -name "dmr.trx" 2>/dev/null | head -1)
+          if [ -z "$TRX" ]; then
+            echo "::error::No DMR trx produced — the DMR lane ran zero tests."; exit 1
+          fi
+          # Counters total/passed in the trx ResultSummary; 0 executed => empty gate.
+          EXECUTED=$(grep -oE 'executed="[0-9]+"' "$TRX" | grep -oE '[0-9]+' | head -1)
+          echo "DMR tests executed: ${EXECUTED:-0}"
+          if [ "${EXECUTED:-0}" -lt 1 ]; then
+            echo "::error::DMR gate executed 0 tests — coverage is empty, failing."; exit 1
+          fi
+
+  # Model Runner benchmarks — deterministic (no DMR), so they run anywhere. Kept off
+  # PRs to keep them fast; runs on manual dispatch only. A perf blip must
+  # never fail CI, so this job is non-gating (continue-on-error) and uploads results.
+  model-runner-benchmarks:
+    name: Model Runner Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Model Runner benchmarks (short job)
+        run: >
+          dotnet run -c Release --project FluentDocker.Benchmarks --
+          --filter "*ModelRunner*"
+          --job short
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-runner-benchmarks
+          path: BenchmarkDotNet.Artifacts/**
+          retention-days: 7
+          if-no-files-found: warn

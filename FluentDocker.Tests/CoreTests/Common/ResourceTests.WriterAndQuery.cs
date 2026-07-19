@@ -70,9 +70,10 @@ namespace FluentDocker.Tests.CoreTests.Common
         // Act
         writer.Write(resourceStream);
 
-        // Assert - RelativeRootNamespace dots are replaced with PathSeparator
-        var expectedSubDir = "Sub.Folder".Replace('.', Path.PathSeparator);
-        var expectedPath = Path.Combine(tempDir, expectedSubDir, "nested.txt");
+        // Assert - RelativeRootNamespace dots become real nested directories (Sub/Folder),
+        // not a single "Sub<PathListSeparator>Folder" segment. Hard-code the segments so the
+        // assertion fails if the writer ever regresses to Path.PathSeparator.
+        var expectedPath = Path.Combine(tempDir, "Sub", "Folder", "nested.txt");
         Assert.True(File.Exists(expectedPath),
           $"Expected file at {expectedPath}");
         Assert.Equal(content, File.ReadAllText(expectedPath));
@@ -209,6 +210,65 @@ namespace FluentDocker.Tests.CoreTests.Common
       {
         if (Directory.Exists(tempDir))
           Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Theory]
+    [InlineData("../escape.txt")]
+    [InlineData("nested/escape.txt")]
+    public void Write_ResourceStream_RejectsPathTraversalResourceNames(string resource)
+    {
+      var outputDir = Path.Combine(Environment.CurrentDirectory, ".out", "resource-tests", Guid.NewGuid().ToString("N"));
+
+      try
+      {
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes("escape"));
+        var info = new ResourceInfo
+        {
+          Resource = resource,
+          RelativeRootNamespace = string.Empty
+        };
+        using var resourceStream = new ResourceStream(stream, info);
+
+        Assert.Throws<ArgumentException>(() => new FileResourceWriter(outputDir).Write(resourceStream));
+      }
+      finally
+      {
+        if (Directory.Exists(outputDir))
+          Directory.Delete(outputDir, true);
+      }
+    }
+
+    // CE-9: a crafted RelativeRootNamespace must not map to a rooted fragment (a leading dot
+    // becomes a leading separator, making Path.Combine discard the base path) or contain
+    // empty/dot/dot-dot segments that would traverse out of it.
+    [Theory]
+    [InlineData(".hack")]         // leading dot -> rooted fragment, discards the base path
+    [InlineData("..")]            // maps to separators only
+    [InlineData("a..b")]          // empty segment
+    [InlineData("a.")]            // trailing empty segment
+    [InlineData("a/../b")]        // literal traversal segment in an unusual manifest name
+    public void Write_ResourceStream_RejectsRootedOrTraversalNamespaces(string relativeRootNamespace)
+    {
+      var outputDir = Path.Combine(Environment.CurrentDirectory, ".out", "resource-tests", Guid.NewGuid().ToString("N"));
+
+      try
+      {
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes("escape"));
+        var info = new ResourceInfo
+        {
+          Resource = "file.txt",
+          RelativeRootNamespace = relativeRootNamespace
+        };
+        using var resourceStream = new ResourceStream(stream, info);
+
+        Assert.Throws<FluentDocker.Common.FluentDockerException>(
+          () => new FileResourceWriter(outputDir).Write(resourceStream));
+      }
+      finally
+      {
+        if (Directory.Exists(outputDir))
+          Directory.Delete(outputDir, true);
       }
     }
 
@@ -354,25 +414,62 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.NotNull(method);
 
       // Standard extension: "Ns.Sub.file.txt" -> "file.txt"
-      var result1 = (string)method.Invoke(null, ["Ns.Sub.file.txt"]);
+      var result1 = (string)method.Invoke(null, ["Ns.Sub.file.txt"])!;
       Assert.Equal("file.txt", result1);
 
       // No dots at all: "filename" -> "filename"
-      var result2 = (string)method.Invoke(null, ["filename"]);
+      var result2 = (string)method.Invoke(null, ["filename"])!;
       Assert.Equal("filename", result2);
 
       // Long extension (>5 chars) treated as dotless filename:
       // "Ns.Dockerfile" -> "Dockerfile"
-      var result3 = (string)method.Invoke(null, ["Ns.Dockerfile"]);
+      var result3 = (string)method.Invoke(null, ["Ns.Dockerfile"])!;
       Assert.Equal("Dockerfile", result3);
 
       // Short extension with namespace: "A.B.C.config.json" -> "config.json"
-      var result4 = (string)method.Invoke(null, ["A.B.C.config.json"]);
+      var result4 = (string)method.Invoke(null, ["A.B.C.config.json"])!;
       Assert.Equal("config.json", result4);
 
       // Single dot file: "file.cs" -> "file.cs" (no namespace separator)
-      var result5 = (string)method.Invoke(null, ["file.cs"]);
+      var result5 = (string)method.Invoke(null, ["file.cs"])!;
       Assert.Equal("file.cs", result5);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ResourceQuery_ShortDotlessFile_SingleSegmentRoot_DoesNotCrash()
+    {
+      // COMMON-1: "Cq.info" (root "Cq", file "info" with no extension) previously made ExtractFile
+      // return the whole manifest name, so QueryCore computed res[..-1] and threw
+      // ArgumentOutOfRangeException. It must now resolve to a single file at the root.
+      var results = new ResourceQuery()
+        .From("FluentDocker.Tests")
+        .Namespace("Zc", recursive: false)
+        .Query()
+        .ToList();
+
+      var info = Assert.Single(results);
+      Assert.Equal("info", info.Resource);
+      Assert.Equal("Zc", info.Namespace);
+      Assert.Equal("Zc", info.Root);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ResourceQuery_ShortDotlessFile_MultiSegmentRoot_IsNotSilentlyDropped()
+    {
+      // COMMON-1: "Cq.Sub.data" (multi-segment root "Cq.Sub", file "data") previously had ExtractFile
+      // grab "Sub.data", making the reconstructed namespace "Cq" fall short of the query root, so the
+      // resource was silently dropped at the ns-length guard. It must now be returned.
+      var results = new ResourceQuery()
+        .From("FluentDocker.Tests")
+        .Namespace("Zd.Sub", recursive: false)
+        .Query()
+        .ToList();
+
+      var data = Assert.Single(results);
+      Assert.Equal("data", data.Resource);
+      Assert.Equal("Zd.Sub", data.Namespace);
     }
 
     #endregion

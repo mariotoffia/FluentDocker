@@ -31,7 +31,7 @@ namespace FluentDocker.Testing.Core
         string image,
         string tag = "latest",
         bool removeOnDispose = false,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(image);
@@ -48,12 +48,12 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The image ID, available after initialization.
     /// </summary>
-    public string ImageId { get; private set; }
+    public string? ImageId { get; private set; }
 
     /// <summary>
     /// Inspects the image.
     /// </summary>
-    public async Task<Image> InspectAsync(CancellationToken cancellationToken = default)
+    public async Task<Image?> InspectAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
@@ -73,7 +73,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
-      ResourceName = ImageReference;
+      var generation = ProvisionGeneration;
 
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
       var result = await driver.PullAsync(
@@ -86,19 +86,39 @@ namespace FluentDocker.Testing.Core
       // Resolve the image ID via inspect
       var inspect = await driver.InspectAsync(
           new DriverContext(DriverId), ImageReference, cancellationToken).ConfigureAwait(false);
-      ImageId = inspect.Success ? inspect.Data?.Id : null;
+      var imageId = inspect.Success ? inspect.Data?.Id : null;
+      if (TryCommitProvision(generation, () =>
+      {
+        ResourceName = ImageReference;
+        ImageId = imageId;
+      }))
+      {
+        return;
+      }
+
+      await RemoveStaleImageAsync(driver, imageId, generation).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     protected override async Task TeardownAsync(CancellationToken cancellationToken)
     {
-      if (!_removeOnDispose || string.IsNullOrEmpty(ImageId))
+      if (!_removeOnDispose)
         return;
 
       var driver = Kernel.SysCtl<IImageDriver>(DriverId);
-      await driver.RemoveAsync(
+      var result = await driver.RemoveAsync(
           new DriverContext(DriverId), ImageReference, false, false, cancellationToken).ConfigureAwait(false);
-      ImageId = null;
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Image.NotFound)
+      {
+        ImageId = null;
+        return;
+      }
+
+      throw new DriverException(
+          $"Failed to remove image '{ImageReference}': {result.Error}",
+          result.ErrorCode!,
+          result.ErrorContext);
     }
 
     /// <inheritdoc />
@@ -107,18 +127,21 @@ namespace FluentDocker.Testing.Core
       if (!_removeOnDispose)
         return;
 
-      var id = ImageId;
-      ImageId = null;
-      if (string.IsNullOrEmpty(id))
-        return;
+      var target = string.IsNullOrEmpty(ImageId) ? ImageReference : ImageId;
+      var driver = Kernel.SysCtl<IImageDriver>(DriverId);
+      var result = await driver.RemoveAsync(
+          new DriverContext(DriverId), target, true, false, cancellationToken).ConfigureAwait(false);
 
-      try
+      if (result.Success || result.ErrorCode == ErrorCodes.Image.NotFound)
       {
-        var driver = Kernel.SysCtl<IImageDriver>(DriverId);
-        await driver.RemoveAsync(
-            new DriverContext(DriverId), id, true, false, cancellationToken).ConfigureAwait(false);
+        ImageId = null;
+        return;
       }
-      catch { /* best effort */ }
+
+      throw new DriverException(
+          $"Failed to force-remove image '{target}': {result.Error}",
+          result.ErrorCode!,
+          result.ErrorContext);
     }
 
     #endregion
@@ -128,6 +151,30 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized)
         throw new InvalidOperationException(
             "Image resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleImageAsync(IImageDriver driver, string? imageId, int generation)
+    {
+      if (!_removeOnDispose)
+        return;
+
+      var target = string.IsNullOrEmpty(imageId) ? ImageReference : imageId;
+      if (!ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = driver.RemoveAsync(
+            new DriverContext(DriverId), target, true, false, cts.Token);
+        var result = await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && result.ErrorCode != ErrorCodes.Image.NotFound)
+          OrphanCleanup.MarkAbandonedLateProvision(target, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(target, Options.SessionId);
+      }
     }
   }
 }

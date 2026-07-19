@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Containers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
 namespace FluentDocker.Builders
@@ -122,8 +123,7 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Runs Running-triggered lifecycle hooks. When <paramref name="executeCommands"/> is false,
     /// only setup hooks (CopyToOnStart) run; when true, only ExecuteOnRunning commands run.
-    /// Each element of an Execute hook's command array is executed as a separate command,
-    /// and failures propagate (the v2 contract) rather than being silently swallowed.
+    /// Execute hook command arrays are executed as one argv command, and failures propagate.
     /// </summary>
     private async Task RunRunningLifecycleHooksAsync(
         Services.Impl.ContainerService service, bool executeCommands,
@@ -137,15 +137,11 @@ namespace FluentDocker.Builders
         switch (hook.Type)
         {
           case LifecycleHookType.CopyTo when !executeCommands:
-            await service.CopyToAsync(hook.ContainerPath,
-                File.ReadAllBytes(hook.HostPath), cancellationToken).ConfigureAwait(false);
+            await service.CopyToAsync(hook.HostPath!, hook.ContainerPath!, cancellationToken).ConfigureAwait(false);
             break;
           case LifecycleHookType.Execute when executeCommands:
             if (hook.Command != null)
-            {
-              foreach (var command in hook.Command)
-                await service.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
-            }
+              await service.ExecuteAsync(hook.Command, cancellationToken).ConfigureAwait(false);
             break;
         }
       }
@@ -162,14 +158,19 @@ namespace FluentDocker.Builders
           case WaitConditionType.Port:
             if (!string.IsNullOrEmpty(condition.Path))
             {
-              var hostPort = await service.GetHostPortAsync(condition.Target, cancellationToken).ConfigureAwait(false);
+              var hostPort = await service.GetHostPortAsync(condition.Target!, cancellationToken).ConfigureAwait(false);
+              if (hostPort == 0)
+                throw new FluentDockerException(
+                    $"Port {condition.Target} is not exposed on container {service.Id}");
               success = await Services.Extensions.ServiceExtensions.WaitForPortAsync(
-                  condition.Path, hostPort, condition.TimeoutMs, cancellationToken).ConfigureAwait(false);
+                  condition.Path, hostPort, condition.TimeoutMs, condition.PollIntervalMs,
+                  cancellationToken).ConfigureAwait(false);
             }
             else
             {
               success = await Services.Extensions.ServiceExtensions.WaitForPortAsync(
-                  service, condition.Target, condition.TimeoutMs, cancellationToken).ConfigureAwait(false);
+                  service, condition.Target!, condition.TimeoutMs, condition.PollIntervalMs,
+                  cancellationToken).ConfigureAwait(false);
             }
             if (!success)
               throw new FluentDockerException(
@@ -178,14 +179,16 @@ namespace FluentDocker.Builders
 
           case WaitConditionType.Process:
             success = await Services.Extensions.ServiceExtensions.WaitForProcessAsync(
-                service, condition.Target, condition.TimeoutMs, cancellationToken).ConfigureAwait(false);
+                service, condition.Target!, condition.TimeoutMs, condition.PollIntervalMs,
+                cancellationToken).ConfigureAwait(false);
             if (!success)
               throw new FluentDockerException(
                   $"Timeout waiting for process {condition.Target} on container {service.Id}");
             break;
 
           case WaitConditionType.Http:
-            if (condition.Target.StartsWith("http://") || condition.Target.StartsWith("https://"))
+            if (condition.Target!.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                condition.Target.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
               success = await WaitForHttpUrlAsync(condition.Target, condition.TimeoutMs,
                   condition.HttpMethod, condition.ContentType, condition.Body,
@@ -194,7 +197,8 @@ namespace FluentDocker.Builders
             else
             {
               success = await Services.Extensions.ServiceExtensions.WaitForHttpAsync(
-                  service, condition.Target, condition.Path, condition.TimeoutMs, cancellationToken).ConfigureAwait(false);
+                  service, condition.Target, condition.Path!, condition.TimeoutMs,
+                  condition.PollIntervalMs, cancellationToken).ConfigureAwait(false);
             }
             if (!success)
               throw new FluentDockerException(
@@ -203,7 +207,8 @@ namespace FluentDocker.Builders
 
           case WaitConditionType.LogMessage:
             success = await Services.Extensions.ServiceExtensions.WaitForLogMessageAsync(
-                service, condition.Target, condition.TimeoutMs, cancellationToken).ConfigureAwait(false);
+                service, condition.Target!, condition.TimeoutMs, condition.PollIntervalMs,
+                cancellationToken).ConfigureAwait(false);
             if (!success)
               throw new FluentDockerException(
                   $"Timeout waiting for log message '{condition.Target}' on container {service.Id}");
@@ -218,8 +223,8 @@ namespace FluentDocker.Builders
             break;
 
           case WaitConditionType.Lambda:
-            success = await WaitForLambdaAsync(service, condition.LambdaCondition,
-                condition.TimeoutMs, cancellationToken).ConfigureAwait(false);
+            success = await WaitForLambdaAsync(service, condition.LambdaCondition!,
+                condition.TimeoutMs, condition.PollIntervalMs, cancellationToken).ConfigureAwait(false);
             if (!success)
               throw new FluentDockerException(
                   $"Timeout waiting for custom condition on container {service.Id}");
@@ -233,60 +238,66 @@ namespace FluentDocker.Builders
         int pollIntervalMs, CancellationToken cancellationToken)
     {
       var sw = Stopwatch.StartNew();
-      var sawNonNullHealth = false;
       while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
       {
+        service.InvalidateInspectCache();
         var config = await service.InspectAsync(cancellationToken).ConfigureAwait(false);
-        var health = config?.State?.Health?.Status;
-        if (health == HealthState.Healthy)
-          return true;
-        if (health == HealthState.Unhealthy)
-          return false;
-
-        if (health != null && health != HealthState.Unknown)
-          sawNonNullHealth = true;
-
-        // If health remains null/Unknown after container has had time to start,
-        // it likely has no HEALTHCHECK configured. Give a clear error instead
-        // of waiting silently until timeout.
-        if (!sawNonNullHealth && (health == null || health == HealthState.Unknown)
-            && sw.ElapsedMilliseconds > Math.Min(5000, timeoutMs / 2))
-        {
+        if (config?.State?.Health == null)
           throw new FluentDockerException(
               "Container has no HEALTHCHECK configured. " +
               "Use WaitForPort or WaitForLogMessage instead of WaitForHealthy.");
-        }
+
+        var health = config.State.Health.Status;
+        if (health == HealthState.Healthy)
+          return true;
+        if (health == HealthState.Unhealthy)
+          throw new FluentDockerException(
+              $"Container {service.Id} reported Unhealthy");
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
+      cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
 
     private static async Task<bool> WaitForLambdaAsync(
         IContainerService service, Func<IContainerService, int, int> condition,
-        long timeoutMs, CancellationToken cancellationToken)
+        long timeoutMs, int pollIntervalMs, CancellationToken cancellationToken)
     {
       var sw = Stopwatch.StartNew();
       var iteration = 0;
-      try
+      while (sw.ElapsedMilliseconds < timeoutMs)
       {
-        while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
+        cancellationToken.ThrowIfCancellationRequested();
+        int result;
+        try
         {
-          var result = condition(service, iteration++);
-          if (result < 0)
-            return true;
-          if (result == 0)
-          { await Task.Yield(); continue; }
-          await Task.Delay(result, cancellationToken).ConfigureAwait(false);
+          result = condition(service, iteration++);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+          throw;
+        }
+        catch (OperationCanceledException)
+        {
+          return false;
+        }
+
+        if (result < 0)
+          return true;
+        if (result == 0)
+        {
+          await Task.Delay(Math.Max(1, pollIntervalMs), cancellationToken).ConfigureAwait(false);
+          continue;
+        }
+        await Task.Delay(result, cancellationToken).ConfigureAwait(false);
       }
-      catch (OperationCanceledException) { }
       return false;
     }
 
     private static async Task<bool> WaitForHttpUrlAsync(
-        string url, long timeoutMs, HttpMethod method, string contentType,
-        string body, Func<RequestResponse, int, long> continuation,
+        string url, long timeoutMs, HttpMethod? method, string? contentType,
+        string? body, Func<RequestResponse, int, long>? continuation,
         int pollIntervalMs, CancellationToken cancellationToken)
     {
       var sw = Stopwatch.StartNew();
@@ -309,7 +320,7 @@ namespace FluentDocker.Builders
                   new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
           }
 
-          var response = await Common.SharedHttpClient.Instance.SendAsync(request, requestCts.Token).ConfigureAwait(false);
+          using var response = await Common.SharedHttpClient.Instance.SendAsync(request, requestCts.Token).ConfigureAwait(false);
           var responseBody = await response.Content.ReadAsStringAsync(requestCts.Token).ConfigureAwait(false);
 
           if (continuation != null)
@@ -319,8 +330,16 @@ namespace FluentDocker.Builders
                 iteration++);
             if (delay < 0)
               return true;
+            if (delay == 0)
+            {
+              await Task.Delay(Math.Max(1, pollIntervalMs), cancellationToken).ConfigureAwait(false);
+              continue;
+            }
             if (delay > 0)
-              await Task.Delay((int)delay, cancellationToken).ConfigureAwait(false);
+            {
+              await Task.Delay((int)Math.Min(delay, int.MaxValue), cancellationToken).ConfigureAwait(false);
+              continue;
+            }
           }
           else if (response.IsSuccessStatusCode)
           {
@@ -328,31 +347,72 @@ namespace FluentDocker.Builders
           }
         }
         catch (HttpRequestException) { }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (TaskCanceledException) { }
 
         await Task.Delay(pollIntervalMs, cancellationToken).ConfigureAwait(false);
       }
+      cancellationToken.ThrowIfCancellationRequested();
       return false;
     }
 
     #region Container Helpers
 
-    private static async Task WaitForContainerRunningAsync(
+    internal static async Task WaitForContainerStartedAsync(
         Drivers.IContainerDriver driver, Model.Drivers.DriverContext context,
-        string containerId, CancellationToken cancellationToken)
+        string containerId, string containerName, bool allowCleanExit, long timeoutMs, int pollIntervalMs,
+        CancellationToken cancellationToken)
     {
-      const int maxAttempts = 30;
-      const int delayMs = 100;
-      for (var i = 0; i < maxAttempts; i++)
+      var sw = Stopwatch.StartNew();
+      while (sw.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
       {
         var inspectResult = await driver.InspectAsync(context, containerId, cancellationToken).ConfigureAwait(false);
-        if (inspectResult.Success && inspectResult.Data?.State?.Running == true)
-          return;
-        await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
+        if (inspectResult?.Success == true)
+        {
+          var state = inspectResult.Data?.State;
+          // A crash-looping container reports Running=true while Restarting=true; keep polling
+          // (it has not truly started) so WaitForRunning cannot succeed on a restarting container.
+          if (state?.Running == true && state.Restarting != true)
+            return;
+          if (WaitDiagnostics.HasReachedTerminalState(state))
+          {
+            if (allowCleanExit && state!.ExitCode == 0)
+              return;
+
+            var logs = await WaitDiagnostics.ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
+            throw new FluentDockerException(WaitDiagnostics.AppendLogTail(
+                $"Container {containerId} exited before it was ready with exit code {state!.ExitCode}.",
+                logs));
+          }
+        }
+        else if (inspectResult?.ErrorCode == ErrorCodes.Container.NotFound)
+        {
+          var label = string.IsNullOrWhiteSpace(containerName) ? containerId : $"{containerName} ({containerId})";
+          throw new FluentDockerException(
+              $"Container {label} no longer exists (AutoRemove?) and may have exited before it was ready.");
+        }
+        else if (inspectResult?.Success == false)
+        {
+          throw new DriverException(
+              $"Failed to inspect container {containerId} while waiting for start: {inspectResult.Error}",
+              inspectResult.ErrorCode ?? ErrorCodes.General.Unknown,
+              inspectResult.ErrorContext);
+        }
+        var delay = (int)Math.Min(pollIntervalMs, Math.Max(1, timeoutMs - sw.ElapsedMilliseconds));
+        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
       }
+      cancellationToken.ThrowIfCancellationRequested();
+      // Match the exit/AutoRemove branches above: use the friendly "name (id)" label and attach a
+      // log tail, so a linked/deferred-start timeout is as diagnosable as a standalone one instead
+      // of a bare "Timeout waiting for container <id>" — exactly the multi-container case where the
+      // logs matter most (BLD-MAJ-5).
+      var timeoutLabel = string.IsNullOrWhiteSpace(containerName) ? containerId : $"{containerName} ({containerId})";
+      var timeoutLogs = await WaitDiagnostics.ReadLogTailAsync(driver, context, containerId, cancellationToken).ConfigureAwait(false);
+      throw new FluentDockerException(WaitDiagnostics.AppendLogTail(
+          $"Timeout waiting for container {timeoutLabel} to start.", timeoutLogs));
     }
 
-    private static async Task<string> FindExistingContainerAsync(
+    private static async Task<string?> FindExistingContainerAsync(
         Drivers.IContainerDriver driver, Model.Drivers.DriverContext context,
         string name, CancellationToken cancellationToken)
     {
@@ -365,7 +425,7 @@ namespace FluentDocker.Builders
       var container = listResult.Data?.FirstOrDefault(c =>
       {
         var containerName = c.Name?.TrimStart('/');
-        return string.Equals(containerName, normalizedName, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(containerName, normalizedName, StringComparison.Ordinal);
       });
       return container?.Id;
     }

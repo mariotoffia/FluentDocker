@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers.Docker.Cli.Components
@@ -25,20 +27,24 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"tag {imageId} {repository}:{tag}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"tag {QuotePositionalArgument(imageId, nameof(imageId))} {QuotePositionalArgument($"{repository}:{tag}", nameof(repository))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image tag failed",
-              ErrorCodes.Image.TagFailed);
+              ErrorOrDefault(result, "Image tag failed"),
+              FailureCode(result.Error, ErrorCodes.Image.TagFailed));
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.TagFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.TagFailed));
       }
     }
 
@@ -57,15 +63,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -f";
         if (noPrune)
           args += " --no-prune";
-        args += $" {imageId}";
+        args += $" {QuotePositionalArgument(imageId, nameof(imageId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ImageRemoveResult>.Fail(
-              result.Error ?? "Image remove failed",
-              ErrorCodes.Image.RemoveFailed);
+              ErrorOrDefault(result, "Image remove failed"),
+              MapRemoveErrorCode(result.Error));
         }
 
         // Parse removed/untagged images from output
@@ -73,17 +79,21 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
-          if (line.StartsWith("Deleted:"))
+          if (line.StartsWith("Deleted:", StringComparison.Ordinal))
             removeResult.Deleted.Add(line[8..].Trim());
-          else if (line.StartsWith("Untagged:"))
+          else if (line.StartsWith("Untagged:", StringComparison.Ordinal))
             removeResult.Untagged.Add(line[9..].Trim());
         }
 
         return CommandResponse<ImageRemoveResult>.Ok(removeResult);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<ImageRemoveResult>.Fail(ex.Message, ErrorCodes.Image.RemoveFailed);
+        return CommandResponse<ImageRemoveResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.RemoveFailed));
       }
     }
 
@@ -91,7 +101,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<ImagePruneResult>> PruneAsync(
         DriverContext context,
         bool all = false,
-        Dictionary<string, string> filter = null,
+        Dictionary<string, string>? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -101,15 +111,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -a";
         if (filter != null)
           foreach (var f in filter)
-            args += $" --filter {f.Key}={f.Value}";
+            args += $" --filter {QuoteArgumentIfNeeded($"{f.Key}={f.Value}")}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ImagePruneResult>.Fail(
-              result.Error ?? "Image prune failed",
-              ErrorCodes.Image.PruneFailed,
+              ErrorOrDefault(result, "Image prune failed"),
+              FailureCode(result.Error, ErrorCodes.Image.PruneFailed),
               CreateErrorContext(context, "PruneImages", result),
               result.ExitCode);
         }
@@ -117,10 +127,22 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<ImagePruneResult>.Ok(
             CliPruneOutputParser.ParseImagePruneOutput(result.Output));
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<ImagePruneResult>.Fail(ex.Message, ErrorCodes.Image.PruneFailed);
+        return CommandResponse<ImagePruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.PruneFailed));
       }
+    }
+
+    private static string MapRemoveErrorCode(string error)
+    {
+      if (!string.IsNullOrEmpty(error) &&
+          error.Contains("No such image", StringComparison.OrdinalIgnoreCase))
+        return ErrorCodes.Image.NotFound;
+      return FailureCode(error, ErrorCodes.Image.RemoveFailed);
     }
 
     #endregion
@@ -136,22 +158,31 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"save -o \"{outputPath}\" {string.Join(" ", images)}", cancellationToken).ConfigureAwait(false);
+        if (images == null || images.Length == 0)
+          return CommandResponse<Unit>.Fail(
+              "images must contain at least one image.",
+              ErrorCodes.General.InvalidArgument);
+
+        var result = await ExecuteUnboundedCommandAsync(context, $"save -o {QuoteArgumentIfNeeded(outputPath)} {string.Join(" ", images.Select(i => QuotePositionalArgument(i, nameof(images))))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Image save failed",
-              ErrorCodes.Image.SaveFailed,
+              ErrorOrDefault(result, "Image save failed"),
+              FailureCode(result.Error, ErrorCodes.Image.SaveFailed),
               CreateErrorContext(context, "SaveImage", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.SaveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.SaveFailed));
       }
     }
 
@@ -163,13 +194,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"load -i \"{inputPath}\"", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, $"load -i {QuoteArgumentIfNeeded(inputPath)}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<string>>.Fail(
-              result.Error ?? "Image load failed",
-              ErrorCodes.Image.LoadFailed,
+              ErrorOrDefault(result, "Image load failed"),
+              FailureCode(result.Error, ErrorCodes.Image.LoadFailed),
               CreateErrorContext(context, "LoadImage", result),
               result.ExitCode);
         }
@@ -195,9 +226,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         return CommandResponse<IList<string>>.Ok(images);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<IList<string>>.Fail(ex.Message, ErrorCodes.Image.LoadFailed);
+        return CommandResponse<IList<string>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.LoadFailed));
       }
     }
 
@@ -205,40 +240,40 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<string>> ImportAsync(
         DriverContext context,
         string source,
-        string repository = null,
-        string tag = null,
-        string message = null,
+        string? repository = null,
+        string? tag = null,
+        string? message = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
         var args = "import";
         if (!string.IsNullOrEmpty(message))
-          args += $" -m \"{message}\"";
-        args += $" \"{source}\"";
+          args += $" -m {QuoteArgumentIfNeeded(message)}";
+        args += $" {QuotePositionalArgument(source, nameof(source))}";
         if (!string.IsNullOrEmpty(repository))
-        {
-          args += $" {repository}";
-          if (!string.IsNullOrEmpty(tag))
-            args += $":{tag}";
-        }
+          args += $" {QuotePositionalArgument(string.IsNullOrEmpty(tag) ? repository : $"{repository}:{tag}", nameof(repository))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<string>.Fail(
-              result.Error ?? "Image import failed",
-              ErrorCodes.Image.ImportFailed,
+              ErrorOrDefault(result, "Image import failed"),
+              FailureCode(result.Error, ErrorCodes.Image.ImportFailed),
               CreateErrorContext(context, "ImportImage", result),
               result.ExitCode);
         }
 
         return CommandResponse<string>.Ok(result.Output.Trim());
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<string>.Fail(ex.Message, ErrorCodes.Image.ImportFailed);
+        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.ImportFailed));
       }
     }
 

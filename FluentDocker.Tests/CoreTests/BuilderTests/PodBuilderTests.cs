@@ -211,7 +211,8 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       kernel ??= new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var builderType = typeof(Builder).Assembly
           .GetType("FluentDocker.Builders.PodBuilder");
-      return (IPodBuilder)Activator.CreateInstance(builderType, kernel, driverId);
+      Assert.NotNull(builderType);
+      return (IPodBuilder)Activator.CreateInstance(builderType, kernel, driverId)!;
     }
 
     private static async Task<IServiceAsync> InvokeExecuteAsync(IPodBuilder builder)
@@ -222,7 +223,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.NotNull(executeMethod);
 
       var task = (Task<IServiceAsync>)executeMethod.Invoke(
-          builder, [CancellationToken.None]);
+          builder, [CancellationToken.None])!;
       return await task;
     }
 

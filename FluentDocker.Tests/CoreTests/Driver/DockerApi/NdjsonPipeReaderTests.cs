@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -29,9 +30,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   /// </summary>
   internal sealed class NdjsonTestItem
   {
-    [JsonPropertyName("id")] public string Id { get; set; }
+    [JsonPropertyName("id")] public string? Id { get; set; }
     [JsonPropertyName("value")] public int Value { get; set; }
-    [JsonPropertyName("text")] public string Text { get; set; }
+    [JsonPropertyName("text")] public string? Text { get; set; }
   }
 
   [JsonSerializable(typeof(NdjsonTestItem))]
@@ -41,15 +42,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   public class NdjsonPipeReaderTests
   {
     /// <summary>
-    /// Testable wrapper that exposes the protected static ReadNdjsonLinesAsync.
+    /// Testable wrapper that exposes the protected ReadNdjsonLinesAsync through a
+    /// shared instance (the reader logs dropped lines via the base Logger).
     /// </summary>
     private sealed class TestableDriverBase : DockerApiDriverBase
     {
+      private static readonly TestableDriverBase Instance = new();
+
       public TestableDriverBase() : base(new MockDockerApiConnection()) { }
 
       public static IAsyncEnumerable<T> TestReadNdjsonLines<T>(
           Stream stream, JsonTypeInfo<T> typeInfo, CancellationToken ct) where T : class
-          => ReadNdjsonLinesAsync(stream, typeInfo, ct);
+          => Instance.ReadNdjsonLinesAsync(stream, typeInfo, ct);
     }
 
     private static JsonTypeInfo<NdjsonTestItem> TypeInfo =>
@@ -307,29 +311,27 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     #region Cancellation
 
     /// <summary>
-    /// Validates that cancellation stops enumeration promptly.
+    /// Validates that cancellation propagates as OperationCanceledException.
     /// </summary>
     [Fact]
-    public async Task Cancellation_StopsReading()
+    public async Task Cancellation_ThrowsOperationCanceledException()
     {
       var cts = new CancellationTokenSource();
       // Large stream with many lines — cancel after first item
       var sb = new StringBuilder();
       for (var i = 0; i < 1000; i++)
-        sb.Append($"{{\"id\":\"{i}\",\"value\":{i}}}\n");
+        sb.Append(CultureInfo.InvariantCulture, $"{{\"id\":\"{i}\",\"value\":{i}}}\n");
       using var stream = MakeStream(sb.ToString());
 
-      var items = new List<NdjsonTestItem>();
-      await foreach (var item in TestableDriverBase.TestReadNdjsonLines(
-          stream, TypeInfo, cts.Token))
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
       {
-        items.Add(item);
-        if (items.Count == 1)
-          cts.Cancel();
-      }
-
-      // Cancel fires after item 1; inner loop checks ct per-line, so at most 1 extra
-      Assert.InRange(items.Count, 1, 2);
+        await foreach (var item in TestableDriverBase.TestReadNdjsonLines(
+            stream, TypeInfo, cts.Token))
+        {
+          if (item != null)
+            cts.Cancel();
+        }
+      });
     }
 
     #endregion

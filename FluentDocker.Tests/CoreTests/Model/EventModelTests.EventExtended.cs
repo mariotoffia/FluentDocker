@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using FluentDocker.Model.Events;
 using FluentDocker.Model.Networks;
@@ -68,7 +69,7 @@ namespace FluentDocker.Tests.CoreTests.Model
         ContainerId = "abc123def456",
         Name = "my-bridge-network",
         Type = NetworkType.Bridge,
-        CustomType = null
+        CustomType = null!
       };
 
       var evt = new NetworkConnectEvent { EventActor = actor };
@@ -136,7 +137,7 @@ namespace FluentDocker.Tests.CoreTests.Model
         ContainerId = "xyz789",
         Name = "backend-network",
         Type = NetworkType.Overlay,
-        CustomType = null
+        CustomType = null!
       };
 
       var evt = new NetworkDisconnectEvent { EventActor = actor };
@@ -217,6 +218,24 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Equal("custom-type", evt.TypeRaw);
     }
 
+    [Fact]
+    public void UnknownEvent_NumericUndefinedAction_FallsBackToUnspecified()
+    {
+      var evt = new UnknownEvent("999", "Container");
+
+      Assert.Equal(EventAction.Unspecified, evt.Action);
+      Assert.Equal(EventType.Container, evt.Type);
+    }
+
+    [Fact]
+    public void UnknownEvent_NumericUndefinedType_FallsBackToGeneric()
+    {
+      var evt = new UnknownEvent("Pull", "999");
+
+      Assert.Equal(EventAction.Pull, evt.Action);
+      Assert.Equal(EventType.Generic, evt.Type);
+    }
+
     [Theory]
     [InlineData("Pull", EventAction.Pull)]
     [InlineData("Create", EventAction.Create)]
@@ -264,14 +283,12 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void UnknownEvent_CaseSensitiveParsing()
+    public void UnknownEvent_ParsesCaseInsensitive()
     {
-      // Enum.TryParse is case-sensitive by default
       var evt = new UnknownEvent("create", "container");
 
-      // Lowercase should fail to parse (case-sensitive)
-      Assert.Equal(EventAction.Unspecified, evt.Action);
-      Assert.Equal(EventType.Generic, evt.Type);
+      Assert.Equal(EventAction.Create, evt.Action);
+      Assert.Equal(EventType.Container, evt.Type);
       Assert.Equal("create", evt.ActionRaw);
       Assert.Equal("container", evt.TypeRaw);
     }
@@ -403,3 +420,4 @@ namespace FluentDocker.Tests.CoreTests.Model
     #endregion
   }
 }
+#pragma warning restore CS0618

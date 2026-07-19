@@ -96,7 +96,7 @@ namespace FluentDocker.Tests.CoreTests.Exceptions
     }
 
     [Fact]
-    public void ContainerStartException_IsTransient()
+    public void ContainerStartException_ForPermanentStartFailure_IsNotTransient()
     {
       // Arrange
       var context = new ErrorContext();
@@ -105,8 +105,21 @@ namespace FluentDocker.Tests.CoreTests.Exceptions
       var ex = new ContainerStartException("container-123", "port already in use", context);
 
       // Assert
-      Assert.True(ex.IsTransient);
+      Assert.False(ex.IsTransient);
       Assert.Equal(ErrorCodes.Container.StartFailed, ex.ErrorCode);
+    }
+
+    [Fact]
+    public void ContainerStartException_ForConnectionFailure_IsTransient()
+    {
+      var ex = new ContainerStartException(
+          "container-123",
+          "daemon unavailable",
+          new ErrorContext(),
+          ErrorCodes.Api.ConnectionFailed);
+
+      Assert.True(ex.IsTransient);
+      Assert.Equal(ErrorCodes.Api.ConnectionFailed, ex.ErrorCode);
     }
 
     [Fact]
@@ -125,10 +138,28 @@ namespace FluentDocker.Tests.CoreTests.Exceptions
     public void ImagePullException_IsTransient()
     {
       // Act
-      var ex = new ImagePullException("nginx:latest", "network timeout");
+      var ex = new ImagePullException(
+          "nginx:latest",
+          "network timeout",
+          isTransient: ImagePullException.IsTransientReason("network timeout"));
 
       // Assert
       Assert.True(ex.IsTransient);
+      Assert.Equal("nginx:latest", ex.ImageName);
+      Assert.Equal(ErrorCodes.Image.PullFailed, ex.ErrorCode);
+    }
+
+    [Fact]
+    public void ImagePullException_CanBeMarkedNonTransient()
+    {
+      // Act
+      var ex = new ImagePullException(
+          "nginx:latest",
+          "manifest unknown",
+          isTransient: ImagePullException.IsTransientReason("manifest unknown"));
+
+      // Assert
+      Assert.False(ex.IsTransient);
       Assert.Equal("nginx:latest", ex.ImageName);
       Assert.Equal(ErrorCodes.Image.PullFailed, ex.ErrorCode);
     }
@@ -179,4 +210,3 @@ namespace FluentDocker.Tests.CoreTests.Exceptions
     }
   }
 }
-

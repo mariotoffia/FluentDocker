@@ -13,7 +13,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// resource limits, and diff.
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "FluentContainer")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "FluentContainer")]
   public partial class FluentContainerTests
   {
     #region Copy Operations Tests

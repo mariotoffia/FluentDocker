@@ -33,7 +33,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         OpenStdin = config.Interactive,
         StopSignal = config.StopSignal,
         StopTimeout = config.StopTimeout,
-        Labels = config.Labels?.Count > 0 ? config.Labels : null,
+        Labels = config.Labels?.Count > 0 ? config.Labels : null!,
         HostConfig = BuildHostConfig(config)
       };
 
@@ -55,9 +55,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config.HealthCheck != null)
         request.Healthcheck = BuildHealthcheck(config.HealthCheck);
 
-      if (!string.IsNullOrEmpty(config.Platform))
-        request.Platform = config.Platform;
-
       return request;
     }
 
@@ -69,6 +66,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Privileged = config.Privileged,
         Memory = config.MemoryLimit,
         CpuShares = config.CpuShares,
+        CpuQuota = config.CpuQuota,
         NetworkMode = config.NetworkMode
       };
 
@@ -79,15 +77,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           var key = containerPort.Contains('/')
               ? containerPort : $"{containerPort}/tcp";
+          var (hostIp, hostPortOnly) = SplitHostIpAndPort(hostPort);
           hc.PortBindings[key] =
                     [
-                        new() { HostPort = hostPort }
+                        new() { HostIp = hostIp, HostPort = hostPortOnly }
                     ];
         }
       }
 
       if (config.Volumes?.Count > 0)
-        hc.Binds = [.. config.Volumes.Select(kv => $"{kv.Key}:{kv.Value}")];
+        hc.Binds = [.. config.Volumes];
 
       if (!string.IsNullOrEmpty(config.RestartPolicy))
       {
@@ -131,18 +130,29 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return hc;
     }
 
-    private static NetworkingConfigRequest BuildNetworkingConfig(
+    /// <summary>
+    /// Builds container-create networking configuration.
+    /// </summary>
+    /// <remarks>
+    /// Attaching more than one network in EndpointsConfig at container-create requires
+    /// Docker Engine API >= 1.44 (Docker >= 25.0). Older daemons reject more than one
+    /// endpoint at create with HTTP 400; attach additional networks post-create via the
+    /// network-connect endpoint.
+    /// </remarks>
+    private static NetworkingConfigRequest? BuildNetworkingConfig(
         ContainerCreateConfig config)
     {
       if (config.Networks == null || config.Networks.Count == 0)
         return null;
 
       var endpoints = new Dictionary<string, EndpointConfigRequest>();
+      var primaryNetwork = config.Networks.FirstOrDefault();
       foreach (var network in config.Networks)
       {
         var endpoint = new EndpointConfigRequest();
-        if (!string.IsNullOrEmpty(config.Ipv4Address) ||
-            !string.IsNullOrEmpty(config.Ipv6Address))
+        if (string.Equals(network, primaryNetwork, StringComparison.Ordinal) &&
+            (!string.IsNullOrEmpty(config.Ipv4Address) ||
+             !string.IsNullOrEmpty(config.Ipv6Address)))
         {
           endpoint.IpamConfig = new IpamConfigRequest
           {
@@ -164,6 +174,26 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return new NetworkingConfigRequest { EndpointsConfig = endpoints };
     }
 
+    private static (string HostIp, string HostPort) SplitHostIpAndPort(string hostPort)
+    {
+      if (string.IsNullOrWhiteSpace(hostPort))
+        return ("", hostPort);
+
+      var lastColon = hostPort.LastIndexOf(':');
+      if (lastColon < 0)
+        return ("", hostPort);
+      // ":8080" — empty host with a leading colon separator; strip the colon so the daemon
+      // receives HostPort "8080" instead of the bogus ":8080".
+      if (lastColon == 0)
+        return ("", hostPort[1..]);
+
+      var hostIp = hostPort[..lastColon];
+      if (hostIp.Length >= 2 && hostIp[0] == '[' && hostIp[^1] == ']')
+        hostIp = hostIp[1..^1];
+      var port = hostPort[(lastColon + 1)..];
+      return (hostIp, port);
+    }
+
     private static HealthcheckRequest BuildHealthcheck(HealthCheckConfig hc)
     {
       return new HealthcheckRequest
@@ -176,27 +206,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
     }
 
-    private static long? ParseDurationNanoseconds(string duration)
-    {
-      if (string.IsNullOrEmpty(duration))
-        return null;
-
-      if (duration.EndsWith("ms") &&
-          long.TryParse(duration[..^2], out var ms))
-        return ms * 1_000_000;
-
-      if (duration.EndsWith('s') &&
-          long.TryParse(duration[..^1], out var sec))
-        return sec * 1_000_000_000;
-
-      if (duration.EndsWith('m') &&
-          long.TryParse(duration[..^1], out var min))
-        return min * 60 * 1_000_000_000;
-
-      return long.TryParse(duration, out var raw) ? raw : null;
-    }
-
-    private static string BuildListPath(ContainerListFilter filter)
+    private static string BuildListPath(ContainerListFilter? filter)
     {
       var path = "/containers/json";
       var queryParams = new List<string>();
@@ -217,7 +227,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return path;
     }
 
-    private static string BuildListFilters(ContainerListFilter filter)
+    private static string? BuildListFilters(ContainerListFilter? filter)
     {
       if (filter == null)
         return null;
@@ -254,7 +264,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Id = json.GetStringOrDefault("Id"),
         Name = json.GetStringOrDefault("Name")?.TrimStart('/'),
         Image = json.GetStringOrDefault("Image"),
-        Created = json.GetDateTimeOrDefault("Created"),
+        Created = json.GetDateTimeOffsetOrDefault("Created"),
         Driver = json.GetStringOrDefault("Driver"),
         State = ParseContainerState(json.Prop("State")),
         Config = ParseContainerConfig(json.Prop("Config")),
@@ -278,8 +288,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Pid = el.GetInt32OrDefault("Pid"),
         ExitCode = el.GetInt64OrDefault("ExitCode"),
         Error = el.GetStringOrDefault("Error"),
-        StartedAt = el.GetDateTimeOrDefault("StartedAt"),
-        FinishedAt = el.GetDateTimeOrDefault("FinishedAt"),
+        StartedAt = el.GetDateTimeOffsetOrDefault("StartedAt"),
+        FinishedAt = el.GetDateTimeOffsetOrDefault("FinishedAt"),
         Health = ParseHealth(el.Prop("Health") ?? el.Prop("Healthcheck"))
       };
     }
@@ -287,7 +297,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     // Podman-compat (and some Docker versions) emit Health.Status as an empty
     // string instead of omitting the field. Default to HealthState.Unknown so
     // enum parsing doesn't throw.
-    private static Health ParseHealth(JsonElement? healthToken)
+    private static Health? ParseHealth(JsonElement? healthToken)
     {
       if (healthToken == null || healthToken.Value.IsNullOrUndefined())
         return null;
@@ -297,7 +307,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       HealthState status;
       if (string.IsNullOrEmpty(statusStr))
         status = HealthState.Unknown;
-      else if (!Enum.TryParse(statusStr, ignoreCase: true, out status))
+      else if (!Enum.TryParse(statusStr, ignoreCase: true, out status) || !Enum.IsDefined(status))
         status = HealthState.Unknown;
 
       var health = new Health
@@ -325,7 +335,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return health;
     }
 
-    private static ContainerConfig ParseContainerConfig(JsonElement? element)
+    private static ContainerConfig? ParseContainerConfig(JsonElement? element)
     {
       if (element == null || element.Value.ValueKind != JsonValueKind.Object)
         return null;
@@ -346,7 +356,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
     }
 
-    private static ContainerNetworkSettings ParseNetworkSettings(JsonElement? element)
+    private static ContainerNetworkSettings? ParseNetworkSettings(JsonElement? element)
     {
       if (element == null || element.Value.ValueKind != JsonValueKind.Object)
         return null;
@@ -358,9 +368,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Gateway = el.GetStringOrDefault("Gateway"),
         IPAddress = el.GetStringOrDefault("IPAddress"),
         MacAddress = el.GetStringOrDefault("MacAddress"),
-        Networks = networks?.ValueKind == JsonValueKind.Object
-            ? networks.Value.Deserialize<Dictionary<string, BridgeNetwork>>()
-            : null
+        Networks = ParseBridgeNetworks(networks)
       };
     }
 
@@ -373,7 +381,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       foreach (var token in json.EnumerateArray())
       {
         var namesEl = token.Prop("Names");
-        string firstName = null;
+        string? firstName = null;
         if (namesEl?.ValueKind == JsonValueKind.Array)
         {
           foreach (var n in namesEl.Value.EnumerateArray())
@@ -387,9 +395,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           Id = token.GetStringOrDefault("Id"),
           Image = token.GetStringOrDefault("Image"),
-          Created = DateTimeOffset
-                .FromUnixTimeSeconds(token.GetInt64OrDefault("Created"))
-                .UtcDateTime,
+          Created = DateTimeOffset.FromUnixTimeSeconds(token.GetInt64OrDefault("Created")),
           Name = firstName,
           State = new ContainerState
           {
@@ -479,7 +485,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (systemDelta <= 0 || cpuDelta <= 0)
         return 0.0;
 
-      var onlineCpus = cpuStats.GetInt32OrDefault("online_cpus", 1);
+      var onlineCpus = cpuStats.GetInt32OrDefault("online_cpus");
+      if (onlineCpus <= 0)
+      {
+        var perCpu = cpuUsage?.Prop("percpu_usage");
+        onlineCpus = perCpu?.ValueKind == JsonValueKind.Array ? perCpu.Value.GetArrayLength() : 1;
+      }
       return (double)cpuDelta / systemDelta * onlineCpus * 100.0;
     }
 

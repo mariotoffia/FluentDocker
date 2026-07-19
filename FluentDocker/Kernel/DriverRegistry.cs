@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,15 +16,20 @@ namespace FluentDocker.Kernel
   /// Default implementation of the driver registry.
   /// Supports both individual drivers and driver packs.
   /// </summary>
-  public class DriverRegistry : IDriverRegistry, IDisposable, IAsyncDisposable
+  public partial class DriverRegistry : IDriverRegistry, IDisposable, IAsyncDisposable
   {
     private readonly ConcurrentDictionary<string, DriverRegistration> _drivers = new();
     private readonly ConcurrentDictionary<string, DriverPackRegistration> _driverPacks = new();
+    private readonly HashSet<string> _reservedDriverIds = [];
+    private readonly HashSet<object> _reservedDriverInstances = new(ReferenceEqualityComparer.Instance);
+    private readonly List<string> _registrationOrder = [];
     private readonly SemaphoreSlim _registrationLock = new(1, 1);
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<DriverRegistry> _logger;
-    private string _defaultDriverId;
+    private string? _defaultDriverId;
     private readonly object _defaultDriverLock = new object();
+    private int _disposed;
+    private int _abandonedDriverCount;
 
     /// <summary>
     /// Creates a new driver registry with the consumer-supplied logger factory.
@@ -43,6 +49,15 @@ namespace FluentDocker.Kernel
     /// </summary>
     public ILoggerFactory LoggerFactory => _loggerFactory;
 
+    /// <summary>
+    /// Gets how many drivers or driver packs were abandoned because disposal
+    /// exhausted the configured budget before their dispose operation completed.
+    /// </summary>
+    public int AbandonedDriverCount => Volatile.Read(ref _abandonedDriverCount);
+
+    /// <inheritdoc />
+    public bool IsDisposeComplete => Volatile.Read(ref _disposed) == 2;
+
     #region Driver Registration
 
     /// <summary>
@@ -57,50 +72,76 @@ namespace FluentDocker.Kernel
 
       ArgumentNullException.ThrowIfNull(driver);
       ArgumentNullException.ThrowIfNull(context);
+      ThrowIfDisposed();
 
-      await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      DriverContext? preparedContext = null;
+      var reserved = false;
+      var initStarted = false;
       try
       {
-        // Check if ID is already used by a driver pack or driver
-        if (_driverPacks.ContainsKey(driverId))
-          throw new DriverException($"Driver ID '{driverId}' is already registered as a driver pack", ErrorCodes.Driver.AlreadyRegistered);
-
-        if (_drivers.ContainsKey(driverId))
-          throw new DriverException($"Driver '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
-
-        // Ensure context has the driver ID
-        if (string.IsNullOrEmpty(context.DriverId))
-          context.DriverId = driverId;
-
-        // Inject the consumer-supplied logger factory so the driver's
-        // InitializeAsync sees the real factory, not the context's default null sink.
-        context.LoggerFactory = _loggerFactory;
-
-        // Initialize the driver
-        await driver.InitializeAsync(context, cancellationToken).ConfigureAwait(false);
-
-        var registration = new DriverRegistration
+        await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-          Driver = driver,
-          Context = context,
-          Type = driver.Type,
-          Runtime = driver.Runtime
-        };
+          ThrowIfDisposed();
 
-        // Add should always succeed since we hold the lock and checked above.
-        // If it somehow fails, dispose the initialized driver.
-        if (!_drivers.TryAdd(driverId, registration))
+          preparedContext = PrepareContext(driverId, context);
+          ThrowIfDriverIdUnavailable(driverId, "Driver");
+          ThrowIfDriverInstanceUnavailable(driver, "Driver");
+          _reservedDriverIds.Add(driverId);
+          _reservedDriverInstances.Add(driver);
+          reserved = true;
+        }
+        finally
         {
-          await DisposeDriverSafelyAsync(driver, _logger).ConfigureAwait(false);
-          throw new DriverException($"Driver '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
+          _registrationLock.Release();
         }
 
-        // Set as default if this is the first driver
-        SetDefaultIfFirst(driverId);
+        initStarted = true;
+        await driver.InitializeAsync(preparedContext, cancellationToken).ConfigureAwait(false);
+
+        await _registrationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+          _reservedDriverIds.Remove(driverId);
+          _reservedDriverInstances.Remove(driver);
+          reserved = false;
+          ThrowIfDisposed();
+
+          var registration = new DriverRegistration
+          {
+            Driver = driver,
+            Context = preparedContext,
+            Type = driver.Type,
+            Runtime = driver.Runtime
+          };
+
+          if (!_drivers.TryAdd(driverId, registration))
+            throw new DriverException($"Driver '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
+
+          _registrationOrder.Add(driverId);
+          SetDefaultIfFirst(driverId);
+        }
+        finally
+        {
+          _registrationLock.Release();
+        }
       }
-      finally
+      catch (Exception ex)
       {
-        _registrationLock.Release();
+        if (reserved)
+          await RollbackReservationAsync(driverId, driver).ConfigureAwait(false);
+        if (initStarted)
+        {
+          // Budgeted, same as UnregisterAsync/DisposeAsync: an unbounded dispose here would let a
+          // driver whose DisposeAsync hangs (e.g. a dead socket after InitializeAsync threw OCE)
+          // block this call forever. The caller token is not honored for the dispose itself —
+          // external cancellation must not abandon the driver both undisposed and uncounted.
+          var start = Environment.TickCount64;
+          if (!await DisposeDriverWithinBudgetAsync(driver, _logger, driverId, Remaining(start, DisposeBudget)).ConfigureAwait(false))
+            Interlocked.Increment(ref _abandonedDriverCount);
+          MarkFailureDisposedInstance(ex);
+        }
+        throw;
       }
     }
 
@@ -109,16 +150,56 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void Unregister(string driverId)
     {
-      _drivers.TryRemove(driverId, out _);
-      _driverPacks.TryRemove(driverId, out _);
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
+      Task.Run(() => UnregisterAsync(driverId)).GetAwaiter().GetResult();
+    }
 
-      lock (_defaultDriverLock)
+    /// <inheritdoc />
+    public async Task UnregisterAsync(string driverId, CancellationToken cancellationToken = default)
+    {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
+      DriverRegistration? driver = null;
+      DriverPackRegistration? pack = null;
+
+      await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      try
       {
-        if (_defaultDriverId == driverId)
+        ThrowIfDisposed();
+        var removedDriver = _drivers.TryRemove(driverId, out driver);
+        var removedPack = _driverPacks.TryRemove(driverId, out pack);
+        if (!removedDriver && !removedPack)
+          throw CreateDriverNotFoundException(driverId);
+
+        _registrationOrder.Remove(driverId);
+
+        lock (_defaultDriverLock)
         {
-          _defaultDriverId = null;
+          if (string.Equals(_defaultDriverId, driverId, StringComparison.Ordinal))
+            _defaultDriverId = FirstRegisteredStillPresent();
         }
       }
+      finally
+      {
+        _registrationLock.Release();
+      }
+
+      // Removal has committed under the lock, so we now own disposing these instances. Dispose within
+      // the budget only: honoring the caller token here would let external cancellation abandon a
+      // removed driver both undisposed and uncounted. Matches DisposeAsync.
+      var start = Environment.TickCount64;
+      var budget = DisposeBudget;
+      if (driver != null &&
+          !await DisposeDriverWithinBudgetAsync(
+              driver.Driver, _logger, driverId, Remaining(start, budget))
+              .ConfigureAwait(false))
+        Interlocked.Increment(ref _abandonedDriverCount);
+      if (pack != null &&
+          !await DisposeDriverPackWithinBudgetAsync(
+              pack.DriverPack, _logger, driverId, Remaining(start, budget))
+              .ConfigureAwait(false))
+        Interlocked.Increment(ref _abandonedDriverCount);
     }
 
     /// <summary>
@@ -126,9 +207,11 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IDriver GetDriver(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
       if (!_drivers.TryGetValue(driverId, out var registration))
       {
-        throw new DriverNotFoundException(driverId);
+        throw CreateDriverNotFoundException(driverId);
       }
 
       return registration.Driver;
@@ -137,8 +220,10 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Tries to get a driver by ID.
     /// </summary>
-    public bool TryGetDriver(string driverId, out IDriver driver)
+    public bool TryGetDriver(string driverId, [NotNullWhen(true)] out IDriver? driver)
     {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
       if (_drivers.TryGetValue(driverId, out var registration))
       {
         driver = registration.Driver;
@@ -165,50 +250,74 @@ namespace FluentDocker.Kernel
 
       ArgumentNullException.ThrowIfNull(driverPack);
       ArgumentNullException.ThrowIfNull(context);
+      ThrowIfDisposed();
 
-      await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      DriverContext? preparedContext = null;
+      var reserved = false;
+      var initStarted = false;
       try
       {
-        // Check if ID is already used by a regular driver or driver pack
-        if (_drivers.ContainsKey(driverId))
-          throw new DriverException($"Driver ID '{driverId}' is already registered as a driver", ErrorCodes.Driver.AlreadyRegistered);
-
-        if (_driverPacks.ContainsKey(driverId))
-          throw new DriverException($"Driver pack '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
-
-        // Ensure context has the driver ID
-        if (string.IsNullOrEmpty(context.DriverId))
-          context.DriverId = driverId;
-
-        // Inject the consumer-supplied logger factory so the pack's
-        // InitializeAsync sees the real factory, not the context's default null sink.
-        context.LoggerFactory = _loggerFactory;
-
-        // Initialize the driver pack
-        await driverPack.InitializeAsync(context, cancellationToken).ConfigureAwait(false);
-
-        var registration = new DriverPackRegistration
+        await _registrationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-          DriverPack = driverPack,
-          Context = context,
-          Type = driverPack.Type,
-          Runtime = driverPack.Runtime
-        };
+          ThrowIfDisposed();
 
-        // Add should always succeed since we hold the lock and checked above.
-        // If it somehow fails, dispose the initialized driver pack.
-        if (!_driverPacks.TryAdd(driverId, registration))
+          preparedContext = PrepareContext(driverId, context);
+          ThrowIfDriverIdUnavailable(driverId, "Driver pack");
+          ThrowIfDriverInstanceUnavailable(driverPack, "Driver pack");
+          _reservedDriverIds.Add(driverId);
+          _reservedDriverInstances.Add(driverPack);
+          reserved = true;
+        }
+        finally
         {
-          await DisposeDriverPackSafelyAsync(driverPack, _logger).ConfigureAwait(false);
-          throw new DriverException($"Driver pack '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
+          _registrationLock.Release();
         }
 
-        // Set as default if this is the first driver/pack
-        SetDefaultIfFirst(driverId);
+        initStarted = true;
+        await driverPack.InitializeAsync(preparedContext, cancellationToken).ConfigureAwait(false);
+
+        await _registrationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+          _reservedDriverIds.Remove(driverId);
+          _reservedDriverInstances.Remove(driverPack);
+          reserved = false;
+          ThrowIfDisposed();
+
+          var registration = new DriverPackRegistration
+          {
+            DriverPack = driverPack,
+            Context = preparedContext,
+            Type = driverPack.Type,
+            Runtime = driverPack.Runtime
+          };
+
+          if (!_driverPacks.TryAdd(driverId, registration))
+            throw new DriverException($"Driver pack '{driverId}' is already registered", ErrorCodes.Driver.AlreadyRegistered);
+
+          _registrationOrder.Add(driverId);
+          SetDefaultIfFirst(driverId);
+        }
+        finally
+        {
+          _registrationLock.Release();
+        }
       }
-      finally
+      catch (Exception ex)
       {
-        _registrationLock.Release();
+        if (reserved)
+          await RollbackReservationAsync(driverId, driverPack).ConfigureAwait(false);
+        if (initStarted)
+        {
+          // Budgeted, same as UnregisterAsync/DisposeAsync — see RegisterAsync's catch block for
+          // why an unbounded dispose here (and honoring the caller token) is unsafe.
+          var start = Environment.TickCount64;
+          if (!await DisposeDriverPackWithinBudgetAsync(driverPack, _logger, driverId, Remaining(start, DisposeBudget)).ConfigureAwait(false))
+            Interlocked.Increment(ref _abandonedDriverCount);
+          MarkFailureDisposedInstance(ex);
+        }
+        throw;
       }
     }
 
@@ -217,9 +326,11 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IDriverPack GetDriverPack(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
       if (!_driverPacks.TryGetValue(driverId, out var registration))
       {
-        throw new DriverNotFoundException(driverId);
+        throw CreateDriverNotFoundException(driverId);
       }
 
       return registration.DriverPack;
@@ -228,8 +339,10 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Tries to get a driver pack by ID.
     /// </summary>
-    public bool TryGetDriverPack(string driverId, out IDriverPack driverPack)
+    public bool TryGetDriverPack(string driverId, [NotNullWhen(true)] out IDriverPack? driverPack)
     {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
       if (_driverPacks.TryGetValue(driverId, out var registration))
       {
         driverPack = registration.DriverPack;
@@ -245,6 +358,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool IsDriverPack(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
       return _driverPacks.ContainsKey(driverId);
     }
 
@@ -257,6 +372,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     public DriverContext GetContext(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
       if (_drivers.TryGetValue(driverId, out var driverReg))
       {
         return driverReg.Context;
@@ -267,7 +384,7 @@ namespace FluentDocker.Kernel
         return packReg.Context;
       }
 
-      throw new DriverNotFoundException(driverId);
+      throw CreateDriverNotFoundException(driverId);
     }
 
     /// <summary>
@@ -275,6 +392,8 @@ namespace FluentDocker.Kernel
     /// </summary>
     public bool IsRegistered(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
       return _drivers.ContainsKey(driverId) || _driverPacks.ContainsKey(driverId);
     }
 
@@ -283,6 +402,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IReadOnlyList<string> GetAllDriverIds()
     {
+      ThrowIfDisposed();
       return [.. _drivers.Keys, .. _driverPacks.Keys];
     }
 
@@ -295,6 +415,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IReadOnlyList<string> GetDriversByType(DriverType driverType)
     {
+      ThrowIfDisposed();
       var fromDrivers = _drivers
           .Where(kvp => kvp.Value.Type == driverType)
           .Select(kvp => kvp.Key);
@@ -311,6 +432,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     public IReadOnlyList<string> GetDriversByRuntime(RuntimeType runtime)
     {
+      ThrowIfDisposed();
       var fromDrivers = _drivers
           .Where(kvp => kvp.Value.Runtime == runtime)
           .Select(kvp => kvp.Key);
@@ -327,10 +449,14 @@ namespace FluentDocker.Kernel
     #region Default Driver
 
     /// <summary>
-    /// Gets the default driver ID.
+    /// Gets the default driver ID exactly as currently recorded (null when none is set);
+    /// the getter performs no healing. When the default driver is removed,
+    /// <see cref="UnregisterAsync"/> promotes the first registered driver still present
+    /// (or clears the default when none remain) before this getter can observe a stale value.
     /// </summary>
-    public string GetDefaultDriverId()
+    public string? GetDefaultDriverId()
     {
+      ThrowIfDisposed();
       lock (_defaultDriverLock)
       {
         return _defaultDriverId;
@@ -342,12 +468,14 @@ namespace FluentDocker.Kernel
     /// </summary>
     public void SetDefaultDriver(string driverId)
     {
+      ThrowIfDriverIdInvalid(driverId);
+      ThrowIfDisposed();
       lock (_defaultDriverLock)
       {
         // Check inside lock to prevent TOCTOU race where another thread
         // could unregister the driver between check and set.
         if (!IsRegistered(driverId))
-          throw new DriverNotFoundException(driverId);
+          throw CreateDriverNotFoundException(driverId);
 
         _defaultDriverId = driverId;
       }
@@ -355,123 +483,5 @@ namespace FluentDocker.Kernel
 
     #endregion
 
-    #region Private Helpers
-
-    private void SetDefaultIfFirst(string driverId)
-    {
-      lock (_defaultDriverLock)
-      {
-        _defaultDriverId ??= driverId;
-      }
-    }
-
-    /// <summary>
-    /// Safely disposes a driver that was initialized but could not be registered.
-    /// </summary>
-    private static async Task DisposeDriverSafelyAsync(IDriver driver, ILogger logger)
-    {
-      try
-      {
-        if (driver is IAsyncDisposable asyncDisposable)
-          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-        else if (driver is IDisposable disposable)
-          disposable.Dispose();
-      }
-      catch (Exception ex)
-      {
-        logger.LogWarning(ex, "Driver disposal cleanup failed");
-      }
-    }
-
-    /// <summary>
-    /// Safely disposes a driver pack that was initialized but could not be registered.
-    /// </summary>
-    private static async Task DisposeDriverPackSafelyAsync(IDriverPack driverPack, ILogger logger)
-    {
-      try
-      {
-        if (driverPack is IAsyncDisposable asyncDisposable)
-          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-        else if (driverPack is IDisposable disposable)
-          disposable.Dispose();
-      }
-      catch (Exception ex)
-      {
-        logger.LogWarning(ex, "Driver pack disposal cleanup failed");
-      }
-    }
-
-    #endregion
-
-    #region IDisposable / IAsyncDisposable
-
-    public void Dispose()
-    {
-      DisposeAsync().AsTask().GetAwaiter().GetResult();
-      GC.SuppressFinalize(this);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-      // Dispose all registered driver packs
-      foreach (var kvp in _driverPacks)
-      {
-        try
-        {
-          if (kvp.Value.DriverPack is IAsyncDisposable asyncDisposable)
-            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-          else if (kvp.Value.DriverPack is IDisposable disposable)
-            disposable.Dispose();
-        }
-        catch (Exception ex)
-        {
-          _logger.LogWarning(ex, "Failed to dispose driver pack {DriverId}", kvp.Key);
-        }
-      }
-
-      // Dispose all registered drivers
-      foreach (var kvp in _drivers)
-      {
-        try
-        {
-          if (kvp.Value.Driver is IAsyncDisposable asyncDisposable)
-            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-          else if (kvp.Value.Driver is IDisposable disposable)
-            disposable.Dispose();
-        }
-        catch (Exception ex)
-        {
-          _logger.LogWarning(ex, "Failed to dispose driver {DriverId}", kvp.Key);
-        }
-      }
-
-      _driverPacks.Clear();
-      _drivers.Clear();
-      _registrationLock.Dispose();
-
-      GC.SuppressFinalize(this);
-    }
-
-    #endregion
-
-    #region Registration Types
-
-    private sealed class DriverRegistration
-    {
-      public IDriver Driver { get; set; }
-      public DriverContext Context { get; set; }
-      public DriverType Type { get; set; }
-      public RuntimeType Runtime { get; set; }
-    }
-
-    private sealed class DriverPackRegistration
-    {
-      public IDriverPack DriverPack { get; set; }
-      public DriverContext Context { get; set; }
-      public DriverType Type { get; set; }
-      public RuntimeType Runtime { get; set; }
-    }
-
-    #endregion
   }
 }

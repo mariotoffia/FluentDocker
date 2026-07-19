@@ -15,6 +15,7 @@ namespace FluentDocker.Kernel
   {
     private readonly List<DriverConfiguration> _driverConfigurations = [];
     private readonly ILoggerFactory _loggerFactory;
+    private int _built;
 
     /// <summary>
     /// Creates a new kernel builder with the consumer-supplied logger factory.
@@ -83,41 +84,108 @@ namespace FluentDocker.Kernel
     /// <inheritdoc />
     public async Task<FluentDockerKernel> BuildAsync(CancellationToken cancellationToken = default)
     {
+      if (Interlocked.Exchange(ref _built, 1) != 0)
+        throw new InvalidOperationException("KernelBuilder is single-use; create a new builder for another kernel.");
+
       var kernel = new FluentDockerKernel(new DriverRegistry(_loggerFactory), _loggerFactory);
+      var configIndex = 0;
+      object? currentInstance = null;
+      var currentRegistered = false;
+      // Only instances the builder itself created (the WithDockerCli/Api/PodmanCli factory packs)
+      // are builder-owned. UseCustomDriver/UseCustomDriverPack instances are user-owned and must
+      // NOT be disposed on a pre-acceptance failure — the user still holds the reference (KRN-MAJ-4).
+      var currentOwnedByBuilder = false;
+      var registeredInstances = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
-      foreach (var config in _driverConfigurations)
+      try
       {
-        if (config.DriverPack != null)
+        for (; configIndex < _driverConfigurations.Count; configIndex++)
         {
-          await kernel.RegisterDriverPackAsync(
-              config.DriverId, config.DriverPack, config.Context, cancellationToken).ConfigureAwait(false);
-        }
-        else if (config.Driver != null)
-        {
-          await kernel.RegisterDriverAsync(
-              config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
-        }
+          var config = _driverConfigurations[configIndex];
+          currentInstance = null;
+          currentRegistered = false;
+          currentOwnedByBuilder = false;
+          var driverPack = config.DriverPackFactory?.Invoke() ?? config.DriverPack;
+          if (driverPack != null)
+          {
+            currentInstance = driverPack;
+            currentOwnedByBuilder = config.DriverPackFactory != null;
+            await kernel.RegisterDriverPackAsync(
+                config.DriverId, driverPack, config.Context, cancellationToken).ConfigureAwait(false);
+            currentRegistered = true;
+            registeredInstances.Add(driverPack);
+          }
+          else if (config.Driver != null)
+          {
+            currentInstance = config.Driver;
+            await kernel.RegisterDriverAsync(
+                config.DriverId, config.Driver, config.Context, cancellationToken).ConfigureAwait(false);
+            currentRegistered = true;
+            registeredInstances.Add(config.Driver);
+          }
 
-        if (config.IsDefault)
-          kernel.SetDefaultDriver(config.DriverId);
+          if (config.IsDefault)
+            kernel.SetDefaultDriver(config.DriverId);
+        }
+      }
+      catch (Exception ex)
+      {
+        // Dispose only the builder-created factory pack that failed to register. User-supplied
+        // instances (current or later, unregistered) are left intact for the caller to reuse or
+        // dispose — a duplicate-id typo must not destroy the user's driver (KRN-MAJ-4).
+        if (!currentRegistered &&
+            currentInstance != null &&
+            currentOwnedByBuilder &&
+            !registeredInstances.Contains(currentInstance) &&
+            !DriverRegistry.RegistrationFailureDisposedInstance(ex))
+        {
+          var logger = _loggerFactory.CreateLogger<KernelBuilder>();
+          await DisposeOwnedInstanceAsync(
+              currentInstance, logger, _driverConfigurations[configIndex].DriverId).ConfigureAwait(false);
+        }
+        await kernel.DisposeAsync().ConfigureAwait(false);
+        throw;
       }
 
       return kernel;
     }
 
-    private static void ValidateDriverArgs<T>(string driverId, Action<T> configure)
+    private void ValidateDriverArgs<T>(string driverId, Action<T> configure)
     {
+      ThrowIfBuilt();
       if (string.IsNullOrWhiteSpace(driverId))
         throw new ArgumentException("Driver ID cannot be null or empty", nameof(driverId));
       ArgumentNullException.ThrowIfNull(configure);
     }
 
+    private void ThrowIfBuilt()
+    {
+      if (Volatile.Read(ref _built) != 0)
+        throw new InvalidOperationException("KernelBuilder is single-use; create a new builder for another kernel.");
+    }
+
+    private static async Task DisposeOwnedInstanceAsync(object instance, ILogger logger, string driverId)
+    {
+      try
+      {
+        if (instance is IAsyncDisposable asyncDisposable)
+          await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+        else if (instance is IDisposable disposable)
+          await Task.Run(disposable.Dispose).ConfigureAwait(false);
+      }
+      catch (Exception ex)
+      {
+        logger.LogWarning(ex, "Failed to dispose unregistered driver configuration {DriverId}", driverId);
+      }
+    }
+
     internal sealed class DriverConfiguration
     {
-      public string DriverId { get; set; }
-      public IDriver Driver { get; set; }
-      public IDriverPack DriverPack { get; set; }
-      public DriverContext Context { get; set; }
+      public string DriverId { get; set; } = null!;
+      public IDriver? Driver { get; set; }
+      public IDriverPack? DriverPack { get; set; }
+      public Func<IDriverPack>? DriverPackFactory { get; set; }
+      public DriverContext Context { get; set; } = null!;
       public bool IsDefault { get; set; }
     }
   }
@@ -128,10 +196,10 @@ namespace FluentDocker.Kernel
   internal sealed class DriverBuilder(string driverId) : IDriverBuilder
   {
     private readonly string _driverId = driverId;
-    private IDriver _driver;
-    private IDriverPack _driverPack;
-    private string _host;
-    private string _certificatePath;
+    private IDriver? _driver;
+    private IDriverPack? _driverPack;
+    private string? _host;
+    private string? _certificatePath;
     private bool _isDefault;
 
     public IDriverBuilder UseCustomDriver(IDriver driver)

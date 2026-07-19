@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -207,7 +208,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task RemoveAsync_ReturnsSuccess()
     {
       var (driver, mock) = CreateDriver();
-      mock.SetupDelete("/containers/", 204, "{}");
+      mock.SetupDelete("/containers/abc123", 204, "{}");
       Assert.True((await driver.RemoveAsync(Ctx, "abc123", cancellationToken: TestContext.Current.CancellationToken)).Success);
     }
 
@@ -215,7 +216,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task RemoveAsync_IncludesForceAndVolumeParams()
     {
       var (driver, mock) = CreateDriver();
-      mock.SetupDelete("/containers/", 204, "{}");
+      mock.SetupDelete("/containers/abc123", 204, "{}");
 
       Assert.True((await driver.RemoveAsync(Ctx, "abc123", force: true, removeVolumes: true, cancellationToken: TestContext.Current.CancellationToken)).Success);
       var req = mock.GetRequests().First(r => r.Method == "DELETE");
@@ -227,7 +228,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task RemoveAsync_DefaultsForceAndVolumeToFalse()
     {
       var (driver, mock) = CreateDriver();
-      mock.SetupDelete("/containers/", 204, "{}");
+      mock.SetupDelete("/containers/abc123", 204, "{}");
 
       await driver.RemoveAsync(Ctx, "abc123", cancellationToken: TestContext.Current.CancellationToken);
       var req = mock.GetRequests().First(r => r.Method == "DELETE");
@@ -260,6 +261,20 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.True(result.Success);
       Assert.Equal(137, result.Data.ExitCode);
       Assert.Equal("OOM killed", result.Data.Error);
+    }
+
+    [Fact]
+    public async Task WaitAsync_WindowsInt64ExitCode_DoesNotOverflow()
+    {
+      // DAPI-4: the API contract is int64 — Windows containers exit with values like
+      // 0xC0000005 (3221225477) that overflow Int32 and previously failed deserialization.
+      var (driver, mock) = CreateDriver();
+      mock.SetupPost("/wait", 200, @"{""StatusCode"":3221225477}");
+
+      var result = await driver.WaitAsync(Ctx, "abc123", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal(3221225477L, result.Data.ExitCode);
     }
 
     // ── InspectAsync ────────────────────────────────────────────────
@@ -308,6 +323,26 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       Assert.Equal("172.17.0.1", c.NetworkSettings.Gateway);
       Assert.Equal("172.17.0.2", c.NetworkSettings.IPAddress);
       Assert.Equal("02:42:ac:11:00:02", c.NetworkSettings.MacAddress);
+    }
+
+    [Fact]
+    public async Task InspectAsync_PreservesCreatedAndStateOffsets()
+    {
+      const string json =
+          @"{""Id"":""offset-container"",""Name"":""/offset-container"","
+          + @"""Created"":""2024-01-02T03:04:05+02:00"","
+          + @"""State"":{""StartedAt"":""2024-01-02T03:04:05+02:00"","
+          + @"""FinishedAt"":""2024-01-02T01:04:05Z""}}";
+
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/json", 200, json);
+
+      var result = await driver.InspectAsync(Ctx, "offset-container", cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success, result.Error);
+      Assert.Equal(TimeSpan.FromHours(2), result.Data.Created.Offset);
+      Assert.Equal(TimeSpan.FromHours(2), result.Data.State.StartedAt.Offset);
+      Assert.Equal(TimeSpan.Zero, result.Data.State.FinishedAt.Offset);
     }
 
     [Fact]

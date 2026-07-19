@@ -1,0 +1,2 @@
+MODEL NAME  BACKEND    MODE        UNTIL               
+smollm2     llama.cpp  completion  4 minutes from now  

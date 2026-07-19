@@ -3,13 +3,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
-using DriverCommandResponse = FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>;
 
 namespace FluentDocker.Drivers
 {
   /// <summary>
   /// Container-specific driver operations.
-  /// Supported by: Docker, Podman, Kubernetes (partial - pods)
+  /// Supported by: Docker, Podman.
   /// </summary>
   public partial interface IContainerDriver
   {
@@ -33,7 +32,20 @@ namespace FluentDocker.Drivers
     /// <param name="context">Driver context</param>
     /// <param name="config">Container configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Container run result with ID</returns>
+    /// <returns>
+    /// Container run result with ID. For Docker/Podman CLI foreground runs
+    /// (<c>Detach=false</c>), <c>Success</c> means the container was created; a non-zero
+    /// container exit is returned as <see cref="ContainerRunResult.ExitCode"/> data, so
+    /// callers must inspect it instead of gating on <c>Success</c> alone. The
+    /// <see cref="ContainerRunResult.ExitCode"/> value carries either the container
+    /// process's own exit code or the CLI's infrastructure exit codes (125 daemon/run
+    /// error, 126 command not invocable, 127 command not found) — the two sources are
+    /// indistinguishable in the result; callers that must tell them apart have to inspect
+    /// the container. Foreground stdout
+    /// and stderr are delimited with a newline when both are present. Very large foreground
+    /// output is returned as a bounded tail prefixed by
+    /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/>.
+    /// </returns>
     Task<Model.Drivers.CommandResponse<ContainerRunResult>> RunAsync(
         DriverContext context,
         ContainerCreateConfig config,
@@ -148,10 +160,15 @@ namespace FluentDocker.Drivers
     /// <param name="context">Driver context</param>
     /// <param name="filter">Optional filter parameters</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of containers</returns>
+    /// <returns>
+    /// List of sparse container records. Docker CLI list results populate only
+    /// <see cref="Container.Id"/>, <see cref="Container.Image"/>, <see cref="Container.Name"/>,
+    /// <see cref="Container.Created"/>, and <see cref="Container.State"/> status/running fields;
+    /// ports, labels, mounts, networks, and other details require <see cref="InspectAsync"/>.
+    /// </returns>
     Task<Model.Drivers.CommandResponse<IList<Container>>> ListAsync(
         DriverContext context,
-        ContainerListFilter filter = null,
+        ContainerListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -165,10 +182,10 @@ namespace FluentDocker.Drivers
   public class ContainerCreateResult
   {
     /// <summary>Container ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Warnings from the create operation.</summary>
     public List<string> Warnings { get; set; } = [];
@@ -179,11 +196,20 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ContainerRunResult
   {
-    /// <summary>Container ID (when Detach = true) or null (when Detach = false).</summary>
-    public string Id { get; set; }
+    /// <summary>Container ID when the driver can determine it; Docker/Podman CLI foreground runs populate it from a cidfile.</summary>
+    public string? Id { get; set; }
 
-    /// <summary>Container output (when Detach = false) or null (when Detach = true).</summary>
-    public string Output { get; set; }
+    /// <summary>
+    /// Container output (when Detach = false) or null (when Detach = true). Docker CLI keeps
+    /// only a marked tail for very large foreground output.
+    /// </summary>
+    public string? Output { get; set; }
+
+    /// <summary>
+    /// Container exit code for foreground runs where the container was created and ran to
+    /// completion; null when detached or not applicable (driver-specific).
+    /// </summary>
+    public int? ExitCode { get; set; }
 
     /// <summary>Warnings from the run operation.</summary>
     public List<string> Warnings { get; set; } = [];
@@ -199,13 +225,13 @@ namespace FluentDocker.Drivers
   public class ContainerCreateConfig
   {
     /// <summary>Image to use for the container.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Command to run.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
 
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
@@ -213,41 +239,44 @@ namespace FluentDocker.Drivers
     /// <summary>Port bindings (container port -> host port).</summary>
     public Dictionary<string, string> PortBindings { get; set; } = [];
 
-    /// <summary>Volume bindings (host path -> container path or volume name).</summary>
-    public Dictionary<string, string> Volumes { get; set; } = [];
+    /// <summary>Volume bindings in Docker syntax: source:target[:ro].</summary>
+    public List<string> Volumes { get; set; } = [];
 
     /// <summary>Network mode.</summary>
-    public string NetworkMode { get; set; }
+    public string? NetworkMode { get; set; }
 
     /// <summary>Additional labels.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Working directory inside the container.</summary>
-    public string WorkingDirectory { get; set; }
+    public string? WorkingDirectory { get; set; }
 
     /// <summary>User to run as inside the container.</summary>
-    public string User { get; set; }
+    public string? User { get; set; }
 
     /// <summary>Restart policy (no, always, unless-stopped, on-failure).</summary>
-    public string RestartPolicy { get; set; }
+    public string? RestartPolicy { get; set; }
 
     /// <summary>Hostname of the container.</summary>
-    public string Hostname { get; set; }
+    public string? Hostname { get; set; }
 
     /// <summary>Networks to attach the container to.</summary>
     public List<string> Networks { get; set; } = [];
 
     /// <summary>Static IPv4 address for the container (requires custom network with subnet).</summary>
-    public string Ipv4Address { get; set; }
+    public string? Ipv4Address { get; set; }
 
     /// <summary>Static IPv6 address for the container (requires IPv6-enabled network with subnet).</summary>
-    public string Ipv6Address { get; set; }
+    public string? Ipv6Address { get; set; }
 
     /// <summary>Memory limit in bytes.</summary>
     public long? MemoryLimit { get; set; }
 
     /// <summary>CPU shares (relative weight).</summary>
     public long? CpuShares { get; set; }
+
+    /// <summary>CPU quota in microseconds per CPU period.</summary>
+    public long? CpuQuota { get; set; }
 
     /// <summary>Whether to run in privileged mode.</summary>
     public bool Privileged { get; set; }
@@ -261,20 +290,20 @@ namespace FluentDocker.Drivers
     /// <summary>Whether to allocate a TTY.</summary>
     public bool Tty { get; set; }
 
-    /// <summary>Whether to keep STDIN open.</summary>
+    /// <summary>Whether to keep STDIN open; foreground Docker CLI runs close it unless input is supplied internally.</summary>
     public bool Interactive { get; set; }
 
     /// <summary>Entrypoint override.</summary>
-    public string[] Entrypoint { get; set; }
+    public string[]? Entrypoint { get; set; }
 
     /// <summary>Stop signal.</summary>
-    public string StopSignal { get; set; }
+    public string? StopSignal { get; set; }
 
     /// <summary>Stop timeout in seconds.</summary>
     public int? StopTimeout { get; set; }
 
     /// <summary>Health check configuration.</summary>
-    public HealthCheckConfig HealthCheck { get; set; }
+    public HealthCheckConfig? HealthCheck { get; set; }
 
     /// <summary>DNS servers.</summary>
     public List<string> Dns { get; set; } = [];
@@ -293,7 +322,7 @@ namespace FluentDocker.Drivers
     public List<string> Links { get; set; } = [];
 
     /// <summary>Podman pod to join (Podman-only, ignored by Docker).</summary>
-    public string Pod { get; set; }
+    public string? Pod { get; set; }
 
     /// <summary>
     /// Network aliases keyed by network name.
@@ -323,10 +352,10 @@ namespace FluentDocker.Drivers
     public bool ReadonlyRootfs { get; set; }
 
     /// <summary>Platform for multi-arch images (e.g. linux/arm64).</summary>
-    public string Platform { get; set; }
+    public string? Platform { get; set; }
 
     /// <summary>OCI runtime to use (e.g. runc, crun, runsc).</summary>
-    public string Runtime { get; set; }
+    public string? Runtime { get; set; }
   }
 
   /// <summary>
@@ -334,20 +363,25 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class HealthCheckConfig
   {
-    /// <summary>Command to run for health check.</summary>
-    public string[] Test { get; set; }
+    /// <summary>
+    /// Command to run for health check. Docker CLI exec-form commands assume a Linux shell;
+    /// they are not translated for Windows containers. Docker/Podman CLI exec-form
+    /// <c>CMD</c> values are serialized into the string-only health command flag, so
+    /// shell-less images cannot run them without providing a shell-compatible command.
+    /// </summary>
+    public string[]? Test { get; set; }
 
     /// <summary>Interval between health checks.</summary>
-    public string Interval { get; set; }
+    public string? Interval { get; set; }
 
     /// <summary>Timeout for health check.</summary>
-    public string Timeout { get; set; }
+    public string? Timeout { get; set; }
 
     /// <summary>Number of retries.</summary>
     public int Retries { get; set; }
 
     /// <summary>Start period before health checks begin.</summary>
-    public string StartPeriod { get; set; }
+    public string? StartPeriod { get; set; }
   }
 
   /// <summary>
@@ -359,16 +393,16 @@ namespace FluentDocker.Drivers
     public bool All { get; set; }
 
     /// <summary>Filter by status.</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Filter by name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Filter by ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Filter by ancestor image.</summary>
-    public string Ancestor { get; set; }
+    public string? Ancestor { get; set; }
 
     /// <summary>Filter by label.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];

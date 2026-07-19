@@ -1,0 +1,2 @@
+FROM {{BASE_IMAGE}}
+RUN echo multidot

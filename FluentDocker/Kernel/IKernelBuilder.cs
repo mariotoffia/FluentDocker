@@ -8,6 +8,10 @@ namespace FluentDocker.Kernel
   /// <summary>
   /// Fluent builder for creating and configuring a FluentDockerKernel.
   /// </summary>
+  /// <remarks>
+  /// Configuration and build methods are not thread-safe; mutate and build each
+  /// builder from one thread, and create a new builder for concurrent kernels.
+  /// </remarks>
   public interface IKernelBuilder
   {
     /// <summary>
@@ -42,17 +46,21 @@ namespace FluentDocker.Kernel
     IKernelBuilder WithDriver(string driverId, Action<IDriverBuilder> configure);
 
     /// <summary>
-    /// Builds the kernel synchronously (TERMINAL operation).
+    /// Builds the kernel synchronously (TERMINAL, single-use operation).
     /// </summary>
     /// <remarks>
     /// For async contexts (ASP.NET, UI applications), prefer <see cref="BuildAsync"/> to avoid deadlocks.
     /// This method is safe to use in console apps, test fixtures, and scripts.
+    /// A builder can build one kernel. Create a new builder for another kernel.
     /// </remarks>
     FluentDockerKernel Build();
 
     /// <summary>
-    /// Builds the kernel asynchronously (TERMINAL operation).
+    /// Builds the kernel asynchronously (TERMINAL, single-use operation).
     /// </summary>
+    /// <remarks>
+    /// A builder can build one kernel. Create a new builder for another kernel.
+    /// </remarks>
     /// <param name="cancellationToken">Cancellation token</param>
     Task<FluentDockerKernel> BuildAsync(CancellationToken cancellationToken = default);
   }
@@ -66,12 +74,18 @@ namespace FluentDocker.Kernel
   public interface IDriverBuilder
   {
     /// <summary>
-    /// Uses a custom driver instance.
+    /// Uses a custom driver instance. Ownership transfers to the kernel only once the driver is
+    /// successfully registered by <see cref="IKernelBuilder.BuildAsync"/> (the kernel then disposes
+    /// it). If the build fails before that — e.g. a duplicate driver id — the instance is left intact
+    /// for the caller to reuse or dispose; the builder does not dispose user-supplied instances.
     /// </summary>
     IDriverBuilder UseCustomDriver(IDriver driver);
 
     /// <summary>
-    /// Uses a custom driver pack instance.
+    /// Uses a custom driver pack instance. Ownership transfers to the kernel only once the pack is
+    /// successfully registered by <see cref="IKernelBuilder.BuildAsync"/> (the kernel then disposes
+    /// it). If the build fails before that, the instance is left intact for the caller to reuse or
+    /// dispose; the builder does not dispose user-supplied instances.
     /// </summary>
     IDriverBuilder UseCustomDriverPack(IDriverPack driverPack);
 
@@ -90,6 +104,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Sets this driver as the default.
     /// </summary>
+    /// <remarks>When multiple drivers call <c>AsDefault()</c>, the last one wins.</remarks>
     IDriverBuilder AsDefault();
   }
 }

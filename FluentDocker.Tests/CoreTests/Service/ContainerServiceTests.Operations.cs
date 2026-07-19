@@ -122,7 +122,8 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       // Arrange
       var mockPack = new MockDriverPack();
-      mockPack.SetupContainerStart();
+      mockPack.SetupContainerStart()
+          .SetupContainerInspect("test-container-123", running: true);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
 
@@ -184,6 +185,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var mockPack = new MockDriverPack();
       mockPack.SetupContainerKill();
+      // SIGTERM is catchable, so KillAsync now inspects for the authoritative state (SVC-MAJ-1);
+      // the container actually exited, so the reconciled state is Stopped.
+      mockPack.SetupContainerInspect("test-container-123", running: false);
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
 
@@ -244,8 +248,10 @@ namespace FluentDocker.Tests.CoreTests.Service
               It.IsAny<string>(),
               It.IsAny<string>(),
               It.IsAny<System.Threading.CancellationToken>()))
+          // A genuinely non-idempotent failure: "no such container" / "is not running" are treated
+          // as benign (kill intent satisfied), so use a real error to prove genuine failures throw.
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<FluentDocker.Model.Drivers.Unit>.Fail(
-              "no such container", "CONTAINER_KILL_FAILED"));
+              "permission denied", "CONTAINER_KILL_FAILED"));
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       var service = new ContainerService(kernel, "docker", "test-container-123", "nginx:latest", "test-container");

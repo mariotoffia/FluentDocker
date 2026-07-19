@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Core
@@ -164,12 +164,58 @@ namespace FluentDocker.Tests.CoreTests.Core
       Assert.Empty(results.ForDriver("any"));
     }
 
+    [Fact]
+    public void GetContainer_UsesCaseSensitiveNameMatching()
+    {
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var scope = new BuildScope(kernel, "docker");
+      var container = new Mock<IContainerService>();
+      container.SetupGet(c => c.Name).Returns("CaseSensitive");
+      scope.AddResult(container.Object);
+      var results = new BuildResults([scope]);
+
+      Assert.Same(container.Object, results.GetContainer("CaseSensitive"));
+      Assert.Null(results.GetContainer("casesensitive"));
+
+      kernel.Dispose();
+    }
+
+    // B-M3 pin: BuildResults disposes scopes in reverse of constructor-list order. Builder.BuildAsync
+    // relies on this for cross-scope teardown (dependents before dependencies, e.g. containers before
+    // the network they attach to) and now feeds it an explicit List<BuildScope> in creation order
+    // (previously a Dictionary's .Values, an unspecified enumeration order) — this test guards the
+    // BuildResults side of that contract so a future refactor cannot silently invert it.
+    [Fact]
+    public async Task DisposeAsync_DisposesScopesInReverseOfConstructorOrder()
+    {
+      // Arrange
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var order = new List<string>();
+      var scope1 = new BuildScope(kernel, "docker-1");
+      var scope2 = new BuildScope(kernel, "docker-2");
+      var scope3 = new BuildScope(kernel, "docker-3");
+      scope1.AddResult(new OrderTrackingService("scope1", order));
+      scope2.AddResult(new OrderTrackingService("scope2", order));
+      scope3.AddResult(new OrderTrackingService("scope3", order));
+
+      var results = new BuildResults([scope1, scope2, scope3]);
+
+      // Act
+      await results.DisposeAsync();
+
+      // Assert: last scope created is the first disposed.
+      Assert.Equal(["scope3", "scope2", "scope1"], order);
+
+      // Cleanup
+      kernel.Dispose();
+    }
+
     // Mock services for testing
     private class MockService(string name = "test") : IServiceAsync
     {
       public string Name { get; } = name;
       public ServiceRunningState State => ServiceRunningState.Unknown;
-      public FluentDockerKernel Kernel => null;
+      public FluentDockerKernel Kernel => null!;
       public string DriverId => "mock";
 
       public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -178,9 +224,9 @@ namespace FluentDocker.Tests.CoreTests.Core
       public Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default) => Task.CompletedTask;
       public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null) => this;
       public IServiceAsync RemoveHook(string? uniqueName) => this;
-#pragma warning disable CS0067
+#pragma warning disable CS0067, CS8618 // fake service: event never raised, never assigned
       public event ServiceDelegates.StateChange StateChange;
-#pragma warning restore CS0067
+#pragma warning restore CS0067, CS8618
       public virtual void Dispose() { }
       public virtual ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
@@ -199,6 +245,23 @@ namespace FluentDocker.Tests.CoreTests.Core
       public override void Dispose()
       {
         WasDisposed = true;
+      }
+#pragma warning restore CA2215
+    }
+
+    // Records its own name into a shared list on disposal, so a multi-scope test can assert order.
+    private sealed class OrderTrackingService(string name, List<string> order) : MockService(name)
+    {
+#pragma warning disable CA2215 // Base Dispose/DisposeAsync are no-ops in this mock
+      public override ValueTask DisposeAsync()
+      {
+        order.Add(Name);
+        return ValueTask.CompletedTask;
+      }
+
+      public override void Dispose()
+      {
+        order.Add(Name);
       }
 #pragma warning restore CA2215
     }

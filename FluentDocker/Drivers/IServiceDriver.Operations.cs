@@ -6,9 +6,9 @@ using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers
 {
-  /// <summary>
-  /// Service operations: logs, scale, rollback, and task listing.
-  /// </summary>
+  // Service operations: logs, scale, rollback, and task listing.
+  // Secondary partial declaration; the <summary> lives on the primary IServiceDriver.cs
+  // to avoid a duplicate member entry in the generated XML docs.
   public partial interface IServiceDriver
   {
     #region Rollback Operations
@@ -41,7 +41,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<IList<ServiceTask>>> GetTasksAsync(
         DriverContext context,
         string serviceId,
-        ServiceTaskFilter filter = null,
+        ServiceTaskFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -55,11 +55,24 @@ namespace FluentDocker.Drivers
     /// <param name="serviceId">Service ID or name</param>
     /// <param name="config">Logs configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Service logs</returns>
+    /// <returns>
+    /// Service logs, bounded to <see cref="FluentDocker.Common.CliOutputTruncation.DefaultTailChars"/>
+    /// characters with a truncation marker when output is larger. Drivers return a failed
+    /// response when <see cref="ServiceLogsConfig.Follow"/> is <c>true</c>; use streaming
+    /// APIs for indefinite logs.
+    /// <para>
+    /// <b>Ordering:</b> the result is stdout-first, then stderr; cross-stream chronological
+    /// interleaving is not preserved. Use <see cref="IStreamDriver.StreamLogEntriesAsync"/>
+    /// for arrival-ordered entries.
+    /// </para>
+    /// </returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context,
         string serviceId,
-        ServiceLogsConfig config = null,
+        ServiceLogsConfig? config = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -90,28 +103,28 @@ namespace FluentDocker.Drivers
   public class ServiceTask
   {
     /// <summary>Task ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Task name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Image used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Node the task is running on.</summary>
-    public string Node { get; set; }
+    public string? Node { get; set; }
 
     /// <summary>Desired state.</summary>
-    public string DesiredState { get; set; }
+    public string? DesiredState { get; set; }
 
     /// <summary>Current state.</summary>
-    public string CurrentState { get; set; }
+    public string? CurrentState { get; set; }
 
     /// <summary>Error message if any.</summary>
-    public string Error { get; set; }
+    public string? Error { get; set; }
 
     /// <summary>Ports exposed.</summary>
-    public string Ports { get; set; }
+    public string? Ports { get; set; }
   }
 
   #endregion
@@ -124,16 +137,16 @@ namespace FluentDocker.Drivers
   public class ServiceTaskFilter
   {
     /// <summary>Filter by task ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Filter by task name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Filter by node.</summary>
-    public string Node { get; set; }
+    public string? Node { get; set; }
 
     /// <summary>Filter by desired state.</summary>
-    public string DesiredState { get; set; }
+    public string? DesiredState { get; set; }
 
     /// <summary>Don't truncate output.</summary>
     public bool NoTrunc { get; set; }
@@ -144,8 +157,8 @@ namespace FluentDocker.Drivers
     /// <summary>Only display task IDs.</summary>
     public bool Quiet { get; set; }
 
-    /// <summary>Output format.</summary>
-    public string Format { get; set; }
+    /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
+    public string? Format { get; set; }
   }
 
   /// <summary>
@@ -160,7 +173,7 @@ namespace FluentDocker.Drivers
     public bool Follow { get; set; }
 
     /// <summary>Show logs since timestamp.</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
 
     /// <summary>Number of lines to show from end.</summary>
     public int? Tail { get; set; }

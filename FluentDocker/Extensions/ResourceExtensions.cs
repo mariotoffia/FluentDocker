@@ -1,12 +1,18 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using FluentDocker.Common;
 using FluentDocker.Model.Common;
 using FluentDocker.Resources;
 
 namespace FluentDocker.Extensions
 {
+  /// <summary>
+  /// Convenience entry points over <see cref="FluentDocker.Resources.ResourceQuery"/>/<see cref="FluentDocker.Resources.FileResourceWriter"/>
+  /// for querying and extracting a type's embedded resources.
+  /// </summary>
   public static class ResourceExtensions
   {
     /// <summary>
@@ -19,8 +25,8 @@ namespace FluentDocker.Extensions
     public static IEnumerable<ResourceInfo> ResourceQuery(this Type assemblyAndNamespace, bool recursive = true)
     {
       return
-        new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name)
-        .Namespace(assemblyAndNamespace.Namespace, recursive)
+        new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name!)
+        .Namespace(assemblyAndNamespace.Namespace!, recursive)
         .Query();
     }
 
@@ -35,9 +41,13 @@ namespace FluentDocker.Extensions
     ///   namespace.
     /// </param>
     /// <remarks>
-    ///   This function extract recursively embedded resources if no <paramref name="files" /> has been specified. If any
-    ///   <paramref name="files" /> has been specifies it won't do a recursive extraction, instead all files in the provided
-    ///   namespace (in <paramref name="assemblyAndNamespace" />) will be matched against the <paramref name="files" />.
+    ///   This function extracts recursively in both cases. If no <paramref name="files" /> has been specified,
+    ///   every embedded resource under the <paramref name="assemblyAndNamespace" /> namespace (and its
+    ///   sub-namespaces) is written out. If any <paramref name="files" /> has been specified, the query still
+    ///   searches recursively — a multi-dot filename (e.g. "Dockerfile.template") is embedded one namespace
+    ///   segment "deeper" than its manifest name suggests, so a non-recursive query would drop it before it
+    ///   could ever be matched — but only resources matching one of the <paramref name="files" /> (via
+    ///   <see cref="ResourceQuery.Include" />) are extracted, written under the requested name.
     /// </remarks>
     public static void ResourceExtract(this Type assemblyAndNamespace, TemplateString targetPath, params string[] files)
     {
@@ -47,8 +57,8 @@ namespace FluentDocker.Extensions
         return;
       }
 
-      new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name)
-        .Namespace(assemblyAndNamespace.Namespace, false)
+      new ResourceQuery().From(assemblyAndNamespace.GetTypeInfo().Assembly.GetName().Name!)
+        .Namespace(assemblyAndNamespace.Namespace!, true)
         .Include(files)
         .ToFile(targetPath);
     }
@@ -75,6 +85,10 @@ namespace FluentDocker.Extensions
     /// <returns>The resource name (without any path) written.</returns>
     public static string ToFile(this EmbeddedUri resource, TemplateString targetPath)
     {
+      if (string.IsNullOrWhiteSpace(resource.Resource))
+        throw new FluentDockerException($"Embedded resource URI '{resource}' must include a resource segment.");
+
+      var resourceName = resource.Resource;
       new FileResourceWriter(targetPath).Write(
         new ResourceReader(
         [
@@ -83,16 +97,31 @@ namespace FluentDocker.Extensions
             Assembly = GetAssembly(resource.Assembly),
             Namespace = resource.Namespace,
             RelativeRootNamespace = string.Empty,
-            Resource = resource.Resource
+            Resource = resourceName
           }
         ]));
 
-      return resource.Resource;
+      return resourceName;
     }
 
     private static Assembly GetAssembly(string assemblyName)
     {
-      return AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == assemblyName);
+      var loaded = AppDomain.CurrentDomain.GetAssemblies()
+          .FirstOrDefault(x => x.GetName().Name!.Equals(assemblyName, StringComparison.OrdinalIgnoreCase));
+      if (loaded != null)
+        return loaded;
+
+      // .NET loads assemblies lazily — an `emb:` URI can reference an assembly no type of
+      // which has been touched yet. Try an explicit load by simple name before failing.
+      try
+      {
+        return Assembly.Load(new AssemblyName(assemblyName));
+      }
+      catch (Exception ex)
+      {
+        throw new FluentDockerException(
+            $"Assembly '{assemblyName}' was not found in the current AppDomain and could not be loaded.", ex);
+      }
     }
   }
 }

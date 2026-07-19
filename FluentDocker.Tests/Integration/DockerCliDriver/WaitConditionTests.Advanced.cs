@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -14,7 +15,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Advanced wait condition tests: custom lambda, timeouts, and helper methods.
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "WaitCondition")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "WaitCondition")]
   public partial class WaitConditionTests
   {
     #region Custom Lambda Wait Tests
@@ -47,7 +49,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var inspect = await ContainerDriver.InspectAsync(Context, containerId, TestContext.Current.CancellationToken);
         var portBinding = inspect.Data.NetworkSettings?.Ports?["5432/tcp"];
         Assert.NotNull(portBinding);
-        var hostPort = int.Parse(portBinding[0].HostPort);
+        var hostPort = int.Parse(portBinding[0].HostPort, CultureInfo.InvariantCulture);
 
         // Act - Wait with custom lambda
         var invocationCount = 0;

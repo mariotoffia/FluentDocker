@@ -28,7 +28,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     [Fact]
     public void StripDockerStreamHeaders_NullInput_ReturnsEmpty()
     {
-      Assert.Equal(string.Empty, TestableDriverBase.TestStripHeaders(null));
+      Assert.Equal(string.Empty, TestableDriverBase.TestStripHeaders(null!));
     }
 
     [Fact]
@@ -84,6 +84,29 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var result = TestableDriverBase.TestStripHeaders(combined);
 
       Assert.Equal("first second", result);
+    }
+
+    [Fact]
+    public void StripDockerStreamHeaders_ZeroLengthFrame_SkipsNoOp()
+    {
+      var frame1 = CreateFrame(1, "first");
+      var zero = CreateFrame(1, []);
+      var frame2 = CreateFrame(1, "second");
+      var combined = CombineFrames(frame1, zero, frame2);
+
+      var result = TestableDriverBase.TestStripHeaders(combined);
+
+      Assert.Equal("firstsecond", result);
+    }
+
+    [Fact]
+    public void StripDockerStreamHeaders_OnlyZeroLengthFrame_ReturnsEmpty()
+    {
+      var zero = CreateFrame(1, []);
+
+      var result = TestableDriverBase.TestStripHeaders(zero);
+
+      Assert.Equal(string.Empty, result);
     }
 
     [Fact]
@@ -241,8 +264,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     #region Helpers
 
     private static byte[] CreateFrame(byte streamType, string payload)
+        => CreateFrame(streamType, Encoding.UTF8.GetBytes(payload));
+
+    private static byte[] CreateFrame(byte streamType, byte[] payloadBytes)
     {
-      var payloadBytes = Encoding.UTF8.GetBytes(payload);
       var frame = new byte[8 + payloadBytes.Length];
       frame[0] = streamType;
       frame[4] = (byte)((payloadBytes.Length >> 24) & 0xFF);
@@ -253,11 +278,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return frame;
     }
 
-    private static byte[] CombineFrames(byte[] a, byte[] b)
+    private static byte[] CombineFrames(params byte[][] frames)
     {
-      var combined = new byte[a.Length + b.Length];
-      Array.Copy(a, 0, combined, 0, a.Length);
-      Array.Copy(b, 0, combined, a.Length, b.Length);
+      var combined = new byte[frames.Sum(static f => f.Length)];
+      var offset = 0;
+      foreach (var frame in frames)
+      {
+        Array.Copy(frame, 0, combined, offset, frame.Length);
+        offset += frame.Length;
+      }
       return combined;
     }
 

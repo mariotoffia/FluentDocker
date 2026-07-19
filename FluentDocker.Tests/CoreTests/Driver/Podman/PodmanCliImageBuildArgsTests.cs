@@ -13,7 +13,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new ImageBuildConfig { BuildContext = "/src" };
       var result = PodmanCliImageDriver.BuildBuildArgs(config, "/tmp/iid.txt");
 
-      Assert.Contains("--iidfile \"/tmp/iid.txt\"", result);
+      Assert.Contains("--iidfile /tmp/iid.txt", result);
       Assert.StartsWith("build ", result);
       Assert.EndsWith(" /src", result);
     }
@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void BuildBuildArgs_NullIidPath_OmitsIidFile()
     {
       var config = new ImageBuildConfig { BuildContext = "." };
-      var result = PodmanCliImageDriver.BuildBuildArgs(config, null);
+      var result = PodmanCliImageDriver.BuildBuildArgs(config, null!);
 
       Assert.DoesNotContain("--iidfile", result);
     }
@@ -49,7 +49,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
 
       Assert.Contains("-t myimage:latest", result);
       Assert.Contains("-t myimage:v1.0", result);
-      Assert.Contains("--iidfile \"/tmp/iid\"", result);
+      Assert.Contains("--iidfile /tmp/iid", result);
     }
 
     [Fact]
@@ -86,14 +86,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Contains("--squash", result);
       Assert.Contains("--platform linux/arm64", result);
       Assert.Contains("--network host", result);
-      Assert.Contains("--iidfile \"/tmp/iid\"", result);
+      Assert.Contains("--iidfile /tmp/iid", result);
       Assert.EndsWith(" /ctx", result);
     }
 
     [Fact]
     public void BuildBuildArgs_NullBuildContext_DefaultsToDot()
     {
-      var config = new ImageBuildConfig { BuildContext = null };
+      var config = new ImageBuildConfig { BuildContext = null! };
       var result = PodmanCliImageDriver.BuildBuildArgs(config, "/tmp/iid");
 
       Assert.EndsWith(" .", result);
@@ -105,8 +105,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new ImageBuildConfig { BuildContext = "/src" };
       var result = PodmanCliImageDriver.BuildBuildArgs(config, "/tmp/iid");
 
-      var iidPos = result.IndexOf("--iidfile");
-      var ctxPos = result.LastIndexOf("/src");
+      var iidPos = result.IndexOf("--iidfile", StringComparison.Ordinal);
+      var ctxPos = result.LastIndexOf("/src", StringComparison.Ordinal);
       Assert.True(iidPos < ctxPos, "--iidfile should appear before the build context");
     }
   }

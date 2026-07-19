@@ -12,7 +12,7 @@ namespace FluentDocker.Tests.CoreTests.Common
 
     public DirectoryHelperTests()
     {
-      _tempDir = Path.Combine(Path.GetTempPath(), "FluentDockerDirTests_" + Guid.NewGuid().ToString("N"));
+      _tempDir = Path.Combine(".out", "FluentDockerDirTests_" + Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(_tempDir);
     }
 
@@ -20,6 +20,8 @@ namespace FluentDocker.Tests.CoreTests.Common
     {
       if (Directory.Exists(_tempDir))
         Directory.Delete(_tempDir, true);
+
+      GC.SuppressFinalize(this);
     }
 
     #region CopyFilesRecursively
@@ -55,9 +57,10 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
-    public void CopyFilesRecursively_RenamesDotGit()
+    public void CopyFilesRecursively_PreservesFixtureNamesVerbatim()
     {
-      // Arrange
+      // MC-MAJ-3: the general-purpose public copy must not silently rename user files. LibGit2Sharp
+      // fixture names like "dot_git"/"gitmodules" are copied verbatim, not to ".git"/".gitmodules".
       var sourceDir = Path.Combine(_tempDir, "source");
       var targetDir = Path.Combine(_tempDir, "target");
       Directory.CreateDirectory(sourceDir);
@@ -66,35 +69,15 @@ namespace FluentDocker.Tests.CoreTests.Common
       var dotGitDir = Path.Combine(sourceDir, "dot_git");
       Directory.CreateDirectory(dotGitDir);
       File.WriteAllText(Path.Combine(dotGitDir, "HEAD"), "ref: refs/heads/main");
-
-      // Act
-      DirectoryHelper.CopyFilesRecursively(new DirectoryInfo(sourceDir), new DirectoryInfo(targetDir));
-
-      // Assert
-      Assert.False(Directory.Exists(Path.Combine(targetDir, "dot_git")));
-      Assert.True(Directory.Exists(Path.Combine(targetDir, ".git")));
-      Assert.True(File.Exists(Path.Combine(targetDir, ".git", "HEAD")));
-      Assert.Equal("ref: refs/heads/main", File.ReadAllText(Path.Combine(targetDir, ".git", "HEAD")));
-    }
-
-    [Fact]
-    public void CopyFilesRecursively_RenamesGitmodules()
-    {
-      // Arrange
-      var sourceDir = Path.Combine(_tempDir, "source");
-      var targetDir = Path.Combine(_tempDir, "target");
-      Directory.CreateDirectory(sourceDir);
-      Directory.CreateDirectory(targetDir);
-
       File.WriteAllText(Path.Combine(sourceDir, "gitmodules"), "[submodule \"lib\"]");
 
-      // Act
       DirectoryHelper.CopyFilesRecursively(new DirectoryInfo(sourceDir), new DirectoryInfo(targetDir));
 
-      // Assert
-      Assert.False(File.Exists(Path.Combine(targetDir, "gitmodules")));
-      Assert.True(File.Exists(Path.Combine(targetDir, ".gitmodules")));
-      Assert.Equal("[submodule \"lib\"]", File.ReadAllText(Path.Combine(targetDir, ".gitmodules")));
+      Assert.True(Directory.Exists(Path.Combine(targetDir, "dot_git")));
+      Assert.False(Directory.Exists(Path.Combine(targetDir, ".git")));
+      Assert.True(File.Exists(Path.Combine(targetDir, "dot_git", "HEAD")));
+      Assert.True(File.Exists(Path.Combine(targetDir, "gitmodules")));
+      Assert.False(File.Exists(Path.Combine(targetDir, ".gitmodules")));
     }
 
     [Fact]
@@ -156,6 +139,16 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
+    public void DeleteDirectory_SingleArgumentOverload_IsPreserved()
+    {
+      var method = typeof(DirectoryHelper).GetMethod(
+          nameof(DirectoryHelper.DeleteDirectory),
+          [typeof(string)]);
+
+      Assert.NotNull(method);
+    }
+
+    [Fact]
     public void DeleteDirectory_ExistingEmptyDir_DeletesIt()
     {
       // Arrange
@@ -211,6 +204,32 @@ namespace FluentDocker.Tests.CoreTests.Common
 
       // Assert
       Assert.False(Directory.Exists(dirToDelete));
+    }
+
+    [Fact]
+    public void DeleteDirectory_DeleteFailure_ThrowsLastException()
+    {
+      if (OperatingSystem.IsWindows())
+        Assert.Skip("Unix directory permissions required for deterministic delete failure.");
+
+      var parent = Path.Combine(_tempDir, "locked_parent");
+      var child = Path.Combine(parent, "child");
+      Directory.CreateDirectory(child);
+#pragma warning disable CA1416
+      File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+#pragma warning restore CA1416
+
+      try
+      {
+        Assert.ThrowsAny<IOException>(() => DirectoryHelper.DeleteDirectory(child));
+      }
+      finally
+      {
+#pragma warning disable CA1416
+        File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+#pragma warning restore CA1416
+        Directory.Delete(parent, true);
+      }
     }
 
     #endregion
@@ -274,6 +293,26 @@ namespace FluentDocker.Tests.CoreTests.Common
       finally
       {
         // Safety net: always restore
+        DirectoryHelper.GetTempPath = original;
+      }
+    }
+
+    [Fact]
+    public void GetTempPath_NullAssignment_RestoresSafeDefault()
+    {
+      var original = DirectoryHelper.GetTempPath;
+
+      try
+      {
+        DirectoryHelper.GetTempPath = null!;
+
+        var result = DirectoryHelper.GetTempPath();
+
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+      }
+      finally
+      {
         DirectoryHelper.GetTempPath = original;
       }
     }

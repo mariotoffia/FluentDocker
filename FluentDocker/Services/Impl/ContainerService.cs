@@ -1,7 +1,6 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,9 +14,12 @@ using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
-  /// <summary>
-  /// Container service implementation using kernel and driver.
-  /// </summary>
+  /// <inheritdoc />
+  /// <remarks>
+  /// After disposal, lifecycle state/events are deliberately suppressed instead of throwing.
+  /// Lifecycle transitions are individually atomic; a single service instance is not designed
+  /// for concurrent lifecycle calls (Start/Stop/Remove/Dispose) from multiple threads.
+  /// </remarks>
   public partial class ContainerService : IContainerService, IServiceCapabilities
   {
     private readonly FluentDockerKernel _kernel;
@@ -30,35 +32,45 @@ namespace FluentDocker.Services.Impl
     private readonly bool _deleteOnDispose;
     private readonly bool _deleteVolumeOnDispose;
     private readonly bool _deleteNamedVolumeOnDispose;
-    private readonly Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> _customResolver;
+    private readonly Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>? _customResolver;
     private readonly List<LifecycleHook> _lifecycleHooks;
-    private readonly Dictionary<string, Func<IServiceAsync, Task>> _hooks = [];
-    private readonly Dictionary<ServiceRunningState, List<Func<IServiceAsync, Task>>> _stateHooks =
-        [];
+    private readonly ConcurrentDictionary<string, (ServiceRunningState State, Func<IServiceAsync, Task> Hook)> _hooks = [];
+    private readonly object _stateLock = new();
     private volatile ServiceRunningState _state = ServiceRunningState.Unknown;
 
-    // Short-lived inspect cache to avoid redundant API/CLI calls during wait polling.
-    // Thread-safety: Single immutable record reference ensures atomic read/write
-    // of both data and timestamp together, preventing torn reads.
-    // The _cacheVersion counter prevents stale writes: if a state change occurs
-    // while an InspectAsync is in-flight, the result is discarded rather than cached.
-    private volatile InspectCacheEntry _inspectCacheEntry;
-    private volatile int _cacheVersion;
+    private int _disposeRemoveVersion;
 
     /// <summary>
-    /// Immutable cache entry pairing inspect data with its timestamp.
-    /// Using a single reference ensures atomic reads/writes.
+    /// Default upper bound, in milliseconds, for the stop/remove cleanup performed during
+    /// disposal. Disposal is best-effort and must not hang indefinitely on an unresponsive
+    /// daemon, so the cleanup is abandoned once this elapses. Adjustable per instance via the
+    /// constructor's <c>disposeCleanupTimeout</c> parameter.
     /// </summary>
-    private sealed record InspectCacheEntry(Container Data, long Timestamp);
+    public const int DefaultDisposeCleanupTimeoutMs = 30_000;
 
-    /// <summary>
-    /// Time-to-live in milliseconds for the InspectAsync result cache.
-    /// </summary>
-    public const long InspectCacheTtlMs = 500;
+    private readonly TimeSpan _disposeCleanupTimeout;
+
+    // Clock used for the inspect-cache TTL. Defaults to TimeProvider.System so public behavior is
+    // unchanged; tests inject a FakeTimeProvider to advance past the TTL deterministically (TESTS-3).
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Creates a new container service.
     /// </summary>
+    /// <param name="kernel">Kernel used to resolve container and volume driver ports.</param>
+    /// <param name="driverId">Driver id registered in the kernel.</param>
+    /// <param name="containerId">Container id used for driver operations.</param>
+    /// <param name="image">Image reference used to create or discover the container.</param>
+    /// <param name="name">Container display/name reference.</param>
+    /// <param name="stopOnDispose">When true, dispose tries to stop the owned container before removal.</param>
+    /// <param name="deleteOnDispose">When true, dispose removes the owned container.</param>
+    /// <param name="deleteVolumeOnDispose">When true, remove also deletes anonymous volumes.</param>
+    /// <param name="deleteNamedVolumeOnDispose">When true, named volume mounts are deleted on removal (including dispose), after the container itself is removed.</param>
+    /// <param name="customResolver">Optional host endpoint resolver for published ports. Consulted even when the container exposes no port map (the port dictionary passed to it is then null), e.g. host-network containers.</param>
+    /// <param name="lifecycleHooks">Lifecycle hooks owned by this service instance.</param>
+    /// <param name="disposeCleanupTimeout">Maximum best-effort stop/remove cleanup time during dispose.</param>
+    /// <param name="initialState">Initial client-side lifecycle state.</param>
+    /// <param name="timeProvider">Clock used for the inspect-cache TTL; defaults to <see cref="TimeProvider.System"/>.</param>
     public ContainerService(
         FluentDockerKernel kernel,
         string driverId,
@@ -69,8 +81,11 @@ namespace FluentDocker.Services.Impl
         bool deleteOnDispose = true,
         bool deleteVolumeOnDispose = false,
         bool deleteNamedVolumeOnDispose = false,
-        Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver = null,
-        List<LifecycleHook> lifecycleHooks = null)
+        Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>? customResolver = null,
+        List<LifecycleHook>? lifecycleHooks = null,
+        TimeSpan? disposeCleanupTimeout = null,
+        ServiceRunningState initialState = ServiceRunningState.Unknown,
+        TimeProvider? timeProvider = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -86,20 +101,36 @@ namespace FluentDocker.Services.Impl
       _deleteVolumeOnDispose = deleteVolumeOnDispose;
       _deleteNamedVolumeOnDispose = deleteNamedVolumeOnDispose;
       _customResolver = customResolver;
-      _lifecycleHooks = lifecycleHooks ?? [];
-
-      // Initialize state hook lists
-      foreach (var state in Enum.GetValues<ServiceRunningState>())
-      {
-        _stateHooks[state] = [];
-      }
+      // ponytail: shallow copy detaches the builder-owned list so post-Build list mutation
+      // can't corrupt the service's hooks mid-enumeration (7.9); elements are never mutated here.
+      _lifecycleHooks = lifecycleHooks is null ? [] : [.. lifecycleHooks];
+      _state = initialState;
+      _timeProvider = timeProvider ?? TimeProvider.System;
+      _disposeCleanupTimeout =
+          disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(DefaultDisposeCleanupTimeoutMs);
+      if (_disposeCleanupTimeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(
+            nameof(disposeCleanupTimeout),
+            disposeCleanupTimeout,
+            "Dispose cleanup timeout must be a positive, finite duration.");
     }
 
+    /// <inheritdoc />
     public string Name => _name;
+
+    /// <inheritdoc />
     public ServiceRunningState State => _state;
+
+    /// <inheritdoc />
     public FluentDockerKernel Kernel => _kernel;
+
+    /// <inheritdoc />
     public string DriverId => _driverId;
+
+    /// <inheritdoc />
     public string Id => _containerId;
+
+    /// <inheritdoc />
     public string Image => _image;
 
     // IServiceCapabilities
@@ -107,358 +138,290 @@ namespace FluentDocker.Services.Impl
     bool IServiceCapabilities.CanStop => true;
     bool IServiceCapabilities.CanPause => true;
     bool IServiceCapabilities.CanRemove => true;
+    bool IServiceCapabilities.CanHook => true;
 
 #pragma warning disable CA1710 // Delegate name 'StateChange' — intentional API design
-    public event ServiceDelegates.StateChange StateChange;
+    /// <inheritdoc />
+    public event ServiceDelegates.StateChange? StateChange;
 #pragma warning restore CA1710
 
+    /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        throw new InvalidOperationException("Cannot start a removed container.");
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      UpdateState(ServiceRunningState.Starting);
-      await ExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
-
-      var response = await driver.StartAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new ContainerStartException(
-            _containerId,
-            response.Error,
-            response.ErrorContext);
-      }
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Starting).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Running);
-      await ExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
-      // Running lifecycle hooks (CopyToOnStart / ExecuteOnRunning) are orchestrated by the
-      // builder so they run exactly once and Execute hooks fire AFTER wait conditions. They
-      // are intentionally NOT run here to avoid double execution and premature ordering.
+        var response = await driver.StartAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+
+        if (!response.Success)
+        {
+          throw new ContainerStartException(
+              _containerId,
+              response.Error,
+              response.ErrorContext,
+              response.ErrorCode ?? ErrorCodes.General.Unknown);
+        }
+
+        InvalidateInspectCache();
+        var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+        if (inspect == null)
+        {
+          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
+          throw new DriverException(
+              $"Failed to inspect container '{_name}' after start: empty response",
+              ErrorCodes.General.Unknown);
+        }
+        if (!inspect.Success)
+          throw new DriverException(
+              $"Failed to inspect container '{_name}' after start: {inspect.Error}",
+              inspect.ErrorCode ?? ErrorCodes.General.Unknown,
+              inspect.ErrorContext);
+
+        var inspectedState = ParseInspectState(inspect.Data?.State);
+        await UpdateStateAndExecuteHooksAsync(inspectedState).ConfigureAwait(false);
+        // Builder orchestrates CopyToOnStart / ExecuteOnRunning once, after wait conditions.
+      }
+      catch
+      {
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
+        throw;
+      }
     }
 
+    /// <inheritdoc />
     public async Task PauseAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        throw new InvalidOperationException("Cannot pause a removed container.");
+      // No stale-state short-circuit: a cached "Paused" may be wrong (external unpause), so always
+      // issue the pause and treat an already-paused daemon response as idempotent success (SVC-MAJ-4).
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      var response = await driver.PauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to pause container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
+        var response = await driver.PauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Paused);
-      await ExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
+        if (!response.Success && !IsAlreadyPaused(response))
+        {
+          throw new DriverException(
+              $"Failed to pause container '{_name}': {response.Error}",
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
+              response.ErrorContext);
+        }
+
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Paused).ConfigureAwait(false);
+      }
+      catch
+      {
+        // Pausing a non-running (e.g. stopped) container fails "is not running" — the daemon still
+        // knows the accurate state, so inspect for it instead of clobbering the cached state to
+        // Unknown (mirrors UnpauseAsync's "is not paused" path). Unknown is kept only when the
+        // inspection itself cannot determine the state.
+        var actual = ServiceRunningState.Unknown;
+        try
+        {
+          var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+          if (inspect?.Success == true)
+            actual = ParseInspectState(inspect.Data?.State);
+        }
+        catch (Exception)
+        {
+          // Best-effort: the original pause failure is rethrown below with Unknown state.
+        }
+
+        await UpdateStateAndExecuteHooksAsync(actual).ConfigureAwait(false);
+        throw;
+      }
     }
 
+    /// <inheritdoc />
+    public async Task UnpauseAsync(CancellationToken cancellationToken = default)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        throw new InvalidOperationException("Cannot unpause a removed container.");
+
+      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
+      var context = new DriverContext(_driverId);
+
+      try
+      {
+        var response = await driver.UnpauseAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+
+        if (!response.Success)
+        {
+          if (!IsAlreadyNotPaused(response))
+          {
+            throw new DriverException(
+                $"Failed to unpause container '{_name}': {response.Error}",
+                response.ErrorCode ?? ErrorCodes.General.Unknown,
+                response.ErrorContext);
+          }
+
+          // "not paused" also covers stopped/exited containers — inspect for the real state.
+          var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+          var actual = inspect?.Success == true
+              ? ParseInspectState(inspect.Data?.State)
+              : ServiceRunningState.Unknown;
+          await UpdateStateAndExecuteHooksAsync(actual).ConfigureAwait(false);
+          return;
+        }
+
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Running).ConfigureAwait(false);
+      }
+      catch
+      {
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
+        throw;
+      }
+    }
+
+    /// <inheritdoc />
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+      await StopCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task StopCoreAsync(bool throwIfDisposed, CancellationToken cancellationToken)
+    {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
+      // Only short-circuit on the terminal Removed state. A cached "Stopped" may be stale (the
+      // container could have been restarted externally / by a restart policy), so we must still
+      // issue the stop; the driver maps an already-stopped container to success idempotently
+      // (IsAlreadyNotRunning) rather than dropping the intent (SVC-MAJ-4).
+      if (_state is ServiceRunningState.Removed)
+        return;
+      var removeVersion = Volatile.Read(ref _disposeRemoveVersion);
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      UpdateState(ServiceRunningState.Stopping);
-      await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
-
-      var response = await driver.StopAsync(context, _containerId, null, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to stop container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Stopped);
-      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        var response = await driver.StopAsync(context, _containerId, null, cancellationToken).ConfigureAwait(false);
+
+        // A container already stopped or externally gone satisfies the stop intent (idempotent).
+        if (!response.Success && !IsAlreadyNotRunning(response))
+        {
+          throw new DriverException(
+              $"Failed to stop container '{_name}': {response.Error}",
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
+              response.ErrorContext);
+        }
+
+        if (removeVersion != Volatile.Read(ref _disposeRemoveVersion))
+          return;
+
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+      }
+      catch
+      {
+        if (removeVersion == Volatile.Read(ref _disposeRemoveVersion))
+          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
+        throw;
+      }
     }
 
+    /// <inheritdoc />
     public async Task KillAsync(string signal = "SIGKILL", CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      if (_state == ServiceRunningState.Removed)
+        return;
+
       var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      UpdateState(ServiceRunningState.Stopping);
-      await ExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
-
-      var response = await driver.KillAsync(context, _containerId, signal, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
+      try
       {
-        throw new DriverException(
-            $"Failed to kill container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopping).ConfigureAwait(false);
 
-      UpdateState(ServiceRunningState.Stopped);
-      await ExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        var response = await driver.KillAsync(context, _containerId, signal, cancellationToken).ConfigureAwait(false);
+
+        // A container already stopped or externally gone satisfies the kill intent (idempotent).
+        if (!response.Success && !IsAlreadyNotRunning(response))
+        {
+          throw new DriverException(
+              $"Failed to kill container '{_name}': {response.Error}",
+              response.ErrorCode ?? ErrorCodes.General.Unknown,
+              response.ErrorContext);
+        }
+
+        // `docker kill` returns on signal DELIVERY, not termination. SIGKILL cannot be caught, so it
+        // is guaranteed terminal → Stopped. Any other signal (a handler-ignored SIGTERM, SIGHUP,
+        // SIGUSR1) may leave the container running, so inspect for the authoritative state instead of
+        // blindly claiming Stopped (SVC-MAJ-1).
+        if (IsGuaranteedTerminalSignal(signal))
+        {
+          await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Stopped).ConfigureAwait(false);
+        }
+        else
+        {
+          var inspect = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
+          var actual = inspect?.Success == true
+              ? ParseInspectState(inspect.Data?.State)
+              : ServiceRunningState.Unknown;
+          await UpdateStateAndExecuteHooksAsync(actual).ConfigureAwait(false);
+        }
+      }
+      catch
+      {
+        await UpdateStateAndExecuteHooksAsync(ServiceRunningState.Unknown).ConfigureAwait(false);
+        throw;
+      }
     }
 
+    /// <inheritdoc />
     public async Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default)
     {
-      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
-      var context = new DriverContext(_driverId);
-
-      UpdateState(ServiceRunningState.Removing);
-      await ExecuteHooksAsync(ServiceRunningState.Removing).ConfigureAwait(false);
-      await ExecuteLifecycleHooksAsync(ServiceRunningState.Removing, cancellationToken).ConfigureAwait(false);
-
-      var removeVolumes = _deleteVolumeOnDispose || _deleteNamedVolumeOnDispose;
-      var response = await driver.RemoveAsync(context, _containerId, force, removeVolumes, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
-      {
-        throw new DriverException(
-            $"Failed to remove container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
-
-      UpdateState(ServiceRunningState.Removed);
-      await ExecuteHooksAsync(ServiceRunningState.Removed).ConfigureAwait(false);
-    }
-
-    public async Task<Container> InspectAsync(CancellationToken cancellationToken = default)
-    {
-      // Return cached result if still valid (reduces redundant calls during wait polling).
-      // Single volatile reference read ensures data and timestamp are always consistent.
-      var entry = _inspectCacheEntry;
-      var now = Stopwatch.GetTimestamp();
-      if (entry != null &&
-          Stopwatch.GetElapsedTime(entry.Timestamp, now).TotalMilliseconds < InspectCacheTtlMs)
-      {
-        return entry.Data;
-      }
-
-      // Capture the cache version before the async call. If a state change
-      // occurs during the fetch, the version will have incremented and we
-      // must not store the now-stale result in the cache.
-      var versionBefore = _cacheVersion;
-
-      var driver = _kernel.SysCtl<IContainerDriver>(_driverId);
-      var context = new DriverContext(_driverId);
-
-      var response = await driver.InspectAsync(context, _containerId, cancellationToken).ConfigureAwait(false);
-
-      if (!response.Success)
-      {
-        throw new DriverException(
-            $"Failed to inspect container '{_name}': {response.Error}",
-            response.ErrorCode,
-            response.ErrorContext);
-      }
-
-      // Update state from inspection
-      if (response.Data?.State != null)
-      {
-        _state = ParseState(response.Data.State.Status);
-      }
-
-      // Only cache the result if no state change occurred during the fetch.
-      if (versionBefore == _cacheVersion)
-      {
-        _inspectCacheEntry = new InspectCacheEntry(response.Data, Stopwatch.GetTimestamp());
-      }
-
-      return response.Data;
+      await RemoveCoreAsync(
+          force, skipExecuteLifecycleHooks: false, removeVolumesOverride: null,
+          throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Invalidates the inspect cache so the next InspectAsync call fetches fresh data.
-    /// Called automatically by state-changing operations (Start, Stop, Pause, Remove).
-    /// Incrementing _cacheVersion also prevents any in-flight InspectAsync from
-    /// storing its now-stale result.
+    /// Removes the container, overriding the constructor's <c>deleteVolumeOnDispose</c> choice for
+    /// anonymous volume removal on this call only.
     /// </summary>
-    private void InvalidateInspectCache()
+    /// <param name="force">When true, removes a running container without stopping it first.</param>
+    /// <param name="removeVolumes">When true, also removes anonymous volumes owned by the container.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task RemoveAsync(
+        bool force, bool removeVolumes, CancellationToken cancellationToken = default)
     {
-      Interlocked.Increment(ref _cacheVersion);
-      _inspectCacheEntry = null;
+      await RemoveCoreAsync(
+          force, skipExecuteLifecycleHooks: false, removeVolumes,
+          throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
     }
 
-    #region Hooks
+    private static ServiceRunningState ParseInspectState(ContainerState? state) =>
+        state?.Running == true && state.Paused != true && state.Restarting != true
+            ? ServiceRunningState.Running
+            : ParseState(state?.Status);
 
-    public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
-    {
-      var name = uniqueName ?? Guid.NewGuid().ToString();
-      _hooks[name] = hook;
-      _stateHooks[state].Add(hook);
-      return this;
-    }
+    // ponytail: key on _disposeCompleted (dispose finished), not _disposed (dispose started), so
+    // lifecycle hooks firing DURING dispose can still observe the live container (7.5/M1); external
+    // callers after Dispose() returns still get ObjectDisposedException.
+    private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeCompleted) != 0, this);
 
-    public IServiceAsync RemoveHook(string uniqueName)
-    {
-      if (_hooks.TryGetValue(uniqueName, out var hook))
-      {
-        _hooks.Remove(uniqueName);
-        foreach (var stateList in _stateHooks.Values)
-        {
-          stateList.Remove(hook);
-        }
-      }
-      return this;
-    }
-
-    #endregion
-
-    #region Dispose
-
-    private int _disposed;
-
-    public void Dispose()
-    {
-      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
-        return;
-      DisposeCoreAsync().AsTask().GetAwaiter().GetResult();
-      GC.SuppressFinalize(this);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
-        return;
-      await DisposeCoreAsync().ConfigureAwait(false);
-      GC.SuppressFinalize(this);
-    }
-
-    private async ValueTask DisposeCoreAsync()
-    {
-      if (_stopOnDispose &&
-          (_state == ServiceRunningState.Running || _state == ServiceRunningState.Paused))
-      {
-        try
-        {
-          await StopAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogWarning(ex, "ContainerService stop on dispose failed");
-        }
-      }
-
-      if (_deleteOnDispose)
-      {
-        try
-        {
-          await RemoveAsync(force: true).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogWarning(ex, "ContainerService remove on dispose failed");
-        }
-      }
-    }
-
-    #endregion
-
-    #region Private Methods
-
-    private void UpdateState(ServiceRunningState newState)
-    {
-      var oldState = _state;
-      _state = newState;
-      InvalidateInspectCache();
-      StateChange?.Invoke(this, new StateChangeEventArgs(this, newState));
-    }
-
-    private async Task ExecuteHooksAsync(ServiceRunningState state)
-    {
-      if (!_stateHooks.TryGetValue(state, out var hooks))
-        return;
-
-      foreach (var hook in hooks)
-      {
-        try
-        {
-          await hook(this).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-          _logger.LogError(ex, "ContainerService hook execution failed");
-        }
-      }
-    }
-
-    private async Task ExecuteLifecycleHooksAsync(ServiceRunningState state, CancellationToken cancellationToken)
-    {
-      foreach (var hook in _lifecycleHooks)
-      {
-        if (hook.TriggerState != state)
-          continue;
-
-        try
-        {
-          switch (hook.Type)
-          {
-            case LifecycleHookType.CopyTo:
-              if (File.Exists(hook.HostPath) || Directory.Exists(hook.HostPath))
-              {
-                // Use path-based copy which supports both files and directories
-                await CopyToAsync(hook.HostPath, hook.ContainerPath, cancellationToken).ConfigureAwait(false);
-              }
-              break;
-
-            case LifecycleHookType.CopyFrom:
-              // Use path-based copy which supports both files and directories
-              await CopyFromToPathAsync(hook.ContainerPath, hook.HostPath, cancellationToken).ConfigureAwait(false);
-              break;
-
-            case LifecycleHookType.Export:
-              if (hook.Condition == null || hook.Condition(this))
-              {
-                var exportData = await ExportAsync(cancellationToken).ConfigureAwait(false);
-                var exportDir = Path.GetDirectoryName(hook.HostPath);
-                if (!string.IsNullOrEmpty(exportDir) && !Directory.Exists(exportDir))
-                  Directory.CreateDirectory(exportDir);
-
-                if (hook.Explode)
-                {
-                  // Extract tar to directory
-                  // Simplified - would need proper tar extraction
-                  await File.WriteAllBytesAsync(hook.HostPath + ".tar", exportData, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                  await File.WriteAllBytesAsync(hook.HostPath, exportData, cancellationToken).ConfigureAwait(false);
-                }
-              }
-              break;
-
-            case LifecycleHookType.Execute:
-              // Each element is a separate command (matches the v2 contract).
-              if (hook.Command != null)
-              {
-                foreach (var command in hook.Command)
-                  await ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
-              }
-              break;
-          }
-        }
-        catch (Exception ex)
-        {
-          // Log but don't fail on lifecycle hook errors
-          _logger.LogError(ex, "Lifecycle hook failed");
-        }
-      }
-    }
-
-    private static ServiceRunningState ParseState(string state)
-    {
-      return state?.ToLower() switch
-      {
-        "running" => ServiceRunningState.Running,
-        "paused" => ServiceRunningState.Paused,
-        "exited" => ServiceRunningState.Stopped,
-        "created" => ServiceRunningState.Starting,
-        _ => ServiceRunningState.Unknown
-      };
-    }
-
-    #endregion
   }
 }

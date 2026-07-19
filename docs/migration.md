@@ -5,15 +5,19 @@ nav_order: 11
 has_children: true
 ---
 
-# Migrating to FluentDocker v3.0.0
+# Migrating to FluentDocker v3
 
-This guide helps you migrate from v2.x.x to v3.0.0.
+This guide helps you migrate from v2.x.x to the FluentDocker v3 line.
+
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
 
 - Basics: [Breaking Changes Summary](#breaking-changes-summary), [Step 1: Update NuGet Packages](#step-1-update-nuget-packages), [Step 2: Update Namespaces](#step-2-update-namespaces), [Step 3: Create a Kernel](#step-3-create-a-kernel)
-- Intermediate: [Step 4: Update Builder API](#step-4-update-builder-api), [Step 5: Update Test Base Classes](#step-5-update-test-base-classes), [Step 7: Update Compose Commands](#step-7-update-compose-commands)
-- Advanced: [Step 8: Update Logging Configuration](#step-8-update-logging-configuration), [Removed Features](#removed-features), [Detailed Migration Resources](#detailed-migration-resources)
+- Intermediate: [Step 4: Update Builder API](#step-4-update-builder-api), [Step 5: Update Test Base Classes](#step-5-update-test-base-classes), [Step 6: Remove Docker Machine Code](#step-6-remove-docker-machine-code), [Step 7: Update Compose Commands](#step-7-update-compose-commands)
+- Advanced: [Step 8: Switch to Microsoft.Extensions.Logging](#step-8-switch-to-microsoftextensionslogging), [Removed Features](#removed-features), [Detailed Migration Resources](#detailed-migration-resources)
 
 ## Breaking Changes Summary
 
@@ -26,8 +30,8 @@ This guide helps you migrate from v2.x.x to v3.0.0.
 | Docker Toolbox removed | HIGH | Use Docker Desktop |
 | Commands namespace removed | HIGH | Use Driver Layer |
 | Compose: struct-based arguments | MEDIUM | Update Compose calls |
-| Legacy test packages removed | HIGH | Use `FluentDocker.Testing.*` adapters ([details](testing/migration-from-legacy.html)) |
-| `FluentDockerTestBase` base class removed | HIGH | Use `XunitContainerFixture` / `MsTestResourceHelpers` / `NUnitResourceHelpers` (or generic `XunitResourceFixture<T>` / `CreateResourceAsync<T>`) |
+| Legacy test packages removed | HIGH | Use `FluentDocker.Testing.*` adapters ([details](testing/migration-from-legacy.md)) |
+| `FluentDockerTestBase` base class removed | HIGH | Use `XunitContainerFixtureBase` / `MsTestResourceHelpers` / `NUnitResourceHelpers` (or generic `XunitResourceFixture<T>` / `CreateResourceAsync<T>`) |
 | xUnit v3: `IAsyncLifetime` returns `ValueTask` | MEDIUM | Update `Task` → `ValueTask` |
 
 ## Step 1: Update NuGet Packages
@@ -37,8 +41,12 @@ This guide helps you migrate from v2.x.x to v3.0.0.
 <PackageReference Include="Ductus.FluentDocker" Version="2.*" />
 
 <!-- NEW -->
-<PackageReference Include="FluentDocker" Version="3.*" />
+<PackageReference Include="FluentDocker" Version="3.2.0-preview.2" />
 ```
+
+> `3.2.0-preview.2` is not on NuGet yet. Build it from the `featrure/model-support` branch into a
+> local feed first, then add the reference above — see
+> [Consume the preview](getting-started.md#consume-the-preview) for the recipe.
 
 ## Step 2: Update Namespaces
 
@@ -56,8 +64,9 @@ using FluentDocker.Kernel;
 
 **Automated fix:**
 ```bash
-# Linux/macOS
-find . -name "*.cs" -exec sed -i '' 's/Ductus\.FluentDocker/FluentDocker/g' {} \;
+# Linux/macOS (sed -i.bak is portable across GNU and BSD sed; drop the backups after)
+find . -name "*.cs" -exec sed -i.bak 's/Ductus\.FluentDocker/FluentDocker/g' {} \;
+find . -name "*.cs.bak" -delete
 
 # Windows PowerShell
 Get-ChildItem -Recurse -Filter *.cs | ForEach-Object {
@@ -71,12 +80,12 @@ v3 requires a kernel with a registered driver before building containers.
 
 ```csharp
 // NEW - Required kernel setup (multiple kernels per app/test session are supported)
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-// Async variant
-using var kernel = await FluentDockerKernel.Create()
+// Explicit logger factory variant
+await using var loggedKernel = await FluentDockerKernel.Create(loggerFactory)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -96,13 +105,13 @@ using var container = new Builder()
     .Start();
 
 // NEW
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .ExposePort("80")
         .WaitForPort("80/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
 ```
@@ -117,12 +126,12 @@ using var network = new Builder()
     .Build();
 
 // NEW
-using var nwResults = new Builder()
+await using var nwResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("my-network")
         .WithSubnet("10.18.0.0/16"))
-    .Build();
+    .BuildAsync();
 
 var network = nwResults.Networks.First();
 ```
@@ -136,11 +145,11 @@ using var vol = new Builder()
     .Build();
 
 // NEW
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v
         .WithName("my-data"))
-    .Build();
+    .BuildAsync();
 
 var volume = volResults.Volumes.First();
 ```
@@ -154,19 +163,19 @@ using var svc = new Builder()
     .UseCompose()
     .FromFile("docker-compose.yml")
     .RemoveOrphans()
-    .WaitForHttp("web", "http://localhost:8000/health")
+    .WaitForHttpUrl("http://localhost:8000/health")
     .Build()
     .Start();
 
 // NEW
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
         .WithRemoveOrphans()
         .WithWait()
         .WithWaitTimeout(30))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Image Builder
@@ -182,14 +191,14 @@ using var img = new Builder()
     .Build();
 
 // NEW
-using var imgResults = new Builder()
+await using var imgResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img
         .From("node:18-alpine")
         .Run("npm install")
         .ExposePorts(8080)
         .Command("node", "app.js"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Step 5: Update Test Base Classes
@@ -197,7 +206,7 @@ using var imgResults = new Builder()
 The legacy `FluentDockerTestBase` (xUnit) and `FluentDockerTestBase` (MSTest) base
 classes have been **removed**. Use the new adapter packages instead.
 
-### xUnit — `XunitContainerFixture`
+### xUnit — `XunitContainerFixtureBase`
 
 ```csharp
 // OLD
@@ -209,22 +218,32 @@ public class RedisFixture : FluentDockerTestBase
 }
 
 // NEW
-public class RedisFixture : XunitContainerFixture
+public class RedisFixture : XunitContainerFixtureBase
 {
-    public RedisFixture()
-    {
-        InitializeAsync(builder => builder
+    protected override void ConfigureContainer(IContainerBuilder builder)
+        => builder
             .UseImage("redis:alpine")
             .ExposePort("6379")
-            .WaitForPort("6379/tcp", 30000)
-        ).GetAwaiter().GetResult();
+            .WaitForPort("6379/tcp", 30000);
+}
+
+public class RedisTests : IClassFixture<RedisFixture>
+{
+    private readonly RedisFixture _fixture;
+    public RedisTests(RedisFixture fixture) => _fixture = fixture;
+
+    [Fact]
+    public async Task Redis_IsReachable()
+    {
+        var endpoint = await _fixture.Container.ToHostExposedEndpointAsync("6379/tcp");
+        Assert.True(endpoint.Port > 0);
     }
 }
 ```
 
-> **Tip:** For new code, prefer the `Configure(...)` pattern shown in
-> [docs/testing/xunit.md](testing/xunit.html) instead of the sync-over-async
-> constructor — it avoids deadlock risk in some sync contexts.
+`XunitContainerFixtureBase` implements `IAsyncLifetime`; xUnit initializes and
+disposes the fixture without sync-over-async constructors. See
+[Test Migration Guide](migrate-v2-to-v3/test-migration.md) for broader fixture patterns.
 
 ### MSTest — `MsTestResourceHelpers`
 
@@ -259,7 +278,7 @@ public class RedisTests
 }
 ```
 
-See [Test Migration Guide](migrate-v2-to-v3/test-migration.html) for NUnit, Compose,
+See [Test Migration Guide](migrate-v2-to-v3/test-migration.md) for NUnit, Compose,
 and collection fixture examples.
 
 ## Step 6: Remove Docker Machine Code
@@ -272,15 +291,15 @@ var machines = new Hosts().Discover();
 var machine = machines.First(x => x.Name == "default");
 
 // NEW - Create kernel and use WithinDriver
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Step 7: Update Compose Commands
@@ -315,12 +334,11 @@ await composeDriver.DownAsync(context, new ComposeDownConfig {
 **BREAKING CHANGE in v3.0.0** — the static `Logging.Enabled()` /
 `Logging.Disabled()` toggle and the `FluentDocker.Common.Logger` static class
 are removed entirely. FluentDocker now logs through
-`Microsoft.Extensions.Logging.Abstractions`, and an `ILoggerFactory` is a
-required constructor argument on `KernelBuilder` and `FluentDockerKernel.Create`.
+`Microsoft.Extensions.Logging.Abstractions`. An `ILoggerFactory` is **required** by the
+`KernelBuilder` constructor, but optional on the static `FluentDockerKernel.Create` factory.
 
-The compiler enforces this: any code that calls `FluentDockerKernel.Create()`
-or constructs `KernelBuilder` / `FluentDockerKernel` / `DriverRegistry` without
-supplying a factory fails to compile.
+Use `FluentDockerKernel.Create()` for the default `NullLoggerFactory`, or
+`FluentDockerKernel.Create(factory)` when you want logs from a provider.
 
 ```csharp
 // OLD (v2)
@@ -333,7 +351,7 @@ using Microsoft.Extensions.Logging;
 using FluentDocker.Kernel;
 
 using var factory = LoggerFactory.Create(b => b.AddConsole());
-var kernel = await FluentDockerKernel.Create(factory)
+await using var kernel = await FluentDockerKernel.Create(factory)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -344,7 +362,7 @@ To suppress all logging (equivalent to v2's `Logging.Disabled()`), pass
 ```csharp
 using Microsoft.Extensions.Logging.Abstractions;
 
-var silentKernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
+await using var silentKernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
 ```
@@ -353,7 +371,7 @@ The factory is automatically propagated through `DriverContext.LoggerFactory`
 to all driver packs and component drivers, so third-party `IDriverPack`
 implementations receive it without any interface change. Each FluentDocker type
 uses its FQN as its log category for fine-grained filtering — see
-[Utilities → Logging](utilities.html#logging) for details.
+[Utilities → Logging](utilities.md#logging) for details.
 
 ## Removed Features
 
@@ -396,21 +414,21 @@ await container.CopyFromToPathAsync("/container/logs/", "/local/logs/");
 ### Static IPv4/IPv6
 
 ```csharp
-using var nwResults = new Builder()
+await using var nwResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n
         .WithName("mynet")
         .WithSubnet("10.10.0.0/16"))
-    .Build();
+    .BuildAsync();
 
-using var cResults = new Builder()
+await using var cResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithNetwork("mynet")
         .WithIPv4("10.10.0.100")
         .WithIPv6("2001:db8::100"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Full Async/Await
@@ -441,12 +459,20 @@ var stats = await container.GetStatsAsync();
 
 For in-depth migration guidance, see these companion documents:
 
-- [Complete API Mapping](migrate-v2-to-v3/api-mapping.html) — exhaustive v2 → v3 method and type mapping reference
-- [Code Examples (Before/After)](migrate-v2-to-v3/code-examples.html) — side-by-side migration examples for common patterns
-- [Test Migration Guide](migrate-v2-to-v3/test-migration.html) — xUnit, MSTest, and fixture migration patterns
-- [Claude Code Migration Skill](migrate-v2-to-v3/claude-skill.html) — automated migration assistant (copy to `.claude/skills/` and invoke `/migrate-v2-to-v3`)
+- [Complete API Mapping](migrate-v2-to-v3/api-mapping.md) — exhaustive v2 → v3 method and type mapping reference
+- [Code Examples (Before/After)](migrate-v2-to-v3/code-examples.md) — side-by-side migration examples for common patterns
+- [Test Migration Guide](migrate-v2-to-v3/test-migration.md) — xUnit, MSTest, and fixture migration patterns
+
+### Optional: AI-agent automation
+
+If you use an AI coding agent, the repository ships an **agent skill** (a prompt for the
+agent, not human guidance) that automates much of the mechanical v2 → v3 rewrite. It lives
+outside the documentation at
+[`tools/claude-migration-skill.md`](https://github.com/mariotoffia/FluentDocker/blob/master/tools/claude-migration-skill.md);
+copy it into your project's `.claude/skills/` and invoke `/migrate-v2-to-v3`. Always review
+the agent's changes against the human guides above.
 
 ## Getting Help
 
-- [Full Documentation](index.html)
+- [Full Documentation](index.md)
 - [GitHub Issues](https://github.com/mariotoffia/FluentDocker/issues)

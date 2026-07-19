@@ -7,6 +7,7 @@ namespace FluentDocker.Drivers
   /// <summary>
   /// Base interface for all container runtime drivers (Docker, Podman, etc.).
   /// </summary>
+  /// <remarks>Implementations must throw <see cref="System.ObjectDisposedException"/> for operations invoked after disposal.</remarks>
   public interface IDriver
   {
     /// <summary>
@@ -36,7 +37,7 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Initializes the driver.
     /// </summary>
-    /// <param name="context">Driver context</param>
+    /// <param name="context">Registration context. Per-call contexts override only explicitly set values; null optional values fall back to this context.</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task InitializeAsync(DriverContext context, CancellationToken cancellationToken = default);
   }

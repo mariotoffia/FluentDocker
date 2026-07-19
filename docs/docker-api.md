@@ -1,0 +1,231 @@
+---
+title: Docker API Driver
+nav_order: 17
+---
+
+# Docker API Driver (Production Notes)
+
+The Docker API driver talks to the Docker Engine over its HTTP(S) endpoint directly — no
+`docker` CLI binary is required. Use it for locked-down hosts where you cannot shell out,
+or for remote engines reached over TCP+TLS. This page covers the production concerns that
+differ from the [CLI driver](containers.md).
+
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
+## On this page
+
+- [When to use the API driver vs the CLI driver](#when-to-use-the-api-driver-vs-the-cli-driver)
+- [Private registry authentication (X-Registry-Auth)](#private-registry-authentication-x-registry-auth)
+- [Cancellation vs request timeout](#cancellation-vs-request-timeout)
+- [Build support and build-context packaging](#build-support-and-build-context-packaging)
+- [TLS](#tls)
+- [Event, log, and exec streams are bounded](#event-log-and-exec-streams-are-bounded)
+- [Stream failure error codes](#stream-failure-error-codes)
+- [Empty response handling](#empty-response-handling)
+- [Unsupported / limited semantics vs the CLI driver](#unsupported--limited-semantics-vs-the-cli-driver)
+- [Related](#related)
+
+## When to use the API driver vs the CLI driver
+
+| Concern | API driver | CLI driver |
+|---|---|---|
+| Requires `docker` binary | No | Yes |
+| Remote TCP + TLS engines | Yes (native) | Via `DOCKER_HOST` |
+| Compose V2 / Stack | **Not supported** | Supported |
+| Matches `docker` output exactly | No | Yes |
+
+Register it on the kernel with `WithDockerApi`:
+
+```csharp
+using System;
+using FluentDocker.Kernel;
+
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerApi("api", d => d
+        .AtHost("tcp://engine.internal:2376")
+        .WithCertificates("/etc/docker/certs")
+        .WithRequestTimeout(TimeSpan.FromMinutes(5))
+        .AsDefault())
+    .BuildAsync();
+```
+
+## Private registry authentication (X-Registry-Auth)
+
+Log in once via the `IAuthDriver` port. The credentials are cached per-registry, and every
+subsequent pull/push sends them in the `X-Registry-Auth` header (a base64url-encoded JSON
+auth config), and image builds send cached credentials in `X-Registry-Config` for private
+base images. **Private-registry pull, push, and build work over the API driver**.
+
+```csharp
+using FluentDocker.Drivers;
+using FluentDocker.Model.Drivers;
+
+var context = new DriverContext("api");
+var auth = kernel.SysCtl<IAuthDriver>("api");
+
+var login = await auth.LoginAsync(context, new RegistryLoginConfig
+{
+    Server = "registry.internal:5000",
+    Username = "ci",
+    Password = Environment.GetEnvironmentVariable("REGISTRY_TOKEN")
+});
+
+// login.Success == true; later image pull/push to registry.internal:5000
+// carry X-Registry-Auth, and builds carry X-Registry-Config.
+```
+
+Call `LogoutAsync(context, server)` to drop the cached credentials. Unlike the CLI driver,
+the API driver does **not** read `~/.docker/config.json` or invoke Docker credential
+helpers; call `LoginAsync` explicitly before private-registry pull/push/build.
+
+## Cancellation vs request timeout
+
+The two failure modes are kept **distinct**:
+
+- **Caller cancellation** — cancelling the `CancellationToken` you pass surfaces as an
+  `OperationCanceledException`, not a generic driver error. You can bound any operation
+  from a test or request pipeline and catch `OperationCanceledException` reliably.
+- **Request timeout** — the connection's own HTTP request timeout
+  (`WithRequestTimeout(...)`) is internal; when it fires it is reported as a timeout/driver
+  failure, **not** as caller cancellation, so you can tell "the caller gave up" apart from
+  "the engine was too slow".
+- **Long-running waits/streams** — attach/log/event/stat streams, `WaitAsync`, and
+  stop/restart requests whose `t=` timeout exceeds the request timeout are exempt from the
+  request timeout and are bounded by the caller's cancellation token. Streamed response
+  bodies can also opt into a read-idle guard with `WithStreamIdleTimeout(...)`; by default
+  this is disabled to preserve existing infinite-stream behavior. API version negotiation
+  bounds its startup `/_ping` probe with `WithConnectionTimeout(...)`, not the longer
+  request timeout.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+try
+{
+    await using var results = await new Builder()
+        .WithinDriver("api", kernel)
+        .UseContainer(c => c.UseImage("nginx:alpine"))
+        .BuildAsync(cancellationToken: cts.Token);
+}
+catch (OperationCanceledException)
+{
+    // Caller cancelled (or the 30s budget elapsed) — distinct from an engine timeout.
+}
+```
+
+Use the idle timeout only when a stalled daemon should fail faster than your caller token:
+
+```csharp
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerApi("api", d => d
+        .WithStreamIdleTimeout(TimeSpan.FromSeconds(30)))
+    .BuildAsync();
+```
+
+## Build support and build-context packaging
+
+Image builds use the Docker Engine legacy `/build` endpoint. BuildKit-only Dockerfile
+features such as `RUN --mount=...` and heredocs are not enabled by this driver; use the CLI
+driver when you need `DOCKER_BUILDKIT=1` semantics.
+
+The build context is packed by the API driver, not by the Docker CLI. File modes are preserved
+where the host exposes them (falling back to `0644` files and `0755` directories/executables),
+but symlink behavior intentionally stays inside the context boundary: relative file symlinks
+whose resolved target stays inside the context are emitted as symlink tar entries; absolute,
+escaping, broken, and directory symlinks are skipped or not traversed.
+
+`CopyToAsync` also builds a tar archive client-side. It emits symlink entries for file and
+directory symlinks without traversing them, and spools the archive to a delete-on-close temp
+file before upload, so large directory copies are bounded by disk instead of managed heap size.
+
+`CopyFromAsync` extracts regular files and directories, and recreates relative symlink entries
+whose resolved target stays inside the extraction root as symlinks (never dereferenced). A symlink
+entry whose target is absolute (e.g. `/bin/sh -> /bin/busybox`) or resolves outside that root is
+skipped with a warning instead of being recreated, because blindly restoring such a link could
+point outside the requested destination; the rest of the archive is still extracted.
+
+## TLS
+
+TLS is validated by default. Two knobs adjust it:
+
+- **`WithTlsVerification(true)` (default)** — the server certificate chain is validated.
+- **`WithAllowTlsHostnameMismatch()`** — relaxes **only** the hostname check. The chain is
+  **still validated**; the callback accepts `SslPolicyErrors.None` or
+  `RemoteCertificateNameMismatch` and nothing else. It applies to both the custom-CA path
+  (`WithCertificates(...)`) and the system-trust path. Use it when an engine's cert is
+  issued for a different SAN/CN than the address you dial, without dropping chain
+  validation.
+- **`WithTlsVerification(false)`** — the **only** accept-any-certificate mode. It disables
+  all certificate validation; reserve it for local throwaway engines, never production.
+
+```csharp
+await using var kernel = await FluentDockerKernel.Create()
+    .WithDockerApi("api", d => d
+        .AtHost("tcp://10.0.0.5:2376")
+        .WithCertificates("/etc/docker/certs")
+        .WithAllowTlsHostnameMismatch()   // hostname-only relaxation; chain still checked
+        .AsDefault())
+    .BuildAsync();
+```
+
+## Event, log, and exec streams are bounded
+
+Multiplexed log/exec/attach streams now **error on truncation** instead of silently
+returning a short read: a partial or oversized frame throws a `DriverException`
+(`"Docker log stream truncated…"` / `"Docker exec stream truncated…"`). Individual frames
+are bounded (10 MiB max frame size), so a corrupt length prefix cannot allocate unbounded
+memory.
+
+The HTTP response backing a stream is owned by the returned stream and disposed with it —
+always dispose the stream you receive (`await using`/`using`) so the underlying connection
+is released.
+
+`IContainerDriver.GetLogsAsync(follow: true)` is rejected because it is a buffered API; use
+`IStreamDriver.StreamLogsAsync` for following logs. Buffered `GetLogsAsync` returns only a tail
+(bounded to `CliOutputTruncation.DefaultTailChars` = 256 KiB; oldest bytes dropped, a truncation
+marker prepended), so stream when you need the complete log. Streamed Docker
+API log entries are emitted at Docker frame granularity (frames may split very long logical
+lines; a frame ending mid-UTF-8-character is merged with the next frame of the same stream).
+Log fidelity is bounded by the daemon itself: the json-file log driver splits messages larger
+than 16 KiB before storage, which can corrupt multibyte characters upstream of any client.
+Attach over the API
+supports stdout/stderr only: requesting stdin fails with a clear error, and the returned
+`OutputStream` is the raw Docker attach stream (multiplexed when TTY is disabled).
+
+## Stream failure error codes
+
+A read that fails while a stream (`/events`, NDJSON, or stats) is being consumed raises a
+`DriverException` whose `ErrorCode` tells the two failure modes apart:
+
+| Error code | Value | Meaning | Transient |
+|---|---|---|---|
+| `ErrorCodes.Api.ConnectionFailed` | `API_CONN` | The connection never opened (daemon down, DNS, socket error). | Yes |
+| `ErrorCodes.Api.StreamInterrupted` | `API_STREAM_INTERRUPTED` | An established stream failed mid-read — a transport fault such as a connection reset. | Yes |
+| `ErrorCodes.Api.StreamEnded` | `API_STREAM_ENDED` | A boundless stream (e.g. `/events` with no `until`) ended cleanly because the daemon closed the connection — an unexpected EOF, not a transport error. | No |
+
+`StreamInterrupted` is distinct from `StreamEnded` so on-call diagnosis is unambiguous: a
+reset mid-stream is retryable, a clean EOF is not. `StreamInterrupted` is reported by
+`ErrorCodes.IsTransientCode(...)` as transient, so retry loops keyed on `IsTransient` resume
+the stream after a reset.
+
+## Empty response handling
+
+Operations that expect JSON now treat an empty successful body as a driver failure with a
+domain message. Operations where Docker legitimately returns no body (for example start/stop
+style endpoints) still return `Ok`.
+
+## Unsupported / limited semantics vs the CLI driver
+
+- **Compose V2 and Stack are CLI-only.** The API pack reports `SupportsCompose = false`;
+  resolving those ports on the API driver throws `InterfaceNotSupportedException` (a *soft*
+  failure — `TrySysCtl<T>` returns `false` rather than throwing). Use the CLI driver when
+  you need Compose or Stack.
+- Output does not byte-for-byte match the `docker` CLI; parse structured API responses
+  rather than scraping CLI text.
+
+## Related
+
+- [Containers](containers.md) — the fluent container API (shared by both drivers)
+- [Utilities](utilities.md) — endpoint resolution, command-response handling
+- [Architecture](architecture.md) — kernel, driver packs, and port resolution

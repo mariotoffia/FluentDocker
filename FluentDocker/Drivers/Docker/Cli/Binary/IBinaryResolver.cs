@@ -35,19 +35,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     DockerBinary MainDockerClient { get; }
 
     /// <summary>
-    /// Gets the main Docker Compose binary (docker compose subcommand).
-    /// </summary>
-    DockerBinary MainDockerCompose { get; }
-
-    /// <summary>
     /// Gets the main Docker CLI binary.
     /// </summary>
     DockerBinary MainDockerCli { get; }
-
-    /// <summary>
-    /// Gets whether Docker Compose is available.
-    /// </summary>
-    bool IsDockerComposeAvailable { get; }
 
     /// <summary>
     /// Resolves a Docker binary by command name.
@@ -57,10 +47,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     DockerBinary Resolve(string binary);
 
     /// <summary>
-    /// Resolves the full path to a Docker binary, including sudo prefix if configured.
+    /// Resolves the full executable path to a Docker binary.
     /// </summary>
     /// <param name="dockerCommand">The Docker command name.</param>
-    /// <returns>The command string ready for execution.</returns>
+    /// <returns>The executable path without sudo prefixes or arguments.</returns>
     string ResolveBinaryPath(string dockerCommand);
   }
 }

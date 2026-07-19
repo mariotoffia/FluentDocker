@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -33,117 +32,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               "Container image is required but was not specified",
               ErrorCodes.Container.CreateFailed);
         }
+        if (StartsWithDash(config.Image))
+          return FailInvalidLeadingDash<ContainerCreateResult>("Container image");
 
-        var args = new List<string> { "create" };
+        var args = BuildCreateArgs("create", config);
 
-        // Name
-        if (!string.IsNullOrEmpty(config.Name))
-          args.Add($"--name {QuoteArgumentIfNeeded(config.Name)}");
-
-        // Environment variables
-        if (config.Environment != null)
-        {
-          foreach (var env in config.Environment)
-            args.Add($"-e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
-        }
-
-        // Port bindings: PortBindings dict is Key=containerPort, Value=hostPort.
-        // Docker -p syntax is hostPort:containerPort, so we emit Value:Key.
-        if (config.PortBindings != null)
-        {
-          foreach (var port in config.PortBindings)
-            args.Add($"-p {QuoteArgumentIfNeeded($"{port.Value}:{port.Key}")}");
-        }
-
-        // Volume mounts (host:container)
-        if (config.Volumes != null)
-        {
-          foreach (var volume in config.Volumes)
-            args.Add($"-v {QuoteArgumentIfNeeded($"{volume.Key}:{volume.Value}")}");
-        }
-
-        // Network mode
-        if (!string.IsNullOrEmpty(config.NetworkMode))
-          args.Add($"--network {QuoteArgumentIfNeeded(config.NetworkMode)}");
-
-        // Networks
-        if (config.Networks != null)
-        {
-          foreach (var network in config.Networks)
-            args.Add($"--network {QuoteArgumentIfNeeded(network)}");
-        }
-
-        // Labels
-        if (config.Labels != null)
-        {
-          foreach (var label in config.Labels)
-            args.Add($"--label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}");
-        }
-
-        // Working directory
-        if (!string.IsNullOrEmpty(config.WorkingDirectory))
-          args.Add($"-w {QuoteArgumentIfNeeded(config.WorkingDirectory)}");
-
-        // User
-        if (!string.IsNullOrEmpty(config.User))
-          args.Add($"-u {QuoteArgumentIfNeeded(config.User)}");
-
-        // Restart policy
-        if (!string.IsNullOrEmpty(config.RestartPolicy))
-          args.Add($"--restart {QuoteArgumentIfNeeded(config.RestartPolicy)}");
-
-        // Hostname
-        if (!string.IsNullOrEmpty(config.Hostname))
-          args.Add($"--hostname {QuoteArgumentIfNeeded(config.Hostname)}");
-
-        // Static IPv4 address
-        if (!string.IsNullOrEmpty(config.Ipv4Address))
-          args.Add($"--ip {QuoteArgumentIfNeeded(config.Ipv4Address)}");
-
-        // Static IPv6 address
-        if (!string.IsNullOrEmpty(config.Ipv6Address))
-          args.Add($"--ip6 {QuoteArgumentIfNeeded(config.Ipv6Address)}");
-
-        // Memory limit
-        if (config.MemoryLimit.HasValue)
-          args.Add($"--memory {config.MemoryLimit.Value}");
-
-        // CPU shares
-        if (config.CpuShares.HasValue)
-          args.Add($"--cpu-shares {config.CpuShares.Value}");
-
-        // Privileged mode
-        if (config.Privileged)
-          args.Add("--privileged");
-
-        // Auto remove
-        if (config.AutoRemove)
-          args.Add("--rm");
-
-        // Links (legacy Docker feature)
-        if (config.Links != null)
-          foreach (var link in config.Links)
-            args.Add($"--link {QuoteArgumentIfNeeded(link)}");
-
-        // Image (required)
-        args.Add(QuoteArgumentIfNeeded(config.Image));
-
-        // Command - properly quote arguments that contain spaces or special characters
-        if (config.Command != null && config.Command.Length > 0)
-        {
-          foreach (var cmdArg in config.Command)
-          {
-            args.Add(QuoteArgumentIfNeeded(cmdArg));
-          }
-        }
-
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ContainerCreateResult>.Fail(
-              result.Error ?? "Container creation failed",
-              ErrorCodes.Container.CreateFailed,
+              ErrorOrDefault(result, "Container creation failed"),
+              FailureCode(result.Error, ErrorCodes.Container.CreateFailed),
               CreateErrorContext(context, "CreateContainer", result),
               result.ExitCode);
         }
@@ -153,11 +53,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         return CommandResponse<ContainerCreateResult>.Ok(
             new ContainerCreateResult { Id = containerId });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ContainerCreateResult>.Fail(
             ex.Message,
-            ErrorCodes.Container.CreateFailed);
+            FailureCode(ex, ErrorCodes.Container.CreateFailed));
       }
     }
 
@@ -169,22 +73,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"start {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"start {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container start failed",
-              ErrorCodes.Container.StartFailed,
+              ErrorOrDefault(result, "Container start failed"),
+              FailureCode(result.Error, ErrorCodes.Container.StartFailed),
               CreateErrorContext(context, "StartContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.StartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.StartFailed));
       }
     }
 
@@ -199,25 +107,30 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "stop";
         if (timeout.HasValue)
-          args += $" -t {timeout.Value}";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+          args += $" -t {FormatInvariant(timeout.Value)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(
+            context, args, DeriveGracefulStopCeiling(timeout, context), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container stop failed",
-              ErrorCodes.Container.StopFailed,
+              ErrorOrDefault(result, "Container stop failed"),
+              FailureCode(result.Error, ErrorCodes.Container.StopFailed),
               CreateErrorContext(context, "StopContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.StopFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.StopFailed));
       }
     }
 
@@ -232,26 +145,41 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "restart";
         if (timeout.HasValue)
-          args += $" -t {timeout.Value}";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+          args += $" -t {FormatInvariant(timeout.Value)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(
+            context, args, DeriveGracefulStopCeiling(timeout, context), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container restart failed",
-              ErrorCodes.Container.RestartFailed,
+              ErrorOrDefault(result, "Container restart failed"),
+              FailureCode(result.Error, ErrorCodes.Container.RestartFailed),
               CreateErrorContext(context, "RestartContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RestartFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RestartFailed));
       }
+    }
+
+    // docker stop/restart send SIGTERM, wait -t seconds (default 10), then SIGKILL — intrinsically
+    // bounded, so they must NOT use the unbounded path where a CancellationToken.None caller against a
+    // wedged daemon hangs forever (DCLI-MAJ-5). Ceiling = timeout + 30s daemon-latency grace; a larger
+    // caller RequestTimeout wins.
+    private static TimeSpan DeriveGracefulStopCeiling(int? timeoutSeconds, DriverContext context)
+    {
+      var derived = TimeSpan.FromSeconds((timeoutSeconds ?? 10) + 30);
+      return context?.RequestTimeout is { } rt && rt > derived ? rt : derived;
     }
 
     /// <inheritdoc />
@@ -262,22 +190,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"pause {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"pause {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container pause failed",
-              ErrorCodes.Container.PauseFailed,
+              ErrorOrDefault(result, "Container pause failed"),
+              FailureCode(result.Error, ErrorCodes.Container.PauseFailed),
               CreateErrorContext(context, "PauseContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.PauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.PauseFailed));
       }
     }
 
@@ -289,22 +221,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"unpause {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"unpause {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container unpause failed",
-              ErrorCodes.Container.UnpauseFailed,
+              ErrorOrDefault(result, "Container unpause failed"),
+              FailureCode(result.Error, ErrorCodes.Container.UnpauseFailed),
               CreateErrorContext(context, "UnpauseContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.UnpauseFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.UnpauseFailed));
       }
     }
 
@@ -317,23 +253,27 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"kill --signal {QuoteArgumentIfNeeded(signal)} {QuoteArgumentIfNeeded(containerId)}";
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var args = $"kill --signal {QuotePositionalArgument(signal ?? "SIGKILL", nameof(signal))} {QuotePositionalArgument(containerId, nameof(containerId))}";
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container kill failed",
-              ErrorCodes.Container.KillFailed,
+              ErrorOrDefault(result, "Container kill failed"),
+              FailureCode(result.Error, ErrorCodes.Container.KillFailed),
               CreateErrorContext(context, "KillContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.KillFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.KillFailed));
       }
     }
 
@@ -352,24 +292,28 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += " -f";
         if (removeVolumes)
           args += " -v";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container remove failed",
-              ErrorCodes.Container.RemoveFailed,
+              ErrorOrDefault(result, "Container remove failed"),
+              FailureCode(result.Error, ErrorCodes.Container.RemoveFailed),
               CreateErrorContext(context, "RemoveContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RemoveFailed));
       }
     }
 

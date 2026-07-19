@@ -1,27 +1,31 @@
 ---
 layout: default
 title: Architecture
-nav_order: 13
-description: "FluentDocker v3.0 architecture - Driver layer, kernel configuration, async patterns"
+nav_order: 12
+description: "FluentDocker architecture - Driver layer, kernel configuration, async patterns"
 ---
 
-# FluentDocker v3.0 Architecture
+# FluentDocker Architecture
 
-This document describes the v3.0 architecture with the pluggable driver layer, kernel configuration, and async patterns.
+This document describes the pluggable driver layer, kernel configuration, and async patterns.
+
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
 
-This is an advanced guide. If you are new to FluentDocker, complete [Getting Started](getting-started.html) first.
+This is an advanced guide. If you are new to FluentDocker, complete [Getting Started](getting-started.md) first.
 
 - Foundation: [Overview](#overview), [Async Pattern](#async-pattern), [Kernel Configuration](#kernel-configuration)
-- Advanced internals: [SysCtl() Driver Access](#sysctl-driver-access), [Scoped Builder Pattern](#scoped-builder-pattern), [Driver-Aware Builder Extensions](#driver-aware-builder-extensions), [Capabilities System](#capabilities-system)
+- Advanced internals: [SysCtl() Driver Access](#sysctl-driver-access), [Scoped Builder Pattern](#scoped-builder-pattern), [Driver-Aware Builder Extensions](#driver-aware-builder-extensions), [Capabilities System](#capabilities-system), [CLI driver execution semantics](#cli-driver-execution-semantics)
 - Design rationale: [Key Architecture Decisions](#key-architecture-decisions)
 
 ## Overview
 
-FluentDocker v3.0 introduces a **pluggable driver architecture** that supports multiple container runtime implementations with concurrent instances.
+FluentDocker uses a **pluggable driver architecture** that supports multiple container runtime implementations with concurrent instances.
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────┐
 │         Layer 3: Fluent API (Builders)                         │
 │              Binds to Kernel Instance                          │
@@ -35,8 +39,7 @@ FluentDocker v3.0 introduces a **pluggable driver architecture** that supports m
 ┌────────────────────────────────────────────────────────────────┐
 │         FluentDocker Kernel (Instantiable)                     │
 │  ┌──────────────────────────────────────────────────────┐      │
-│  │  DriverRegistry   DriverSelector   DriverRouter      │      │
-│  │  SysCtl() Interface for Driver Access                │      │
+│  │  DriverRegistry   SysCtl() Interface for Driver Access│      │
 │  └──────────────────────────────────────────────────────┘      │
 └────────────────────────────────────────────────────────────────┘
                             ↓
@@ -57,11 +60,26 @@ FluentDocker v3.0 introduces a **pluggable driver architecture** that supports m
 4. Fluent API binds to specific kernel instances
 5. Driver access via `SysCtl()` interface pattern
 
+**Model layer note:** `FluentDocker/Model` is the innermost layer and owns DTOs, enums, a few value objects, and `CommandResponse<T>`. Most model types are mutable transfer objects shaped by Docker/Podman JSON; only `ModelReference`, `ModelRunnerEndpoint`, and `ComposeModelSpec` follow the immutable, validated value-object convention. In v3 it is not strictly dependency-free: compose configs hold service delegates, build/driver scopes carry logging abstractions, and some model builders import Common/Extensions. These remain in place for public API compatibility; new model code should avoid adding more outward dependencies.
+
+---
+
+## CLI driver execution semantics
+
+Docker CLI adapters build one command line and execute the configured binary directly; no shell is inserted. Every user-supplied argument is quoted with the shared CLI quoting helper before it reaches `ProcessStartInfo.Arguments`.
+
+Buffered commands have a default five-minute timeout and cap captured stdout/stderr to protect callers from hung or noisy CLI processes. The Docker CLI adapter bounds buffered stdout at 64 MiB and stderr at 4 MiB (the Podman adapter caps both at 4 MiB). Inherently long operations (`pull`, `build`, foreground `run`/`exec`, `create` with auto-pull, compose `up`/`run`/`exec`) skip that timeout and keep a rolling output tail instead of failing at the cap; truncated output starts with `[FluentDocker: output truncated, showing last N chars]`.
+
+Per-call `DriverContext` values override the component context for that call. Use this for one-off hosts, TLS settings, sudo settings, or request timeouts; omitted per-call values fall back to the component context.
+
+`GetLogsAsync(follow: true)` is rejected by buffered Docker CLI adapters because it never completes. Use `IStreamDriver.StreamLogsAsync` for follow/streaming logs. CLI attach does not support password sudo because attach stdin belongs to the caller.
+
 ---
 
 ## Async Pattern
 
 **All operations in FluentDocker v3.0 are asynchronous.** The `BuildAsync()` method is terminal and returns `Task<TResult>`.
+`Builder` (resource builder) is single-use after a successful build; if a resource build fails, fix the cause and retry the same builder or create a fresh one. `KernelBuilder` (`FluentDockerKernel.Create()`) is single-attempt: `BuildAsync()`/`Build()` may be called exactly once, even after a failed build, because configured custom driver/pack instances are captured at configure time and cannot be safely re-initialized once a failed attempt has disposed them — create a fresh kernel builder to retry.
 
 ### Terminal BuildAsync() Pattern
 
@@ -105,7 +123,7 @@ var kernel = await FluentDockerKernel.Create()
 var deployment = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c.UseImage("nginx"))
-    .BuildAsync(cts.Token);
+    .BuildAsync(cancellationToken: cts.Token);
 ```
 
 ---
@@ -151,7 +169,7 @@ var remoteKernel = await FluentDockerKernel.Create()
 - Different driver configurations per kernel
 - Better testing (isolated kernels)
 - Explicit lifecycle management
-- No global state
+- No shared kernel state, apart from process-static Podman machine locks
 
 ---
 
@@ -170,11 +188,11 @@ object driver = kernel.SysCtl("docker", typeof(IContainerDriver));
 // Non-throwing — returns false if interface not supported
 if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 {
-    await podDriver.CreatePodAsync(context, "my-pod");
+    await podDriver.CreatePodAsync(context, new PodCreateConfig { Name = "my-pod" });
 }
 ```
 
-The kernel resolves interfaces through `IDriverInterfaceResolver` when the driver pack or driver implements it, falling back to direct `ISysCtl` delegation and then direct cast. This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.html) for details.
+The kernel resolves interfaces through `IDriverInterfaceResolver`. A driver **pack** has a single path — its `TryResolve` — and stops there (an unresolved interface surfaces as a soft `InterfaceNotSupportedException`; KRN-MAJ-7 removed the pack-level `ISysCtl` delegation). A plain **driver** asks its `IDriverInterfaceResolver` if it implements one, then falls back to a direct cast (`driver is T`). This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.md) for details.
 
 ### Available Driver Interfaces
 
@@ -263,11 +281,13 @@ public class BuildResults : IAsyncDisposable, IDisposable
 
 ## Driver-Aware Builder Extensions
 
-All builders implement `IDriverScopedBuilder`, providing access to the kernel and driver ID inside builder lambdas. This enables driver-specific fluent extensions that gracefully no-op when the current driver doesn't support the feature:
+All builders implement `IDriverScopedBuilder`, providing access to the kernel and driver ID inside builder lambdas. This enables driver-specific fluent extensions to resolve optional capabilities and fail clearly when the current driver doesn't support the feature:
 
 ```csharp
-// Podman-specific .UsePod() — no-op on Docker
-await new Builder()
+using FluentDocker.Drivers.Podman.BuilderExtensions;
+
+// Podman-specific .UsePod() — throws on Docker
+await using var results = await new Builder()
     .WithinDriver("podman", kernel)
     .UseContainer(c => c
         .UseImage("redis:7-alpine")
@@ -276,7 +296,7 @@ await new Builder()
     .BuildAsync();
 ```
 
-For full documentation on writing custom driver interfaces, builder extensions, and multi-driver deployment patterns, see [Driver Extensibility](extensibility.html).
+For full documentation on writing custom driver interfaces, builder extensions, and multi-driver deployment patterns, see [Driver Extensibility](extensibility.md).
 
 ---
 
@@ -289,7 +309,7 @@ entity. Component drivers are resolved at runtime via `ISysCtl`, not through
 direct properties.
 
 ```csharp
-public interface IDriverPack : ISysCtl
+public interface IDriverPack : IDriverInterfaceResolver
 {
     DriverType Type { get; }        // values: DockerCli, DockerApi, PodmanCli, PodmanApi, Custom
                                     // (PodmanApi and Custom are reserved for future use)
@@ -353,28 +373,38 @@ public interface IContainerDriver
 
 ### Capability Discovery
 
-FluentDocker provides granular capability detection with 100+ feature flags:
+`DriverCapabilities` is a declared API-surface summary: it says which adapter
+families a pack implements, not which backend features are currently available.
+For runtime truth, use `IsHealthyAsync()` for basic availability and handle
+first-call errors for features such as Compose plugins or Swarm services.
 
 ```csharp
-var driverPack = kernel.GetDriverPack("docker");
-var caps = await driverPack.GetCapabilitiesAsync();
+using FluentDocker.Kernel;
 
-// Container capabilities
-if (caps.Container.SupportsHealthChecks) { /* ... */ }
-if (caps.Container.SupportsResourceLimits) { /* ... */ }
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d.AsDefault())
+  .BuildAsync();
 
-// Image capabilities
-if (caps.Image.SupportsBuildx) { /* ... */ }
-if (caps.Image.SupportsMultiPlatform) { /* ... */ }
+var caps = await kernel.GetDriverPack("docker").GetCapabilitiesAsync();
 
-// Docker-specific
-if (caps.DockerSpecific.SupportsSwarm) { /* ... */ }
-if (caps.DockerSpecific.SupportsContentTrust) { /* ... */ }
+var canRunContainers = caps.SupportsContainers;
+var canBuildImages = caps.SupportsImages;
+var canCreateNetworks = caps.SupportsNetworks;
+var canCreateVolumes = caps.SupportsVolumes;
+var canUseCompose = caps.SupportsCompose;
+var canReadSystemInfo = caps.SupportsSystem;
+var canUsePods = caps.SupportsPods;
+var canUseKubeYaml = caps.SupportsKubernetes;
+var canManageMachines = caps.SupportsMachines;
+var canUseManifests = caps.SupportsManifests;
+var canUseStacks = caps.SupportsStacks;
+var canUseServices = caps.SupportsServices;
+// Version and ApiVersion are optional; first-party packs do not populate them today.
 ```
 
 ### Interface Discovery
 
-Driver packs that implement `IDriverInterfaceResolver` allow runtime discovery of supported interfaces:
+Because `IDriverPack` extends `IDriverInterfaceResolver`, any driver pack allows runtime discovery of supported interfaces:
 
 ```csharp
 // Check supported interfaces via IDriverInterfaceResolver
@@ -410,7 +440,7 @@ public async Task DeployAsync(CancellationToken cancellationToken)
         .UseContainer(c => c.UseImage("postgres:14"))
         .WithinDriver("prod")  // Reuses kernel
         .UseContainer(c => c.UseImage("myapp:v1.0"))
-        .BuildAsync(cancellationToken);
+        .BuildAsync(cancellationToken: cancellationToken);
 
     // Start all services in parallel
     var startTasks = deployment.All
@@ -450,7 +480,7 @@ await driver.PullAsync(
 ## Key Architecture Decisions
 
 ### 1. No Singleton Kernel
-**Rationale:** Multiple Docker hosts, better testing, explicit lifecycle, no global state.
+**Rationale:** Multiple Docker hosts, better testing, explicit lifecycle, isolated kernels.
 
 ### 2. SysCtl() Interface
 **Rationale:** Clean, discoverable API; type-safe with generics; Unix-inspired; consistent access pattern.
@@ -475,10 +505,10 @@ FluentDocker uses a simple exception hierarchy:
 - `DriverException` -- driver-level failure with `ErrorCode`, `Context` (ErrorContext), and `IsTransient` properties
   - `DriverNotFoundException` -- driver ID not registered
   - `DriverNotAvailableException` -- driver not healthy/reachable
-- `ContainerNotFoundException`, `ContainerStartException`
-- `ImageNotFoundException`, `ImagePullException`
-- `CapabilityNotSupportedException`, `InterfaceNotSupportedException`
-- `PodmanMachineNotRunningException`
+  - `PodmanMachineNotRunningException` -- machine unavailable (`ErrorCodes.Machine.NotRunning`, `IsTransient = true`)
+  - `CapabilityNotSupportedException`, `InterfaceNotSupportedException`
+  - `ContainerNotFoundException`, `ContainerStartException`
+  - `ImageNotFoundException`, `ImagePullException`
 
 Error codes use a category-prefixed format defined in `ErrorCodes`:
 
@@ -504,11 +534,12 @@ FluentDocker v3.0 provides:
 
 - **Multiple runtimes**: Docker, Podman, future runtimes
 - **Multiple instances**: Same driver type, different configurations
-- **Multiple kernels**: Isolated instances, no global state
+- **Multiple kernels**: Isolated instances (Podman machine locks are process-static)
 - **Clean driver access**: SysCtl() interface pattern with `TrySysCtl<T>()` for feature checks
-- **Driver extensibility**: Custom interfaces via `IDriverInterfaceResolver` ([details](extensibility.html))
+- **Driver extensibility**: Custom interfaces via `IDriverInterfaceResolver` ([details](extensibility.md))
 - **Driver-aware builders**: `IDriverScopedBuilder` with `RequireDriver<T>()` / `TryDriver<T>()`
 - **Better testing**: Mock drivers, isolated kernels
 - **Multi-host support**: Multiple Docker hosts simultaneously
 - **Full async**: All operations with CancellationToken support
-- **Capability discovery**: 100+ feature flags for runtime adaptation
+- **Capability discovery**: flat `DriverCapabilities` flags plus `TrySysCtl<T>()` / `TryDriver<T>()`
+- **Service lifecycle**: `StateChange` event and state hooks on every service ([details](service-lifecycle.md))

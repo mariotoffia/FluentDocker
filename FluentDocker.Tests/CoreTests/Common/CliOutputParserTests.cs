@@ -60,7 +60,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ParseMemoryUsage_Null_ReturnsZeros()
     {
       // Arrange & Act
-      var (usage, limit) = CliOutputParser.ParseMemoryUsage(null);
+      var (usage, limit) = CliOutputParser.ParseMemoryUsage(null!);
 
       // Assert
       Assert.Equal(0, usage);
@@ -147,6 +147,18 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Theory]
+    [InlineData("1PB / 2PB", 1000000000000000L, 2000000000000000L)]
+    [InlineData("1PiB / 2PiB", 1125899906842624L, 2251799813685248L)]
+    public void ParseMemoryUsage_PetaByteSuffixes_ParsesCorrectly(
+      string input, long expectedUsage, long expectedLimit)
+    {
+      var (usage, limit) = CliOutputParser.ParseMemoryUsage(input);
+
+      Assert.Equal(expectedUsage, usage);
+      Assert.Equal(expectedLimit, limit);
+    }
+
+    [Theory]
     [InlineData("50B / 100B", 50L, 100L)]
     [InlineData("10kB / 20kB", 10000L, 20000L)]
     [InlineData("10KB / 20KB", 10000L, 20000L)]
@@ -213,7 +225,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void ParseIOPair_Null_ReturnsZeros()
     {
       // Arrange & Act
-      var (first, second) = CliOutputParser.ParseIOPair(null);
+      var (first, second) = CliOutputParser.ParseIOPair(null!);
 
       // Assert
       Assert.Equal(0, first);

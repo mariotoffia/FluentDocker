@@ -11,16 +11,34 @@ namespace FluentDocker.Kernel
   internal sealed class PodmanCliDriverBuilder(string driverId) : IPodmanCliDriverBuilder
   {
     private readonly string _driverId = driverId;
-    private string _host;
-    private string _certificatePath;
+    private string? _host;
+    private string? _certificatePath;
     private bool _isDefault;
-    private AutoStartMachineConfig _autoStartMachine;
+    private AutoStartMachineConfig? _autoStartMachine;
     private SudoMechanism _sudo = SudoMechanism.None;
-    private string _sudoPassword;
+    private string? _sudoPassword;
+    private string? _binaryName;
+    private string[]? _searchPaths;
+    private TimeSpan? _requestTimeout;
 
     public IPodmanCliDriverBuilder AtHost(string host)
     {
       _host = host;
+      return this;
+    }
+
+    public IPodmanCliDriverBuilder WithRequestTimeout(TimeSpan timeout)
+    {
+      if (timeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Request timeout must be positive.");
+      _requestTimeout = timeout;
+      return this;
+    }
+
+    public IPodmanCliDriverBuilder WithBinary(string binaryName, params string[] searchPaths)
+    {
+      _binaryName = binaryName;
+      _searchPaths = searchPaths is { Length: > 0 } ? searchPaths : null;
       return this;
     }
 
@@ -37,14 +55,14 @@ namespace FluentDocker.Kernel
     }
 
     public IPodmanCliDriverBuilder WithAutoStartMachine(
-        Action<AutoStartMachineConfig> configure = null)
+        Action<AutoStartMachineConfig>? configure = null)
     {
       _autoStartMachine = new AutoStartMachineConfig();
       configure?.Invoke(_autoStartMachine);
       return this;
     }
 
-    public IPodmanCliDriverBuilder WithSudo(SudoMechanism mechanism, string password = null)
+    public IPodmanCliDriverBuilder WithSudo(SudoMechanism mechanism, string? password = null)
     {
       _sudo = mechanism;
       _sudoPassword = password;
@@ -60,12 +78,15 @@ namespace FluentDocker.Kernel
         Sudo = _sudo,
         SudoPassword = _sudoPassword,
         AutoStartMachine = _autoStartMachine,
+        BinaryName = _binaryName,
+        SearchPaths = _searchPaths,
+        RequestTimeout = _requestTimeout,
       };
 
       return new KernelBuilder.DriverConfiguration
       {
         DriverId = _driverId,
-        DriverPack = new PodmanCliDriverPack(),
+        DriverPackFactory = static () => new PodmanCliDriverPack(),
         Context = context,
         IsDefault = _isDefault,
       };

@@ -35,14 +35,14 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(fixture.Kernel);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
     public async Task DisposeAsync_BeforeInit_DoesNotThrow()
     {
-      var fixture = new TestContainerFixture(null);
+      var fixture = new TestContainerFixture(null!);
       await fixture.DisposeAsync();
     }
 
@@ -97,7 +97,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     [Fact]
     public void DefaultKernelFactory_IsNull()
     {
-      var fixture = new TestContainerFixture(null);
+      var fixture = new TestContainerFixture(null!);
       Assert.Null(fixture.ExposedKernelFactory);
     }
 
@@ -113,7 +113,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
           => _kernelFactory;
 
       public Func<Task<FluentDockerKernel>> ExposedKernelFactory
-          => base.KernelFactory;
+          => base.KernelFactory!;
     }
   }
 
@@ -143,8 +143,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(fixture.Kernel);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     [Fact]
     public async Task DisposeAsync_BeforeInit_DoesNotThrow()
     {
-      var fixture = new TestComposeFixture(null);
+      var fixture = new TestComposeFixture(null!);
       await fixture.DisposeAsync();
     }
 
@@ -216,8 +216,8 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(fixture.Kernel);
 
       await fixture.DisposeAsync();
-      Assert.Null(fixture.Resource);
-      Assert.Null(fixture.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = fixture.Kernel);
     }
 
     [Fact]
@@ -246,7 +246,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     [Fact]
     public async Task DisposeAsync_BeforeInit_DoesNotThrow()
     {
-      var fixture = new TestTopologyFixture(null);
+      var fixture = new TestTopologyFixture(null!);
       await fixture.DisposeAsync();
     }
 

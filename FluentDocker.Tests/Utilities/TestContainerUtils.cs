@@ -101,7 +101,7 @@ namespace FluentDocker.Tests.Utilities
           if (!shouldRemove && namePrefixes != null && namePrefixes.Length > 0)
           {
             var name = container.Name?.TrimStart('/');
-            if (name != null && namePrefixes.Any(prefix => name.StartsWith(prefix)))
+            if (name != null && namePrefixes.Any(prefix => name.StartsWith(prefix, StringComparison.Ordinal)))
             {
               shouldRemove = true;
             }
@@ -157,7 +157,7 @@ namespace FluentDocker.Tests.Utilities
 
         foreach (var network in listResult.Data)
         {
-          if (network.Name != null && prefixes.Any(prefix => network.Name.StartsWith(prefix)))
+          if (network.Name != null && prefixes.Any(prefix => network.Name.StartsWith(prefix, StringComparison.Ordinal)))
           {
             try
             {

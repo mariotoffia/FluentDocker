@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,42 +27,40 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<IList<StackInfo>>> ListAsync(
         DriverContext context,
-        StackListFilter filter = null,
+        StackListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
         var args = "stack ls --format \"{{json .}}\"";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<StackInfo>>.Fail(
-              result.Error ?? "Stack list failed", ErrorCodes.Stack.ListFailed);
+              ErrorOrDefault(result, "Stack list failed"), FailureCode(result.Error, ErrorCodes.Stack.ListFailed));
         }
 
-        var stacks = new List<StackInfo>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        if (!DockerCliJsonLineParser.TryParse(
+                result.Output,
+                Logger,
+                "Stack list JSON parsing failed",
+                out List<StackInfo> stacks,
+                out var parseError))
         {
-          try
-          {
-            var stack = JsonSerializer.Deserialize<StackInfo>(line, JsonHelper.CaseInsensitiveOptions);
-            if (stack != null)
-              stacks.Add(stack);
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Stack list JSON parsing failed");
-          }
+          return CommandResponse<IList<StackInfo>>.Fail(parseError, ErrorCodes.Stack.ListFailed);
         }
 
         return CommandResponse<IList<StackInfo>>.Ok(stacks);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<IList<StackInfo>>.Fail(ex.Message, ErrorCodes.Stack.ListFailed);
+        return CommandResponse<IList<StackInfo>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Stack.ListFailed));
       }
     }
 
@@ -69,44 +68,51 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<IList<StackTask>>> GetTasksAsync(
         DriverContext context,
         string stackName,
-        StackTaskFilter filter = null,
+        StackTaskFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var args = $"stack ps --format \"{{{{json .}}}}\" {stackName}";
+        var args = "stack ps";
+        AddFilter(ref args, "id", filter?.Id);
+        AddFilter(ref args, "name", filter?.Name);
+        AddFilter(ref args, "node", filter?.Node);
+        AddFilter(ref args, "desired-state", filter?.DesiredState);
         if (filter?.NoTrunc == true)
-          args = args.Replace("stack ps", "stack ps --no-trunc");
+          args += " --no-trunc";
+        if (filter?.NoResolve == true)
+          args += " --no-resolve";
+        args += $" --format \"{{{{json .}}}}\" {QuotePositionalArgument(stackName, nameof(stackName))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<StackTask>>.Fail(
-              result.Error ?? "Stack ps failed", ErrorCodes.Stack.TasksFailed);
+              ErrorOrDefault(result, "Stack ps failed"), FailureCode(result.Error, ErrorCodes.Stack.TasksFailed));
         }
 
-        var tasks = new List<StackTask>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        if (!DockerCliJsonLineParser.TryParse(
+                result.Output,
+                Logger,
+                "Stack task JSON parsing failed",
+                out List<StackTask> tasks,
+                out var parseError))
         {
-          try
-          {
-            var task = JsonSerializer.Deserialize<StackTask>(line, JsonHelper.CaseInsensitiveOptions);
-            if (task != null)
-              tasks.Add(task);
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Stack task JSON parsing failed");
-          }
+          return CommandResponse<IList<StackTask>>.Fail(parseError, ErrorCodes.Stack.TasksFailed);
         }
 
-        return CommandResponse<IList<StackTask>>.Ok(tasks);
+        return CommandResponse<IList<StackTask>>.Ok(filter?.Quiet == true
+            ? tasks.Select(t => new StackTask { Id = t.Id }).ToList()
+            : tasks);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<StackTask>>.Fail(ex.Message, ErrorCodes.Stack.TasksFailed);
+        return CommandResponse<IList<StackTask>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Stack.TasksFailed));
       }
     }
 
@@ -120,26 +126,30 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var args = "stack deploy";
         foreach (var file in config.ComposeFiles)
-          args += $" -c {file}";
+          args += $" -c {QuoteArgumentIfNeeded(file)}";
         if (config.Prune)
           args += " --prune";
         if (config.WithRegistryAuth)
           args += " --with-registry-auth";
-        args += $" {config.StackName}";
+        args += $" {QuotePositionalArgument(config.StackName, nameof(config.StackName))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<StackDeployResult>.Fail(
-              result.Error ?? "Stack deploy failed", ErrorCodes.Stack.DeployFailed);
+              ErrorOrDefault(result, "Stack deploy failed"), FailureCode(result.Error, ErrorCodes.Stack.DeployFailed));
         }
 
         return CommandResponse<StackDeployResult>.Ok(new StackDeployResult { StackName = config.StackName });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<StackDeployResult>.Fail(ex.Message, ErrorCodes.Stack.DeployFailed);
+        return CommandResponse<StackDeployResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Stack.DeployFailed));
       }
     }
 
@@ -151,17 +161,21 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var args = $"stack rm {string.Join(" ", stackNames)}";
+        var args = $"stack rm {string.Join(" ", stackNames.Select(n => QuotePositionalArgument(n, nameof(stackNames))))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Stack rm failed", ErrorCodes.Stack.RemoveFailed);
+            : CommandResponse<Unit>.Fail(ErrorOrDefault(result, "Stack rm failed"), FailureCode(result.Error, ErrorCodes.Stack.RemoveFailed));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Stack.RemoveFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Stack.RemoveFailed));
       }
     }
 
@@ -169,44 +183,54 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<IList<StackServiceInfo>>> GetServicesAsync(
         DriverContext context,
         string stackName,
-        StackServiceFilter filter = null,
+        StackServiceFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var args = $"stack services --format \"{{{{json .}}}}\" {stackName}";
+        var args = "stack services";
+        AddFilter(ref args, "id", filter?.Id);
+        AddFilter(ref args, "name", filter?.Name);
+        foreach (var label in filter?.Labels ?? [])
+          AddFilter(ref args, "label", $"{label.Key}={label.Value}");
+        args += $" --format \"{{{{json .}}}}\" {QuotePositionalArgument(stackName, nameof(stackName))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<IList<StackServiceInfo>>.Fail(
-              result.Error ?? "Stack services failed", ErrorCodes.Stack.ServicesFailed);
+              ErrorOrDefault(result, "Stack services failed"), FailureCode(result.Error, ErrorCodes.Stack.ServicesFailed));
         }
 
-        var services = new List<StackServiceInfo>();
-        var lines = result.Output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        if (!DockerCliJsonLineParser.TryParse(
+                result.Output,
+                Logger,
+                "Stack service JSON parsing failed",
+                out List<StackServiceInfo> services,
+                out var parseError))
         {
-          try
-          {
-            var svc = JsonSerializer.Deserialize<StackServiceInfo>(line, JsonHelper.CaseInsensitiveOptions);
-            if (svc != null)
-              services.Add(svc);
-          }
-          catch (Exception ex)
-          {
-            Logger.LogError(ex, "Stack service JSON parsing failed");
-          }
+          return CommandResponse<IList<StackServiceInfo>>.Fail(parseError, ErrorCodes.Stack.ServicesFailed);
         }
 
-        return CommandResponse<IList<StackServiceInfo>>.Ok(services);
+        return CommandResponse<IList<StackServiceInfo>>.Ok(filter?.Quiet == true
+            ? services.Select(s => new StackServiceInfo { Id = s.Id }).ToList()
+            : services);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<IList<StackServiceInfo>>.Fail(ex.Message, ErrorCodes.Stack.ServicesFailed);
+        return CommandResponse<IList<StackServiceInfo>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Stack.ServicesFailed));
       }
+    }
+
+    private static void AddFilter(ref string args, string name, string? value)
+    {
+      if (!string.IsNullOrEmpty(value))
+        args += $" --filter {QuoteArgumentIfNeeded($"{name}={value}")}";
     }
   }
 }
-

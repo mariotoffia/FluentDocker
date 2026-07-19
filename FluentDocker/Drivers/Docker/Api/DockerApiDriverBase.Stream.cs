@@ -9,11 +9,17 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
+using FluentDocker.Model.Drivers;
+using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Drivers.Docker.Api
 {
   public abstract partial class DockerApiDriverBase
   {
+    /// <summary>Upper bound for a single multiplexed/stdcopy frame payload.</summary>
+    protected const int MaxFrameSizeBytes = 10 * 1024 * 1024;
+
     #region NDJSON PipeReader
 
     /// <summary>
@@ -24,7 +30,7 @@ namespace FluentDocker.Drivers.Docker.Api
     ///
     /// Skips empty, whitespace-only, and malformed JSON lines.
     /// </summary>
-    protected static async IAsyncEnumerable<T> ReadNdjsonLinesAsync<T>(
+    protected async IAsyncEnumerable<T> ReadNdjsonLinesAsync<T>(
         Stream stream, JsonTypeInfo<T> typeInfo,
         [EnumeratorCancellation] CancellationToken ct) where T : class
     {
@@ -38,39 +44,55 @@ namespace FluentDocker.Drivers.Docker.Api
           {
             result = await reader.ReadAsync(ct).ConfigureAwait(false);
           }
-          catch (OperationCanceledException)
+          catch (OperationCanceledException) when (ct.IsCancellationRequested)
           {
-            break; // ReadAsync threw — no result to AdvanceTo
+            throw;
+          }
+          catch (Exception ex)
+          {
+            throw new DriverException(
+                $"NDJSON stream interrupted mid-stream: {ex.Message}",
+                ClassifyStreamReadException(ex), ex);
           }
 
           var buffer = result.Buffer;
-          var keepGoing = true;
 
           // Process all complete lines in the current buffer
-          while (keepGoing && TryReadLine(ref buffer, out var lineSeq))
+          while (TryReadLine(ref buffer, out var lineSeq))
           {
             var item = TryDeserializeLine(lineSeq, typeInfo);
             if (item != null)
+            {
               yield return item;
-            if (ct.IsCancellationRequested)
-              keepGoing = false;
+              ct.ThrowIfCancellationRequested();
+            }
           }
 
-          // AdvanceTo MUST be called after every successful ReadAsync
-          reader.AdvanceTo(buffer.Start, buffer.End);
-
-          if (!keepGoing || result.IsCompleted)
+          if (result.IsCompleted)
           {
             // Process any remaining data after the last newline
-            if (result.IsCompleted && buffer.Length > 0)
+            if (buffer.Length > 0)
             {
-              var item = TryDeserializeLine(buffer, typeInfo);
+              var leftover = buffer.ToArray();
+              reader.AdvanceTo(result.Buffer.End);
+              var item = TryDeserializeLine(new ReadOnlySequence<byte>(leftover), typeInfo);
               if (item != null)
+              {
                 yield return item;
+                ct.ThrowIfCancellationRequested();
+              }
+            }
+            else
+            {
+              reader.AdvanceTo(buffer.Start, buffer.End);
             }
 
             break;
           }
+
+          // AdvanceTo MUST be called after every successful ReadAsync.
+          reader.AdvanceTo(buffer.Start, buffer.End);
+          ct.ThrowIfCancellationRequested();
         }
       }
       finally
@@ -104,7 +126,7 @@ namespace FluentDocker.Drivers.Docker.Api
     /// of UTF-8 bytes. Returns <c>null</c> for empty, whitespace-only, or invalid JSON.
     /// Trims \r if present (handles \r\n line endings).
     /// </summary>
-    private static T TryDeserializeLine<T>(
+    private T? TryDeserializeLine<T>(
         ReadOnlySequence<byte> lineBytes, JsonTypeInfo<T> typeInfo) where T : class
     {
       // Trim trailing \r for \r\n line endings
@@ -127,10 +149,29 @@ namespace FluentDocker.Drivers.Docker.Api
         var utf8Reader = new Utf8JsonReader(lineBytes);
         return JsonSerializer.Deserialize(ref utf8Reader, typeInfo);
       }
-      catch (JsonException)
+      catch (JsonException ex)
       {
+        LogDroppedNdjsonLine(lineBytes, ex);
         return null;
       }
+    }
+
+    /// <summary>
+    /// Debug-logs a malformed NDJSON line that is being dropped, with its byte length,
+    /// a bounded prefix, and the parse error, so silent drops remain diagnosable.
+    /// </summary>
+    private void LogDroppedNdjsonLine(in ReadOnlySequence<byte> lineBytes, JsonException ex)
+    {
+      if (!Logger.IsEnabled(LogLevel.Debug))
+        return;
+
+      const int maxPrefixBytes = 200;
+      var prefix = lineBytes.Length > maxPrefixBytes
+          ? lineBytes.Slice(0, maxPrefixBytes)
+          : lineBytes;
+      Logger.LogDebug(
+          "Dropped malformed NDJSON line ({LineLength} bytes): {ParseError}. Line prefix: {LinePrefix}",
+          lineBytes.Length, ex.Message, Encoding.UTF8.GetString(in prefix));
     }
 
     private static bool IsWhitespaceOnly(ReadOnlySequence<byte> bytes)
@@ -173,8 +214,8 @@ namespace FluentDocker.Drivers.Docker.Api
       if (bytes.Length < 8)
         return Encoding.UTF8.GetString(bytes);
 
-      // Check if first byte is a valid Docker stream header (0=stdin, 1=stdout, 2=stderr)
-      if (bytes[0] > 2 || bytes[1] != 0 || bytes[2] != 0 || bytes[3] != 0)
+      // Check if first byte is a valid Docker stream header (0=stdin, 1=stdout, 2=stderr, 3=systemerr)
+      if (bytes[0] > 3 || bytes[1] != 0 || bytes[2] != 0 || bytes[3] != 0)
         return Encoding.UTF8.GetString(bytes);
 
       // First pass: compute total payload size to allocate once
@@ -182,17 +223,34 @@ namespace FluentDocker.Drivers.Docker.Api
       var offset = 0;
       while (offset + 8 <= bytes.Length)
       {
+        if (bytes[offset] > 3 || bytes[offset + 1] != 0 ||
+            bytes[offset + 2] != 0 || bytes[offset + 3] != 0)
+          throw new DriverException(
+              "Docker stream has an invalid multiplexed frame header",
+              ErrorCodes.Api.ServerError);
         var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
                       | (bytes[offset + 6] << 8) | bytes[offset + 7];
         offset += 8;
-        if (frameSize <= 0 || offset + frameSize > bytes.Length)
-          break;
+        if (frameSize < 0 || frameSize > MaxFrameSizeBytes)
+          throw new DriverException(
+              $"Docker stream frame size {frameSize} is invalid or exceeds the {MaxFrameSizeBytes} byte limit",
+              ErrorCodes.Api.ServerError);
+        if (frameSize == 0)
+          continue;
+        if (offset + frameSize > bytes.Length)
+          throw new DriverException(
+              $"Docker stream truncated: expected {frameSize} payload bytes, read {bytes.Length - offset}",
+              ErrorCodes.Api.ServerError);
         totalPayload += frameSize;
         offset += frameSize;
       }
+      if (offset != bytes.Length)
+        throw new DriverException(
+            $"Docker stream truncated: partial {bytes.Length - offset}-byte frame header",
+            ErrorCodes.Api.ServerError);
 
       if (totalPayload == 0)
-        return Encoding.UTF8.GetString(bytes);
+        return string.Empty;
 
       // Second pass: concatenate payload bytes into a single buffer
       var payloadBuffer = totalPayload <= 1024
@@ -206,8 +264,6 @@ namespace FluentDocker.Drivers.Docker.Api
         var frameSize = (bytes[offset + 4] << 24) | (bytes[offset + 5] << 16)
                       | (bytes[offset + 6] << 8) | bytes[offset + 7];
         offset += 8;
-        if (frameSize <= 0 || offset + frameSize > bytes.Length)
-          break;
         bytes.Slice(offset, frameSize).CopyTo(payloadBuffer[writePos..]);
         writePos += frameSize;
         offset += frameSize;
@@ -227,7 +283,7 @@ namespace FluentDocker.Drivers.Docker.Api
       while (totalRead < count)
       {
         var read = await stream.ReadAsync(
-            buffer.AsMemory(totalRead, count - totalRead), ct);
+            buffer.AsMemory(totalRead, count - totalRead), ct).ConfigureAwait(false);
         if (read == 0)
           break;
         totalRead += read;

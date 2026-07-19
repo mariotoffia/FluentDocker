@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,8 +12,6 @@ using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Model.Images;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -21,54 +21,87 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// </summary>
   public partial class PodmanCliImageDriver : PodmanCliDriverBase, IImageDriver
   {
+    /// <summary>Creates a new instance with the specified binary resolver.</summary>
     public PodmanCliImageDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
     }
 
     #region Pull/Push
 
-    /// <inheritdoc />
+    /// <summary>Pulls an image using the Podman CLI.</summary>
     public async Task<CommandResponse<Unit>> PullAsync(
         DriverContext context, string image, string tag = "latest",
-        IProgress<ImagePullProgress> progress = null,
+        IProgress<ImagePullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var imageRef = string.IsNullOrEmpty(tag) ? image : $"{image}:{tag}";
-        var result = await ExecuteCommandAsync($"pull {imageRef}", cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Image pull failed", ErrorCodes.Image.PullFailed);
+        var imageRef = ShouldAppendTag(image, tag) ? $"{image}:{tag}" : image;
+        var result = await ExecuteProgressCommandAsync(
+            context,
+            $"pull {QuotePositionalArgument(imageRef, nameof(image))}",
+            progress,
+            CreatePullProgress,
+            cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              ErrorOrDefault(result, "Image pull failed"), FailureCode(result.Error, ErrorCodes.Image.PullFailed),
+              CreateErrorContext(context, "Pull", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.PullFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.PullFailed));
       }
     }
 
-    /// <inheritdoc />
+    /// <summary>Pushes an image using the Podman CLI.</summary>
     public async Task<CommandResponse<Unit>> PushAsync(
         DriverContext context, string image,
-        IProgress<ImagePushProgress> progress = null,
+        IProgress<ImagePushProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var result = await ExecuteCommandAsync($"push {image}", cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Image push failed", ErrorCodes.Image.PushFailed);
+        var result = await ExecuteProgressCommandAsync(
+            context,
+            $"push {QuotePositionalArgument(image, nameof(image))}",
+            progress,
+            CreatePushProgress,
+            cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              ErrorOrDefault(result, "Image push failed"), FailureCode(result.Error, ErrorCodes.Image.PushFailed),
+              CreateErrorContext(context, "Push", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Image.PushFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.PushFailed));
       }
     }
 
     #endregion
+
+    private static bool ShouldAppendTag(string image, string tag)
+    {
+      if (string.IsNullOrEmpty(tag) || string.IsNullOrEmpty(image) || image.Contains('@', StringComparison.Ordinal))
+        return false;
+
+      var lastSlash = image.LastIndexOf('/');
+      var lastSegment = lastSlash < 0 ? image : image[(lastSlash + 1)..];
+      return !lastSegment.Contains(':', StringComparison.Ordinal);
+    }
 
     #region Build
 
@@ -81,11 +114,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       var args = "build";
 
-      foreach (var tag in config.Tags)
-        args += $" -t {tag}";
+      foreach (var tag in OrEmpty(config.Tags))
+        args += $" -t {QuoteArgumentIfNeeded(tag)}";
 
       if (!string.IsNullOrEmpty(config.DockerfileName))
-        args += $" -f {config.DockerfileName}";
+        args += $" -f {QuoteArgumentIfNeeded(config.DockerfileName)}";
       if (config.NoCache)
         args += " --no-cache";
       if (config.Pull)
@@ -98,46 +131,53 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         args += " --squash";
 
       if (!string.IsNullOrEmpty(config.Target))
-        args += $" --target {config.Target}";
+        args += $" --target {QuoteArgumentIfNeeded(config.Target)}";
       if (!string.IsNullOrEmpty(config.Platform))
-        args += $" --platform {config.Platform}";
+        args += $" --platform {QuoteArgumentIfNeeded(config.Platform)}";
       if (!string.IsNullOrEmpty(config.NetworkMode))
-        args += $" --network {config.NetworkMode}";
+        args += $" --network {QuoteArgumentIfNeeded(config.NetworkMode)}";
 
-      foreach (var buildArg in config.BuildArgs)
-        args += $" --build-arg {buildArg.Key}={buildArg.Value}";
-      foreach (var label in config.Labels)
-        args += $" --label {label.Key}={label.Value}";
+      foreach (var buildArg in OrEmpty(config.BuildArgs))
+        args += $" --build-arg {QuoteArgumentIfNeeded($"{buildArg.Key}={buildArg.Value}")}";
+      foreach (var label in OrEmpty(config.Labels))
+        args += $" --label {QuoteArgumentIfNeeded($"{label.Key}={label.Value}")}";
 
       if (!string.IsNullOrEmpty(iidFilePath))
-        args += $" --iidfile \"{iidFilePath}\"";
+        args += $" --iidfile {QuoteArgumentIfNeeded(iidFilePath)}";
 
-      args += $" {config.BuildContext ?? "."}";
+      args += $" {QuotePositionalArgument(config.BuildContext ?? ".", nameof(config.BuildContext))}";
 
       return args;
     }
 
     /// <inheritdoc />
+    /// <remarks>Captured stdout and stderr retain only the final 256 KiB tail for long-running builds.</remarks>
     public async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context, ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress = null,
+        IProgress<ImageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
         // Write image ID to a temp file for deterministic extraction.
         // Podman (via Buildah) honours --iidfile.
-        var iidFile = Path.Combine(Path.GetTempPath(), $"podman-iid-{Guid.NewGuid():N}");
+        var iidFile = Path.Combine(DirectoryHelper.GetTempPath(), $"podman-iid-{Guid.NewGuid():N}");
 
         try
         {
-          var result = await ExecuteCommandAsync(BuildBuildArgs(config, iidFile), cancellationToken).ConfigureAwait(false);
+          var result = await ExecuteProgressCommandAsync(
+              context,
+              BuildBuildArgs(config, iidFile),
+              progress,
+              CreateBuildProgress,
+              cancellationToken).ConfigureAwait(false);
           if (!result.Success)
             return CommandResponse<ImageBuildResult>.Fail(
-                result.Error ?? "Image build failed", ErrorCodes.Image.BuildFailed);
+                ErrorOrDefault(result, "Image build failed"), FailureCode(result.Error, ErrorCodes.Image.BuildFailed),
+                CreateErrorContext(context, "Build", result), result.ExitCode);
 
           var imageId = File.Exists(iidFile)
-              ? (await File.ReadAllTextAsync(iidFile, cancellationToken)).Trim()
+              ? (await File.ReadAllTextAsync(iidFile, cancellationToken).ConfigureAwait(false)).Trim()
               : null;
 
           if (string.IsNullOrEmpty(imageId))
@@ -157,45 +197,84 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         }
         finally
         {
-          if (File.Exists(iidFile))
-            File.Delete(iidFile);
+          await DeleteFileIfExistsAsync(iidFile, CancellationToken.None).ConfigureAwait(false);
         }
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<ImageBuildResult>.Fail(ex.Message, ErrorCodes.Image.BuildFailed);
+        return CommandResponse<ImageBuildResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.BuildFailed));
       }
     }
 
     #endregion
 
+    private static async Task DeleteFileIfExistsAsync(string path, CancellationToken cancellationToken)
+    {
+      if (File.Exists(path))
+        await Task.Run(() => File.Delete(path), cancellationToken).ConfigureAwait(false);
+    }
+
     #region List/Inspect/History
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Image>>> ListAsync(
-        DriverContext context, ImageListFilter filter = null,
+        DriverContext context, ImageListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var args = "images --format json";
-        if (filter?.All == true)
-          args += " -a";
-        if (!string.IsNullOrEmpty(filter?.Reference))
-          args += $" --filter reference={filter.Reference}";
+        var args = BuildImageListArgs(filter);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<Image>>.Fail(
-              result.Error ?? "Image list failed", ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "Image list failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
+              CreateErrorContext(context, "ListImages", result), result.ExitCode);
 
         var images = ParseImageList(result.Output);
         return CommandResponse<IList<Image>>.Ok(images);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<IList<Image>>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<IList<Image>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
+    }
+
+    /// <summary>Builds the <c>podman images --format json</c> argument string for the given filter.</summary>
+    /// <param name="filter">List filter (reference, dangling, before, since, labels); null lists all images.</param>
+    /// <returns>The full <c>podman</c> argument string, including any <c>--filter</c> flags.</returns>
+    public static string BuildImageListArgs(ImageListFilter? filter)
+    {
+      var args = new StringBuilder("images --format json");
+      if (filter?.All == true)
+        args.Append(" -a");
+      if (filter == null)
+        return args.ToString();
+
+      if (!string.IsNullOrEmpty(filter.Reference))
+        args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"reference={filter.Reference}")}");
+      if (filter.Dangling.HasValue)
+        args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"dangling={(filter.Dangling.Value ? "true" : "false")}")}");
+      if (!string.IsNullOrEmpty(filter.Before))
+        args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"before={filter.Before}")}");
+      if (!string.IsNullOrEmpty(filter.Since))
+        args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"since={filter.Since}")}");
+      if (filter.Labels != null)
+        foreach (var label in filter.Labels)
+        {
+          var labelValue = string.IsNullOrEmpty(label.Value) ? label.Key : $"{label.Key}={label.Value}";
+          args.Append(CultureInfo.InvariantCulture, $" --filter {QuoteArgumentIfNeeded($"label={labelValue}")}");
+        }
+
+      return args.ToString();
     }
 
     /// <inheritdoc />
@@ -206,17 +285,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"image inspect {imageId}", cancellationToken);
+            context,
+            $"image inspect {QuotePositionalArgument(imageId, nameof(imageId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Image>.Fail(
-              result.Error ?? "Image inspect failed", ErrorCodes.Image.InspectFailed);
+              ErrorOrDefault(result, "Image inspect failed"), FailureCode(result.Error, ErrorCodes.Image.InspectFailed),
+              CreateErrorContext(context, "InspectImage", result), result.ExitCode);
 
         var image = ParseImageInspect(result.Output);
+        if (string.IsNullOrEmpty(image.Id))
+          return CommandResponse<Image>.Fail(
+              $"Image '{imageId}' was not found", ErrorCodes.Image.NotFound,
+              CreateErrorContext(context, "InspectImage", result), result.ExitCode);
         return CommandResponse<Image>.Ok(image);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Image>.Fail(ex.Message, ErrorCodes.Image.InspectFailed);
+        return CommandResponse<Image>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.InspectFailed));
       }
     }
 
@@ -228,17 +317,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"history --format json {imageId}", cancellationToken);
+            context,
+            $"history --format json {QuotePositionalArgument(imageId, nameof(imageId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<ImageLayer>>.Fail(
-              result.Error ?? "Image history failed", ErrorCodes.Image.HistoryFailed);
+              ErrorOrDefault(result, "Image history failed"), FailureCode(result.Error, ErrorCodes.Image.HistoryFailed),
+              CreateErrorContext(context, "ImageHistory", result), result.ExitCode);
 
         var layers = ParseHistory(result.Output);
         return CommandResponse<IList<ImageLayer>>.Ok(layers);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<IList<ImageLayer>>.Fail(ex.Message, ErrorCodes.Image.HistoryFailed);
+        return CommandResponse<IList<ImageLayer>>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Image.HistoryFailed));
       }
     }
 
@@ -267,7 +362,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
             images.Add(ParseImageFromToken(JsonHelper.ParseElement(line.Trim())));
         }
       }
-      catch (Exception ex) { NullLogger.Instance.LogDebug(ex, "Image JSON parsing skipped"); }
+      catch (Exception ex)
+      {
+        // Non-empty but unparseable output is a real failure — surface it with diagnostics
+        // instead of silently returning a partial/empty list that masks the problem.
+        throw new FluentDockerException(
+            $"Failed to parse Podman image list output: {ex.Message}");
+      }
 
       return images;
     }
@@ -284,18 +385,21 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var tagsProp = token.Prop("Names") ?? token.Prop("RepoTags");
       if (tagsProp.HasValue && tagsProp.Value.ValueKind == JsonValueKind.Array)
         foreach (var t in tagsProp.Value.EnumerateArray())
-          image.RepoTags.Add(t.GetString());
+          image.RepoTags.Add(t.GetString() ?? string.Empty);
 
       var digestsProp = token.Prop("RepoDigests") ?? token.Prop("Digests");
       if (digestsProp.HasValue && digestsProp.Value.ValueKind == JsonValueKind.Array)
         foreach (var d in digestsProp.Value.EnumerateArray())
-          image.RepoDigests.Add(d.GetString());
+          image.RepoDigests.Add(d.GetString() ?? string.Empty);
 
       return image;
     }
 
     private static Image ParseImageInspect(string json)
     {
+      if (string.IsNullOrWhiteSpace(json))
+        return new Image();
+
       try
       {
         var trimmed = json.Trim();
@@ -303,7 +407,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (trimmed.StartsWith('['))
         {
           var root = JsonHelper.ParseElement(trimmed);
-          token = root.EnumerateArray().First();
+          using var enumerator = root.EnumerateArray();
+          if (!enumerator.MoveNext())
+            return new Image();
+          token = enumerator.Current;
         }
         else
         {
@@ -322,14 +429,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var tagsProp = token.Prop("RepoTags");
         if (tagsProp.HasValue && tagsProp.Value.ValueKind == JsonValueKind.Array)
           foreach (var t in tagsProp.Value.EnumerateArray())
-            image.RepoTags.Add(t.GetString());
+            image.RepoTags.Add(t.GetString() ?? string.Empty);
 
         return image;
       }
       catch (Exception ex)
       {
-        NullLogger.Instance.LogDebug(ex, "Podman image inspect parsing failed");
-        return new Image();
+        throw new FluentDockerException(
+            $"Failed to parse Podman image inspect output: {ex.Message}");
       }
     }
 
@@ -343,7 +450,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var trimmed = json.Trim();
         if (!trimmed.StartsWith('['))
-          return layers;
+          throw new FormatException("expected a JSON array");
 
         var root = JsonHelper.ParseElement(trimmed);
         foreach (var token in root.EnumerateArraySafe())
@@ -359,7 +466,11 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           });
         }
       }
-      catch (Exception ex) { NullLogger.Instance.LogDebug(ex, "Image JSON parsing skipped"); }
+      catch (Exception ex)
+      {
+        throw new FluentDockerException(
+            $"Failed to parse Podman image history output: {ex.Message}");
+      }
 
       return layers;
     }

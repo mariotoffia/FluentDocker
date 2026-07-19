@@ -1,10 +1,13 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Builders;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
+using FluentDocker.Model.Models.Options;
 using FluentDocker.Testing.Core;
 using FluentDocker.Testing.MsTest;
 using FluentDocker.Tests.Mocks;
@@ -60,7 +63,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
           cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(resource.IsInitialized);
-      Assert.Equal("mstest-stack", resource.StackName);
+      Assert.StartsWith("mstest-stack", resource.StackName); // session-scoped by default
       Assert.Same(Kernel, kernel);
 
       await MsTestResourceHelpers.DisposeAsync(resource, null!);
@@ -165,7 +168,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               It.IsAny<CancellationToken>()))
           .ThrowsAsync(new InvalidOperationException("create failed"));
 
-      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      await Assert.ThrowsAsync<ResourceInitializationException>(() =>
           MsTestResourceHelpers.CreateContainerAsync(
               configure: c => c.UseImage("fail:image"),
               kernelFactory: () => Task.FromResult(testKernel),
@@ -191,6 +194,38 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.Same(Kernel, kernel);
 
       await MsTestResourceHelpers.DisposeAsync(resource, null!);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task CreateResourceAsync_ModelResource_LoadsAndUnloadsModel()
+    {
+      var model = ModelReference.Parse("ai/smollm2:latest");
+      MockPack
+          .SetupModelLoad()
+          .SetupModelUnload()
+          .EnableModelDrivers();
+
+      var (kernel, resource) = await MsTestResourceHelpers.CreateResourceAsync<ModelResource>(
+          k => new ModelResource(k, model),
+          kernelFactory: () => Task.FromResult(Kernel),
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(resource.IsInitialized);
+      Assert.Same(resource.Service.Runner, resource.Runner);
+      Assert.Same(Kernel, kernel);
+      MockPack.ModelRuntimeDriver.Verify(d => d.LoadAsync(
+          It.IsAny<DriverContext>(),
+          It.Is<ModelReference>(m => m.Equals(model)),
+          It.IsAny<ModelRunOptions>(),
+          It.IsAny<CancellationToken>()), Times.Once);
+
+      await MsTestResourceHelpers.DisposeAsync(resource, null!);
+
+      MockPack.ModelRuntimeDriver.Verify(d => d.UnloadAsync(
+          It.IsAny<DriverContext>(),
+          It.Is<ModelReference>(m => m.Equals(model)),
+          It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -226,11 +261,52 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
               It.IsAny<CancellationToken>()))
           .ThrowsAsync(new InvalidOperationException("create failed"));
 
-      await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      await Assert.ThrowsAsync<ResourceInitializationException>(() =>
           MsTestResourceHelpers.CreateResourceAsync<ContainerResource>(
               k => new ContainerResource(k, c => c.UseImage("fail:img")),
               kernelFactory: () => Task.FromResult(testKernel),
               cancellationToken: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ClassContainerFixture_TestInitializeAsyncCalledTwice_SharesOneContainer()
+    {
+      MockPack
+              .SetupContainerCreate()
+              .SetupContainerStart()
+              .SetupContainerInspect(running: true)
+              .SetupContainerStop()
+              .SetupContainerRemove();
+      TestMsTestClassContainerFixture.KernelOverride = Kernel;
+
+      var first = new TestMsTestClassContainerFixture();
+      var second = new TestMsTestClassContainerFixture();
+
+      await first.TestInitializeAsync();
+      await second.TestInitializeAsync();
+
+      Assert.Same(first.Resource, second.Resource);
+      MockPack.VerifyContainerCreated("alpine:latest", Times.Once());
+
+      await TestMsTestClassContainerFixture.CleanupAsync();
+      MockPack.VerifyContainerStopped(Times.Once());
+      MockPack.VerifyContainerRemoved(Times.Once());
+    }
+
+    private sealed class TestMsTestClassContainerFixture
+        : MsTestClassContainerFixtureBase<TestMsTestClassContainerFixture>
+    {
+      public static FluentDockerKernel? KernelOverride { get; set; }
+
+      protected override Func<Task<FluentDockerKernel>>? KernelFactory =>
+              () => Task.FromResult(KernelOverride!);
+
+      protected override void ConfigureContainer(IContainerBuilder builder)
+      {
+        builder.UseImage("alpine:latest");
+      }
+
+      public static Task CleanupAsync() => CleanupClassAsync();
     }
   }
 }

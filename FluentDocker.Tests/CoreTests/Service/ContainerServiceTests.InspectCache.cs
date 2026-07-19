@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -48,16 +49,19 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       var mockPack = new MockDriverPack();
       mockPack.SetupContainerInspect("c1", running: true);
+      // TESTS-3: drive the inspect-cache TTL off an injected controllable clock so we advance the
+      // clock deterministically instead of racing a real 500ms TTL with Task.Delay(600).
+      var fakeTime = new ManualTimeProvider();
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       try
       {
-        var service = new ContainerService(kernel, "docker", "c1", "nginx", "test");
+        var service = new ContainerService(kernel, "docker", "c1", "nginx", "test", timeProvider: fakeTime);
 
         await service.InspectAsync(TestContext.Current.CancellationToken);
 
-        // Wait longer than the cache TTL (500ms)
-        await Task.Delay(600, TestContext.Current.CancellationToken);
+        // Advance the injected clock past the cache TTL (500ms) — no wall-clock sleep.
+        fakeTime.Advance(TimeSpan.FromMilliseconds(ContainerService.InspectCacheTtlMs + 100));
 
         await service.InspectAsync(TestContext.Current.CancellationToken);
 
@@ -65,6 +69,36 @@ namespace FluentDocker.Tests.CoreTests.Service
             It.IsAny<DriverContext>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Exactly(2));
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task InspectAsync_JustBeforeTtl_ReturnsCachedData()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.SetupContainerInspect("c1", running: true);
+      var fakeTime = new ManualTimeProvider();
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = new ContainerService(kernel, "docker", "c1", "nginx", "test", timeProvider: fakeTime);
+
+        await service.InspectAsync(TestContext.Current.CancellationToken);
+
+        // Advance to just under the TTL: the cached result must still be served.
+        fakeTime.Advance(TimeSpan.FromMilliseconds(ContainerService.InspectCacheTtlMs - 1));
+
+        await service.InspectAsync(TestContext.Current.CancellationToken);
+
+        mockPack.ContainerDriver.Verify(d => d.InspectAsync(
+            It.IsAny<DriverContext>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Once);
       }
       finally
       {
@@ -154,6 +188,21 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         kernel.Dispose();
       }
+    }
+
+    // TESTS-3: minimal controllable clock. Microsoft.Extensions.TimeProvider.Testing (FakeTimeProvider)
+    // is not referenced by this test project, so a tiny local TimeProvider subclass supplies a
+    // timestamp we can advance deterministically past the inspect-cache TTL. TimestampFrequency is
+    // ticks/second so GetTimestamp() returns ticks and the base GetElapsedTime math is exact.
+    private sealed class ManualTimeProvider : TimeProvider
+    {
+      private long _timestamp;
+
+      public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+      public override long GetTimestamp() => Interlocked.Read(ref _timestamp);
+
+      public void Advance(TimeSpan delta) => Interlocked.Add(ref _timestamp, delta.Ticks);
     }
   }
 }

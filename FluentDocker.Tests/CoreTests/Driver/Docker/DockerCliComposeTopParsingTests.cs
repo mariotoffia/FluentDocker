@@ -18,6 +18,58 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     #region Multi-Service Output
 
     [Fact]
+    public void ParseTopOutput_WithContainerMap_UsesServiceAndContainerIdFromPs()
+    {
+      var output = string.Join("\n", new[]
+      {
+                "proj-web-1",
+                "UID    PID     CMD",
+                "root   1       nginx"
+            });
+      var containers = new Dictionary<string, ComposeServiceInfo>
+      {
+        {
+          "proj-web-1",
+          new ComposeServiceInfo
+          {
+            Name = "web",
+            ContainerId = "abc123def",
+            ContainerName = "proj-web-1"
+          }
+        }
+      };
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output, containers);
+
+      var processes = Assert.Single(result);
+      Assert.Equal("web", processes.Service);
+      Assert.Equal("abc123def", processes.ContainerId);
+      Assert.Equal("proj-web-1", processes.ContainerName);
+      var process = Assert.Single(processes.Processes);
+      Assert.Equal("root", process["UID"]);
+      Assert.Equal("1", process["PID"]);
+      Assert.Equal("nginx", process["CMD"]);
+    }
+
+    [Fact]
+    public void ParseTopOutput_WithoutContainerMap_KeepsContainerNameAndDoesNotFabricateId()
+    {
+      var output = string.Join("\n", new[]
+      {
+                "proj-web-1",
+                "UID    PID     CMD",
+                "root   1       nginx"
+            });
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output);
+
+      var processes = Assert.Single(result);
+      Assert.Equal("proj-web-1", processes.ContainerName);
+      Assert.Equal("proj-web-1", processes.Service);
+      Assert.Null(processes.ContainerId);
+    }
+
+    [Fact]
     public void ParseTopOutput_MultiService_ParsesBothContainers()
     {
       var output = string.Join("\n", new[]
@@ -38,12 +90,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       // First container: web
       Assert.Equal("my-project-web-1", result[0].Service);
-      Assert.Equal("my-project-web-1", result[0].ContainerId);
+      Assert.Equal("my-project-web-1", result[0].ContainerName);
+      Assert.Null(result[0].ContainerId);
       Assert.Equal(2, result[0].Processes.Count);
 
       // Second container: db
       Assert.Equal("my-project-db-1", result[1].Service);
-      Assert.Equal("my-project-db-1", result[1].ContainerId);
+      Assert.Equal("my-project-db-1", result[1].ContainerName);
+      Assert.Null(result[1].ContainerId);
       Assert.Single(result[1].Processes);
     }
 
@@ -121,7 +175,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       Assert.Single(result);
       Assert.Equal("my-project-app-1", result[0].Service);
-      Assert.Equal("my-project-app-1", result[0].ContainerId);
+      Assert.Equal("my-project-app-1", result[0].ContainerName);
+      Assert.Null(result[0].ContainerId);
       Assert.Single(result[0].Processes);
 
       var proc = result[0].Processes[0];
@@ -185,7 +240,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void ParseTopOutput_Null_ReturnsEmptyList()
     {
-      var result = DockerCliComposeDriver.ParseTopOutput(null);
+      var result = DockerCliComposeDriver.ParseTopOutput(null!);
 
       Assert.NotNull(result);
       Assert.Empty(result);
@@ -329,6 +384,122 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.Equal(
           "/bin/sh -c echo hello world && sleep infinity",
           proc["CMD"]);
+    }
+
+    #endregion
+
+    #region Modern Single-Table Output (Compose >= 2.24)
+
+    // Fixtures below are verbatim `docker compose top` output from Compose v5.1.4
+    // (tabwriter-aligned), so offset-based column slicing is exercised realistically.
+
+    [Fact]
+    public void ParseTopOutput_ModernSingleTable_GroupsRowsByService()
+    {
+      var output = string.Join("\n", new[]
+      {
+                "SERVICE  #   UID    PID    PPID   C   STIME  TTY  TIME      CMD",
+                "cache    1   999    38145  38097  18  10:36  ?    00:00:00  redis-server *:6379",
+                "web      1   root   38144  38105  9   10:36  ?    00:00:00  nginx: master process nginx -g daemon off;",
+                "web      1   statd  38254  38144  0   10:36  ?    00:00:00  nginx: worker process"
+            });
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output);
+
+      Assert.Equal(2, result.Count);
+      var cache = result.Single(p => p.Service == "cache");
+      Assert.Single(cache.Processes);
+      var web = result.Single(p => p.Service == "web");
+      Assert.Equal(2, web.Processes.Count);
+    }
+
+    [Fact]
+    public void ParseTopOutput_ModernSingleTable_ExcludesServiceColumn_KeepsProcessAttrs()
+    {
+      var output = string.Join("\n", new[]
+      {
+                "SERVICE  #   UID    PID    PPID   C   STIME  TTY  TIME      CMD",
+                "web      1   root   38144  38105  9   10:36  ?    00:00:05  nginx: master process nginx -g daemon off;"
+            });
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output);
+      var proc = Assert.Single(Assert.Single(result).Processes);
+
+      Assert.False(proc.ContainsKey("SERVICE"));
+      Assert.Equal("1", proc["#"]);
+      Assert.Equal("root", proc["UID"]);
+      Assert.Equal("38144", proc["PID"]);
+      Assert.Equal("38105", proc["PPID"]);
+      Assert.Equal("9", proc["C"]);
+      Assert.Equal("10:36", proc["STIME"]);
+      Assert.Equal("?", proc["TTY"]);
+      Assert.Equal("00:00:05", proc["TIME"]);
+      Assert.Equal("nginx: master process nginx -g daemon off;", proc["CMD"]);
+    }
+
+    [Fact]
+    public void ParseTopOutput_ModernSingleTable_DoesNotTreatHeaderAsService()
+    {
+      // Regression: pre-fix the parser took the "SERVICE ..." header row as a
+      // container name and the first data row as headers, silently returning garbage.
+      var output = string.Join("\n", new[]
+      {
+                "SERVICE  #   UID    PID    PPID   C   STIME  TTY  TIME      CMD",
+                "web      1   root   100    99     0   10:36  ?    00:00:00  nginx"
+            });
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output);
+
+      Assert.DoesNotContain(result, p => p.Service == "SERVICE");
+      Assert.Equal("web", Assert.Single(result).Service);
+    }
+
+    [Fact]
+    public void ParseTopOutput_ModernSingleTable_JoinsSingleContainerFromPs()
+    {
+      var output = string.Join("\n", new[]
+      {
+                "SERVICE  #   UID    PID    PPID   C   STIME  TTY  TIME      CMD",
+                "web      1   root   38144  38105  9   10:36  ?    00:00:00  nginx"
+            });
+      var containers = new Dictionary<string, ComposeServiceInfo>
+      {
+        {
+          "proj-web-1",
+          new ComposeServiceInfo { Name = "web", ContainerId = "abc123", ContainerName = "proj-web-1" }
+        }
+      };
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output, containers);
+
+      var web = Assert.Single(result);
+      Assert.Equal("web", web.Service);
+      Assert.Equal("abc123", web.ContainerId);
+      Assert.Equal("proj-web-1", web.ContainerName);
+    }
+
+    [Fact]
+    public void ParseTopOutput_ModernSingleTable_ScaledService_LeavesContainerNull()
+    {
+      // Two containers behind one service: no single container id/name is authoritative.
+      var output = string.Join("\n", new[]
+      {
+                "SERVICE  #   UID    PID    PPID   C   STIME  TTY  TIME      CMD",
+                "web      1   root   100    99     0   10:36  ?    00:00:00  nginx",
+                "web      2   root   200    199    0   10:36  ?    00:00:00  nginx"
+            });
+      var containers = new Dictionary<string, ComposeServiceInfo>
+      {
+        { "proj-web-1", new ComposeServiceInfo { Name = "web", ContainerId = "id1", ContainerName = "proj-web-1" } },
+        { "proj-web-2", new ComposeServiceInfo { Name = "web", ContainerId = "id2", ContainerName = "proj-web-2" } }
+      };
+
+      var result = DockerCliComposeDriver.ParseTopOutput(output, containers);
+
+      var web = Assert.Single(result);
+      Assert.Equal(2, web.Processes.Count);
+      Assert.Null(web.ContainerId);
+      Assert.Null(web.ContainerName);
     }
 
     #endregion

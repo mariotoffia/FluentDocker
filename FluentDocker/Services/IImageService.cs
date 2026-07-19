@@ -22,7 +22,7 @@ namespace FluentDocker.Services
     string Tag { get; }
 
     /// <summary>
-    /// Full image name (repository:tag).
+    /// Full image name (<c>repository:tag</c> or <c>repository@digest</c>).
     /// </summary>
     string FullName { get; }
 
@@ -49,7 +49,7 @@ namespace FluentDocker.Services
     /// </summary>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task PushAsync(IProgress<ImagePushProgress> progress = null, CancellationToken cancellationToken = default);
+    Task PushAsync(IProgress<ImagePushProgress>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Saves the image to a tar archive.
@@ -59,4 +59,3 @@ namespace FluentDocker.Services
     Task SaveAsync(string outputPath, CancellationToken cancellationToken = default);
   }
 }
-

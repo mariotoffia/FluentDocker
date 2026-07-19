@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,7 +14,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Ported from V2 IssuesTests.cs
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "Regression")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "Regression")]
   [Collection("DockerDriver")]
   public class RegressionTests : DockerDriverTestBase
   {
@@ -117,7 +119,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
         var portBinding = inspect.Data.NetworkSettings?.Ports?["80/tcp"];
         Assert.NotNull(portBinding);
-        var hostPort = int.Parse(portBinding[0].HostPort);
+        var hostPort = int.Parse(portBinding[0].HostPort, CultureInfo.InvariantCulture);
 
         // Act - Wait for port on 127.0.0.1 specifically
         var isReady = await WaitForHttpAsync($"http://127.0.0.1:{hostPort}/", TimeSpan.FromSeconds(30));
@@ -173,9 +175,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         Assert.True(listResult.Data.Count >= 2);
 
         // Verify service names are present
-        var serviceNames = listResult.Data.Select(s => s.Name?.ToLower()).ToList();
-        Assert.Contains(serviceNames, n => n != null && n.Contains("kafka"));
-        Assert.Contains(serviceNames, n => n != null && n.Contains("zookeeper"));
+        var serviceNames = listResult.Data.Select(s => s.Name).ToList();
+        Assert.Contains(serviceNames, n => n != null && n.Contains("kafka", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(serviceNames, n => n != null && n.Contains("zookeeper", StringComparison.OrdinalIgnoreCase));
       }
       finally
       {
@@ -256,10 +258,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result1 = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/data"
-          },
+          Volumes = [$"{volumeName}:/data"],
           Command = ["sh", "-c", $"echo \"{testData}\" > /data/test.txt"],
           Detach = false
         }, cancellationToken: TestContext.Current.CancellationToken);
@@ -273,10 +272,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         var result2 = await ContainerDriver.RunAsync(Context, new ContainerCreateConfig
         {
           Image = TestImage,
-          Volumes = new Dictionary<string, string>
-          {
-            [volumeName] = "/data"
-          },
+          Volumes = [$"{volumeName}:/data"],
           Command = ["cat", "/data/test.txt"],
           Detach = false
         }, cancellationToken: TestContext.Current.CancellationToken);

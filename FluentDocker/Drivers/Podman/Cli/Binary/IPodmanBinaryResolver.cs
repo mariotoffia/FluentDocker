@@ -28,10 +28,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Binary
     PodmanBinary Resolve(string binary);
 
     /// <summary>
-    /// Resolves the full path to a Podman binary, including sudo prefix if configured.
+    /// Resolves the full executable path to a Podman binary.
     /// </summary>
     /// <param name="podmanCommand">The Podman command name.</param>
-    /// <returns>The command string ready for execution.</returns>
+    /// <returns>The executable path without sudo prefixes or arguments.</returns>
     string ResolveBinaryPath(string podmanCommand);
   }
 }

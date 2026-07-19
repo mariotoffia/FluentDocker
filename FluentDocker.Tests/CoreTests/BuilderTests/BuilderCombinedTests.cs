@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .SetupNetworkRemove()
           .SetupContainerCreate("container-123")
           .SetupContainerStart()
-          .SetupContainerInspect(running: true)
+          .SetupContainerInspect("container-123", running: true)
           .SetupContainerStop()
           .SetupContainerRemove();
 
@@ -138,7 +138,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithName("web")
               .WithNetwork("app-network")
-              .WithPort("80/tcp", "8080"))
+              .WithPort("8080", "80/tcp"))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
       // Assert

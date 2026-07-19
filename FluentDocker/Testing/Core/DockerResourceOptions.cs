@@ -7,6 +7,15 @@ namespace FluentDocker.Testing.Core
   /// </summary>
   public class DockerResourceOptions
   {
+    private static readonly string ProcessSessionId =
+        CreateProcessSessionId();
+
+    private static string CreateProcessSessionId()
+    {
+      var shared = Environment.GetEnvironmentVariable(SessionLabel.SessionEnvironmentVariable);
+      return string.IsNullOrWhiteSpace(shared) ? SessionLabel.NewSessionId() : shared;
+    }
+
     /// <summary>
     /// Driver to use for this resource. Defaults to <see cref="DriverSelection.Default"/>.
     /// </summary>
@@ -17,10 +26,11 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public bool ForceRemoveOnDispose { get; set; } = true;
 
+    private TimeSpan _initializationTimeout = TimeSpan.FromMinutes(2);
+
     /// <summary>
     /// Timeout for initialization (including readiness waits).
     /// </summary>
-    private TimeSpan _initializationTimeout = TimeSpan.FromMinutes(2);
     public TimeSpan InitializationTimeout
     {
       get => _initializationTimeout;
@@ -38,10 +48,11 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public bool CaptureLogsOnFailure { get; set; } = true;
 
+    private int _maxDiagnosticLogLines = 200;
+
     /// <summary>
     /// Maximum log lines to capture on failure.
     /// </summary>
-    private int _maxDiagnosticLogLines = 200;
     public int MaxDiagnosticLogLines
     {
       get => _maxDiagnosticLogLines;
@@ -55,29 +66,70 @@ namespace FluentDocker.Testing.Core
     }
 
     /// <summary>
-    /// Session ID used for orphan tracking labels. Defaults to a unique ID per options instance.
-    /// Share the same options (or set the same SessionId) across resources to group them.
+    /// Session ID used for orphan tracking labels. Defaults to one ID per process
+    /// or to <c>FLUENTDOCKER_TEST_SESSION</c> when set, so sibling test
+    /// processes can share one live test session. Set this property to override
+    /// the grouping.
     /// </summary>
-    public string SessionId { get; set; } = SessionLabel.NewSessionId();
+    public string SessionId { get; set; } = ProcessSessionId;
+
+    private TimeSpan _orphanCleanupMinimumAge = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Minimum age a FluentDocker-managed resource from another session must reach
+    /// before orphan cleanup may remove it. The default one-hour guard prevents
+    /// <see cref="CleanupOrphansOnInit"/> from deleting live resources created by
+    /// another test process in parallel CI. Set to <see cref="TimeSpan.Zero"/> to
+    /// disable the age guard; negative values are rejected.
+    /// </summary>
+    public TimeSpan OrphanCleanupMinimumAge
+    {
+      get => _orphanCleanupMinimumAge;
+      set
+      {
+        if (value < TimeSpan.Zero)
+          throw new ArgumentOutOfRangeException(
+              nameof(value), value, "OrphanCleanupMinimumAge must be >= 0.");
+        _orphanCleanupMinimumAge = value;
+      }
+    }
 
     /// <summary>
     /// Whether to apply session-tracking labels to created resources.
-    /// When enabled, resources are tagged with <see cref="SessionLabel.Key"/>
-    /// for orphan cleanup detection. Default: true.
+    /// Honored directly by <see cref="ContainerResource"/>,
+    /// <see cref="NetworkResource"/>, <see cref="VolumeResource"/>, and
+    /// <see cref="TopologyResource"/> child container/network/volume operations.
+    /// Compose injects an overlay when possible. Swarm stack and Podman Kubernetes
+    /// resources cannot add labels automatically; use unique names and explicit
+    /// cleanup for those resource families. Default: true.
     /// </summary>
     public bool EnableSessionLabels { get; set; } = true;
 
     /// <summary>
     /// Whether to clean up orphaned resources from previous sessions
-    /// during <see cref="ResourceBase.InitializeAsync"/>. Default: false.
+    /// during <see cref="ResourceBase.InitializeAsync"/>. Default: true.
+    /// The sweep runs once per (driver id, session id) per PROCESS — a deliberate
+    /// de-duplication so per-test fixtures do not pay O(tests) sweeps. Consequence:
+    /// two kernels registering the SAME driver id against DIFFERENT daemon endpoints
+    /// share one sweep slot, and only the first endpoint is swept. Register a distinct
+    /// driver id per endpoint when per-endpoint sweeps matter.
+    /// Exit reaping is ON by default: on process exit, SIGINT (Ctrl-C), and SIGTERM the
+    /// current session's own managed resources are force-removed as a best-effort sweep —
+    /// <em>including still-running containers</em>. Set
+    /// <c>FLUENTDOCKER_TEST_REAPER_ON_EXIT=0</c> (or <c>false</c>) to opt out, e.g. when you
+    /// Ctrl-C a run specifically to inspect a container you want left alive.
+    /// Shared <c>FLUENTDOCKER_TEST_SESSION</c> sessions skip exit reaping so one
+    /// process cannot delete a sibling process's live fixtures.
+    /// SIGKILL and hard host termination cannot be caught.
     /// </summary>
-    public bool CleanupOrphansOnInit { get; set; }
+    public bool CleanupOrphansOnInit { get; set; } = true;
+
+    private TimeSpan _teardownTimeout = TimeSpan.FromSeconds(120);
 
     /// <summary>
     /// Timeout for teardown (stop + remove) during disposal.
     /// Prevents hung cleanup from blocking CI pipelines indefinitely.
     /// </summary>
-    private TimeSpan _teardownTimeout = TimeSpan.FromSeconds(120);
     public TimeSpan TeardownTimeout
     {
       get => _teardownTimeout;

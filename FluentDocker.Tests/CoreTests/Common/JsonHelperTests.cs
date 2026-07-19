@@ -39,9 +39,18 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
+    public void TryDeserialize_WithError_ReturnsParseFailureReason()
+    {
+      Assert.False(JsonHelper.TryDeserialize<SampleDto>("not json {{{", out var value, out var error));
+      Assert.Null(value);
+      Assert.NotNull(error);
+      Assert.IsType<System.Text.Json.JsonException>(error);
+    }
+
+    [Fact]
     public void TryDeserialize_NullString_ReturnsDefault()
     {
-      var result = JsonHelper.TryDeserialize<SampleDto>((string)null);
+      var result = JsonHelper.TryDeserialize<SampleDto>((string)null!); // intentional null to verify null-handling
       Assert.Null(result);
     }
 
@@ -61,6 +70,14 @@ namespace FluentDocker.Tests.CoreTests.Common
 
       Assert.NotNull(result);
       Assert.Equal(99, result.Count);
+    }
+
+    [Fact]
+    public void TryDeserialize_UnsupportedType_ReturnsDefault()
+    {
+      var result = JsonHelper.TryDeserialize<UnsupportedDto>("""{"type":"System.String"}""");
+
+      Assert.Null(result);
     }
 
     #endregion
@@ -148,7 +165,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     [Fact]
     public void TryGetProperty_NullInput_ReturnsNull()
     {
-      Assert.Null(JsonHelper.TryGetProperty(null, "id"));
+      Assert.Null(JsonHelper.TryGetProperty(null!, "id"));
     }
 
     #endregion
@@ -201,10 +218,15 @@ namespace FluentDocker.Tests.CoreTests.Common
     private class SampleDto
     {
       [JsonPropertyName("name")]
-      public string Name { get; set; }
+      public string? Name { get; set; }
 
       [JsonPropertyName("count")]
       public int Count { get; set; }
+    }
+
+    private class UnsupportedDto
+    {
+      public System.Type? Type { get; set; }
     }
   }
 }

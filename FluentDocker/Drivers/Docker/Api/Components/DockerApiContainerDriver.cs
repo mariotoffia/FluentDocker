@@ -29,14 +29,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var request = BuildCreateRequest(config);
       var path = "/containers/create";
+      var queryParams = new List<string>();
       if (!string.IsNullOrEmpty(config.Name))
-        path += $"?name={Uri.EscapeDataString(config.Name)}";
+        queryParams.Add($"name={Uri.EscapeDataString(config.Name)}");
+      if (!string.IsNullOrEmpty(config.Platform))
+        queryParams.Add($"platform={Uri.EscapeDataString(config.Platform)}");
+      if (queryParams.Count > 0)
+        path += "?" + string.Join("&", queryParams);
 
       var result = await PostJsonAsync(
           path, request,
           DockerApiJsonContext.Default.CreateContainerRequest,
           DockerApiJsonContext.Default.CreateContainerResponse,
-          cancellationToken);
+          cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ContainerCreateResult>.Fail(
             result.ErrorMessage,
@@ -61,15 +66,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var createResult = await CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!createResult.Success)
         return CommandResponse<ContainerRunResult>.Fail(
-            createResult.Error, createResult.ErrorCode,
-            createResult.ErrorContext, createResult.ExitCode);
+            createResult.Error!, createResult.ErrorCode!,
+            createResult.ErrorContext!, createResult.ExitCode);
 
-      var containerId = createResult.Data.Id;
-      var startResult = await StartAsync(context, containerId, cancellationToken).ConfigureAwait(false);
+      var containerId = createResult.Data!.Id;
+      var startResult = await StartAsync(context, containerId!, cancellationToken).ConfigureAwait(false);
       if (!startResult.Success)
+      {
+        var errorContext = startResult.ErrorContext ?? CreateErrorContext(
+            $"POST /containers/{containerId}/start", startResult.ExitCode);
+        errorContext.Metadata["ContainerId"] = containerId!;
         return CommandResponse<ContainerRunResult>.Fail(
-            startResult.Error, startResult.ErrorCode,
-            startResult.ErrorContext, startResult.ExitCode);
+            $"{startResult.Error} (created container: {containerId})", startResult.ErrorCode!,
+            errorContext, startResult.ExitCode);
+      }
 
       return CommandResponse<ContainerRunResult>.Ok(new ContainerRunResult
       {
@@ -91,6 +101,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// When <paramref name="timeout"/> is negative (daemon semantics: wait indefinitely) or at
+    /// least the configured request timeout, the HTTP call is issued without an upper time bound,
+    /// so a wedged daemon can block this call forever under <see cref="CancellationToken.None"/>.
+    /// Pass a <paramref name="cancellationToken"/> (or apply an external timeout) to bound the wait.
+    /// </remarks>
     public async Task<CommandResponse<Unit>> StopAsync(
         DriverContext context, string containerId, int? timeout = null,
         CancellationToken cancellationToken = default)
@@ -106,6 +122,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// When <paramref name="timeout"/> is negative (daemon semantics: wait indefinitely) or at
+    /// least the configured request timeout, the HTTP call is issued without an upper time bound,
+    /// so a wedged daemon can block this call forever under <see cref="CancellationToken.None"/>.
+    /// Pass a <paramref name="cancellationToken"/> (or apply an external timeout) to bound the wait.
+    /// </remarks>
     public async Task<CommandResponse<Unit>> RestartAsync(
         DriverContext context, string containerId, int? timeout = null,
         CancellationToken cancellationToken = default)
@@ -175,13 +197,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The Docker <c>/wait</c> endpoint blocks until the container exits and is issued without an
+    /// upper time bound, so a wedged daemon (or a container that never exits) can block this call
+    /// forever under <see cref="CancellationToken.None"/>. Pass a
+    /// <paramref name="cancellationToken"/> (or apply an external timeout) to bound the wait.
+    /// </remarks>
     public async Task<CommandResponse<ContainerWaitResult>> WaitAsync(
         DriverContext context, string containerId,
         CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/wait";
       var result = await PostJsonAsync(
-          path, DockerApiJsonContext.Default.WaitContainerResponse, cancellationToken);
+          path, DockerApiJsonContext.Default.WaitContainerResponse, cancellationToken)
+          .ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ContainerWaitResult>.Fail(
             result.ErrorMessage,
@@ -221,7 +250,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Container>>> ListAsync(
-        DriverContext context, ContainerListFilter filter = null,
+        DriverContext context, ContainerListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var path = BuildListPath(filter);
@@ -262,7 +291,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     #region Helpers
 
     private CommandResponse<Unit> FailUnit(ApiResult result, string operation,
-        string notFoundCode = null)
+        string? notFoundCode = null)
     {
       return CommandResponse<Unit>.Fail(
           result.ErrorMessage,

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,71 +19,88 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   public partial class PodmanCliContainerDriver
   {
     private static readonly char[] WhitespaceSeparators = [' ', '\t'];
-    private static readonly string[] SlashSeparator = [" / "];
+
     #region Information Operations (continued)
-    /// <inheritdoc />
+
+    /// <summary>Gets bounded, non-following container logs using <c>podman logs</c>.</summary>
+    /// <remarks>
+    /// Podman process stdout and stderr are retained as separate 256 KiB rolling tails and then
+    /// merged with stderr appended after stdout, so chronological interleaving can be lost. Use
+    /// <see cref="FluentDocker.Drivers.IStreamDriver.StreamLogsAsync"/> when stdout/stderr order matters.
+    /// </remarks>
     public async Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context, string containerId,
         bool follow = false, int? tail = null, bool timestamps = false,
         CancellationToken cancellationToken = default)
     {
+      // Guarded ABOVE the try so the deterministic misuse surfaces the honest, Docker-parity code
+      // (Container.LogsFailed) instead of being relabeled General.Unknown by the catch-all (PDM-MAJ-3).
+      if (follow)
+      {
+        return CommandResponse<string>.Fail(
+            "GetLogsAsync does not support follow=true because 'podman logs --follow' " +
+            "streams indefinitely. Use IStreamDriver.StreamLogsAsync instead.",
+            ErrorCodes.Container.LogsFailed);
+      }
+
       try
       {
-        if (follow)
-        {
-          throw new NotSupportedException(
-              "GetLogsAsync does not support follow=true because 'podman logs --follow' " +
-              "streams indefinitely. Use IStreamDriver.StreamLogsAsync instead.");
-        }
-
         var args = "logs";
         if (tail.HasValue)
-          args += $" --tail {tail.Value}";
+          args += $" --tail {tail.Value.ToString(CultureInfo.InvariantCulture)}";
         if (timestamps)
           args += " --timestamps";
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<string>.Fail(
-              result.Error ?? "Get logs failed", ErrorCodes.Container.LogsFailed);
+              ErrorOrDefault(result, "Get logs failed"), FailureCode(result.Error, ErrorCodes.Container.LogsFailed),
+              CreateErrorContext(context, "GetLogs", result), result.ExitCode);
 
         // podman logs writes to both stdout and stderr.
         // Combine both to capture all container output.
-        var logs = !string.IsNullOrEmpty(result.Error)
-            ? result.Output + result.Error
-            : result.Output;
-        return CommandResponse<string>.Ok(logs);
+        return CommandResponse<string>.Ok(MergeOutputAndError(result.Output, result.Error));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<string>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<string>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.LogsFailed));
       }
     }
 
     /// <inheritdoc />
     public async Task<CommandResponse<ContainerProcesses>> TopAsync(
-        DriverContext context, string containerId, string psOptions = null,
+        DriverContext context, string containerId, string? psOptions = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
-        var args = $"top {QuoteArgumentIfNeeded(containerId)}";
+        var args = $"top {QuotePositionalArgument(containerId, nameof(containerId))}";
         if (!string.IsNullOrEmpty(psOptions))
-          args += $" {psOptions}";
+          args += " " + string.Join(" ", psOptions.Split(
+              WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries).Select(QuoteArgumentIfNeeded));
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerProcesses>.Fail(
-              result.Error ?? "Container top failed", ErrorCodes.Container.TopFailed);
+              ErrorOrDefault(result, "Container top failed"), FailureCode(result.Error, ErrorCodes.Container.TopFailed),
+              CreateErrorContext(context, "Top", result), result.ExitCode);
 
         var processes = ParseTopOutput(result.Output);
         return CommandResponse<ContainerProcesses>.Ok(processes);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ContainerProcesses>.Fail(
-            ex.Message, ErrorCodes.Container.TopFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Container.TopFailed));
       }
     }
 
@@ -93,18 +111,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"diff {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"diff {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<IList<FilesystemChange>>.Fail(
-              result.Error ?? "Container diff failed", ErrorCodes.Container.DiffFailed);
+              ErrorOrDefault(result, "Container diff failed"), FailureCode(result.Error, ErrorCodes.Container.DiffFailed),
+              CreateErrorContext(context, "Diff", result), result.ExitCode);
 
         var changes = ParseDiffOutput(result.Output);
         return CommandResponse<IList<FilesystemChange>>.Ok(changes);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<IList<FilesystemChange>>.Fail(
-            ex.Message, ErrorCodes.Container.DiffFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Container.DiffFailed));
       }
     }
 
@@ -115,19 +138,29 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
+        // --no-reset is required even for the single-shot (--no-stream) call: goterm's Flush()
+        // writes a \033[2J[H reset sequence before the reading, and only skips it when it detects
+        // a non-TTY output. Relying on that skip is an accident of library internals, not a
+        // guarantee — --no-reset stops the sequence at the source, symmetric with the streaming
+        // path in PodmanCliStreamDriver.BuildStreamStatsArgs (P-M3).
         var result = await ExecuteCommandAsync(
-            $"stats --no-stream --format json {QuoteArgumentIfNeeded(containerId)}", cancellationToken);
+            context, $"stats --no-stream --no-reset --format json {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<ContainerStatsResult>.Fail(
-              result.Error ?? "Container stats failed", ErrorCodes.Container.StatsFailed);
+              ErrorOrDefault(result, "Container stats failed"), FailureCode(result.Error, ErrorCodes.Container.StatsFailed),
+              CreateErrorContext(context, "Stats", result), result.ExitCode);
 
         var stats = ParseStatsOutput(result.Output);
         return CommandResponse<ContainerStatsResult>.Ok(stats);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ContainerStatsResult>.Fail(
-            ex.Message, ErrorCodes.Container.StatsFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Container.StatsFailed));
       }
     }
 
@@ -135,7 +168,15 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region Execution Operations
 
-    /// <inheritdoc />
+    /// <summary>Executes a command inside a container using <c>podman exec</c>.</summary>
+    /// <remarks>
+    /// Captured stdout and stderr retain only the final 256 KiB tail for long-running execs.
+    /// Podman uses exit code <c>125</c> when the exec operation itself fails. This driver
+    /// treats exit <c>125</c> with empty stdout as an infrastructure failure unconditionally.
+    /// Other non-zero exits with empty stdout are infrastructure failures only when stderr
+    /// carries a Podman error marker; any exit that produced stdout, and every other non-zero
+    /// exit, is preserved in <see cref="ExecResult.ExitCode"/>.
+    /// </remarks>
     public async Task<CommandResponse<ExecResult>> ExecAsync(
         DriverContext context, string containerId, ExecConfig config,
         CancellationToken cancellationToken = default)
@@ -160,13 +201,27 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           foreach (var env in config.Environment)
             args += $" -e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}";
 
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
         if (config.Command != null)
           foreach (var cmd in config.Command)
             args += $" {QuoteArgumentIfNeeded(cmd)}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        // exec runs an arbitrary in-container command and can be long-lived; honor only
+        // caller cancellation, not the buffered control-plane timeout.
+        var result = await ExecuteUnboundedCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+
+        // Separate an INFRASTRUCTURE failure (podman could not run exec at all — no such
+        // container, daemon error, process couldn't start) from the in-container command's
+        // own legitimate non-zero exit, which must be reported as a successful exec carrying
+        // that exit code (callers inspect ExecResult.ExitCode).
+        if (IsExecInfrastructureFailure(result.ExitCode, result.Output, result.Error))
+          return CommandResponse<ExecResult>.Fail(
+              string.IsNullOrEmpty(result.Error) ? "Exec failed" : result.Error,
+              ErrorCodes.Container.ExecFailed,
+              CreateErrorContext(context, "Exec", result),
+              result.ExitCode);
+
         return CommandResponse<ExecResult>.Ok(new ExecResult
         {
           ExitCode = result.ExitCode,
@@ -174,11 +229,67 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           StdErr = result.Error
         });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         return CommandResponse<ExecResult>.Fail(
-            ex.Message, ErrorCodes.Container.ExecFailed);
+            ex.Message, FailureCode(ex, ErrorCodes.Container.ExecFailed));
       }
+    }
+
+    /// <summary>
+    /// Classifies a <c>podman exec</c> result as an infrastructure failure (podman itself
+    /// could not run the exec) versus the in-container command merely exiting non-zero.
+    /// <para>
+    /// Returns <c>true</c> when the process-couldn't-start sentinel exit code (<c>-1</c>) is
+    /// seen, when podman's exec-failed exit code <c>125</c> has no stdout, or when there is no
+    /// stdout and stderr carries a podman/daemon error marker. Bare phrases like
+    /// "is not running" are deliberately NOT matched: they also appear in legitimate
+    /// in-container tool output (systemctl/supervisord/health probes). Otherwise returns
+    /// <c>false</c> so a real command's non-zero exit is preserved. Exit codes <c>126</c>
+    /// (command found but not executable) and <c>127</c> (command not found) are conventions
+    /// emitted by the in-container shell, not podman, so they are NOT treated as infra
+    /// failures. Public so the heuristic can be unit-tested through the strong-named public
+    /// surface (the driver itself spawns a real <c>podman</c> process).
+    /// </para>
+    /// </summary>
+    /// <param name="exitCode">Exit code reported by command execution.</param>
+    /// <param name="stdOut">Captured standard output.</param>
+    /// <param name="stdErr">Captured standard error.</param>
+    /// <returns><c>true</c> when the failure is infrastructure-level; otherwise <c>false</c>.</returns>
+    public static bool IsExecInfrastructureFailure(int exitCode, string stdOut, string stdErr)
+    {
+      if (exitCode == -1)
+        return true;
+
+      if (exitCode == 0)
+        return false;
+
+      // A command that produced stdout actually ran inside the container: its non-zero exit is
+      // the command's own result, never a podman infrastructure error. This guard must precede
+      // the 125 check below, since an in-container command may itself legitimately exit 125.
+      if (!string.IsNullOrEmpty(stdOut))
+        return false;
+
+      if (exitCode == 125)
+        return true;
+
+      // Infra heuristic for failures with empty stdout. Markers are kept
+      // specific to podman's own phrasing ("container is not running", "Cannot connect to Podman")
+      // so an in-container app emitting a generic "Error: cannot connect to redis" is
+      // not misclassified. ponytail: these are still substrings; extend with podman's exact
+      // error catalog if needed.
+      var err = stdErr ?? string.Empty;
+      var hasPodmanMarker = err.Contains("Error: ", StringComparison.OrdinalIgnoreCase)
+          && (err.Contains("no such container", StringComparison.OrdinalIgnoreCase)
+              || err.Contains("no container with name", StringComparison.OrdinalIgnoreCase)
+              || err.Contains("container is not running", StringComparison.OrdinalIgnoreCase)
+              || err.Contains("unable to exec", StringComparison.OrdinalIgnoreCase)
+              || err.Contains("Cannot connect to Podman", StringComparison.Ordinal));
+      return hasPodmanMarker;
     }
 
     #endregion
@@ -193,16 +304,24 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(
-            $"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Copy to container failed", ErrorCodes.Container.CopyFailed);
+        QuotePositionalArgument(containerId, nameof(containerId));
+        QuotePositionalArgument(hostPath, nameof(hostPath));
+        var result = await ExecuteUnboundedCommandAsync(
+            context, $"cp {QuoteArgumentIfNeeded(hostPath)} {QuoteArgumentIfNeeded($"{containerId}:{containerPath}")}", cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              ErrorOrDefault(result, "Copy to container failed"), FailureCode(result.Error, ErrorCodes.Container.CopyFailed),
+              CreateErrorContext(context, "CopyTo", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.CopyFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.CopyFailed));
       }
     }
 
@@ -214,16 +333,24 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(
-            $"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Copy from container failed", ErrorCodes.Container.CopyFailed);
+        QuotePositionalArgument(containerId, nameof(containerId));
+        QuotePositionalArgument(hostPath, nameof(hostPath));
+        var result = await ExecuteUnboundedCommandAsync(
+            context, $"cp {QuoteArgumentIfNeeded($"{containerId}:{containerPath}")} {QuoteArgumentIfNeeded(hostPath)}", cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              ErrorOrDefault(result, "Copy from container failed"), FailureCode(result.Error, ErrorCodes.Container.CopyFailed),
+              CreateErrorContext(context, "CopyFrom", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.CopyFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.CopyFailed));
       }
     }
 
@@ -238,16 +365,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync(
-            $"export -o \"{outputPath}\" {QuoteArgumentIfNeeded(containerId)}", cancellationToken);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Container export failed", ErrorCodes.Container.ExportFailed);
+        // export streams the whole container filesystem to disk — inherently long.
+        var result = await ExecuteUnboundedCommandAsync(
+            context, $"export -o {QuoteArgumentIfNeeded(outputPath)} {QuotePositionalArgument(containerId, nameof(containerId))}", cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              ErrorOrDefault(result, "Container export failed"), FailureCode(result.Error, ErrorCodes.Container.ExportFailed),
+              CreateErrorContext(context, "Export", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.ExportFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.ExportFailed));
       }
     }
 
@@ -259,15 +393,21 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       try
       {
         var result = await ExecuteCommandAsync(
-            $"rename {QuoteArgumentIfNeeded(containerId)} {QuoteArgumentIfNeeded(newName)}", cancellationToken);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Container rename failed", ErrorCodes.Container.RenameFailed);
+            context, $"rename {QuotePositionalArgument(containerId, nameof(containerId))} {QuotePositionalArgument(newName, nameof(newName))}", cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              ErrorOrDefault(result, "Container rename failed"), FailureCode(result.Error, ErrorCodes.Container.RenameFailed),
+              CreateErrorContext(context, "Rename", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RenameFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RenameFailed));
       }
     }
 
@@ -280,168 +420,43 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = $"update";
         if (config.MemoryLimit.HasValue)
-          args += $" --memory {config.MemoryLimit.Value}";
+          args += $" --memory {config.MemoryLimit.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.MemorySwap.HasValue)
-          args += $" --memory-swap {config.MemorySwap.Value}";
+          args += $" --memory-swap {config.MemorySwap.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.MemoryReservation.HasValue)
-          args += $" --memory-reservation {config.MemoryReservation.Value}";
+          args += $" --memory-reservation {config.MemoryReservation.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.CpuShares.HasValue)
-          args += $" --cpu-shares {config.CpuShares.Value}";
+          args += $" --cpu-shares {config.CpuShares.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.CpuPeriod.HasValue)
-          args += $" --cpu-period {config.CpuPeriod.Value}";
+          args += $" --cpu-period {config.CpuPeriod.Value.ToString(CultureInfo.InvariantCulture)}";
         if (config.CpuQuota.HasValue)
-          args += $" --cpu-quota {config.CpuQuota.Value}";
+          args += $" --cpu-quota {config.CpuQuota.Value.ToString(CultureInfo.InvariantCulture)}";
         if (!string.IsNullOrEmpty(config.CpusetCpus))
           args += $" --cpuset-cpus {QuoteArgumentIfNeeded(config.CpusetCpus)}";
         if (!string.IsNullOrEmpty(config.RestartPolicy))
           args += $" --restart {QuoteArgumentIfNeeded(config.RestartPolicy)}";
         if (config.PidsLimit.HasValue)
-          args += $" --pids-limit {config.PidsLimit.Value}";
+          args += $" --pids-limit {config.PidsLimit.Value.ToString(CultureInfo.InvariantCulture)}";
 
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(
-                result.Error ?? "Container update failed", ErrorCodes.Container.UpdateFailed);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              ErrorOrDefault(result, "Container update failed"), FailureCode(result.Error, ErrorCodes.Container.UpdateFailed),
+              CreateErrorContext(context, "Update", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.UpdateFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.UpdateFailed));
       }
     }
-
-    #endregion
-
-    #region Output Parsing
-
-    private static ContainerProcesses ParseTopOutput(string output)
-    {
-      var processes = new ContainerProcesses();
-      if (string.IsNullOrWhiteSpace(output))
-        return processes;
-
-      var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-      if (lines.Length == 0)
-        return processes;
-
-      // First line is header
-      processes.Titles = [.. lines[0].Split(
-          WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries)];
-
-      for (var i = 1; i < lines.Length; i++)
-      {
-        var fields = lines[i].Split(
-            WhitespaceSeparators, StringSplitOptions.RemoveEmptyEntries);
-        processes.Processes.Add([.. fields]);
-      }
-
-      return processes;
-    }
-
-    private static List<FilesystemChange> ParseDiffOutput(string output)
-    {
-      var changes = new List<FilesystemChange>();
-      if (string.IsNullOrWhiteSpace(output))
-        return changes;
-
-      foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-      {
-        var trimmed = line.Trim();
-        if (trimmed.Length < 2)
-          continue;
-
-        changes.Add(new FilesystemChange
-        {
-          Kind = trimmed[0].ToString(),
-          Path = trimmed[2..].Trim()
-        });
-      }
-
-      return changes;
-    }
-
-    /// <summary>
-    /// Parses Podman stats JSON output into a <see cref="ContainerStatsResult"/>.
-    /// Handles both single object and JSON array formats, plus alternate lowercase keys.
-    /// </summary>
-    public static ContainerStatsResult ParseStatsOutput(string json)
-    {
-      if (string.IsNullOrWhiteSpace(json))
-        return new ContainerStatsResult();
-
-      try
-      {
-        var trimmed = json.Trim();
-        JsonElement token;
-
-        if (trimmed.StartsWith('['))
-        {
-          var root = JsonHelper.ParseElement(trimmed);
-          var enumerator = root.EnumerateArray();
-          enumerator.MoveNext();
-          token = enumerator.Current;
-        }
-        else
-        {
-          token = JsonHelper.ParseElement(trimmed);
-        }
-
-        var cpuStr = token.GetStringOrDefault("CPUPerc")
-                     ?? token.GetStringOrDefault("cpu_perc");
-        var memUsageStr = token.GetStringOrDefault("MemUsage")
-                          ?? token.GetStringOrDefault("mem_usage");
-        var memPercStr = token.GetStringOrDefault("MemPerc")
-                         ?? token.GetStringOrDefault("mem_perc");
-        var netIoStr = token.GetStringOrDefault("NetIO")
-                       ?? token.GetStringOrDefault("net_io");
-        var blockIoStr = token.GetStringOrDefault("BlockIO")
-                         ?? token.GetStringOrDefault("block_io");
-        var pidsStr = token.GetStringOrDefault("PIDs")
-                      ?? token.GetStringOrDefault("pids");
-
-        var (memUsage, memLimit) = ParseMemoryUsage(memUsageStr);
-        var (netRx, netTx) = ParseIOPair(netIoStr);
-        var (blockRead, blockWrite) = ParseIOPair(blockIoStr);
-
-        int.TryParse(pidsStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pids);
-
-        return new ContainerStatsResult
-        {
-          ContainerId = token.GetStringOrDefault("ContainerID")
-                          ?? token.GetStringOrDefault("container_id"),
-          Name = token.GetStringOrDefault("Name")
-                   ?? token.GetStringOrDefault("name"),
-          CpuPercent = ParsePercent(cpuStr),
-          MemoryUsage = memUsage,
-          MemoryLimit = memLimit,
-          MemoryPercent = ParsePercent(memPercStr),
-          NetworkRxBytes = netRx,
-          NetworkTxBytes = netTx,
-          BlockReadBytes = blockRead,
-          BlockWriteBytes = blockWrite,
-          Pids = pids
-        };
-      }
-      catch (Exception ex)
-      {
-        NullLogger.Instance.LogError(ex, "Podman container stats parsing failed");
-        return new ContainerStatsResult();
-      }
-    }
-
-    /// <summary>Parses a percentage string. Delegates to <see cref="CliOutputParser"/>.</summary>
-    public static double ParsePercent(string value) => CliOutputParser.ParsePercent(value);
-
-    /// <summary>Parses a memory usage string. Delegates to <see cref="CliOutputParser"/>.</summary>
-    public static (long usage, long limit) ParseMemoryUsage(string value) => CliOutputParser.ParseMemoryUsage(value);
-
-    /// <summary>Parses an I/O pair string. Delegates to <see cref="CliOutputParser"/>.</summary>
-    public static (long first, long second) ParseIOPair(string value) => CliOutputParser.ParseIOPair(value);
-
-    /// <summary>Parses a byte value string with suffix. Delegates to <see cref="CliOutputParser"/>.</summary>
-    public static long ParseByteValue(string value) => CliOutputParser.ParseByteValue(value);
 
     #endregion
   }

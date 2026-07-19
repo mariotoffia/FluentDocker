@@ -1,4 +1,4 @@
-using FluentDocker.Drivers;
+using FluentDocker.Drivers.Docker.Cli;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver
@@ -160,9 +160,9 @@ Total reclaimed space: 500MB";
     [Fact]
     public void ParseMethods_NullOrEmptyInput_ReturnsEmptyResults()
     {
-      var imageNull = CliPruneOutputParser.ParseImagePruneOutput(null);
+      var imageNull = CliPruneOutputParser.ParseImagePruneOutput(null!);
       var networkEmpty = CliPruneOutputParser.ParseNetworkPruneOutput("");
-      var volumeNull = CliPruneOutputParser.ParseVolumePruneOutput(null);
+      var volumeNull = CliPruneOutputParser.ParseVolumePruneOutput(null!);
       var systemEmpty = CliPruneOutputParser.ParseSystemPruneOutput("");
 
       Assert.Empty(imageNull.ImagesDeleted);
@@ -194,6 +194,69 @@ Total reclaimed space: 500MB";
       Assert.Empty(system.VolumesDeleted);
       Assert.Empty(system.BuildCacheDeleted);
       Assert.Equal(0L, system.SpaceReclaimed);
+    }
+
+    [Fact]
+    public void ParseMethods_WhenReclaimedBytesMalformed_ReturnPartialResults()
+    {
+      var image = CliPruneOutputParser.ParseImagePruneOutput(
+          "Deleted Images:\nuntagged: alpine:latest\nTotal reclaimed space: nope");
+      var network = CliPruneOutputParser.ParseNetworkPruneOutput(
+          "Deleted Networks:\nfd-network\nTotal reclaimed space: nope");
+      var volume = CliPruneOutputParser.ParseVolumePruneOutput(
+          "Deleted Volumes:\nfd-volume\nTotal reclaimed space: nope");
+      var system = CliPruneOutputParser.ParseSystemPruneOutput(
+          "Deleted Containers:\nfd-container\nDeleted Images:\nuntagged: busybox:latest\nTotal reclaimed space: nope");
+
+      Assert.Contains("alpine:latest", image.ImagesDeleted);
+      Assert.Contains("fd-network", network.NetworksDeleted);
+      Assert.Contains("fd-volume", volume.VolumesDeleted);
+      Assert.Contains("fd-container", system.ContainersDeleted);
+      Assert.Contains("busybox:latest", system.ImagesDeleted);
+    }
+
+    [Fact]
+    public void ParseSystemPruneOutput_StrayLinesInsideSections_AreNotReportedAsDeleted()
+    {
+      // DC-7: stray warning/diagnostic lines inside a section must fail the same shape
+      // validation the dedicated network/volume parsers apply (LooksLikeSimpleName).
+      var output = @"Deleted Containers:
+container-1
+Error response from daemon: a stray diagnostic line
+Deleted Networks:
+network one with spaces
+network-1
+Deleted Volumes:
+! unexpected diagnostic
+volume-1
+Deleted build cache objects:
+not a cache id!
+cache-a
+Total reclaimed space: 1MB";
+
+      var result = CliPruneOutputParser.ParseSystemPruneOutput(output);
+
+      Assert.Equal(["container-1"], result.ContainersDeleted);
+      Assert.Equal(["network-1"], result.NetworksDeleted);
+      Assert.Equal(["volume-1"], result.VolumesDeleted);
+      Assert.Equal(["cache-a"], result.BuildCacheDeleted);
+      Assert.Equal(1000000L, result.SpaceReclaimed);
+    }
+
+    [Fact]
+    public void ParseSystemPruneOutput_ValidIdsInsideSections_AreStillReported()
+    {
+      var output = @"Deleted Containers:
+0fd2d95333cc7c642a4efa4c6939bd21ac2b75470eae752b711a4a5849dad956
+Deleted Volumes:
+my_named-volume.1";
+
+      var result = CliPruneOutputParser.ParseSystemPruneOutput(output);
+
+      Assert.Equal(
+          ["0fd2d95333cc7c642a4efa4c6939bd21ac2b75470eae752b711a4a5849dad956"],
+          result.ContainersDeleted);
+      Assert.Equal(["my_named-volume.1"], result.VolumesDeleted);
     }
   }
 }

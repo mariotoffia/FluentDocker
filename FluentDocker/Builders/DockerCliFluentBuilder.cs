@@ -2,7 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
 
 namespace FluentDocker.Builders
 {
@@ -13,11 +12,15 @@ namespace FluentDocker.Builders
   public class DockerCliFluentBuilder
   {
     private readonly Builder _inner;
+    private readonly FluentDockerKernel _kernel;
+    private readonly string _driverId;
 
-    internal DockerCliFluentBuilder(Builder inner)
+    internal DockerCliFluentBuilder(Builder inner, FluentDockerKernel kernel, string driverId)
     {
       ArgumentNullException.ThrowIfNull(inner);
       _inner = inner;
+      _kernel = kernel;
+      _driverId = driverId;
     }
 
     /// <summary>
@@ -25,7 +28,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerCliFluentBuilder UseContainer(Action<IContainerBuilder> configure)
     {
-      _inner.UseContainer(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseContainer(configure));
       return this;
     }
 
@@ -34,7 +37,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerCliFluentBuilder UseNetwork(Action<INetworkBuilder> configure)
     {
-      _inner.UseNetwork(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseNetwork(configure));
       return this;
     }
 
@@ -43,7 +46,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerCliFluentBuilder UseVolume(Action<IVolumeBuilder> configure)
     {
-      _inner.UseVolume(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseVolume(configure));
       return this;
     }
 
@@ -52,7 +55,7 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerCliFluentBuilder UseImage(string imageName, Action<DockerfileBuilder> configure)
     {
-      _inner.UseImage(imageName, configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseImage(imageName, configure));
       return this;
     }
 
@@ -62,9 +65,37 @@ namespace FluentDocker.Builders
     /// </summary>
     public DockerCliFluentBuilder UseCompose(Action<IComposeBuilder> configure)
     {
-      _inner.UseCompose(configure);
+      _inner.RunInScope(_kernel, _driverId, () => _inner.UseCompose(configure));
       return this;
     }
+
+    /// <summary>
+    /// Enters the Docker Model Runner fluent builder to manage local models and
+    /// run inference (Docker Model Runner is a preview feature). Unlike the other
+    /// <c>UseXxx</c> operations this returns the runner builder directly; the runner
+    /// is not part of the deferred build pipeline.
+    /// </summary>
+    /// <returns>A model runner builder.</returns>
+    public IModelRunnerBuilder UseModelRunner() =>
+        _inner.RunInScope(_kernel, _driverId, () => _inner.UseModelRunner());
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="Services.IModelService"/>
+    /// in the current Docker CLI scope.
+    /// </summary>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(string reference) =>
+        _inner.RunInScope(_kernel, _driverId, () => _inner.UseModel(reference));
+
+    /// <summary>
+    /// Begins building a managed single-model <see cref="Services.IModelService"/>
+    /// from a pre-built <see cref="Model.Models.ModelReference"/>.
+    /// </summary>
+    /// <param name="reference">The model reference.</param>
+    /// <returns>A model service builder.</returns>
+    public IModelServiceBuilder UseModel(Model.Models.ModelReference reference) =>
+        _inner.RunInScope(_kernel, _driverId, () => _inner.UseModel(reference));
 
     /// <summary>
     /// TERMINAL - Builds all operations synchronously.

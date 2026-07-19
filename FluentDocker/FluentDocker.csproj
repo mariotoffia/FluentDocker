@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <Nullable>annotations</Nullable>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <AssemblyTitle>FluentDocker</AssemblyTitle>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
@@ -10,14 +10,15 @@
     <PackageId>FluentDocker</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <!-- Symbol embedding (.pdb in nupkg) is set once in Directory.Build.props for all packages. -->
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageTags>Docker;Podman;Docker Compose;Docker Swarm;Docker API;Kubernetes;Container;Linux;Windows;Mac;Fluent;NET</PackageTags>
     <Description>Fluent API to manage Docker and Podman containers, images, networks, and volumes via CLI or Docker Engine API. Supports Docker Compose, Docker Swarm, Podman Kubernetes YAML, multi-driver kernel architecture, and runs on Windows, Mac, and Linux.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Suppress CS1591 (missing XML doc) globally; we add docs incrementally. -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- CS1591 (missing XML doc) is promoted to a build ERROR: the public API is fully
+         documented (docs batches A-F); this keeps it that way. -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,6 +30,5 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <PackageReference Include="SharpCompress" />
-    <PackageReference Include="System.IO.Pipelines" Condition="'$(TargetFramework)' == 'net8.0'" />
   </ItemGroup>
 </Project>

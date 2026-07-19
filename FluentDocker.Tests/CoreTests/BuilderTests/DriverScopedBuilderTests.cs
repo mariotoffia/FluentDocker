@@ -36,7 +36,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       // Arrange
       var (kernel, _) = await CreateKernelWithMockPack();
-      IDriverScopedBuilder scoped = null;
+      IDriverScopedBuilder? scoped = null;
 
       // Act - capture the builder via the configure lambda
       new Builder()
@@ -57,7 +57,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     public async Task NetworkBuilder_ImplementsIDriverScopedBuilder()
     {
       var (kernel, _) = await CreateKernelWithMockPack();
-      IDriverScopedBuilder scoped = null;
+      IDriverScopedBuilder? scoped = null;
 
       new Builder()
           .WithinDriver("test", kernel)
@@ -76,7 +76,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     public async Task VolumeBuilder_ImplementsIDriverScopedBuilder()
     {
       var (kernel, _) = await CreateKernelWithMockPack();
-      IDriverScopedBuilder scoped = null;
+      IDriverScopedBuilder? scoped = null;
 
       new Builder()
           .WithinDriver("test", kernel)
@@ -95,7 +95,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     public async Task ComposeBuilder_ImplementsIDriverScopedBuilder()
     {
       var (kernel, _) = await CreateKernelWithMockPack();
-      IDriverScopedBuilder scoped = null;
+      IDriverScopedBuilder? scoped = null;
 
       new Builder()
           .WithinDriver("test", kernel)

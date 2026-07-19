@@ -115,6 +115,25 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void ParseContainerInspect_PreservesCreatedAndStateOffsets()
+    {
+      var json = @"[{
+                ""Id"": ""offset-container"",
+                ""Created"": ""2024-01-02T03:04:05+02:00"",
+                ""State"": {
+                    ""StartedAt"": ""2024-01-02T03:04:05+02:00"",
+                    ""FinishedAt"": ""2024-01-02T01:04:05Z""
+                }
+            }]";
+
+      var result = PodmanCliContainerDriver.ParseContainerInspect(json);
+
+      Assert.Equal(TimeSpan.FromHours(2), result.Created.Offset);
+      Assert.Equal(TimeSpan.FromHours(2), result.State.StartedAt.Offset);
+      Assert.Equal(TimeSpan.Zero, result.State.FinishedAt.Offset);
+    }
+
+    [Fact]
     public void ParseContainerInspect_UppercaseID_MapsToId()
     {
       var json = @"[{ ""ID"": ""upper123"", ""Name"": ""test"" }]";

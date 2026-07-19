@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,37 +25,51 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         // Use --no-stream to get a single snapshot instead of continuous stream
         // Use --format with JSON output for easier parsing
-        var result = await ExecuteCommandAsync(
-            $"stats --no-stream --format \"{{{{json .}}}}\" {QuoteArgumentIfNeeded(containerId)}",
+        var result = await ExecuteCommandAsync(context,
+            $"stats --no-stream --format \"{{{{json .}}}}\" {QuotePositionalArgument(containerId, nameof(containerId))}",
             cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<ContainerStatsResult>.Fail(
-              result.Error ?? "Container stats failed",
-              ErrorCodes.Container.StatsFailed,
+              ErrorOrDefault(result, "Container stats failed"),
+              FailureCode(result.Error, ErrorCodes.Container.StatsFailed),
               CreateErrorContext(context, "StatsContainer", result),
               result.ExitCode);
         }
 
-        var stats = ParseStatsOutput(result.Output, containerId);
+        var stats = ParseStatsOutput(result.Output, containerId, Logger);
+        if (stats == null)
+        {
+          return CommandResponse<ContainerStatsResult>.Fail(
+              "Container stats output could not be parsed",
+              ErrorCodes.Container.StatsFailed,
+              CreateErrorContext(context, "StatsContainer", result),
+              result.ExitCode);
+        }
         return CommandResponse<ContainerStatsResult>.Ok(stats);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<ContainerStatsResult>.Fail(ex.Message, ErrorCodes.Container.StatsFailed);
+        return CommandResponse<ContainerStatsResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.StatsFailed));
       }
     }
 
     #region Stats Parsing
 
-    private static ContainerStatsResult ParseStatsOutput(string output, string containerId, ILogger logger = null)
+    private static ContainerStatsResult? ParseStatsOutput(string output, string containerId, ILogger? logger = null)
     {
       logger ??= NullLogger.Instance;
       var stats = new ContainerStatsResult { ContainerId = containerId };
 
       try
       {
+        if (string.IsNullOrWhiteSpace(output))
+          return null;
         using var json = JsonDocument.Parse(output.Trim());
         var root = json.RootElement;
 
@@ -62,41 +77,42 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           stats.Name = name.GetString();
 
         if (root.TryGetProperty("CPUPerc", out var cpuPerc))
-          stats.CpuPercent = CliOutputParser.ParsePercent(cpuPerc.GetString());
+          stats.CpuPercent = CliOutputParser.ParsePercent(cpuPerc.GetString() ?? string.Empty);
 
         if (root.TryGetProperty("MemPerc", out var memPerc))
-          stats.MemoryPercent = CliOutputParser.ParsePercent(memPerc.GetString());
+          stats.MemoryPercent = CliOutputParser.ParsePercent(memPerc.GetString() ?? string.Empty);
 
         if (root.TryGetProperty("MemUsage", out var memUsage))
         {
-          var (usage, limit) = CliOutputParser.ParseMemoryUsage(memUsage.GetString());
+          var (usage, limit) = CliOutputParser.ParseMemoryUsage(memUsage.GetString() ?? string.Empty);
           stats.MemoryUsage = usage;
           stats.MemoryLimit = limit;
         }
 
         if (root.TryGetProperty("NetIO", out var netIO))
         {
-          var (rx, tx) = CliOutputParser.ParseIOPair(netIO.GetString());
+          var (rx, tx) = CliOutputParser.ParseIOPair(netIO.GetString() ?? string.Empty);
           stats.NetworkRxBytes = rx;
           stats.NetworkTxBytes = tx;
         }
 
         if (root.TryGetProperty("BlockIO", out var blockIO))
         {
-          var (read, write) = CliOutputParser.ParseIOPair(blockIO.GetString());
+          var (read, write) = CliOutputParser.ParseIOPair(blockIO.GetString() ?? string.Empty);
           stats.BlockReadBytes = read;
           stats.BlockWriteBytes = write;
         }
 
         if (root.TryGetProperty("PIDs", out var pids))
         {
-          if (int.TryParse(pids.GetString(), out var pidCount))
+          if (int.TryParse(pids.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var pidCount))
             stats.Pids = pidCount;
         }
       }
       catch (Exception ex)
       {
         logger.LogError(ex, "Container stats JSON parsing failed");
+        return null;
       }
 
       return stats;

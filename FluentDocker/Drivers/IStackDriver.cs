@@ -6,8 +6,8 @@ using FluentDocker.Model.Drivers;
 namespace FluentDocker.Drivers
 {
   /// <summary>
-  /// Stack management for orchestrated deployments (Docker Swarm, Kubernetes).
-  /// Supported by: Docker Swarm, Kubernetes (partial)
+  /// Stack management for orchestrated deployments (Docker Swarm).
+  /// Supported by: Docker Swarm.
   /// Not supported by: Podman (use pods instead)
   /// </summary>
   public interface IStackDriver
@@ -21,7 +21,7 @@ namespace FluentDocker.Drivers
     /// <returns>List of stacks</returns>
     Task<CommandResponse<IList<StackInfo>>> ListAsync(
         DriverContext context,
-        StackListFilter filter = null,
+        StackListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -35,7 +35,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<IList<StackTask>>> GetTasksAsync(
         DriverContext context,
         string stackName,
-        StackTaskFilter filter = null,
+        StackTaskFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<IList<StackServiceInfo>>> GetServicesAsync(
         DriverContext context,
         string stackName,
-        StackServiceFilter filter = null,
+        StackServiceFilter? filter = null,
         CancellationToken cancellationToken = default);
   }
 
@@ -84,16 +84,16 @@ namespace FluentDocker.Drivers
   public class StackInfo
   {
     /// <summary>Stack name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Number of services in the stack.</summary>
     public int Services { get; set; }
 
     /// <summary>Orchestrator (swarm, kubernetes).</summary>
-    public string Orchestrator { get; set; }
+    public string? Orchestrator { get; set; }
 
     /// <summary>Namespace (for Kubernetes).</summary>
-    public string Namespace { get; set; }
+    public string? Namespace { get; set; }
   }
 
   /// <summary>
@@ -102,28 +102,28 @@ namespace FluentDocker.Drivers
   public class StackTask
   {
     /// <summary>Task ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Task name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Image used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Node the task is running on.</summary>
-    public string Node { get; set; }
+    public string? Node { get; set; }
 
     /// <summary>Desired state.</summary>
-    public string DesiredState { get; set; }
+    public string? DesiredState { get; set; }
 
     /// <summary>Current state.</summary>
-    public string CurrentState { get; set; }
+    public string? CurrentState { get; set; }
 
     /// <summary>Error message if any.</summary>
-    public string Error { get; set; }
+    public string? Error { get; set; }
 
     /// <summary>Ports exposed.</summary>
-    public string Ports { get; set; }
+    public string? Ports { get; set; }
   }
 
   /// <summary>
@@ -132,22 +132,22 @@ namespace FluentDocker.Drivers
   public class StackServiceInfo
   {
     /// <summary>Service ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Service name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Service mode (replicated, global).</summary>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
 
     /// <summary>Replicas status (e.g., "3/3").</summary>
-    public string Replicas { get; set; }
+    public string? Replicas { get; set; }
 
     /// <summary>Image used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Ports exposed.</summary>
-    public string Ports { get; set; }
+    public string? Ports { get; set; }
   }
 
   #endregion
@@ -157,37 +157,49 @@ namespace FluentDocker.Drivers
   /// <summary>
   /// Filter for listing stacks.
   /// </summary>
+  /// <remarks>
+  /// The Kubernetes-orchestrator fields (<see cref="Orchestrator"/>, <see cref="Namespace"/>,
+  /// <see cref="AllNamespaces"/>, <see cref="KubeConfig"/>) are not applied on modern Docker —
+  /// the CLI removed those flags when built-in Kubernetes stack support was dropped (20.10+).
+  /// They are retained for backward compatibility and ignored.
+  /// </remarks>
   public class StackListFilter
   {
     /// <summary>Orchestrator to filter by (swarm, kubernetes, all).</summary>
-    public string Orchestrator { get; set; }
+    public string? Orchestrator { get; set; }
 
     /// <summary>Kubernetes namespace.</summary>
-    public string Namespace { get; set; }
+    public string? Namespace { get; set; }
 
     /// <summary>Include all namespaces.</summary>
     public bool AllNamespaces { get; set; }
 
     /// <summary>Kubernetes config file path.</summary>
-    public string KubeConfig { get; set; }
+    public string? KubeConfig { get; set; }
   }
 
   /// <summary>
   /// Filter for listing stack tasks.
   /// </summary>
+  /// <remarks>
+  /// The Kubernetes-orchestrator fields (<see cref="Orchestrator"/>, <see cref="Namespace"/>,
+  /// <see cref="KubeConfig"/>) are not applied on modern Docker — the CLI removed those flags
+  /// when built-in Kubernetes stack support was dropped (20.10+). They are retained for
+  /// backward compatibility and ignored.
+  /// </remarks>
   public class StackTaskFilter
   {
     /// <summary>Filter by task ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Filter by task name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Filter by node.</summary>
-    public string Node { get; set; }
+    public string? Node { get; set; }
 
     /// <summary>Filter by desired state.</summary>
-    public string DesiredState { get; set; }
+    public string? DesiredState { get; set; }
 
     /// <summary>Don't truncate output.</summary>
     public bool NoTrunc { get; set; }
@@ -198,29 +210,35 @@ namespace FluentDocker.Drivers
     /// <summary>Only display task IDs.</summary>
     public bool Quiet { get; set; }
 
-    /// <summary>Output format.</summary>
-    public string Format { get; set; }
+    /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
+    public string? Format { get; set; }
 
     /// <summary>Orchestrator.</summary>
-    public string Orchestrator { get; set; }
+    public string? Orchestrator { get; set; }
 
     /// <summary>Kubernetes namespace.</summary>
-    public string Namespace { get; set; }
+    public string? Namespace { get; set; }
 
     /// <summary>Kubernetes config file path.</summary>
-    public string KubeConfig { get; set; }
+    public string? KubeConfig { get; set; }
   }
 
   /// <summary>
   /// Filter for listing stack services.
   /// </summary>
+  /// <remarks>
+  /// The Kubernetes-orchestrator fields (<see cref="Orchestrator"/>, <see cref="Namespace"/>,
+  /// <see cref="KubeConfig"/>) are not applied on modern Docker — the CLI removed those flags
+  /// when built-in Kubernetes stack support was dropped (20.10+). They are retained for
+  /// backward compatibility and ignored.
+  /// </remarks>
   public class StackServiceFilter
   {
     /// <summary>Filter by service ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Filter by service name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Filter by label.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];
@@ -228,17 +246,17 @@ namespace FluentDocker.Drivers
     /// <summary>Only display service IDs.</summary>
     public bool Quiet { get; set; }
 
-    /// <summary>Output format.</summary>
-    public string Format { get; set; }
+    /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
+    public string? Format { get; set; }
 
     /// <summary>Orchestrator.</summary>
-    public string Orchestrator { get; set; }
+    public string? Orchestrator { get; set; }
 
     /// <summary>Kubernetes namespace.</summary>
-    public string Namespace { get; set; }
+    public string? Namespace { get; set; }
 
     /// <summary>Kubernetes config file path.</summary>
-    public string KubeConfig { get; set; }
+    public string? KubeConfig { get; set; }
   }
 
   /// <summary>
@@ -247,19 +265,19 @@ namespace FluentDocker.Drivers
   public class StackDeployConfig
   {
     /// <summary>Stack name.</summary>
-    public string StackName { get; set; }
+    public string? StackName { get; set; }
 
     /// <summary>Compose file paths.</summary>
     public List<string> ComposeFiles { get; set; } = [];
 
     /// <summary>Orchestrator (swarm, kubernetes).</summary>
-    public string Orchestrator { get; set; }
+    public string? Orchestrator { get; set; }
 
     /// <summary>Kubernetes namespace.</summary>
-    public string Namespace { get; set; }
+    public string? Namespace { get; set; }
 
     /// <summary>Kubernetes config file path.</summary>
-    public string KubeConfig { get; set; }
+    public string? KubeConfig { get; set; }
 
     /// <summary>Prune services no longer in compose file.</summary>
     public bool Prune { get; set; }
@@ -284,7 +302,7 @@ namespace FluentDocker.Drivers
   public class StackDeployResult
   {
     /// <summary>Stack name.</summary>
-    public string StackName { get; set; }
+    public string? StackName { get; set; }
 
     /// <summary>Services created.</summary>
     public List<string> ServicesCreated { get; set; } = [];
@@ -301,4 +319,3 @@ namespace FluentDocker.Drivers
 
   #endregion
 }
-

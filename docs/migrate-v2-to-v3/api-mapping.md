@@ -10,6 +10,10 @@ nav_order: 1
 This document provides a comprehensive mapping between the FluentDocker v2.x.x API
 and the v3.0.0 API. Use it as a quick-reference when migrating existing code.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](../getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ---
 
 ## 1. Namespace Changes
@@ -29,7 +33,7 @@ Every namespace drops the `Ductus.` prefix. Two namespaces are new in v3.
 | `Ductus.FluentDocker.Extensions` | `FluentDocker.Extensions` |
 | `Ductus.FluentDocker.Commands` | **Removed** -- replaced by Driver Layer |
 | *(none)* | `FluentDocker.Kernel` -- kernel setup (new) |
-| *(none)* | `FluentDocker.Services.Extensions` -- service extension methods (new) |
+| `Ductus.FluentDocker.Services.Extensions` | `FluentDocker.Services.Extensions` -- service extension methods |
 
 **Rule of thumb**: find-and-replace `Ductus.FluentDocker` with `FluentDocker`
 across all `using` directives, then add the two new namespaces where needed.
@@ -45,19 +49,19 @@ Because v2 only supported Docker CLI, all migrations use `WithDockerCli`:
 
 ```csharp
 // v3 -- required before any builder usage
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d.AsDefault())
+  .BuildAsync();
 ```
 
 If you need sudo:
 
 ```csharp
-using var kernel = FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d
-        .AsDefault()
-        .WithSudo(SudoMechanism.NoPassword))
-    .Build();
+await using var kernel = await FluentDockerKernel.Create()
+  .WithDockerCli("docker", d => d
+    .AsDefault()
+    .WithSudo(SudoMechanism.NoPassword))
+  .BuildAsync();
 ```
 
 The kernel is passed into the `Builder` via `WithinDriver()` (see next section).
@@ -82,13 +86,13 @@ var svc = new Builder()
 svc.Start();
 
 // v3
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:alpine")
         .WithEnvironment("POSTGRES_PASSWORD=secret")
         .ExposePort(5432, 5432))
-    .Build();
+    .BuildAsync();
 // Build() auto-starts; no explicit Start() needed.
 var container = results.Containers[0];
 ```
@@ -102,10 +106,10 @@ var svc = new Builder()
     .Build();
 
 // v3
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseNetwork(n => n.WithName("my-net"))
-    .Build();
+    .BuildAsync();
 var network = results.Networks[0];
 ```
 
@@ -118,10 +122,10 @@ var svc = new Builder()
     .Build();
 
 // v3
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("my-vol"))
-    .Build();
+    .BuildAsync();
 var volume = results.Volumes[0];
 ```
 
@@ -135,10 +139,10 @@ var svc = new Builder()
     .Build();
 
 // v3
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c.WithComposeFile("docker-compose.yml"))
-    .Build();
+    .BuildAsync();
 var compose = results.ComposeServices[0];
 ```
 
@@ -146,10 +150,11 @@ var compose = results.ComposeServices[0];
 
 | v2 | v3 |
 |---|---|
-| `new Builder().UseContainer().UseImage("x").Build()` | `new Builder().WithinDriver("docker", kernel).UseContainer(c => c.UseImage("x")).Build()` |
-| `.Build()` returns service directly | `.Build()` returns `BuildResults` |
-| `.Build()` then `.Start()` | `.Build()` auto-starts |
+| `new Builder().UseContainer().UseImage("x").Build()` | `await new Builder().WithinDriver("docker", kernel).UseContainer(c => c.UseImage("x")).BuildAsync()` |
+| `.Build()` returns service directly | `.BuildAsync()` returns `BuildResults` |
+| `.Build()` then `.Start()` | `.BuildAsync()` auto-starts |
 | `.UseContainer().UseImage(...)` chained | `.UseContainer(c => c.UseImage(...))` lambda |
+| `.ExposePort(5432, 5432)` (host, container) | `.ExposePort(5432, 5432)` or `.WithPort("5432", "5432/tcp")` — **host-first** ([details](../containers.md#host-first-mapping-with-withport)) |
 | `.UseNetwork("name")` chained | `.UseNetwork(n => n.WithName("name"))` lambda |
 | `.UseVolume("name")` chained | `.UseVolume(v => v.WithName("name"))` lambda |
 | `.UseCompose().FromFile("x")` | `.UseCompose(c => c.WithComposeFile("x"))` lambda |
@@ -167,7 +172,7 @@ that holds every resource created during the build.
 | `results.Networks` | `IReadOnlyList<INetworkService>` | All networks |
 | `results.Volumes` | `IReadOnlyList<IVolumeService>` | All volumes |
 | `results.ComposeServices` | `IReadOnlyList<IComposeService>` | All compose stacks |
-| `results.GetContainer("name")` | `IContainerService` | Lookup by name |
+| `results.GetContainer("name")` | `IContainerService?` | Nullable lookup by name |
 | `results.All` | `IReadOnlyList<IServiceAsync>` | Every service |
 | `results.ForDriver("driverId")` | `IReadOnlyList<IServiceAsync>` | Filter by driver |
 
@@ -175,10 +180,10 @@ that holds every resource created during the build.
 a `using` block tears down every resource:
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c.UseImage("redis:alpine"))
-    .Build();
+    .BuildAsync();
 
 // results.Containers[0] is already running
 ```
@@ -189,25 +194,25 @@ using var results = new Builder()
 
 | v2 Method | v3 Method | Notes |
 |---|---|---|
-| `container.Start()` | `container.Start()` | Sync still available |
-| | `await container.StartAsync()` | Async variant (new) |
-| `container.Stop()` | `container.Stop()` | Sync still available |
-| | `await container.StopAsync()` | Async variant (new) |
-| `container.Pause()` | `container.Pause()` | Sync still available |
-| | `await container.PauseAsync()` | Async variant (new) |
-| `container.Resume()` | `container.Start()` | No `Resume()`; `Start()` unpauses |
+| `container.Start()` | `await container.StartAsync()` | Async-only service API |
+| `container.Stop()` | `await container.StopAsync()` | Async-only service API |
+| `container.Pause()` | `await container.PauseAsync()` | Async-only service API |
+| `container.Resume()` | `await container.UnpauseAsync()` | Async-only service API (resume ≠ `StartAsync`) |
 | `container.GetConfiguration()` | `container.GetConfiguration()` | Extension in `Services.Extensions` |
 | | `await container.InspectAsync()` | Async variant (new) |
-| `container.ToHostExposedEndpoint(port)` | `container.ToHostExposedEndpoint(port)` | Extension in `Services.Extensions` |
+| `container.ToHostExposedEndpoint(port)` | `await container.ToHostExposedEndpointAsync("5432/tcp")` | Extension in `Services.Extensions` |
 | `container.Logs()` | `await container.GetLogsAsync()` | No synchronous variant |
 | `container.Execute(cmd)` | `await container.ExecuteAsync(cmd)` | Note: `ExecuteAsync`, **not** `ExecAsync` |
 | `host.ComposeUp(...)` | `await composeDriver.UpAsync(ctx, config)` | Struct-based args (see section 9) |
 
 ### Important
 
-- `GetConfiguration()` and `ToHostExposedEndpoint()` moved to extension methods.
+- `GetConfiguration()` and `ToHostExposedEndpointAsync()` moved to extension methods.
   Add `using FluentDocker.Services.Extensions;` to resolve them.
-- `Resume()` was removed. Call `Start()` to unpause a paused container.
+- `ToHostExposedEndpoint(...)` still exists for sync-only callers, but it blocks on
+  the async resolver; prefer `ToHostExposedEndpointAsync(...)` in new v3 code.
+- `Resume()` is now `UnpauseAsync()` on the service API. It resumes a paused
+  container — do not substitute `StartAsync()`, which has different semantics.
 - `Logs()` has no sync wrapper in v3; use `GetLogsAsync()`.
 
 ---
@@ -262,7 +267,7 @@ per-driver kernel configuration.
 | `SudoMechanism.Password.SetSudo("pw")` | `.WithDockerCli("docker", d => d.WithSudo(SudoMechanism.Password, "pw"))` |
 | Global static state | Per-driver configuration in kernel builder |
 
-The `SudoMechanism` enum values are unchanged: `None`, `NoPassword`, `Password`.
+The `SudoMechanism` enum values are unchanged (`None`, `NoPassword`, `Password`) and experimental.
 
 ```csharp
 // v2
@@ -270,16 +275,16 @@ SudoMechanism.NoPassword.SetSudo();
 var svc = new Builder().UseContainer().UseImage("x").Build();
 
 // v3
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
         .AsDefault()
         .WithSudo(SudoMechanism.NoPassword))
-    .Build();
+    .BuildAsync();
 
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c.UseImage("x"))
-    .Build();
+    .BuildAsync();
 ```
 
 ---
@@ -306,12 +311,12 @@ var svc = new Builder()
 svc.Start();
 
 // v3
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseCompose(c => c
         .WithComposeFile("docker-compose.yml")
-        .RemoveOrphans())
-    .Build();
+        .WithRemoveOrphans())
+    .BuildAsync();
 ```
 
 ---
@@ -337,7 +342,7 @@ v3 adds first-class async support with `CancellationToken` throughout.
 |---|---|
 | Mostly synchronous | All operations have async variants |
 | No `CancellationToken` support | All async methods accept `CancellationToken` |
-| `using var svc = builder.Build()` | `using var results = await builder.BuildAsync(ct)` |
+| `using var svc = builder.Build()` | `await using var results = await builder.BuildAsync(cancellationToken: ct)` |
 | `IDisposable` cleanup | `IAsyncDisposable` preferred (sync `IDisposable` still supported) |
 
 ### Sync vs. Async Build
@@ -350,10 +355,10 @@ using var results = new Builder()
     .Build();
 
 // Async (preferred)
-using var results = await new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c.UseImage("redis:alpine"))
-    .BuildAsync(cancellationToken);
+    .BuildAsync(cancellationToken: cancellationToken);
 ```
 
 ### CancellationToken
@@ -365,9 +370,12 @@ using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
 await container.StartAsync(cts.Token);
 await container.StopAsync(cts.Token);
-var logs = await container.GetLogsAsync(cts.Token);
+var logs = await container.GetLogsAsync(cancellationToken: cts.Token);
 var stats = await container.GetStatsAsync(cts.Token);
 ```
+
+`GetLogsAsync(follow: true)` is rejected by buffered CLI/API paths; use
+`IStreamDriver.StreamLogsAsync(...)` for follow-style logs.
 
 ---
 
@@ -380,7 +388,7 @@ var stats = await container.GetStatsAsync(cts.Token);
 5. Pass the kernel via `.WithinDriver("docker", kernel)`.
 6. Change `Build()` call sites to expect `BuildResults` instead of a single service.
 7. Remove `.Start()` calls after `Build()` (auto-started).
-8. Replace `Resume()` with `Start()`.
+8. Replace `Resume()` with `await container.UnpauseAsync()`.
 9. Replace `Logs()` with `await GetLogsAsync()`.
 10. Replace `Execute(cmd)` with `await ExecuteAsync(cmd)`.
 11. Move sudo config from global static into kernel builder.

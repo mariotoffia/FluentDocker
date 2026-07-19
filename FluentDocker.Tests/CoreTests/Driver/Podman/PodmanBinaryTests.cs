@@ -45,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void FqPath_CombinesPathAndBinary()
     {
-      var binary = new PodmanBinary("/usr/bin", "podman", SudoMechanism.None, null);
+      var binary = new PodmanBinary("/usr/bin", "podman", SudoMechanism.None, null!);
       Assert.Equal(System.IO.Path.Combine("/usr/bin", "podman"), binary.FqPath);
     }
 
@@ -66,16 +66,16 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void Constructor_WithExplicitType_OverridesTranslation()
     {
       var binary = new PodmanBinary(
-          "/usr/bin", "podman", SudoMechanism.None, null, PodmanBinaryType.PodmanRemote);
+          "/usr/bin", "podman", SudoMechanism.None, null!, PodmanBinaryType.PodmanRemote);
 
       Assert.Equal(PodmanBinaryType.PodmanRemote, binary.Type);
     }
 
     [Fact]
-    public void Constructor_NormalizesBinaryToLowerCase()
+    public void Constructor_PreservesBinaryFilesystemCase()
     {
-      var binary = new PodmanBinary("/usr/bin", "Podman", SudoMechanism.None, null);
-      Assert.Equal("podman", binary.Binary);
+      var binary = new PodmanBinary("/usr/bin", "Podman", SudoMechanism.None, null!);
+      Assert.Equal("Podman", binary.Binary);
     }
   }
 }

@@ -230,7 +230,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     /// Creates a manifest list, adds an image, and pushes to a local registry.
     /// Requires Podman to be running and port 5053 to be available.
     /// </summary>
-    [Trait("Category", "ManualOnly")]
+    [Trait("Category", "DevLocal")]
+    [Trait("Requires", "ManualOnly")]
     [Fact]
     public async Task Push_ToLocalRegistry_Succeeds()
     {
@@ -294,7 +295,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     /// <summary>
     /// Pushes a manifest with Rm=true to verify the list is removed after push.
     /// </summary>
-    [Trait("Category", "ManualOnly")]
+    [Trait("Category", "DevLocal")]
+    [Trait("Requires", "ManualOnly")]
     [Fact]
     public async Task Push_WithRm_RemovesListAfterPush()
     {

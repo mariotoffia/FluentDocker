@@ -33,13 +33,41 @@ clean:
 
 .PHONY: test
 test:
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Unit" --configuration Debug --verbosity normal
+	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Unit" --framework net10.0 --configuration Debug --verbosity normal
+
+# Runs the REAL MSTest runner against the lifecycle/ModelResource [TestClass]es, proving
+# async [ClassInitialize]/[ClassCleanup]/[TestInitialize]/[TestCleanup] actually fire in order.
+.PHONY: test-mstest
+test-mstest:
+	dotnet test FluentDocker.Testing.MsTest.RunnerTests/FluentDocker.Testing.MsTest.RunnerTests.csproj --framework net10.0 --configuration Debug --filter "TestCategory=Unit" --verbosity normal
+
+.PHONY: test-nunit
+test-nunit:
+	dotnet test FluentDocker.Testing.NUnit.RunnerTests/FluentDocker.Testing.NUnit.RunnerTests.csproj --framework net10.0 --configuration Debug --filter "Category=Unit" --verbosity normal
+
+.PHONY: test-nunit-integration
+test-nunit-integration:
+	dotnet test FluentDocker.Testing.NUnit.RunnerTests/FluentDocker.Testing.NUnit.RunnerTests.csproj --framework net10.0 --configuration Debug --filter "Category=Integration" --verbosity normal
+
+# Adapter runner tests use real test frameworks and are intentionally outside
+# coverage; `make check` is the pre-push gate that runs them.
+.PHONY: test-runners
+test-runners: test-mstest test-nunit
 
 .PHONY: test-integration
 test-integration:
 	@mkdir -p .out/test
 	@rm -rf .out/test/integration-test.txt
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt
+	bash -o pipefail -c 'dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration|Category=PodmanIntegration" --framework net10.0 --configuration Debug --verbosity normal 2>&1 | tee .out/test/integration-test.txt'
+
+# Real Docker Model Runner gate. Requires a working `docker model` runtime.
+# FLUENTDOCKER_REQUIRE_DMR=1 makes the DMR tests HARD-FAIL instead of self-skipping
+# when the runner is missing, so a green run proves real coverage.
+.PHONY: test-dmr
+test-dmr:
+	@mkdir -p .out/test
+	@rm -rf .out/test/dmr-test.txt
+	bash -o pipefail -c 'FLUENTDOCKER_REQUIRE_DMR=1 dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=Integration&Requires=Dmr" --framework net10.0 --configuration Debug --verbosity normal 2>&1 | tee .out/test/dmr-test.txt'
 
 .PHONY: devlocal-setup
 devlocal-setup:
@@ -57,7 +85,7 @@ cleanup-test-resources:
 test-devlocal:
 	@mkdir -p .out/test
 	@rm -rf .out/test/devlocal-test.txt
-	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=DevLocal" --configuration Debug --verbosity normal 2>&1 | tee .out/test/devlocal-test.txt
+	bash -o pipefail -c 'dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj --filter "Category=DevLocal" --configuration Debug --verbosity normal 2>&1 | tee .out/test/devlocal-test.txt'
 
 .PHONY: benchmark
 benchmark:
@@ -81,13 +109,41 @@ format:
 	dotnet format $(SOLUTION)
 
 .PHONY: check
-check: lint test
+check: lint test test-runners coverage-check
+
+# Release-docs gate (DOC-CRIT-2 / DOC-MAJ-4): fail if any temporary/typo branch link survives in
+# the docs or READMEs so a published doc set never points at a branch that 404s after merge.
+# Wired into the ci.yml `release` job (runs on every version-tag push, before pack/publish).
+# Also fails on stale version literals (a doc still carrying an older preview string) and, for a
+# GA (non-prerelease) <Version>, on any surviving "-preview." marker.
+.PHONY: check-release-docs
+check-release-docs:
+	@echo "Checking docs for temporary branch links..."
+	@if grep -rn "featrure/model-support" README.md FluentDocker/README.md docs/ 2>/dev/null; then \
+		echo "ERROR: temporary/typo branch link found in docs; sweep to a permalink before release."; exit 1; \
+	fi
+	@echo "OK: no temporary branch links."
+	@VERSION=$$(dotnet msbuild FluentDocker/FluentDocker.csproj -getProperty:Version -nologo -verbosity:quiet | tr -d '[:space:]'); \
+	echo "Checking docs against <Version> $$VERSION..."; \
+	STALE=$$(grep -rnoE '[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+' README.md FluentDocker/README.md FluentDocker.Testing.Xunit/README.md FluentDocker.Testing.MsTest/README.md FluentDocker.Testing.NUnit/README.md docs/ 2>/dev/null | grep -v ":$$VERSION$$" || true); \
+	if [ -n "$$STALE" ]; then \
+		echo "ERROR: stale preview version literals differ from <Version> $$VERSION:"; echo "$$STALE"; exit 1; \
+	fi; \
+	case "$$VERSION" in \
+	  *-*) echo "OK: pre-release $$VERSION; preview banners allowed." ;; \
+	  *) if grep -rn -- "-preview\." README.md FluentDocker/README.md FluentDocker.Testing.Xunit/README.md FluentDocker.Testing.MsTest/README.md FluentDocker.Testing.NUnit/README.md docs/ 2>/dev/null; then \
+	       echo "ERROR: GA <Version> $$VERSION but '-preview.' markers remain in docs/READMEs; sweep them before tagging."; exit 1; \
+	     fi; \
+	     echo "OK: no preview markers for GA $$VERSION." ;; \
+	esac
 
 .PHONY: coverage
 coverage:
 	@mkdir -p .out/coverage
+	@rm -rf .out/coverage/*
 	dotnet test FluentDocker.Tests/FluentDocker.Tests.csproj \
 		--filter "Category=Unit" \
+		--framework net10.0 \
 		--configuration Debug \
 		--collect:"XPlat Code Coverage" \
 		--results-directory .out/coverage \
@@ -98,6 +154,14 @@ coverage:
 	@echo "  dotnet tool install -g dotnet-reportgenerator-globaltool"
 	@echo "  reportgenerator -reports:.out/coverage/**/coverage.opencover.xml -targetdir:.out/coverage/html -reporttypes:Html"
 	@echo "  open .out/coverage/html/index.html"
+
+# Coverage regression gate (finding M22). Enforces a conservative line/branch FLOOR
+# on the report produced by `make coverage`. Override floors via COVERAGE_LINE_MIN /
+# COVERAGE_BRANCH_MIN. The XPlat collector cannot fail the build on a threshold itself
+# (that is a coverlet.msbuild feature), so the floor is enforced post-collection here.
+.PHONY: coverage-check
+coverage-check: coverage
+	@bash scripts/coverage-threshold
 
 .PHONY: coverage-html
 coverage-html: coverage
@@ -139,7 +203,12 @@ help:
 	@echo "  dep              - Install dependencies and restore packages"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  test             - Run unit tests only (safe for CI)"
-	@echo "  test-integration - Run all tests including integration (requires Docker/Podman)"
+	@echo "  test-mstest      - Run MSTest adapter runner tests"
+	@echo "  test-nunit       - Run NUnit adapter runner unit tests"
+	@echo "  test-runners     - Run adapter runner tests (outside coverage)"
+	@echo "  test-nunit-integration - Run NUnit adapter runner integration tests"
+	@echo "  test-integration - Run integration tests (Docker + Podman; requires Docker/Podman)"
+	@echo "  test-dmr         - Run real Docker Model Runner tests (requires docker model runtime)"
 	@echo "  devlocal-setup   - Start Swarm + Podman machine for DevLocal tests"
 	@echo "  devlocal-teardown- Stop Swarm + Podman machine after DevLocal tests"
 	@echo "  cleanup-test-resources - Remove stale Docker/Podman test containers"
@@ -150,9 +219,10 @@ help:
 	@echo "  lint             - Check code formatting"
 	@echo "  format           - Format code"
 	@echo "  coverage         - Run unit tests with code coverage (XML output)"
+	@echo "  coverage-check   - Run coverage and enforce the line/branch regression floor"
 	@echo "  coverage-html    - Generate HTML coverage report (requires reportgenerator)"
 	@echo "  docs             - Serve Jekyll docs locally with live reload"
 	@echo "  docs-install     - Install Jekyll dependencies for docs"
 	@echo "  pack             - Create NuGet packages (use VERSION=x.y.z for versioned packs)"
-	@echo "  check            - Run lint + unit tests"
+	@echo "  check            - Run lint, unit tests, adapter runner tests, and coverage-check"
 	@echo "  help             - Show this help"

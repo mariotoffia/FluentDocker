@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Driver Extensibility
-nav_order: 14
+nav_order: 13
 description: "Custom driver interfaces, driver-aware builder extensions, and multi-driver patterns"
 ---
 
@@ -9,9 +9,13 @@ description: "Custom driver interfaces, driver-aware builder extensions, and mul
 
 FluentDocker's extensibility model lets drivers expose custom interfaces and builder extensions without kernel changes. This enables driver-specific features (Podman pods, Docker Swarm, etc.) to integrate cleanly with the fluent API.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
-This is an advanced guide. Complete [Architecture](architecture.html) before implementing custom extensions.
+This is an advanced guide. Complete [Architecture](architecture.md) before implementing custom extensions.
 
 - Foundation: [Architecture Overview](#architecture-overview), [Interface Resolution](#interface-resolution), [Driver-Aware Builders](#driver-aware-builders)
 - Implementation: [Writing Custom Extensions](#writing-custom-extensions), [Real-World Example: Multi-Driver Deployment](#real-world-example-multi-driver-deployment)
@@ -19,7 +23,7 @@ This is an advanced guide. Complete [Architecture](architecture.html) before imp
 
 ## Architecture Overview
 
-```
+```text
                                  ┌──────────────────────────────┐
                                  │   Extension Methods          │
                                  │   .UsePod("my-pod")          │
@@ -64,14 +68,22 @@ public interface IDriverInterfaceResolver
 }
 ```
 
-The kernel uses a cascading resolution strategy when you call `SysCtl(driverId, Type)`:
+The kernel resolution path depends on what the ID names; pack and driver paths do not fall through to each other.
 
-| Step | Check | Fallback |
-|------|-------|----------|
-| 1 | `IDriverInterfaceResolver` on driver pack | Continue |
-| 2 | Driver pack's `SysCtl(driverId, Type)` | Continue |
-| 3 | `IDriverInterfaceResolver` on driver | Continue |
-| 4 | Direct cast (`driver is T`) | Throw |
+If the ID names a driver pack:
+
+| Step | Check | Result |
+|------|-------|--------|
+| 1 | `IDriverInterfaceResolver.TryResolve` on driver pack | Return resolved instance, otherwise unsupported |
+
+A pack has a single resolution path — its `TryResolve`. It never falls back to a direct cast: an unresolved interface surfaces as a soft `InterfaceNotSupportedException` (KRN-MAJ-7 removed the pack-level `ISysCtl` delegation).
+
+If the ID names a single driver:
+
+| Step | Check | Result |
+|------|-------|--------|
+| 1 | `IDriverInterfaceResolver` on driver | Return resolved instance |
+| 2 | Direct cast (`driver is T`) | Return or throw |
 
 This means any interface registered with the driver pack or driver is discoverable without kernel changes.
 
@@ -87,7 +99,7 @@ object driver = kernel.SysCtl("docker", typeof(IContainerDriver));
 // Non-throwing — returns false if interface not supported
 if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 {
-    await podDriver.CreatePodAsync(context, "my-pod");
+    await podDriver.CreatePodAsync(context, new PodCreateConfig { Name = "my-pod" });
 }
 ```
 
@@ -99,7 +111,9 @@ if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 
 ### IDriverScopedBuilder
 
-All internal builders (`ContainerBuilder`, `NetworkBuilder`, `VolumeBuilder`, `ComposeBuilder`, `ImageBuilder`) implement `IDriverScopedBuilder`:
+`Builder` implements `IDriverScopedBuilder` after `WithinDriver(...)`, and all
+resource builders (`ContainerBuilder`, `NetworkBuilder`, `VolumeBuilder`,
+`ComposeBuilder`, `ImageBuilder`) carry the same scope inside their lambdas:
 
 ```csharp
 public interface IDriverScopedBuilder
@@ -109,7 +123,26 @@ public interface IDriverScopedBuilder
 }
 ```
 
-Inside any `UseContainer(...)`, `UseNetwork(...)`, etc. lambda, the builder you receive carries the kernel and driver context from the enclosing `WithinDriver()` scope.
+At the top level, this means portable code can probe optional fluent surfaces directly:
+
+```csharp
+var scoped = new Builder().WithinDriver("docker", kernel);
+if (scoped.TryUseModelRunner(out var runnerBuilder))
+{
+  await using var runner = await runnerBuilder.ForModel("ai/smollm2").BuildAsync();
+}
+```
+
+Inside `UseContainer(...)`, `UseNetwork(...)`, etc. lambdas, cast the public builder
+interface to `IDriverScopedBuilder` when you need the same capability probes:
+
+```csharp
+new Builder().WithinDriver("podman", kernel).UseContainer(container =>
+{
+  var scoped = (IDriverScopedBuilder)container;
+  var podDriver = scoped.TryDriver<IPodmanPodDriver>();
+});
+```
 
 ### RequireDriver and TryDriver
 
@@ -138,7 +171,7 @@ Create a driver-specific interface in the driver's namespace:
 public interface IPodmanPodDriver
 {
     Task<CommandResponse<PodCreateResult>> CreatePodAsync(
-        DriverContext context, string name,
+        DriverContext context, PodCreateConfig config,
         CancellationToken cancellationToken = default);
 
     Task<CommandResponse<Unit>> RemovePodAsync(
@@ -156,22 +189,41 @@ public interface IPodmanPodDriver
 In the driver pack's `InitializeAsync`, register the implementation:
 
 ```csharp
-public class PodmanCliDriverPack : DriverPackBase
+// DriverPackBase is optional: it implements IDriverInterfaceResolver (TryResolve /
+// GetSupportedInterfaces) and provides RegisterDriver<T>() plus a protected
+// TryResolveSysCtl<T> helper. IDriverPack (IDriverInterfaceResolver) adds the pack lifecycle.
+public class CustomDriverPack : DriverPackBase, IDriverPack
 {
-    protected override async Task OnInitializeAsync(
-        DriverContext context, CancellationToken ct)
+    public DriverType Type => DriverType.Custom;
+    public RuntimeType Runtime => RuntimeType.Unknown;
+
+    public async Task InitializeAsync(
+        DriverContext context, CancellationToken cancellationToken = default)
     {
         // Standard interfaces
-        RegisterDriver<IContainerDriver>(new PodmanContainerDriver(...));
-        RegisterDriver<IImageDriver>(new PodmanImageDriver(...));
+        RegisterDriver<IContainerDriver>(new PodmanCliContainerDriver(...));
+        RegisterDriver<IImageDriver>(new PodmanCliImageDriver(...));
 
         // Podman-specific interface
-        RegisterDriver<IPodmanPodDriver>(new PodmanPodDriver(...));
+        RegisterDriver<IPodmanPodDriver>(new PodmanCliPodDriver(...));
+
+        await Task.CompletedTask;
     }
+
+    // Interface resolution comes from DriverPackBase (TryResolve / GetSupportedInterfaces);
+    // the kernel owns the driverId → pack mapping, so the pack never needs an ISysCtl surface.
+    // Use the inherited TryResolveSysCtl<T> internally when a typed lookup is convenient.
+
+    public Task<DriverCapabilities> GetCapabilitiesAsync(
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(new DriverCapabilities { SupportsContainers = true });
+
+    public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(true);
 }
 ```
 
-`DriverPackBase` provides `RegisterDriver<T>()` backed by a dictionary, which automatically implements `IDriverInterfaceResolver`.
+`DriverPackBase` is optional: it implements `IDriverInterfaceResolver` and gives you `RegisterDriver<T>()` plus the protected `TryResolveSysCtl<T>` helper. Implement `IDriverPack` (which extends `IDriverInterfaceResolver`) for the pack lifecycle — `InitializeAsync`, `GetCapabilitiesAsync`, `IsHealthyAsync`, plus `Type`/`Runtime`. The kernel resolves each pack through `TryResolve`, so a pack no longer exposes an `ISysCtl` surface of its own. Built-in packs such as `PodmanCliDriverPack` implement `IDriverPack` directly against their own driver map instead of deriving `DriverPackBase`.
 
 ### Step 3: Write Builder Extensions
 
@@ -183,25 +235,23 @@ public static class PodmanContainerExtensions
 {
     /// <summary>
     /// Associates this container with a Podman pod.
-    /// No-op if the current driver does not support pods.
+    /// Throws if the current driver does not support pods.
     /// </summary>
     public static IContainerBuilder UsePod(
         this IContainerBuilder builder, string podName)
     {
-        if (builder is IDriverScopedBuilder scoped)
-        {
-            var podDriver = scoped.TryDriver<IPodmanPodDriver>();
-            if (podDriver != null)
-            {
-                builder.WithLabel("io.podman.pod", podName);
-            }
-        }
-        return builder;
+        if (builder is not IDriverScopedBuilder scoped)
+            throw new InvalidOperationException("UsePod requires a driver-scoped builder.");
+
+        if (scoped.TryDriver<IPodmanPodDriver>() == null)
+            throw new InvalidOperationException("UsePod requires a Podman driver with pod support.");
+
+        return builder.WithPod(podName);
     }
 }
 ```
 
-**Pattern:** Check `builder is IDriverScopedBuilder`, then `TryDriver<T>()`. Always return the builder for chaining. Gracefully no-op when the driver doesn't support the feature.
+**Pattern:** Check `builder is IDriverScopedBuilder`, then `TryDriver<T>()`. Always return the builder for chaining after applying the driver-specific behavior. Throw a clear `InvalidOperationException` when the driver doesn't support the feature.
 
 ### Step 4: Use It
 
@@ -218,7 +268,7 @@ await new Builder()
     .BuildAsync();
 ```
 
-When run against a Docker driver, `UsePod()` simply does nothing and the container is created normally.
+When run against a Docker driver, `UsePod()` throws because Docker does not support Podman pods.
 
 ---
 
@@ -233,10 +283,8 @@ using FluentDocker.Drivers.Podman.BuilderExtensions;
 
 // ── Kernel with both drivers ──────────────────────────────────
 var kernel = await FluentDockerKernel.Create()
-    .WithDockerCli("docker", d => d
-        .AsDefault())
-    .WithPodmanCli("podman", d => d
-        .AsDefault())
+    .WithDockerCli("docker", d => d.AsDefault())  // one default per kernel
+    .WithPodmanCli("podman", d => { })            // secondary; resolve by id via SysCtl
     .BuildAsync();
 
 // ── Single builder, two driver scopes ─────────────────────────
@@ -302,11 +350,11 @@ kernel.Dispose();
 | `ExposePort(...)` | Common | Works on any driver |
 | `WaitForPort(...)` | Common | Works on any driver |
 | `WaitForHttp(...)` | Common | Works on any driver |
-| `.UsePod("cache-pod")` | **Podman-specific** | No-ops on Docker |
+| `.UsePod("cache-pod")` | **Podman-specific** | Throws on Docker |
 | `.WithinDriver("podman")` | Scope switch | Builder chains across drivers |
 | `deployment.ForDriver(...)` | Common | Filter results by driver scope |
 
-The common builder calls (`UseImage`, `WithName`, `ExposePort`, `WaitForPort`) work identically across Docker and Podman. The Podman-specific `.UsePod()` extension applies only when the active driver supports `IPodmanPodDriver`; when the same container builder runs under Docker, the call is a no-op.
+The common builder calls (`UseImage`, `WithName`, `ExposePort`, `WaitForPort`) work identically across Docker and Podman. The Podman-specific `.UsePod()` extension applies only when the active driver supports `IPodmanPodDriver`; when the same container builder runs under Docker, the call throws a clear `InvalidOperationException`.
 
 ---
 
@@ -316,9 +364,9 @@ When writing driver-specific extensions, follow these conventions:
 
 1. **Namespace:** `FluentDocker.Drivers.<Driver>.BuilderExtensions`
 2. **Return type:** Always return the builder interface for chaining
-3. **Fallback:** Use `TryDriver<T>()` and no-op when unsupported, unless the extension only makes sense for that driver
+3. **Fallback:** Use `TryDriver<T>()`; no-op for optional enhancements, throw when the extension only makes sense for that driver
 4. **Naming:** Use verbs that describe the intent (`UsePod`, `EnableSwarmMode`, `WithSecurityProfile`)
-5. **Documentation:** Document no-op behavior in the XML summary
+5. **Documentation:** Document unsupported-driver behavior in the XML summary
 
 ---
 
@@ -333,11 +381,10 @@ public abstract class DriverPackBase : IDriverInterfaceResolver
     protected void RegisterDriver<T>(T driver) where T : class;
 
     // IDriverInterfaceResolver — automatically implemented
-    bool TryResolve(Type interfaceType, out object implementation);
-    IReadOnlyCollection<Type> GetSupportedInterfaces();
+    public bool TryResolve(Type interfaceType, out object implementation);
+    public IReadOnlyCollection<Type> GetSupportedInterfaces();
 
-    // Protected helpers for subclass use
-    protected object ResolveSysCtl(string driverId, Type interfaceType);
+    // Protected helper for subclass use (typed exact-type lookup)
     protected bool TryResolveSysCtl<T>(out T instance) where T : class;
 }
 ```
@@ -356,4 +403,4 @@ Register your driver interfaces via `RegisterDriver<T>()` during initialization.
 | `RequireDriver<T>()` | Resolves a driver interface (throws if missing) |
 | `TryDriver<T>()` | Resolves a driver interface (returns null if missing) |
 | `DriverPackBase` | Optional helper for new driver packs |
-| Extension methods | Driver-specific fluent API that gracefully no-ops |
+| Extension methods | Driver-specific fluent API that either no-ops or fails clearly |

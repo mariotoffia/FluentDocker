@@ -1,5 +1,10 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
+  /// <summary>
+  /// Shared shape for the <c>deploy.update_config</c> and <c>deploy.rollback_config</c> keys: how a
+  /// swarm update or rollback is rolled out across a service's containers.
+  /// </summary>
   public sealed class DeployConfigDefinition
   {
     /// <summary>
@@ -17,7 +22,7 @@ namespace FluentDocker.Model.Compose
     /// Rollback: The time to wait between each container group’s rollback (default 0s).
     /// Update: The time to wait between updating a group of containers.
     /// </remarks>
-    public string Delay { get; set; }
+    public string? Delay { get; set; }
     /// <summary>
     /// What to do if fails (default pause).
     /// </summary>

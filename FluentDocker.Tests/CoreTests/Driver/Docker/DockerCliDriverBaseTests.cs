@@ -10,7 +10,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void BuildGlobalArgs_NullContext_ReturnsEmpty()
     {
-      var result = DockerCliDriverBase.BuildGlobalArgs(null);
+      var result = DockerCliDriverBase.BuildGlobalArgs(null!);
       Assert.Equal("", result);
     }
 
@@ -107,7 +107,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var ctx = new DriverContext
       {
         Host = "tcp://remote:2376",
-        CertificatePath = null,
+        CertificatePath = null!,
         VerifyTls = true
       };
       var result = DockerCliDriverBase.BuildGlobalArgs(ctx);
@@ -143,7 +143,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Assert.StartsWith("-H tcp://remote:2376", result);
 
       // TLS flags should follow
-      var hostEnd = result.IndexOf("tcp://remote:2376") + "tcp://remote:2376".Length;
+      var hostEnd = result.IndexOf("tcp://remote:2376", StringComparison.Ordinal) +
+          "tcp://remote:2376".Length;
       var afterHost = result[hostEnd..];
       Assert.Contains("--tlsverify", afterHost);
     }

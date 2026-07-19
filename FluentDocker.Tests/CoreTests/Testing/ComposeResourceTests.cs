@@ -59,6 +59,58 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task DisposeAsync_StopFails_ForceRemoveDownSucceeds()
+    {
+      MockPack.SetupComposeUpAsync(new FluentDocker.Drivers.ComposeUpResult
+      {
+        ProjectName = "test-project"
+      });
+      MockPack.SetupComposeList();
+      MockPack.SetupComposeStart();
+      MockPack.SetupComposeStopFailure();
+      MockPack.SetupComposeDown();
+
+      var resource = new ComposeResource(
+          Kernel,
+          builder => builder.WithComposeFile("/path/to/docker-compose.yml"),
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await resource.DisposeAsync();
+
+      Assert.False(resource.IsInitialized);
+      Assert.NotNull(resource.LastTeardownDiagnostics);
+      Assert.Null(resource.LastTeardownDiagnostics.ForceRemoveException);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_StopAndForceRemoveFail_CapturesBothFailures()
+    {
+      MockPack.SetupComposeUpAsync(new FluentDocker.Drivers.ComposeUpResult
+      {
+        ProjectName = "test-project"
+      });
+      MockPack.SetupComposeList();
+      MockPack.SetupComposeStart();
+      MockPack.SetupComposeStopFailure("stop failed");
+      MockPack.SetupComposeDownFailure("down failed");
+
+      var resource = new ComposeResource(
+          Kernel,
+          builder => builder.WithComposeFile("/path/to/docker-compose.yml"),
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+      var ex = await Assert.ThrowsAsync<FluentDocker.Common.DriverException>(
+          () => resource.DisposeAsync().AsTask());
+
+      Assert.Contains("stop failed", ex.Message);
+      Assert.NotNull(resource.LastTeardownDiagnostics);
+      Assert.NotNull(resource.LastTeardownDiagnostics.TeardownException);
+      Assert.NotNull(resource.LastTeardownDiagnostics.ForceRemoveException);
+    }
+
+    [Fact]
     public async Task PreflightAsync_FailsWhenComposeNotSupported()
     {
       MockPack.SetCapabilities(new DriverCapabilities
@@ -71,15 +123,16 @@ namespace FluentDocker.Tests.CoreTests.Testing
           Kernel,
           builder => builder.WithComposeFile("/path/to/docker-compose.yml"));
 
-      await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<FluentDocker.Common.CapabilityNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new ComposeResource(null, _ => { }));
+          () => new ComposeResource(null!, _ => { }));
     }
 
     [Fact]

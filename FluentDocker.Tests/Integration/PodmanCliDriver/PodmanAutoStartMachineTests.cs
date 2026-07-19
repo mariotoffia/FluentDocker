@@ -13,7 +13,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
   /// Requires Podman to be installed with a running machine.
   /// </summary>
   [Collection("PodmanDriver")]
-  [Trait("Category", "LongRunning")]
+  [Trait("Category", "PodmanIntegration")]
+  [Trait("Requires", "LongRunning")]
   public class PodmanAutoStartMachineTests
   {
     [Fact]
@@ -21,7 +22,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       SkipIfPodmanNotAvailable();
 
-      FluentDockerKernel kernel = null;
+      FluentDockerKernel? kernel = null;
       try
       {
         kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
@@ -49,7 +50,7 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
     {
       SkipIfPodmanNotAvailable();
 
-      FluentDockerKernel kernel = null;
+      FluentDockerKernel? kernel = null;
       try
       {
         kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)

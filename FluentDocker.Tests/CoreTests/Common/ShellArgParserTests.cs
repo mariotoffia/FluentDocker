@@ -1,3 +1,4 @@
+using System;
 using FluentDocker.Common;
 using Xunit;
 
@@ -200,15 +201,33 @@ namespace FluentDocker.Tests.CoreTests.Common
     }
 
     [Fact]
-    public void Parse_UnmatchedQuote_TreatsRestAsArg()
+    public void Parse_UnmatchedQuote_ThrowsFormatException()
     {
-      // Arrange & Act
-      var result = ShellArgParser.Parse("cmd \"unclosed");
+      Assert.Throws<FormatException>(() => ShellArgParser.Parse("cmd \"unclosed"));
+    }
 
-      // Assert
-      Assert.Equal(2, result.Length);
-      Assert.Equal("cmd", result[0]);
-      Assert.Equal("unclosed", result[1]);
+    [Fact]
+    public void Parse_ShDashCEmptySingleQuoted_KeepsEmptyArgument()
+    {
+      var result = ShellArgParser.Parse("sh -c ''");
+
+      Assert.Equal(["sh", "-c", ""], result);
+    }
+
+    [Fact]
+    public void Parse_GrepEmptyDoubleQuoted_KeepsEmptyArgument()
+    {
+      var result = ShellArgParser.Parse("grep \"\" file");
+
+      Assert.Equal(["grep", "", "file"], result);
+    }
+
+    [Fact]
+    public void Parse_LoneEmptyDoubleQuoted_ReturnsEmptyArgument()
+    {
+      var result = ShellArgParser.Parse("\"\"");
+
+      Assert.Equal([""], result);
     }
   }
 }

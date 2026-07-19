@@ -176,7 +176,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/services/svc-abc", 200, ServiceJson);
       mock.SetupPost("/services/svc-abc/update", 200, "{}");
 
-      var result = await driver.RollbackAsync(Ctx, "svc-abc", cancellationToken: TestContext.Current.CancellationToken);
+      var result = await driver.RollbackAsync(Ctx, "svc-abc", detach: true, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
@@ -193,7 +193,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupGet("/services/gone", 404,
           @"{""message"":""not found""}");
 
-      var result = await driver.RollbackAsync(Ctx, "gone", cancellationToken: TestContext.Current.CancellationToken);
+      var result = await driver.RollbackAsync(Ctx, "gone", detach: true, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
       Assert.Equal(ErrorCodes.Service.NotFound, result.ErrorCode);
@@ -437,13 +437,30 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       mock.SetupPost("/services/svc-abc/update", 200, "{}");
 
       var replicas = new Dictionary<string, int> { ["svc-abc"] = 10 };
-      var result = await driver.ScaleAsync(Ctx, replicas, cancellationToken: TestContext.Current.CancellationToken);
+      var result = await driver.ScaleAsync(Ctx, replicas, detach: true, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
       var requests = mock.GetRequests();
       Assert.Contains(requests,
           r => r.Method == "POST" && r.Path.Contains("/services/svc-abc/update")
                && r.Path.Contains("version=42"));
+    }
+
+    [Fact]
+    public async Task ScaleAsync_DetachFalse_WaitsForTaskConvergence()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/services/svc-abc", 200, ServiceJson);
+      mock.SetupPost("/services/svc-abc/update", 200, "{}");
+      mock.SetupGet("/tasks", 200, TaskListJson); // one task in state "running"
+
+      var replicas = new Dictionary<string, int> { ["svc-abc"] = 1 };
+      var result = await driver.ScaleAsync(Ctx, replicas, cancellationToken: TestContext.Current.CancellationToken);
+
+      // DAPI-MAJ-1: detach=false (the default) must poll /tasks and only return once the service
+      // has converged to the requested replica count.
+      Assert.True(result.Success);
+      Assert.Contains(mock.GetRequests(), r => r.Path.Contains("/tasks"));
     }
 
     [Fact]
@@ -464,7 +481,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         ["svc-abc"] = 5,
         ["svc-def"] = 3
       };
-      var result = await driver.ScaleAsync(Ctx, replicas, cancellationToken: TestContext.Current.CancellationToken);
+      var result = await driver.ScaleAsync(Ctx, replicas, detach: true, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.True(result.Success);
     }
@@ -477,7 +494,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           @"{""message"":""not found""}");
 
       var replicas = new Dictionary<string, int> { ["gone"] = 5 };
-      var result = await driver.ScaleAsync(Ctx, replicas, cancellationToken: TestContext.Current.CancellationToken);
+      var result = await driver.ScaleAsync(Ctx, replicas, detach: true, cancellationToken: TestContext.Current.CancellationToken);
 
       Assert.False(result.Success);
     }

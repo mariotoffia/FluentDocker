@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using FluentDocker.Common;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -38,10 +39,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var args = "ps --format json";
       if (config.All)
         args += " -a";
-      if (config.Quiet)
-        args += " -q";
       if (!string.IsNullOrEmpty(config.Status))
-        args += $" --filter status={config.Status}";
+        args += $" --filter {QuoteIfNeeded($"status={config.Status}")}";
       return args;
     }
 
@@ -70,14 +69,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Wait)
         args += " --wait";
       if (config.WaitTimeout.HasValue)
-        args += $" --wait-timeout {config.WaitTimeout.Value}";
+        args += $" --wait-timeout {FormatInvariant(config.WaitTimeout.Value)}";
       if (!string.IsNullOrEmpty(config.Pull))
-        args += $" --pull {config.Pull}";
+        args += $" --pull {QuoteIfNeeded(config.Pull)}";
       if (config.Scale != null && config.Scale.Count > 0)
         foreach (var scale in config.Scale)
-          args += $" --scale {scale.Key}={scale.Value}";
+          args += $" --scale {QuoteIfNeeded($"{scale.Key}={FormatInvariant(scale.Value)}")}";
       if (config.Timeout.HasValue)
-        args += $" --timeout {config.Timeout.Value}";
+        args += $" --timeout {FormatInvariant(config.Timeout.Value)}";
       return args;
     }
 
@@ -90,11 +89,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.RemoveVolumes)
         args += " --volumes";
       if (!string.IsNullOrEmpty(config.RemoveImages))
-        args += $" --rmi {config.RemoveImages}";
+        args += $" --rmi {QuoteIfNeeded(config.RemoveImages)}";
       if (config.RemoveOrphans)
         args += " --remove-orphans";
       if (config.Timeout.HasValue)
-        args += $" --timeout {config.Timeout.Value}";
+        args += $" --timeout {FormatInvariant(config.Timeout.Value)}";
       return args;
     }
 
@@ -105,7 +104,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       var args = "restart";
       if (config.Timeout.HasValue)
-        args += $" --timeout {config.Timeout.Value}";
+        args += $" --timeout {FormatInvariant(config.Timeout.Value)}";
       if (config.NoDeps)
         args += " --no-deps";
       return args;
@@ -117,12 +116,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public static string BuildLogsSubArgs(ComposeLogsConfig config)
     {
       var args = "logs";
-      if (config.Follow)
-        args += " -f";
       if (config.Timestamps)
         args += " -t";
       if (config.Tail.HasValue)
-        args += $" --tail {config.Tail.Value}";
+        args += $" --tail {FormatInvariant(config.Tail.Value)}";
       if (!string.IsNullOrEmpty(config.Since))
         args += $" --since {QuoteIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
@@ -145,7 +142,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.ResolveImageDigests)
         args += " --resolve-image-digests";
       if (!string.IsNullOrEmpty(config.Format))
-        args += $" --format {config.Format}";
+        args += $" --format {QuoteIfNeeded(config.Format)}";
       return args;
     }
 
@@ -208,15 +205,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args += " --service-ports";
       if (config.Publish != null)
         foreach (var p in config.Publish)
-          args += $" -p {p}";
+          args += $" -p {QuoteIfNeeded(p)}";
       if (config.Volumes != null)
         foreach (var v in config.Volumes)
-          args += $" -v {v}";
+          args += $" -v {QuoteIfNeeded(v)}";
       if (!config.Tty)
         args += " -T";
-      args += $" {config.Service}";
+      args += $" {QuotePositionalArgument(config.Service, nameof(config.Service))}";
       if (config.Command != null && config.Command.Length > 0)
-        args += " " + string.Join(" ", config.Command);
+        args += " " + string.Join(" ", config.Command.Select(QuoteIfNeeded));
       return args;
     }
 
@@ -229,7 +226,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.NoDeps)
         args += " --no-deps";
       foreach (var scale in config.Scale)
-        args += $" --scale {scale.Key}={scale.Value}";
+        args += $" --scale {QuoteIfNeeded($"{scale.Key}={FormatInvariant(scale.Value)}")}";
       return args;
     }
 
@@ -248,7 +245,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.NoBuild)
         args += " --no-build";
       if (!string.IsNullOrEmpty(config.Pull))
-        args += $" --pull {config.Pull}";
+        args += $" --pull {QuoteIfNeeded(config.Pull)}";
       if (config.RemoveOrphans)
         args += " --remove-orphans";
       return args;
@@ -260,40 +257,47 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <summary>
     /// Parses <c>docker compose ps --format json</c> output.
-    /// Handles both JSON array format (Docker Compose v2.21+) and
-    /// newline-delimited JSON (older versions).
+    /// Handles both JSON array format (older versions) and
+    /// newline-delimited JSON (Docker Compose v2.21+).
     /// </summary>
-    public static IList<ComposeServiceInfo> ParseServiceList(string json, ILogger logger = null)
+    public static IList<ComposeServiceInfo> ParseServiceList(string json, ILogger? logger = null)
+    {
+      return TryParseServiceList(json, logger, out var services, out _) ? services : services;
+    }
+
+    internal static bool TryParseServiceList(
+        string json,
+        ILogger? logger,
+        out IList<ComposeServiceInfo> services,
+        [NotNullWhen(false)] out string? error)
     {
       logger ??= NullLogger.Instance;
-      var services = new List<ComposeServiceInfo>();
+      services = new List<ComposeServiceInfo>();
+      error = null;
       if (string.IsNullOrWhiteSpace(json))
-        return services;
+        return true;
 
       var trimmed = json.Trim();
       if (trimmed.StartsWith('['))
       {
-        var list = JsonSerializer.Deserialize<List<ComposeServiceInfo>>(trimmed, JsonHelper.CaseInsensitiveOptions);
-        if (list != null)
-          services.AddRange(list);
-      }
-      else
-      {
-        var lines = trimmed.Split(
-            LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        if (!JsonHelper.TryDeserialize<List<ComposeServiceInfo>>(trimmed, out var list, out var parseError))
         {
-          try
-          {
-            var service = JsonSerializer.Deserialize<ComposeServiceInfo>(line, JsonHelper.CaseInsensitiveOptions);
-            if (service != null)
-              services.Add(service);
-          }
-          catch (Exception ex) { logger.LogDebug(ex, "Compose service info JSON parsing failed"); }
+          error = $"Compose service info JSON parsing failed: {parseError?.Message}";
+          return false;
         }
+        if (list != null)
+          ((List<ComposeServiceInfo>)services).AddRange(list);
+        return true;
       }
 
-      return services;
+      var ok = DockerCliJsonLineParser.TryParse<ComposeServiceInfo>(
+          trimmed,
+          logger,
+          "Compose service info JSON parsing failed",
+          out var parsed,
+          out error);
+      services = parsed;
+      return ok;
     }
 
     #endregion

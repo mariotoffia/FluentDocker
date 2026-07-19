@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
@@ -9,7 +11,13 @@ namespace FluentDocker.Kernel
   /// <summary>
   /// Registry for managing driver and driver pack instances.
   /// </summary>
-  public interface IDriverRegistry
+  /// <remarks>
+  /// Implementations own registered driver lifetimes and must make
+  /// <see cref="IAsyncDisposable.DisposeAsync"/> idempotent; the kernel may retry
+  /// disposal after a timeout. Prefer async disposal/unregistration. Any sync bridge
+  /// should document its sync-over-async trade-off and avoid single-threaded contexts.
+  /// </remarks>
+  public interface IDriverRegistry : IAsyncDisposable
   {
     #region Driver Registration
 
@@ -20,13 +28,31 @@ namespace FluentDocker.Kernel
     /// <param name="driver">Driver instance</param>
     /// <param name="context">Driver context</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>On failure after acceptance begins, the registry disposes the supplied instance; do not reuse or re-dispose it.</remarks>
     Task RegisterAsync(string driverId, IDriver driver, DriverContext context, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Unregisters a driver.
+    /// Unregisters a driver or driver pack and disposes the removed instance.
     /// </summary>
     /// <param name="driverId">Driver identifier</param>
+    /// <remarks>
+    /// The registry owns registered driver lifetimes. If the removed driver was
+    /// the default, the earliest-registered driver still present becomes the default (null if none remain).
+    /// </remarks>
+    /// <exception cref="Common.DriverNotFoundException">If driver or driver pack not found.</exception>
     void Unregister(string driverId);
+
+    /// <summary>
+    /// Asynchronously unregisters a driver or driver pack and disposes the removed instance.
+    /// </summary>
+    /// <param name="driverId">Driver identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// The registry owns registered driver lifetimes. If the removed driver was
+    /// the default, the earliest-registered driver still present becomes the default (null if none remain).
+    /// </remarks>
+    /// <exception cref="Common.DriverNotFoundException">If driver or driver pack not found.</exception>
+    Task UnregisterAsync(string driverId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets a driver by ID.
@@ -42,7 +68,7 @@ namespace FluentDocker.Kernel
     /// <param name="driverId">Driver identifier</param>
     /// <param name="driver">Output driver instance</param>
     /// <returns>True if driver found</returns>
-    bool TryGetDriver(string driverId, out IDriver driver);
+    bool TryGetDriver(string driverId, [NotNullWhen(true)] out IDriver? driver);
 
     #endregion
 
@@ -55,6 +81,7 @@ namespace FluentDocker.Kernel
     /// <param name="driverPack">Driver pack instance</param>
     /// <param name="context">Driver context</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>On failure after acceptance begins, the registry disposes the supplied instance; do not reuse or re-dispose it.</remarks>
     Task RegisterDriverPackAsync(string driverId, IDriverPack driverPack, DriverContext context, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -71,7 +98,7 @@ namespace FluentDocker.Kernel
     /// <param name="driverId">Driver identifier</param>
     /// <param name="driverPack">Output driver pack instance</param>
     /// <returns>True if driver pack found</returns>
-    bool TryGetDriverPack(string driverId, out IDriverPack driverPack);
+    bool TryGetDriverPack(string driverId, [NotNullWhen(true)] out IDriverPack? driverPack);
 
     /// <summary>
     /// Checks if a driver ID refers to a driver pack.
@@ -128,13 +155,42 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Gets the default driver ID (if set).
     /// </summary>
-    string GetDefaultDriverId();
+    string? GetDefaultDriverId();
 
     /// <summary>
     /// Sets the default driver ID.
     /// </summary>
     /// <param name="driverId">Driver identifier</param>
     void SetDefaultDriver(string driverId);
+
+    #endregion
+
+    #region Disposal diagnostics
+
+    /// <summary>
+    /// Number of driver/pack instances abandoned because their disposal exceeded the teardown
+    /// budget. A non-zero value after disposal means OS processes/containers may have leaked and
+    /// warrants investigation. Observable without a downcast so consumers can detect leaks after a
+    /// timed-out teardown (KRN-MAJ-2).
+    /// </summary>
+    /// <remarks>
+    /// Read alongside <see cref="IsDisposeComplete"/>: the disposal pass can finish
+    /// (<see cref="IsDisposeComplete"/> is <c>true</c>) while this is non-zero, because
+    /// budget-exhausted drivers/packs are abandoned rather than retried indefinitely.
+    /// </remarks>
+    int AbandonedDriverCount { get; }
+
+    /// <summary>
+    /// <c>true</c> once the disposal pass has completed and the registry is no longer mid-teardown.
+    /// This does <em>not</em> mean every driver/pack was cleanly disposed — budget-exhausted
+    /// instances are abandoned rather than retried, and disposal still completes around them.
+    /// </summary>
+    /// <remarks>
+    /// Check <see cref="AbandonedDriverCount"/> alongside this property to detect that kind of
+    /// partial cleanup; <c>IsDisposeComplete == true</c> with a non-zero
+    /// <see cref="AbandonedDriverCount"/> means the pass finished but something leaked.
+    /// </remarks>
+    bool IsDisposeComplete { get; }
 
     #endregion
   }

@@ -328,7 +328,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Stream_Attach_ReturnsConnectedResult()
     {
       string? containerId = null;
-      AttachResult attachResult = null;
+      AttachResult? attachResult = null;
       try
       {
         await EnsureImageAsync(TestImage);
@@ -373,7 +373,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
     public async Task Stream_Attach_CanReadOutput()
     {
       string? containerId = null;
-      AttachResult attachResult = null;
+      AttachResult? attachResult = null;
       try
       {
         await EnsureImageAsync(TestImage);

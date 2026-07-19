@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
@@ -5,6 +6,12 @@ namespace FluentDocker.Model.Drivers
   /// </summary>
   public enum DriverType
   {
+    // Member order is not a stable contract: serialize by name, never persist or transmit the numeric value.
+    /// <summary>
+    /// Unknown driver type
+    /// </summary>
+    Unknown,
+
     /// <summary>
     /// Docker CLI driver - uses docker command-line interface
     /// </summary>

@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using FluentDocker.Model.Drivers;
@@ -61,6 +62,22 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void ParseSystemInfo_RootlessSecurity_SurfacesRootless()
+    {
+      var json = @"{
+                ""host"": {
+                    ""security"": { ""rootless"": true }
+                }
+            }";
+
+      var result = InvokeParseSystemInfo(json);
+      result.PopulateMeta();
+
+      Assert.True(result.Rootless);
+      Assert.Equal("True", result.MetaInfo[SystemInfoMetaKeys.Rootless]);
+    }
+
+    [Fact]
     public void ParseSystemInfo_EmptyJson_ReturnsEmptyInfo()
     {
       var result = InvokeParseSystemInfo("{}");
@@ -69,10 +86,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseSystemInfo_InvalidJson_ReturnsEmptyInfo()
+    public void ParseSystemInfo_InvalidJson_Throws()
     {
-      var result = InvokeParseSystemInfo("not json");
-      Assert.NotNull(result);
+      // FIX-7: unparseable non-empty info output must fail with diagnostics.
+      var ex = Assert.Throws<TargetInvocationException>(() => InvokeParseSystemInfo("not json"));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
     }
 
     #endregion
@@ -90,7 +108,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
                     ""GoVersion"": ""go1.21"",
                     ""Os"": ""linux"",
                     ""Arch"": ""amd64"",
-                    ""Built"": ""2024-01-15""
+                    ""BuiltTime"": ""2024-01-15""
                 },
                 ""Server"": {
                     ""Version"": ""4.5.0"",
@@ -105,6 +123,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       Assert.Equal("go1.21", result.RuntimeVersion);
       Assert.Equal("linux", result.Os);
       Assert.Equal("amd64", result.Arch);
+      Assert.Equal("2024-01-15", result.BuildTime);
       Assert.Equal("4.5.0", result.ServerVersion);
       Assert.Equal("4.5.0", result.ServerApiVersion);
       Assert.Equal("Podman", result.PlatformName);
@@ -136,10 +155,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseVersionInfo_InvalidJson_ReturnsEmptyVersion()
+    public void ParseVersionInfo_InvalidJson_Throws()
     {
-      var result = InvokeParseVersionInfo("not json");
-      Assert.NotNull(result);
+      // FIX-7: unparseable non-empty version output must fail with diagnostics.
+      var ex = Assert.Throws<TargetInvocationException>(() => InvokeParseVersionInfo("not json"));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
     }
 
     #endregion
@@ -149,7 +169,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public async Task SwitchDaemonAsync_ReturnsCapabilityNotSupported()
     {
-      var driver = new PodmanCliSystemDriver(null);
+      var driver = new PodmanCliSystemDriver(null!);
 
       var result = await driver.SwitchDaemonAsync(new DriverContext("podman"), TestContext.Current.CancellationToken);
 
@@ -160,7 +180,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public async Task SwitchToLinuxDaemonAsync_ReturnsCapabilityNotSupported()
     {
-      var driver = new PodmanCliSystemDriver(null);
+      var driver = new PodmanCliSystemDriver(null!);
 
       var result = await driver.SwitchToLinuxDaemonAsync(new DriverContext("podman"), TestContext.Current.CancellationToken);
 
@@ -178,7 +198,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseSystemInfo",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (SystemInfo)method.Invoke(null, [json]);
+      return (SystemInfo)method.Invoke(null, [json])!;
     }
 
     private static VersionInfo InvokeParseVersionInfo(string json)
@@ -187,7 +207,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseVersionInfo",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (VersionInfo)method.Invoke(null, [json]);
+      return (VersionInfo)method.Invoke(null, [json])!;
     }
 
     #endregion

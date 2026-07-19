@@ -5,6 +5,7 @@ using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Containers;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,21 @@ namespace FluentDocker.Testing.Core
   public class ContainerResource : ResourceBase
   {
     private readonly Action<IContainerBuilder> _configure;
+    private static readonly Action<ILogger, Exception> DiagnosticsLogCollectionFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, nameof(DiagnosticsLogCollectionFailed)),
+            "Container diagnostics log collection failed.");
+    private static readonly Action<ILogger, Exception> DiagnosticsInspectCollectionFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(2, nameof(DiagnosticsInspectCollectionFailed)),
+            "Container diagnostics inspect collection failed.");
+    private static readonly Action<ILogger, Exception> LateContainerProvisionCleanupFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(3, nameof(LateContainerProvisionCleanupFailed)),
+            "Late stale container provision cleanup failed.");
 
     /// <summary>
     /// Creates a container resource.
@@ -26,7 +42,7 @@ namespace FluentDocker.Testing.Core
     public ContainerResource(
         FluentDockerKernel kernel,
         Action<IContainerBuilder> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -36,7 +52,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// The running container service, available after initialization.
     /// </summary>
-    public IContainerService Container { get; private set; }
+    public IContainerService? Container { get; private set; }
 
     /// <summary>
     /// Inspects the container.
@@ -44,7 +60,7 @@ namespace FluentDocker.Testing.Core
     public Task<Container> InspectAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
-      return Container.InspectAsync(cancellationToken);
+      return Container!.InspectAsync(cancellationToken);
     }
 
     /// <summary>
@@ -53,7 +69,7 @@ namespace FluentDocker.Testing.Core
     public Task<string> GetLogsAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
-      return Container.GetLogsAsync(false, cancellationToken);
+      return Container!.GetLogsAsync(false, cancellationToken);
     }
 
     /// <summary>
@@ -62,7 +78,7 @@ namespace FluentDocker.Testing.Core
     public Task<string> ExecuteAsync(string command, CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
-      return Container.ExecuteAsync(command, cancellationToken);
+      return Container!.ExecuteAsync(command, cancellationToken);
     }
 
     #region ResourceBase overrides
@@ -76,6 +92,7 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var builder = new Builder();
       builder.WithinDriver(DriverId, Kernel);
       builder.UseContainer(c =>
@@ -93,8 +110,16 @@ namespace FluentDocker.Testing.Core
           cancellationToken: cancellationToken).ConfigureAwait(false);
       if (results.All.Count > 0 && results.All[0] is IContainerService container)
       {
-        Container = container;
-        ResourceName = container.Name ?? container.Id;
+        if (TryCommitProvision(generation, () =>
+        {
+          Container = container;
+          ResourceName = container.Name ?? container.Id;
+        }))
+        {
+          return;
+        }
+
+        await RemoveStaleContainerAsync(container).ConfigureAwait(false);
       }
       else
       {
@@ -117,13 +142,18 @@ namespace FluentDocker.Testing.Core
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
       var c = Container;
-      Container = null;
       if (c == null)
         return;
 
       try
-      { await c.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false); }
-      catch { /* best effort */ }
+      {
+        await c.RemoveAsync(force: true, cancellationToken).ConfigureAwait(false);
+        Container = null;
+      }
+      catch (DriverException ex) when (ex.ErrorCode == ErrorCodes.Container.NotFound)
+      {
+        Container = null;
+      }
     }
 
     /// <inheritdoc />
@@ -133,16 +163,26 @@ namespace FluentDocker.Testing.Core
     {
       var diag = await base.CollectDiagnosticsAsync(failure, cancellationToken).ConfigureAwait(false);
 
+      if (Options.CaptureLogsOnFailure)
+      {
+        var builderTail = ExtractBuilderLogTail(failure);
+        if (!string.IsNullOrWhiteSpace(builderTail))
+          diag.Logs = TruncateLogLines(builderTail);
+      }
+
       if (Container != null && Options.CaptureLogsOnFailure)
       {
         try
         {
-          diag.Logs = TruncateLogLines(
-              await Container.GetLogsAsync(false, cancellationToken).ConfigureAwait(false));
+          if (string.IsNullOrEmpty(diag.Logs))
+          {
+            diag.Logs = TruncateLogLines(
+                await Container.GetLogsAsync(false, cancellationToken).ConfigureAwait(false));
+          }
         }
         catch (Exception ex)
         {
-          Logger.LogWarning(ex, "Container diagnostics log collection failed");
+          DiagnosticsLogCollectionFailed(Logger, ex);
           diag.Logs = "(failed to collect logs)";
         }
 
@@ -151,11 +191,11 @@ namespace FluentDocker.Testing.Core
           var info = await Container.InspectAsync(cancellationToken).ConfigureAwait(false);
           diag.InspectPayload = info != null
               ? JsonHelper.SerializeIndented(info)
-              : null;
+              : null!;
         }
         catch (Exception ex)
         {
-          Logger.LogWarning(ex, "Container diagnostics inspect collection failed");
+          DiagnosticsInspectCollectionFailed(Logger, ex);
           diag.InspectPayload = "(failed to collect inspect data)";
         }
       }
@@ -170,6 +210,40 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized || Container == null)
         throw new InvalidOperationException(
             "Container resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleContainerAsync(IContainerService container)
+    {
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = container.RemoveAsync(force: true, cancellationToken: cts.Token);
+        await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+      }
+      catch (Exception ex)
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(container.Name ?? container.Id, Options.SessionId);
+        LateContainerProvisionCleanupFailed(Logger, ex);
+      }
+    }
+
+    private static string? ExtractBuilderLogTail(Exception failure)
+    {
+      const string dataKey = "ContainerLogTail";
+      const string marker = "Container log tail:";
+      for (var ex = failure; ex != null; ex = ex.InnerException)
+      {
+        if (ex.Data.Contains(dataKey) &&
+            ex.Data[dataKey] is string dataTail &&
+            !string.IsNullOrWhiteSpace(dataTail))
+          return dataTail;
+
+        var markerIndex = ex.Message.IndexOf(marker, StringComparison.Ordinal);
+        if (markerIndex >= 0)
+          return ex.Message[(markerIndex + marker.Length)..].Trim();
+      }
+
+      return null;
     }
   }
 }

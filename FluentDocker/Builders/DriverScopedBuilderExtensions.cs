@@ -1,3 +1,5 @@
+using System;
+
 namespace FluentDocker.Builders
 {
   /// <summary>
@@ -14,7 +16,10 @@ namespace FluentDocker.Builders
     /// <param name="builder">The driver-scoped builder</param>
     /// <returns>The resolved driver interface</returns>
     public static T RequireDriver<T>(this IDriverScopedBuilder builder) where T : class
-        => builder.Kernel.SysCtl<T>(builder.DriverId);
+    {
+      ArgumentNullException.ThrowIfNull(builder);
+      return builder.Kernel.SysCtl<T>(builder.DriverId);
+    }
 
     /// <summary>
     /// Attempts to resolve a driver interface from the builder's kernel context.
@@ -23,7 +28,10 @@ namespace FluentDocker.Builders
     /// <typeparam name="T">Driver interface type to resolve</typeparam>
     /// <param name="builder">The driver-scoped builder</param>
     /// <returns>The resolved driver interface, or null if not supported</returns>
-    public static T TryDriver<T>(this IDriverScopedBuilder builder) where T : class
-        => builder.Kernel.TrySysCtl<T>(builder.DriverId, out var v) ? v : null;
+    public static T? TryDriver<T>(this IDriverScopedBuilder builder) where T : class
+    {
+      ArgumentNullException.ThrowIfNull(builder);
+      return builder.Kernel.TrySysCtl<T>(builder.DriverId, out var v) ? v : null;
+    }
   }
 }

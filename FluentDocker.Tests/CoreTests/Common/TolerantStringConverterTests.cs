@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.CoreTests.Common
 
     private sealed class Holder
     {
-      public string Value { get; set; }
+      public string? Value { get; set; }
     }
 
     [Theory]
@@ -36,6 +36,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void Read_JsonNumber_PreservesLiteralText(string jsonNumber, string expected)
     {
       var holder = JsonSerializer.Deserialize<Holder>($$"""{"Value": {{jsonNumber}} }""", Options);
+      Assert.NotNull(holder);
       Assert.Equal(expected, holder.Value);
     }
 
@@ -45,6 +46,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void Read_JsonBoolean_BecomesLiteralText(string jsonBool, string expected)
     {
       var holder = JsonSerializer.Deserialize<Holder>($$"""{"Value": {{jsonBool}} }""", Options);
+      Assert.NotNull(holder);
       Assert.Equal(expected, holder.Value);
     }
 
@@ -52,6 +54,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void Read_JsonString_PassesThrough()
     {
       var holder = JsonSerializer.Deserialize<Holder>("""{"Value":"hello"}""", Options);
+      Assert.NotNull(holder);
       Assert.Equal("hello", holder.Value);
     }
 
@@ -59,6 +62,7 @@ namespace FluentDocker.Tests.CoreTests.Common
     public void Read_JsonNull_BecomesNull()
     {
       var holder = JsonSerializer.Deserialize<Holder>("""{"Value":null}""", Options);
+      Assert.NotNull(holder);
       Assert.Null(holder.Value);
     }
 

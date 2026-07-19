@@ -42,6 +42,20 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
+    /// Sets up ComposeDriver.ConfigAsync to return compose config JSON.
+    /// </summary>
+    public MockDriverPack SetupComposeConfig(string json)
+    {
+      ComposeDriver
+          .Setup(d => d.ConfigAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeConfigConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<string>.Ok(json));
+      return this;
+    }
+
+    /// <summary>
     /// Sets up ComposeDriver.DownAsync to return success.
     /// </summary>
     public MockDriverPack SetupComposeDown()
@@ -52,6 +66,22 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<ComposeDownConfig>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up ComposeDriver.DownAsync to fail.
+    /// </summary>
+    public MockDriverPack SetupComposeDownFailure(
+        string error = "compose down failed",
+        string errorCode = ErrorCodes.General.Unknown)
+    {
+      ComposeDriver
+          .Setup(d => d.DownAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeDownConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(error, errorCode));
       return this;
     }
 
@@ -137,6 +167,22 @@ namespace FluentDocker.Tests.Mocks
               It.IsAny<ComposeStopConfig>(),
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up ComposeDriver.StopAsync to fail.
+    /// </summary>
+    public MockDriverPack SetupComposeStopFailure(
+        string error = "compose stop failed",
+        string errorCode = ErrorCodes.General.Unknown)
+    {
+      ComposeDriver
+          .Setup(d => d.StopAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeStopConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(error, errorCode));
       return this;
     }
 

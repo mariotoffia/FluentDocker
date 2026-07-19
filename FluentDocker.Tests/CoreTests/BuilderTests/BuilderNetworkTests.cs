@@ -48,6 +48,28 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       MockPack.VerifyNetworkCreated("test-network", Times.Once());
     }
 
+    // BF-12: gateway/IP-range validate eagerly at the With* call (like WithSubnet), not first
+    // at BuildAsync. The throw surfaces synchronously from the UseNetwork configure action.
+    [Fact]
+    public void UseNetwork_InvalidGateway_ThrowsEagerlyAtConfigure()
+    {
+      var ex = Assert.Throws<FluentDocker.Common.FluentDockerException>(() => new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseNetwork(n => n.WithName("net").WithGateway("not-an-ip")));
+
+      Assert.Contains("gateway", ex.Message);
+    }
+
+    [Fact]
+    public void UseNetwork_InvalidIPRange_ThrowsEagerlyAtConfigure()
+    {
+      var ex = Assert.Throws<FluentDocker.Common.FluentDockerException>(() => new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseNetwork(n => n.WithName("net").WithIPRange("not-a-cidr")));
+
+      Assert.Contains("IP range", ex.Message);
+    }
+
     [Fact]
     public async Task UseNetwork_WithDriver_PassesDriver()
     {
@@ -96,6 +118,29 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           It.Is<NetworkCreateConfig>(cfg =>
               cfg.Subnet == "172.20.0.0/16" &&
               cfg.Gateway == "172.20.0.1"),
+          It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UseNetwork_WithIPRange_PassesIpRangeAsIpamConfig()
+    {
+      MockPack
+          .SetupNetworkList()
+          .SetupNetworkCreate()
+          .SetupNetworkRemove();
+
+      await new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseNetwork(n => n
+              .WithName("test-network")
+              .WithIPRange("172.20.10.0/24"))
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      MockPack.NetworkDriver.Verify(d => d.CreateAsync(
+          It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+          It.Is<NetworkCreateConfig>(cfg =>
+              cfg.IpRange == "172.20.10.0/24" &&
+              !cfg.Options.ContainsKey("com.docker.network.bridge.ip-range")),
           It.IsAny<System.Threading.CancellationToken>()), Times.Once);
     }
 
@@ -203,6 +248,46 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       MockPack.NetworkDriver.Verify(d => d.CreateAsync(
           It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
           It.IsAny<NetworkCreateConfig>(),
+          It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UseNetwork_ExistingNetworkWithRemoveOnDispose_ReusesBorrowedAndNeverRemoves()
+    {
+      // Arrange — a same-named network already exists, and RemoveOnDispose() is requested.
+      MockPack
+          .SetupNetworkList(new Network
+          {
+            Id = "existing-network-id",
+            Name = "test-network",
+            Driver = "bridge"
+          })
+          .SetupNetworkCreate()
+          .SetupNetworkRemove();
+
+      // Act
+      var results = await new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseNetwork(n => n
+              .WithName("test-network")
+              .RemoveOnDispose())
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      var network = results.All[0] as INetworkService;
+      Assert.NotNull(network);
+      Assert.Equal("existing-network-id", network.Id);
+
+      await results.DisposeAllAsync();
+
+      // Building (and disposing) must never delete a pre-existing network the builder did not
+      // create — even though RemoveOnDispose() was set. Create must also not be called.
+      MockPack.NetworkDriver.Verify(d => d.CreateAsync(
+          It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+          It.IsAny<NetworkCreateConfig>(),
+          It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+      MockPack.NetworkDriver.Verify(d => d.RemoveAsync(
+          It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+          It.IsAny<string>(),
           It.IsAny<System.Threading.CancellationToken>()), Times.Never);
     }
 

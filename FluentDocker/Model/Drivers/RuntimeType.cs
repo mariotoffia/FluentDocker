@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
@@ -5,6 +6,12 @@ namespace FluentDocker.Model.Drivers
   /// </summary>
   public enum RuntimeType
   {
+    // Member order is not a stable contract: serialize by name, never persist or transmit the numeric value.
+    /// <summary>
+    /// Unknown or custom runtime
+    /// </summary>
+    Unknown,
+
     /// <summary>
     /// Docker runtime
     /// </summary>
@@ -23,11 +30,6 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// CRI-O runtime
     /// </summary>
-    CriO,
-
-    /// <summary>
-    /// Unknown or custom runtime
-    /// </summary>
-    Unknown
+    CriO
   }
 }

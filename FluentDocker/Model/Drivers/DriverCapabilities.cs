@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Drivers
 {
   /// <summary>
@@ -48,6 +49,11 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Driver supports machine management (Podman machine init/start/stop/etc.).
     /// </summary>
+    /// <remarks>
+    /// The Podman CLI pack reports <c>true</c> on every platform because <c>podman machine</c>
+    /// exists on Linux too. The library's machine <b>auto-start</b> is narrower: it only runs
+    /// on macOS/Windows; on native Linux a machine must be started externally.
+    /// </remarks>
     public bool SupportsMachines { get; set; }
 
     /// <summary>
@@ -66,17 +72,23 @@ namespace FluentDocker.Model.Drivers
     public bool SupportsServices { get; set; }
 
     /// <summary>
+    /// Driver supports Docker Model Runner operations.
+    /// </summary>
+    public bool SupportsModels { get; set; }
+
+    /// <summary>
     /// Driver version string.
     /// </summary>
-    public string Version { get; set; }
+    public string? Version { get; set; }
 
     /// <summary>
     /// API version (if applicable).
     /// </summary>
-    public string ApiVersion { get; set; }
+    public string? ApiVersion { get; set; }
 
     /// <summary>
-    /// Creates default capabilities (all supported).
+    /// Creates conservative default capabilities: core container, image, network, volume,
+    /// compose, and system operations are supported; runtime-specific capabilities default to false.
     /// </summary>
     public static DriverCapabilities Default()
     {
@@ -91,7 +103,10 @@ namespace FluentDocker.Model.Drivers
         SupportsPods = false,
         SupportsKubernetes = false,
         SupportsMachines = false,
-        SupportsManifests = false
+        SupportsManifests = false,
+        SupportsStacks = false,
+        SupportsServices = false,
+        SupportsModels = false
       };
     }
   }

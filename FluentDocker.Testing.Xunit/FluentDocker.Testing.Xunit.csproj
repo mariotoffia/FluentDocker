@@ -6,24 +6,27 @@
     <PackageProjectUrl>https://github.com/mariotoffia/FluentDocker</PackageProjectUrl>
     <PackageId>FluentDocker.Testing.Xunit</PackageId>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageTags>Docker;Podman;Container;Test;xUnit;NET</PackageTags>
-    <Description>Spin up and tear down Docker and Podman containers, networks, volumes, and Compose stacks directly in your xUnit tests. Manages the full resource lifecycle as async fixtures so your integration tests run against real services with zero manual cleanup.</Description>
+    <PackageTags>Docker;Podman;Container;Test;xUnit;xUnitV3;NET;ModelRunner;DockerModelRunner;LLM;AI;IntegrationTesting</PackageTags>
+    <Description>Spin up and tear down Docker and Podman containers, networks, volumes, and Compose stacks directly in your xUnit tests. Also runs Docker Model Runner model tests (LLM/embeddings) via ModelResource. Manages the full resource lifecycle as async fixtures so your integration tests run against real services with automatic best-effort cleanup. Requires xUnit v3 (xunit.v3); not compatible with xUnit 2.x.</Description>
     <PackageIcon>fluent-docker.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\FluentDocker\README.md" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\icon\fluent-docker.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FluentDocker\FluentDocker.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>

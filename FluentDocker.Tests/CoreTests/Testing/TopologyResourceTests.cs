@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Builders;
+using FluentDocker.Drivers;
+using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Testing.Core;
@@ -86,8 +88,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
             builder.UseContainer(c => c.UseImage("alpine:latest"));
           });
 
-      await Assert.ThrowsAsync<FluentDocker.Common.CapabilityNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<FluentDocker.Common.CapabilityNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
@@ -117,10 +120,101 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    public async Task ProvisionAsync_WithSessionLabels_LabelsChildResources()
+    {
+      ContainerCreateConfig containerConfig = null!;
+      NetworkCreateConfig networkConfig = null!;
+      VolumeCreateConfig volumeConfig = null!;
+      MockPack
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove()
+          .SetupNetworkList()
+          .SetupNetworkRemove()
+          .SetupVolumeRemove();
+      MockPack.ContainerDriver
+          .Setup(d => d.CreateAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ContainerCreateConfig>(),
+              It.IsAny<CancellationToken>()))
+          .Callback<DriverContext, ContainerCreateConfig, CancellationToken>(
+              (_, config, _) => containerConfig = config)
+          .ReturnsAsync(CommandResponse<ContainerCreateResult>.Ok(
+              new ContainerCreateResult { Id = "test-container-123" }));
+      MockPack.NetworkDriver
+          .Setup(d => d.CreateAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<NetworkCreateConfig>(),
+              It.IsAny<CancellationToken>()))
+          .Callback<DriverContext, NetworkCreateConfig, CancellationToken>(
+              (_, config, _) => networkConfig = config)
+          .ReturnsAsync(CommandResponse<NetworkCreateResult>.Ok(
+              new NetworkCreateResult { Id = "network-1" }));
+      MockPack.VolumeDriver
+          .Setup(d => d.CreateAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<VolumeCreateConfig>(),
+              It.IsAny<CancellationToken>()))
+          .Callback<DriverContext, VolumeCreateConfig, CancellationToken>(
+              (_, config, _) => volumeConfig = config)
+          .ReturnsAsync(CommandResponse<VolumeCreateResult>.Ok(
+              new VolumeCreateResult { Name = "volume-1", Driver = "local" }));
+      var resource = new TopologyResource(
+          Kernel,
+          builder =>
+          {
+            builder.UseNetwork(n => n.WithName("session-net").RemoveOnDispose());
+            builder.UseVolume(v => v.RemoveOnDispose());
+            builder.UseContainer(c => c.UseImage("redis:alpine"));
+          },
+          new DockerResourceOptions { SessionId = "session-123" });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.Equal("session-123", containerConfig.Labels[SessionLabel.Key]);
+      Assert.Equal("session-123", networkConfig.Labels[SessionLabel.Key]);
+      Assert.Equal("session-123", volumeConfig.Labels[SessionLabel.Key]);
+
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task GetContainer_NormalizesDaemonLeadingSlash()
+    {
+      MockPack
+          .SetupContainerCreate("redis-id")
+          .SetupContainerStart()
+          .SetupContainerStop()
+          .SetupContainerRemove();
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(),
+              "redis-id",
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "redis-id",
+            Name = "/redis",
+            State = new ContainerState { Running = true, Status = "running" }
+          }));
+      var resource = new TopologyResource(
+          Kernel,
+          builder => builder.UseContainer(c => c.UseImage("redis:alpine").WithName("redis")));
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.Same(resource.Containers[0], resource.GetContainer("redis"));
+      Assert.Same(resource.Containers[0], resource.GetContainer("/redis"));
+
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new TopologyResource(null, _ => { }));
+          () => new TopologyResource(null!, _ => { }));
     }
 
     [Fact]

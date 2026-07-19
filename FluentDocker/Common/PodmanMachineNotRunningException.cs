@@ -1,4 +1,6 @@
+#nullable enable
 using System;
+using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Common
 {
@@ -9,18 +11,31 @@ namespace FluentDocker.Common
   /// the default machine, or configure <c>WithAutoStartMachine()</c> on
   /// the driver builder to handle this automatically.
   /// </summary>
-  public class PodmanMachineNotRunningException : Exception
+  public class PodmanMachineNotRunningException : DriverException
   {
     /// <summary>
     /// Creates a new instance with the specified message.
     /// </summary>
     public PodmanMachineNotRunningException(string message)
-        : base(message) { }
+        : base(message, ErrorCodes.Machine.NotRunning, true) { }
 
     /// <summary>
     /// Creates a new instance with the specified message and inner exception.
     /// </summary>
-    public PodmanMachineNotRunningException(string message, Exception innerException)
-        : base(message, innerException) { }
+    public PodmanMachineNotRunningException(string message, Exception? innerException)
+        : base(message, ErrorCodes.Machine.NotRunning, null, innerException, true) { }
+
+    /// <summary>
+    /// Creates a new instance with the specified message and explicit transiency. Use
+    /// <c>isTransient: false</c> for cases that reuse this exception's error code for a
+    /// permanent configuration error rather than a "machine stopped, retry" condition
+    /// (e.g. an ambiguous-machine auto-start failure).
+    /// </summary>
+    public PodmanMachineNotRunningException(string message, bool isTransient)
+        : base(message, ErrorCodes.Machine.NotRunning, isTransient)
+        // Deliberate override of the base OR-with-code-classification rule: this overload's
+        // parameter is genuinely explicit, and `false` marks a permanent configuration error
+        // that merely reuses the transient machine code — retrying cannot fix it.
+        => IsTransient = isTransient;
   }
 }

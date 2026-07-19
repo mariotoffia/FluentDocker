@@ -17,6 +17,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   {
     private IAuthDriver AuthDriver => Kernel.SysCtl<IAuthDriver>(DriverId);
 
+    // ponytail: registry auth URLs need a known host port; CI must avoid parallel runs on 5060-5063.
     private const string RegistryPort = "5060";
     private const string TestUser = "testuser";
     private const string TestPassword = "testpass123";
@@ -185,10 +186,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
               ["REGISTRY_AUTH_HTPASSWD_REALM"] = "RegistryRealm",
               ["REGISTRY_AUTH_HTPASSWD_PATH"] = "/auth/htpasswd"
             },
-            Volumes = new Dictionary<string, string>
-            {
-              [authDir] = "/auth"
-            }
+            Volumes = [$"{authDir}:/auth"]
           });
 
       // Wait for registry to start

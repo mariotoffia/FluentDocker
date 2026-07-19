@@ -1,0 +1,2 @@
+env=production
+replicas=3

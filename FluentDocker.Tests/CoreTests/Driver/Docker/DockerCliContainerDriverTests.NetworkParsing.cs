@@ -10,10 +10,10 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
   /// <summary>
   /// Regression tests for issue #335: <c>docker inspect</c> emits
   /// <c>NetworkSettings.LinkLocalIPv6PrefixLen</c>, <c>GlobalIPv6PrefixLen</c> and
-  /// <c>IPPrefixLen</c> as JSON <em>numbers</em>, but the model types them as
-  /// <see cref="string"/>. System.Text.Json threw on the number-into-string mismatch,
-  /// which surfaced as a <c>DriverException: Failed to inspect container</c>. The
-  /// <see cref="TolerantStringConverter"/> restores lenient parsing.
+  /// <c>IPPrefixLen</c> as JSON <em>numbers</em>, while some engines (and Podman) emit
+  /// numeric <em>strings</em>. The properties are lenient <see cref="int"/>s
+  /// (<see cref="LenientInt32Converter"/>), so both shapes parse and drift degrades to 0
+  /// instead of failing the inspect.
   /// </summary>
   public partial class DockerCliContainerDriverTests
   {
@@ -43,7 +43,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void InspectParsing_NumericNetworkPrefixLengths_PreservesValuesAsStrings()
+    public void InspectParsing_NumericNetworkPrefixLengths_PreservesValues()
     {
       var json = @"[{
         ""Id"": ""abc123"",
@@ -59,9 +59,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           json, JsonHelper.CaseInsensitiveOptions)?.FirstOrDefault()?.NetworkSettings;
 
       Assert.NotNull(ns);
-      Assert.Equal("16", ns.IPPrefixLen);
-      Assert.Equal("64", ns.GlobalIPv6PrefixLen);
-      Assert.Equal("0", ns.LinkLocalIPv6PrefixLen);
+      Assert.Equal(16, ns.IPPrefixLen);
+      Assert.Equal(64, ns.GlobalIPv6PrefixLen);
+      Assert.Equal(0, ns.LinkLocalIPv6PrefixLen);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
           json, JsonHelper.CaseInsensitiveOptions)?.FirstOrDefault()?.NetworkSettings;
 
       Assert.NotNull(ns);
-      Assert.Equal("24", ns.IPPrefixLen);
+      Assert.Equal(24, ns.IPPrefixLen);
     }
 
     #endregion

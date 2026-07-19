@@ -15,7 +15,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Compose operations tests: stop/start, kill, build, network, multi-service, volumes.
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "Compose")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "Compose")]
   public partial class ComposeDriverTests
   {
     #region Compose Stop/Start Tests

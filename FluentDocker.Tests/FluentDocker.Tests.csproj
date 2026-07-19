@@ -1,15 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Test-specific suppressions -->
     <!-- CA1707: test method names use underscores; CA1852: sealed types; CA1861: const arrays -->
     <NoWarn>$(NoWarn);CA1707;CA1852;CA1861</NoWarn>
-    <!-- Nullable warnings: test code intentionally passes null to verify null-handling behaviour -->
-    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8605;CS8618;CS8625;CS0219</NoWarn>
+    <!-- CA1711: xUnit [CollectionDefinition] classes conventionally end in 'Collection' -->
+    <NoWarn>$(NoWarn);CA1711</NoWarn>
+    <!-- Nullable-flow warnings are suppressed in TEST code only: xUnit asserts already
+         guard these dereferences at runtime, and ~750 null-forgiving operators would add
+         noise without safety. The shipped FluentDocker/Testing.* projects keep full
+         nullable enforcement. Every other analyzer rule remains active (and is an error
+         via TreatWarningsAsErrors). -->
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8619;CS8625;CS8597;CS8765;CS8767</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
@@ -27,7 +33,34 @@
     <ProjectReference Include="..\FluentDocker.Testing.NUnit\FluentDocker.Testing.NUnit.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Foo\Bar\child.txt" LogicalName="Foo.Bar.child.txt" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Foo\Barbaz\sibling.txt" LogicalName="Foo.Barbaz.sibling.txt" />
+    <!-- Task 12 (Co-H1/Co-M1): multi-dot filenames, embedded flat AND one level nested under "Res" -->
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Dockerfile.template" LogicalName="Res.Dockerfile.template" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\plain.txt" LogicalName="Res.plain.txt" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\settings.production" LogicalName="Res.settings.production" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\archive.tar.gz" LogicalName="Res.archive.tar.gz" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\app.properties" LogicalName="Res.app.properties" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Sub\Dockerfile.template" LogicalName="Res.Sub.Dockerfile.template" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Sub\README" LogicalName="Res.Sub.README" />
+    <!-- COMMON-1: short, extension-less filenames directly under a query root. Distinct roots so a
+         non-recursive query on one does not pick up the other. "Zc.info" is a single-segment root
+         (crash case: ExtractFile returned the whole name -> res[..-1]); "Zd.Sub.data" is a
+         multi-segment root "Zd.Sub" (silent-drop case: ns fell short of the root). -->
+    <EmbeddedResource Include="Fixtures\ResourceQuery\CommonOne\info" LogicalName="Zc.info" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\CommonOne\Sub\data" LogicalName="Zd.Sub.data" />
+  </ItemGroup>
+
+  <!-- DMR (Docker Model Runner) fixtures — embedded so they survive Release test runs -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures\Dmr\**\*.json" />
+    <EmbeddedResource Include="Fixtures\Dmr\**\*.sse" />
+    <EmbeddedResource Include="Fixtures\Dmr\**\*.txt" />
+    <EmbeddedResource Include="Fixtures\Dmr\**\*.ndjson" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Compose Test Resources -->
     <None Update="Resources\ComposeTests\MongoDbAndNetwork\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -47,6 +80,9 @@
     <None Update="Resources\ComposeTests\ScaleTest\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\ComposeTests\TestingResource\docker-compose.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- Hellotest (build compose) Resources -->
     <None Update="Resources\hellotest\docker-compose.yml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -62,13 +98,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Resources\Scripts\envtest.sh">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <!-- Model Test Resources -->
-    <None Update="Model\Containers\inspect.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Model\Containers\inspect_no_create.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

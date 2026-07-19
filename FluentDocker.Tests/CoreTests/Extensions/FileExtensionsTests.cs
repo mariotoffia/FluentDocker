@@ -14,7 +14,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
 
     public FileExtensionsTests()
     {
-      _tempDir = Path.Combine(Path.GetTempPath(), "FluentDockerTests_" + Guid.NewGuid().ToString("N"));
+      _tempDir = Path.Combine(".out", "FluentDockerTests_" + Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(_tempDir);
     }
 
@@ -29,19 +29,21 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     // ── EscapePath(string) ──────────────────────────────────────────────
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_NullString_ReturnsNull()
     {
       // Arrange
-      string path = null;
+      string? path = null;
 
       // Act
-      var result = path.EscapePath();
+      var result = path!.EscapePath(); // intentional null to verify null-handling
 
       // Assert
       Assert.Null(result);
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_EmptyString_ReturnsEmpty()
     {
       // Arrange
@@ -55,6 +57,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_PathWithoutSpaces_ReturnsSamePath()
     {
       // Arrange
@@ -68,6 +71,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_PathWithSpaces_WrapsInQuotes()
     {
       // Arrange
@@ -81,6 +85,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePath_AlreadyQuoted_DoesNotDoubleQuote()
     {
       // Arrange
@@ -96,6 +101,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     // ── EscapePath(TemplateString) ──────────────────────────────────────
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePathTemplate_NullOrEmpty_ReturnsSame()
     {
       // Arrange
@@ -109,6 +115,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePathTemplate_NoSpaces_ReturnsSame()
     {
       // Arrange
@@ -122,6 +129,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePathTemplate_WithSpaces_WrapsInQuotes()
     {
       // Arrange
@@ -135,6 +143,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void EscapePathTemplate_AlreadyQuoted_DoesNotDoubleQuote()
     {
       // Arrange
@@ -179,6 +188,27 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       Assert.True(Directory.Exists(nestedDir));
       Assert.True(File.Exists(filePath));
       Assert.Equal(contents, File.ReadAllText(filePath));
+    }
+
+    [Fact]
+    public void ToFileFromFileAndCopy_PathContainingSpace_RoundTrips()
+    {
+      var spacedDir = Path.Combine(_tempDir, "folder with space");
+      var sourceFile = Path.Combine(spacedDir, "source file.txt");
+      var workdir = Path.Combine(_tempDir, "work dir");
+      var contents = "space-safe content";
+
+      Directory.CreateDirectory(workdir);
+      contents.ToFile(sourceFile);
+      TemplateString templateSource = sourceFile;
+      TemplateString templateWorkdir = workdir;
+
+      var readBack = templateSource.FromFile();
+      var copiedName = templateSource.Copy(templateWorkdir);
+
+      Assert.Equal(contents, readBack);
+      Assert.Equal("source file.txt", copiedName);
+      Assert.Equal(contents, File.ReadAllText(Path.Combine(workdir, "source file.txt")));
     }
 
     // ── FromFile ────────────────────────────────────────────────────────
@@ -238,6 +268,23 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    public void Copy_ExistingFile_OverwritesTargetFile()
+    {
+      var sourceFile = Path.Combine(_tempDir, "source.txt");
+      File.WriteAllText(sourceFile, "new content");
+      var workdir = Path.Combine(_tempDir, "workdir");
+      Directory.CreateDirectory(workdir);
+      File.WriteAllText(Path.Combine(workdir, "source.txt"), "old content");
+      TemplateString templateSource = sourceFile;
+      TemplateString templateWorkdir = workdir;
+
+      var result = templateSource.Copy(templateWorkdir);
+
+      Assert.Equal("source.txt", result);
+      Assert.Equal("new content", File.ReadAllText(Path.Combine(workdir, "source.txt")));
+    }
+
+    [Fact]
     public void Copy_NonExistentPath_ReturnsNull()
     {
       // Arrange
@@ -275,14 +322,16 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       // Act
       var result = templateSource.Copy(templateWorkdir);
 
-      // Assert - Copy calls CopyTo which copies the contents of sourceDir into workdir,
-      // and returns the directory name of the source.
+      // Assert - Copy copies the source directory *as* workdir/<dirname>/ and returns
+      // "<dirname>", so the returned path is a real relative location under workdir
+      // (the pre-fix behaviour copied into workdir root yet returned a phantom "srcdir").
       Assert.Equal("srcdir", result);
-      Assert.True(File.Exists(Path.Combine(workdir, "a.txt")));
-      Assert.Equal("file a", File.ReadAllText(Path.Combine(workdir, "a.txt")));
-      Assert.True(Directory.Exists(Path.Combine(workdir, "child")));
-      Assert.True(File.Exists(Path.Combine(workdir, "child", "b.txt")));
-      Assert.Equal("file b", File.ReadAllText(Path.Combine(workdir, "child", "b.txt")));
+      var copied = Path.Combine(workdir, "srcdir");
+      Assert.True(File.Exists(Path.Combine(copied, "a.txt")));
+      Assert.Equal("file a", File.ReadAllText(Path.Combine(copied, "a.txt")));
+      Assert.True(Directory.Exists(Path.Combine(copied, "child")));
+      Assert.True(File.Exists(Path.Combine(copied, "child", "b.txt")));
+      Assert.Equal("file b", File.ReadAllText(Path.Combine(copied, "child", "b.txt")));
     }
 
     // ── CopyTo ──────────────────────────────────────────────────────────

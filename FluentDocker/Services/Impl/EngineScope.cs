@@ -9,10 +9,11 @@ using Microsoft.Extensions.Logging;
 
 namespace FluentDocker.Services.Impl
 {
-  /// <summary>
-  /// Engine scope implementation using kernel and driver.
-  /// Allows switching between Windows and Linux daemon modes (Docker Desktop on Windows).
-  /// </summary>
+  /// <inheritdoc />
+  /// <remarks>
+  /// Lifecycle transitions are individually atomic; a single scope instance is not designed
+  /// for concurrent lifecycle calls (UseLinux/UseWindows/Dispose) from multiple threads.
+  /// </remarks>
   public class EngineScope : IEngineScope
   {
     private readonly FluentDockerKernel _kernel;
@@ -20,19 +21,17 @@ namespace FluentDocker.Services.Impl
     private readonly string _driverId;
     private readonly EngineScopeType _originalScope;
     private readonly EngineScopeType _targetScope;
+    private readonly TimeSpan _disposeCleanupTimeout =
+        TimeSpan.FromMilliseconds(ContainerService.DefaultDisposeCleanupTimeoutMs);
     private EngineScopeType _currentScope;
-    private bool _disposed;
+    private string? _lastSwitchError;
+    private int _disposed;
 
-    /// <summary>
-    /// Creates an engine scope. Use <see cref="CreateAsync"/> for async initialization.
-    /// The constructor detects the current scope synchronously which may deadlock
-    /// in environments with a SynchronizationContext (e.g. ASP.NET, WPF).
-    /// Prefer <see cref="CreateAsync"/> in all new code.
-    /// </summary>
-    internal EngineScope(
+    private EngineScope(
         FluentDockerKernel kernel,
         string driverId,
-        EngineScopeType targetScope)
+        EngineScopeType targetScope,
+        EngineScopeType originalScope)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -41,40 +40,68 @@ namespace FluentDocker.Services.Impl
       _driverId = driverId;
       _targetScope = targetScope;
 
-      _originalScope = DetectCurrentScopeSync();
+      _originalScope = originalScope;
       _currentScope = _originalScope;
     }
 
     /// <summary>
     /// Creates an engine scope and immediately switches to the target scope.
     /// </summary>
+    /// <remarks>
+    /// Dispose/DisposeAsync restores the daemon to the initially detected scope. If detection
+    /// returns <see cref="EngineScopeType.Unknown"/>, restore is skipped and logged.
+    /// </remarks>
     public static async Task<EngineScope> CreateAsync(
         FluentDockerKernel kernel,
         string driverId,
         EngineScopeType targetScope,
         CancellationToken cancellationToken = default)
     {
-      var scope = new EngineScope(kernel, driverId, targetScope);
+      ArgumentNullException.ThrowIfNull(kernel);
+      ArgumentNullException.ThrowIfNull(driverId);
+      var logger = kernel.LoggerFactory.CreateLogger<EngineScope>();
+      var originalScope = await DetectCurrentScopeAsync(
+          kernel, driverId, logger, cancellationToken).ConfigureAwait(false);
+      var scope = new EngineScope(kernel, driverId, targetScope, originalScope);
 
       if (scope._currentScope != targetScope && targetScope != EngineScopeType.Unknown)
       {
+        bool switched;
         if (targetScope == EngineScopeType.Linux)
         {
-          await scope.UseLinuxAsync(cancellationToken).ConfigureAwait(false);
+          switched = await scope.UseLinuxAsync(cancellationToken).ConfigureAwait(false);
         }
         else if (targetScope == EngineScopeType.Windows)
         {
-          await scope.UseWindowsAsync(cancellationToken).ConfigureAwait(false);
+          switched = await scope.UseWindowsAsync(cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+          switched = true;
+        }
+
+        if (!switched)
+        {
+          var details = string.IsNullOrWhiteSpace(scope._lastSwitchError)
+              ? string.Empty
+              : $": {scope._lastSwitchError}";
+          throw new DriverException(
+              $"Failed to switch driver '{driverId}' engine scope from {originalScope} to {targetScope}{details}",
+              ErrorCodes.General.Unknown);
         }
       }
 
       return scope;
     }
 
+    /// <inheritdoc />
     public EngineScopeType Scope => _currentScope;
 
+    /// <inheritdoc />
     public async Task<bool> IsWindowsEngineAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -82,8 +109,11 @@ namespace FluentDocker.Services.Impl
       return response.Success && response.Data;
     }
 
+    /// <inheritdoc />
     public async Task<bool> IsLinuxEngineAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -91,8 +121,15 @@ namespace FluentDocker.Services.Impl
       return response.Success && response.Data;
     }
 
-    public async Task<bool> UseLinuxAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public async Task<bool> UseLinuxAsync(CancellationToken cancellationToken = default) =>
+        await UseLinuxCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
+
+    private async Task<bool> UseLinuxCoreAsync(bool throwIfDisposed, CancellationToken cancellationToken)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       if (_currentScope == EngineScopeType.Linux)
         return true;
 
@@ -103,15 +140,24 @@ namespace FluentDocker.Services.Impl
 
       if (response.Success)
       {
+        _lastSwitchError = null;
         _currentScope = EngineScopeType.Linux;
         return true;
       }
 
+      _lastSwitchError = response.Error;
       return false;
     }
 
-    public async Task<bool> UseWindowsAsync(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public async Task<bool> UseWindowsAsync(CancellationToken cancellationToken = default) =>
+        await UseWindowsCoreAsync(throwIfDisposed: true, cancellationToken).ConfigureAwait(false);
+
+    private async Task<bool> UseWindowsCoreAsync(bool throwIfDisposed, CancellationToken cancellationToken)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      if (throwIfDisposed)
+        ThrowIfDisposed();
       if (_currentScope == EngineScopeType.Windows)
         return true;
 
@@ -122,19 +168,20 @@ namespace FluentDocker.Services.Impl
 
       if (response.Success)
       {
+        _lastSwitchError = null;
         _currentScope = EngineScopeType.Windows;
         return true;
       }
 
+      _lastSwitchError = response.Error;
       return false;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
-      if (_disposed)
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-
-      _disposed = true;
 
       if (_currentScope != _originalScope && _originalScope != EngineScopeType.Unknown)
       {
@@ -142,75 +189,93 @@ namespace FluentDocker.Services.Impl
         {
           // Use Task.Run to avoid SynchronizationContext deadlock when called
           // from UI threads or ASP.NET contexts. Prefer DisposeAsync instead.
-          if (_originalScope == EngineScopeType.Linux)
-          {
-            Task.Run(() => UseLinuxAsync()).GetAwaiter().GetResult();
-          }
-          else if (_originalScope == EngineScopeType.Windows)
-          {
-            Task.Run(() => UseWindowsAsync()).GetAwaiter().GetResult();
-          }
+          Task.Run(RestoreOriginalScopeAsync).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
           _logger.LogError(ex, "Engine scope restore failed");
         }
       }
+      else if (_currentScope != _originalScope)
+      {
+        _logger.LogWarning("Engine scope restore skipped because original scope could not be detected");
+      }
 
       GC.SuppressFinalize(this);
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      if (_disposed)
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         return;
-
-      _disposed = true;
 
       if (_currentScope != _originalScope && _originalScope != EngineScopeType.Unknown)
       {
         try
         {
-          if (_originalScope == EngineScopeType.Linux)
-          {
-            await UseLinuxAsync().ConfigureAwait(false);
-          }
-          else if (_originalScope == EngineScopeType.Windows)
-          {
-            await UseWindowsAsync().ConfigureAwait(false);
-          }
+          await RestoreOriginalScopeAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
           _logger.LogError(ex, "Engine scope async restore failed");
         }
       }
+      else if (_currentScope != _originalScope)
+      {
+        _logger.LogWarning("Engine scope async restore skipped because original scope could not be detected");
+      }
 
       GC.SuppressFinalize(this);
     }
 
-    private EngineScopeType DetectCurrentScopeSync()
+    private static async Task<EngineScopeType> DetectCurrentScopeAsync(
+        FluentDockerKernel kernel,
+        string driverId,
+        ILogger<EngineScope> logger,
+        CancellationToken cancellationToken)
     {
       try
       {
-        var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
-        var context = new DriverContext(_driverId);
-
-        // Use Task.Run to avoid SynchronizationContext deadlock.
-        var response = Task.Run(() => driver.IsWindowsEngineAsync(context)).GetAwaiter().GetResult();
+        var driver = kernel.SysCtl<ISystemDriver>(driverId);
+        var context = new DriverContext(driverId);
+        var response = await driver.IsWindowsEngineAsync(context, cancellationToken)
+            .ConfigureAwait(false);
 
         if (response.Success)
-        {
           return response.Data ? EngineScopeType.Windows : EngineScopeType.Linux;
-        }
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        _logger.LogError(ex, "Engine scope detection failed");
+        logger.LogError(ex, "Engine scope async detection failed");
       }
 
       return EngineScopeType.Unknown;
     }
+
+    private async Task RestoreOriginalScopeAsync()
+    {
+      using var cleanupCts = new CancellationTokenSource(_disposeCleanupTimeout);
+      var restoreTask = _originalScope == EngineScopeType.Linux
+          ? UseLinuxCoreAsync(throwIfDisposed: false, cleanupCts.Token)
+          : UseWindowsCoreAsync(throwIfDisposed: false, cleanupCts.Token);
+      var restored = await restoreTask.WaitAsync(cleanupCts.Token).ConfigureAwait(false);
+      if (!restored)
+      {
+        var details = string.IsNullOrWhiteSpace(_lastSwitchError)
+            ? string.Empty
+            : $": {_lastSwitchError}";
+        throw new DriverException(
+            $"Failed to restore driver '{_driverId}' engine scope to {_originalScope}{details}",
+            ErrorCodes.General.Unknown);
+      }
+    }
+
+    private void ThrowIfDisposed() =>
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
   }
 }
-

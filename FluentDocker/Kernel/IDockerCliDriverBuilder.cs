@@ -1,4 +1,6 @@
+using System;
 using FluentDocker.Model.Common;
+using FluentDocker.Model.Models;
 
 namespace FluentDocker.Kernel
 {
@@ -15,6 +17,16 @@ namespace FluentDocker.Kernel
     IDockerCliDriverBuilder AtHost(string host);
 
     /// <summary>
+    /// Bounds buffered control-plane Docker CLI commands (inspect, list, create, start, …)
+    /// to the given wall-clock timeout (default: 5 minutes) so a hung docker CLI / plugin /
+    /// daemon call cannot block forever. Does NOT apply to inherently-long operations
+    /// (pull/build/push/wait/load/save/stop -t …) or to streaming commands (logs -f / events),
+    /// which honor only caller cancellation.
+    /// </summary>
+    /// <param name="timeout">Buffered control-plane command timeout.</param>
+    IDockerCliDriverBuilder WithRequestTimeout(TimeSpan timeout);
+
+    /// <summary>
     /// Sets the certificate path for TLS connections.
     /// </summary>
     /// <param name="certificatePath">Path to certificate directory</param>
@@ -23,6 +35,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Sets this driver as the default.
     /// </summary>
+    /// <remarks>When multiple drivers call <c>AsDefault()</c>, the last one wins.</remarks>
     IDockerCliDriverBuilder AsDefault();
 
     /// <summary>
@@ -30,7 +43,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <param name="mechanism">Sudo mechanism to use</param>
     /// <param name="password">Password when using <see cref="SudoMechanism.Password"/></param>
-    IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string password = null);
+    IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string? password = null);
 
     /// <summary>
     /// Drives a docker-compatible CLI other than <c>docker</c> (best-effort) — for example
@@ -42,5 +55,14 @@ namespace FluentDocker.Kernel
     /// Optional directories to search for the binary. When omitted, <c>PATH</c> is used.
     /// </param>
     IDockerCliDriverBuilder WithBinary(string binaryName, params string[] searchPaths);
+
+    /// <summary>
+    /// Binds the Docker Model Runner pack's inference adapter to a non-default
+    /// endpoint (e.g. another port/engine) once at registration, instead of passing
+    /// it per runner build. When unset, the default resolution is used
+    /// (<c>DOCKER_MODEL_RUNNER_URL</c>, else host TCP on 12434).
+    /// </summary>
+    /// <param name="endpoint">The inference endpoint.</param>
+    IDockerCliDriverBuilder WithModelRunnerEndpoint(ModelRunnerEndpoint endpoint);
   }
 }

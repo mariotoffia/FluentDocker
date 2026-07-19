@@ -56,6 +56,38 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
+    /// Sets up StackDriver.DeployAsync to fail.
+    /// </summary>
+    public MockDriverPack SetupStackDeployFailure(
+        string error = "stack deploy failed",
+        string errorCode = ErrorCodes.General.Unknown)
+    {
+      StackDriver
+          .Setup(d => d.DeployAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<StackDeployConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<StackDeployResult>.Fail(error, errorCode));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up StackDriver.RemoveAsync to fail.
+    /// </summary>
+    public MockDriverPack SetupStackRemoveFailure(
+        string error = "stack remove failed",
+        string errorCode = ErrorCodes.General.Unknown)
+    {
+      StackDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string[]>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail(error, errorCode));
+      return this;
+    }
+
+    /// <summary>
     /// Sets up StackDriver.GetServicesAsync to return the specified services.
     /// </summary>
     public MockDriverPack SetupStackGetServices(params StackServiceInfo[] services)

@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildListArgs_NullFilter_ReturnsBaseCommand()
     {
-      var result = PodmanCliContainerDriver.BuildListArgs(null);
+      var result = PodmanCliContainerDriver.BuildListArgs(null!);
       Assert.Equal("ps --format json", result);
     }
 
@@ -47,6 +47,18 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var filter = new ContainerListFilter { Name = "web" };
       var result = PodmanCliContainerDriver.BuildListArgs(filter);
       Assert.Contains("--filter name=web", result);
+    }
+
+    [Fact]
+    public void BuildListArgs_FilterValueWithWhitespace_IsQuotedAsSingleToken()
+    {
+      // A filter value containing whitespace must be quoted so it stays a single argv token and
+      // cannot inject an extra podman argument (UseShellExecute=false → no shell, but unquoted
+      // whitespace still splits into separate arguments).
+      var filter = new ContainerListFilter { Name = "web --privileged" };
+      var result = PodmanCliContainerDriver.BuildListArgs(filter);
+      Assert.Contains("--filter \"name=web --privileged\"", result);
+      Assert.DoesNotContain("--filter name=web --privileged", result);
     }
 
     [Fact]
@@ -127,6 +139,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
+    public void BuildListArgs_NonPositiveLimit_OmitsLastFlag()
+    {
+      var filter = new ContainerListFilter { Limit = 0 };
+      var result = PodmanCliContainerDriver.BuildListArgs(filter);
+      Assert.DoesNotContain("--last", result);
+    }
+
+    [Fact]
     public void BuildListArgs_AllFields_ProducesCorrectArgs()
     {
       var filter = new ContainerListFilter
@@ -157,14 +177,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildImagePruneArgs_NoAll_NoFilter_ReturnsBaseCommand()
     {
-      var result = PodmanCliImageDriver.BuildImagePruneArgs(false, null);
+      var result = PodmanCliImageDriver.BuildImagePruneArgs(false, null!);
       Assert.Equal("image prune -f", result);
     }
 
     [Fact]
     public void BuildImagePruneArgs_All_IncludesAllFlag()
     {
-      var result = PodmanCliImageDriver.BuildImagePruneArgs(true, null);
+      var result = PodmanCliImageDriver.BuildImagePruneArgs(true, null!);
       Assert.Contains(" -a", result);
     }
 
@@ -197,7 +217,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildSystemPruneArgs_NullConfig_ReturnsBaseCommand()
     {
-      var result = PodmanCliSystemDriver.BuildSystemPruneArgs(null);
+      var result = PodmanCliSystemDriver.BuildSystemPruneArgs(null!);
       Assert.Equal("system prune -f", result);
     }
 
@@ -266,7 +286,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void BuildStreamEventsArgs_NullConfig_ReturnsBaseCommand()
     {
-      var result = PodmanCliStreamDriver.BuildStreamEventsArgs(null);
+      var result = PodmanCliStreamDriver.BuildStreamEventsArgs(null!);
       Assert.Equal("events --format json", result);
     }
 
@@ -424,7 +444,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [command, config, detach]);
+      return (string)method.Invoke(null, [command, config, detach])!;
     }
 
     #endregion

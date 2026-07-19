@@ -8,13 +8,12 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers
 {
   /// <summary>
   /// Streaming operations for real-time data (logs, events, stats).
-  /// Supported by: Docker, Podman, Kubernetes (partial)
+  /// Supported by: Docker, Podman.
   /// </summary>
   public interface IStreamDriver
   {
@@ -25,11 +24,15 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="config">Stream configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Async enumerable of log lines</returns>
+    /// <returns>
+    /// Async enumerable of log lines. Docker CLI marks stderr-originated lines with
+    /// <c>[stderr] </c>; use <see cref="StreamLogEntriesAsync"/> when the source must be
+    /// machine-readable.
+    /// </returns>
     IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context,
         string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -37,6 +40,7 @@ namespace FluentDocker.Drivers
     /// stream (stdout/stderr). The Docker Engine API driver populates the real source from the
     /// multiplexed stream header; CLI-based drivers, which cannot distinguish the streams at
     /// the line level, tag every line as <see cref="LogStreamSource.Stdout"/> by default.
+    /// Docker CLI overrides this default by reading stdout/stderr separately.
     /// </summary>
     /// <param name="context">Driver context</param>
     /// <param name="containerId">Container ID or name</param>
@@ -46,7 +50,7 @@ namespace FluentDocker.Drivers
     async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
         DriverContext context,
         string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       await foreach (var line in StreamLogsAsync(context, containerId, config, cancellationToken)
@@ -63,23 +67,36 @@ namespace FluentDocker.Drivers
     /// <param name="config">Stream configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Async enumerable of events</returns>
+    /// <remarks>
+    /// Docker Engine API driver: without an <see cref="StreamEventsConfig.Until"/> bound the
+    /// daemon holds the events stream open indefinitely, so a clean daemon-side close is
+    /// unexpected and deliberately surfaces fail-loud as a
+    /// <see cref="FluentDocker.Common.DriverException"/> with
+    /// <see cref="ErrorCodes.Api.StreamEnded"/> rather than a silent end. Consequently a
+    /// <c>foreach</c> over the returned sequence never completes normally unless
+    /// <see cref="StreamEventsConfig.Until"/> is set (it ends only by that exception or
+    /// by cancellation).
+    /// </remarks>
     IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
         DriverContext context,
-        StreamEventsConfig config = null,
+        StreamEventsConfig? config = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Streams container resource statistics.
     /// </summary>
     /// <param name="context">Driver context</param>
-    /// <param name="containerId">Container ID or name (null for all containers)</param>
+    /// <param name="containerId">
+    /// Container ID or name. Docker API requires a value and throws
+    /// <see cref="ArgumentException"/> at the call site when it is null or blank.
+    /// </param>
     /// <param name="config">Stream configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Async enumerable of stats</returns>
     IAsyncEnumerable<ContainerStats> StreamStatsAsync(
         DriverContext context,
-        string containerId = null,
-        StreamStatsConfig config = null,
+        string? containerId = null,
+        StreamStatsConfig? config = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -89,11 +106,18 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="config">Attach configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Attach result with streams</returns>
+    /// <returns>
+    /// Attach result with streams. Docker API returns the raw attach stream; when TTY is
+    /// disabled, <see cref="AttachResult.OutputStream"/> may contain Docker multiplexed frames
+    /// and <see cref="AttachResult.ErrorStream"/> is null.
+    /// </returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context,
         string containerId,
-        AttachConfig config = null,
+        AttachConfig? config = null,
         CancellationToken cancellationToken = default);
   }
 
@@ -120,9 +144,10 @@ namespace FluentDocker.Drivers
     public LogStreamSource Source { get; set; }
 
     /// <summary>The log line (without the trailing newline).</summary>
-    public string Line { get; set; }
+    public string? Line { get; set; }
 
     /// <summary>Optional timestamp when timestamps are requested in the stream config.</summary>
+    /// <remarks>When populated, the value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime? Timestamp { get; set; }
   }
 
@@ -140,18 +165,18 @@ namespace FluentDocker.Drivers
     public bool Timestamps { get; set; }
 
     /// <summary>Show logs since timestamp (RFC3339 or relative).</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
 
     /// <summary>Show logs until timestamp.</summary>
-    public string Until { get; set; }
+    public string? Until { get; set; }
 
     /// <summary>Number of lines to show from end (null = all).</summary>
     public int? Tail { get; set; }
 
-    /// <summary>Show stdout.</summary>
+    /// <summary>Show stdout; Docker CLI filters this client-side.</summary>
     public bool Stdout { get; set; } = true;
 
-    /// <summary>Show stderr.</summary>
+    /// <summary>Show stderr; Docker CLI filters this client-side.</summary>
     public bool Stderr { get; set; } = true;
 
     /// <summary>Show extra details.</summary>
@@ -164,10 +189,10 @@ namespace FluentDocker.Drivers
   public class StreamEventsConfig
   {
     /// <summary>Show events since timestamp.</summary>
-    public string Since { get; set; }
+    public string? Since { get; set; }
 
     /// <summary>Show events until timestamp.</summary>
-    public string Until { get; set; }
+    public string? Until { get; set; }
 
     /// <summary>Filter events by type (container, image, volume, network, daemon).</summary>
     public List<string> Types { get; set; } = [];
@@ -199,28 +224,48 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class AttachConfig
   {
-    /// <summary>Attach to stdout.</summary>
+    /// <summary>
+    /// Attach to stdout. Kept alongside <see cref="NoStdout"/> for Docker CLI parity;
+    /// if both conflict, adapters fail fast rather than guessing.
+    /// </summary>
     public bool Stdout { get; set; } = true;
 
     /// <summary>Attach to stderr.</summary>
     public bool Stderr { get; set; } = true;
 
-    /// <summary>Attach to stdin.</summary>
-    public bool Stdin { get; set; }
+    /// <summary>
+    /// Attach to stdin. Null uses the driver's default: the Docker CLI attaches stdin
+    /// (matching <c>docker attach</c>, which passes <c>--no-stdin</c> only when false);
+    /// the Docker API driver does not support interactive stdin and fails fast on true.
+    /// </summary>
+    public bool? Stdin { get; set; }
 
-    /// <summary>Allocate a pseudo-TTY.</summary>
+    /// <summary>Allocate a pseudo-TTY. Docker CLI attach cannot change this and fails fast when true.</summary>
     public bool Tty { get; set; }
 
-    /// <summary>Key sequence for detaching.</summary>
-    public string DetachKeys { get; set; }
+    /// <summary>
+    /// Key sequence for detaching. The Docker API driver does not support custom detach
+    /// keys and fails fast when set. This is an adapter-specific Docker/Podman CLI option.
+    /// </summary>
+    public string? DetachKeys { get; set; }
 
-    /// <summary>Do not attach stdout.</summary>
+    /// <summary>
+    /// Do not attach stdout. This is the Docker CLI inverse of <see cref="Stdout"/> and is
+    /// kept for binary compatibility; Docker CLI attach cannot suppress this and fails fast
+    /// when true; the Docker API driver also fails fast when true.
+    /// </summary>
     public bool NoStdout { get; set; }
 
-    /// <summary>Do not attach stderr.</summary>
+    /// <summary>
+    /// Do not attach stderr. Docker CLI attach cannot suppress this and fails fast when true;
+    /// the Docker API driver also fails fast when true.
+    /// </summary>
     public bool NoStderr { get; set; }
 
-    /// <summary>Proxy all received signals.</summary>
+    /// <summary>
+    /// Proxy all received signals. This is a Docker/Podman CLI option; non-CLI adapters
+    /// may ignore it or fail fast when signal proxying cannot be represented.
+    /// </summary>
     public bool SigProxy { get; set; } = true;
   }
 
@@ -234,28 +279,29 @@ namespace FluentDocker.Drivers
   public class ContainerEvent
   {
     /// <summary>Event type (container, image, network, volume, daemon).</summary>
-    public string Type { get; set; }
+    public string? Type { get; set; }
 
     /// <summary>Event action (create, start, stop, die, etc.).</summary>
-    public string Action { get; set; }
+    public string? Action { get; set; }
 
     /// <summary>Actor ID (container ID, image ID, etc.).</summary>
-    public string ActorId { get; set; }
+    public string? ActorId { get; set; }
 
     /// <summary>Actor attributes.</summary>
     public Dictionary<string, string> ActorAttributes { get; set; } = [];
 
     /// <summary>Timestamp of the event.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime Timestamp { get; set; }
 
     /// <summary>Unix timestamp (nanoseconds).</summary>
     public long TimeNano { get; set; }
 
     /// <summary>Scope of the event (local, swarm).</summary>
-    public string Scope { get; set; }
+    public string? Scope { get; set; }
 
     /// <summary>Raw JSON string of the event.</summary>
-    public string RawJson { get; set; }
+    public string? RawJson { get; set; }
   }
 
   /// <summary>
@@ -264,10 +310,10 @@ namespace FluentDocker.Drivers
   public class ContainerStats
   {
     /// <summary>Container ID.</summary>
-    public string ContainerId { get; set; }
+    public string? ContainerId { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>CPU usage percentage.</summary>
     public double CpuPercentage { get; set; }
@@ -297,53 +343,127 @@ namespace FluentDocker.Drivers
     public int Pids { get; set; }
 
     /// <summary>Timestamp of the stats.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime Timestamp { get; set; }
 
     /// <summary>Raw JSON string of stats.</summary>
-    public string RawJson { get; set; }
+    public string? RawJson { get; set; }
   }
 
   /// <summary>
   /// Result of attach operation.
   /// </summary>
+  /// <remarks>
+  /// Callers must drain both <see cref="OutputStream"/> and <see cref="ErrorStream"/>
+  /// when they are non-null; leaving either pipe unread can block the attached process
+  /// once the OS pipe buffer fills.
+  /// </remarks>
   public class AttachResult : IAsyncDisposable
   {
+    // ponytail: CLI attach owns a Process while API attach only owns streams; move this split in a future release.
     /// <summary>Input stream (to send data to container).</summary>
-    public Stream InputStream { get; set; }
+    public Stream? InputStream { get; set; }
 
     /// <summary>Output stream (to read data from container).</summary>
-    public Stream OutputStream { get; set; }
+    public Stream? OutputStream { get; set; }
 
     /// <summary>Error stream (to read error data from container).</summary>
-    public Stream ErrorStream { get; set; }
+    public Stream? ErrorStream { get; set; }
 
-    /// <summary>Whether the attach is still connected.</summary>
+    /// <summary>
+    /// Whether the attach handle is considered connected. CLI drivers set this to true after
+    /// process start and false on dispose; it is not a live daemon-side health probe.
+    /// </summary>
     public bool IsConnected { get; set; }
 
     /// <summary>The underlying process for CLI-based attach (used for cleanup).</summary>
-    internal Process AttachedProcess { get; set; }
+    internal Process? AttachedProcess { get; set; }
+
+    /// <summary>Optional logger for attach cleanup failures.</summary>
+    public ILogger? Logger { get; set; }
+
+    /// <summary>
+    /// The exception from the best-effort process kill during dispose, if any.
+    /// Populated instead of throwing from DisposeAsync; callers may inspect it to detect a kill failure.
+    /// </summary>
+    public Exception? KillError { get; private set; }
+
+    /// <summary>
+    /// The aggregate exception from failing to dispose the attach streams, if any. Populated
+    /// instead of throwing from <see cref="DisposeAsync"/> — an <see cref="System.IO.IOException"/>
+    /// closing stdin of an already-exited process is an everyday, benign trigger and must never
+    /// replace the body's original exception under <c>await using</c>.
+    /// </summary>
+    public Exception? StreamDisposeError { get; private set; }
+
+    private int _disposed;
 
     /// <summary>Disposes the attach connection.</summary>
     public ValueTask DisposeAsync()
     {
-      InputStream?.Dispose();
-      OutputStream?.Dispose();
-      ErrorStream?.Dispose();
+      if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        return ValueTask.CompletedTask;
+
+      var disposeErrors = new List<Exception>();
+      DisposeStream(InputStream, disposeErrors, Logger);
+      DisposeStream(OutputStream, disposeErrors, Logger);
+      DisposeStream(ErrorStream, disposeErrors, Logger);
       IsConnected = false;
 
-      if (AttachedProcess != null && !AttachedProcess.HasExited)
+      // Always reclaim the process even if a stream Dispose() threw — reclaiming the
+      // handle is the whole point of this disposal path.
+      if (AttachedProcess != null)
       {
+        // Tree-kill the attach process (it may have spawned the engine's attach helper),
+        // then always dispose the Process handle — even when it has already exited — so the
+        // underlying OS handle is never leaked.
         try
-        { AttachedProcess.Kill(); }
-        catch (Exception ex) { NullLogger.Instance.LogWarning(ex, "Process kill failed"); }
-        AttachedProcess.Dispose();
+        {
+          if (!AttachedProcess.HasExited)
+            AttachedProcess.Kill(entireProcessTree: true);
+        }
+        catch (Exception ex)
+        {
+          // ponytail: kill failure surfaced via KillError + optional log; wire a logger into the factories later if richer diagnostics are needed.
+          Logger?.LogWarning(ex, "Process kill failed");
+          KillError = ex;
+        }
+        finally
+        {
+          try
+          {
+            AttachedProcess.Dispose();
+          }
+          catch (Exception ex)
+          {
+            Logger?.LogWarning(ex, "Process dispose failed");
+          }
+        }
       }
+
+      // Never throw from DisposeAsync: a stream-dispose failure is captured into StreamDisposeError
+      // (inspectable by callers) rather than surfaced, so it cannot mask the original exception of
+      // an `await using` block.
+      if (disposeErrors.Count > 0)
+        StreamDisposeError = new AggregateException("One or more attach streams failed to dispose.", disposeErrors);
 
       GC.SuppressFinalize(this);
       return ValueTask.CompletedTask;
+    }
+
+    private static void DisposeStream(Stream? stream, List<Exception> disposeErrors, ILogger? logger)
+    {
+      try
+      {
+        stream?.Dispose();
+      }
+      catch (Exception ex)
+      {
+        logger?.LogWarning(ex, "Attach stream disposal failed");
+        disposeErrors.Add(ex);
+      }
     }
   }
 
   #endregion
 }
-

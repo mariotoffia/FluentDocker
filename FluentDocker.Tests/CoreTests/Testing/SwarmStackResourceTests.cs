@@ -41,11 +41,91 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       await resource.InitializeAsync(TestContext.Current.CancellationToken);
       Assert.True(resource.IsInitialized);
-      Assert.Equal("my-stack", resource.StackName);
+      // Session-scoped by default (parallel-run collision guard): starts with the caller's name.
+      Assert.StartsWith("my-stack", resource.StackName);
       Assert.NotNull(resource.DeployResult);
 
       await resource.DisposeAsync();
       Assert.False(resource.IsInitialized);
+    }
+
+    [Fact]
+    public void StackName_IsSessionScoped_ByDefault()
+    {
+      var options = new DockerResourceOptions { SessionId = "abcdef1234567890" };
+      var resource = new SwarmStackResource(
+          Kernel, new StackDeployConfig { StackName = "app" }, options);
+
+      // Default (EnableSessionLabels=true) appends a deterministic session suffix so
+      // parallel jobs deploying "app" cannot tear down each other's live stack.
+      Assert.Equal("app-abcdef123456", resource.StackName);
+    }
+
+    [Fact]
+    public void Constructor_NeverMutatesCallerConfig_NoDoubleScoping()
+    {
+      // A shared (e.g. static readonly) config used by two fixtures, or fixture re-init,
+      // must not have its StackName session-scoped in place: the second resource would
+      // scope the already-scoped name and teardown would target the wrong stack.
+      var options = new DockerResourceOptions { SessionId = "abcdef1234567890" };
+      var shared = new StackDeployConfig { StackName = "app" };
+
+      var first = new SwarmStackResource(Kernel, shared, options);
+      var second = new SwarmStackResource(Kernel, shared, options);
+
+      Assert.Equal("app", shared.StackName);
+      Assert.Equal("app-abcdef123456", first.StackName);
+      Assert.Equal("app-abcdef123456", second.StackName);
+    }
+
+    [Fact]
+    public async Task Deploy_UsesScopedName_WithoutTouchingCallerConfig()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = true,
+        SupportsStacks = true
+      });
+      MockPack.EnableStackDriver();
+      MockPack.SetupStackRemove();
+
+      StackDeployConfig observed = null;
+      MockPack.StackDriver
+          .Setup(d => d.DeployAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<StackDeployConfig>(),
+              It.IsAny<CancellationToken>()))
+          .Callback<DriverContext, StackDeployConfig, CancellationToken>((_, cfg, _) => observed = cfg)
+          .ReturnsAsync((DriverContext _, StackDeployConfig cfg, CancellationToken _) =>
+              CommandResponse<StackDeployResult>.Ok(new StackDeployResult { StackName = cfg.StackName }));
+
+      var options = new DockerResourceOptions { SessionId = "abcdef1234567890" };
+      var caller = new StackDeployConfig
+      {
+        StackName = "app",
+        ComposeFiles = { "docker-compose.yml" }
+      };
+      var resource = new SwarmStackResource(Kernel, caller, options);
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      Assert.NotNull(observed);
+      Assert.NotSame(caller, observed);
+      Assert.Equal("app-abcdef123456", observed.StackName);
+      Assert.Equal(caller.ComposeFiles, observed.ComposeFiles);
+      Assert.Equal("app", caller.StackName);
+
+      await resource.DisposeAsync();
+    }
+
+    [Fact]
+    public void StackName_IsExact_WhenSessionLabelsDisabled()
+    {
+      var options = new DockerResourceOptions { SessionId = "abcdef1234567890", EnableSessionLabels = false };
+      var resource = new SwarmStackResource(
+          Kernel, new StackDeployConfig { StackName = "app" }, options);
+
+      Assert.Equal("app", resource.StackName);
     }
 
     [Fact]
@@ -60,8 +140,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new StackDeployConfig { StackName = "test" };
       var resource = new SwarmStackResource(Kernel, config);
 
-      await Assert.ThrowsAsync<CapabilityNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<CapabilityNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
@@ -77,8 +158,9 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new StackDeployConfig { StackName = "test" };
       var resource = new SwarmStackResource(Kernel, config);
 
-      await Assert.ThrowsAsync<InterfaceNotSupportedException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+      Assert.IsType<InterfaceNotSupportedException>(ex.InnerException);
     }
 
     [Fact]
@@ -102,9 +184,10 @@ namespace FluentDocker.Tests.CoreTests.Testing
       var config = new StackDeployConfig { StackName = "fail-stack" };
       var resource = new SwarmStackResource(Kernel, config);
 
-      var ex = await Assert.ThrowsAsync<FluentDockerException>(
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
           () => resource.InitializeAsync(TestContext.Current.CancellationToken));
-      Assert.Contains("fail-stack", ex.Message);
+      Assert.IsType<FluentDockerException>(ex.InnerException);
+      Assert.Contains("fail-stack", ex.InnerException.Message);
     }
 
     [Fact]
@@ -232,7 +315,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
-    public async Task TeardownAsync_RemoveFailure_ForceRemoveHandlesIt()
+    [Trait("Category", "Unit")]
+    public async Task TeardownAsync_RemoveFailure_ForceRemoveHandlesStackNotFound()
     {
       MockPack.SetCapabilities(new DriverCapabilities
       {
@@ -242,20 +326,20 @@ namespace FluentDocker.Tests.CoreTests.Testing
       MockPack.EnableStackDriver();
       MockPack.SetupStackDeploy("rm-fail");
 
-      // RemoveAsync returns failure — triggers ForceRemoveAsync path
+      // RemoveAsync fails once, then force-remove sees an already-gone stack.
       MockPack.StackDriver
-          .Setup(d => d.RemoveAsync(
+          .SetupSequence(d => d.RemoveAsync(
               It.IsAny<DriverContext>(),
               It.IsAny<string[]>(),
               It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<Unit>.Fail("remove failed"));
+          .ReturnsAsync(CommandResponse<Unit>.Fail("remove failed", ErrorCodes.Stack.RemoveFailed))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("not found", ErrorCodes.Stack.NotFound));
 
       var config = new StackDeployConfig { StackName = "rm-fail" };
       var resource = new SwarmStackResource(Kernel, config,
           new DockerResourceOptions { ForceRemoveOnDispose = true });
       await resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      // DisposeAsync should not throw — ForceRemoveAsync is best-effort
       await resource.DisposeAsync();
       Assert.False(resource.IsInitialized);
 
@@ -264,10 +348,42 @@ namespace FluentDocker.Tests.CoreTests.Testing
     }
 
     [Fact]
+    [Trait("Category", "Unit")]
+    public async Task DisposeAsync_RemoveFailure_ForceRemoveFailureThrows()
+    {
+      MockPack.SetCapabilities(new DriverCapabilities
+      {
+        SupportsContainers = true,
+        SupportsStacks = true
+      });
+      MockPack.EnableStackDriver();
+      MockPack.SetupStackDeploy("rm-fail-hard");
+
+      MockPack.StackDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string[]>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("remove failed", ErrorCodes.Stack.RemoveFailed));
+
+      var config = new StackDeployConfig { StackName = "rm-fail-hard" };
+      var resource = new SwarmStackResource(Kernel, config,
+          new DockerResourceOptions { ForceRemoveOnDispose = true });
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await Assert.ThrowsAsync<FluentDockerException>(
+          () => resource.DisposeAsync().AsTask());
+
+      Assert.NotNull(resource.LastTeardownDiagnostics);
+      Assert.NotNull(resource.LastTeardownDiagnostics.ForceRemoveException);
+      Assert.IsType<DriverException>(resource.LastTeardownDiagnostics.ForceRemoveException);
+    }
+
+    [Fact]
     public void Constructor_NullKernel_Throws()
     {
       Assert.Throws<ArgumentNullException>(
-          () => new SwarmStackResource(null, new StackDeployConfig { StackName = "x" }));
+          () => new SwarmStackResource(null!, new StackDeployConfig { StackName = "x" }));
     }
 
     [Fact]

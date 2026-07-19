@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# coverage-threshold
+# Coverage regression gate (finding M22). Parses the coverlet OpenCover report
+# produced by `--collect:"XPlat Code Coverage"` (see coverletArgs.runsettings) and
+# FAILS if total line- or branch-coverage drops below a conservative floor.
+#
+# The XPlat code-coverage data collector does NOT support build-failing thresholds
+# in its runsettings <Configuration> (that is a coverlet.msbuild feature). To keep
+# the existing collection mechanism we enforce the threshold here, after collection.
+#
+# Thresholds are a regression FLOOR, not an aspirational target: measured coverage
+# on 2026-06-30 was line=82% / branch=74.83% (Debug/net10 locally). CI enforces on
+# Release/Ubuntu, which can differ by a point or two, so the floors below keep a few
+# points of headroom. Raise them (never above current) as coverage improves.
+#
+# Usage:
+#   scripts/coverage-threshold [REPORT_DIR] [LINE_MIN] [BRANCH_MIN]
+# Defaults:
+#   REPORT_DIR = .out/coverage   (searched recursively for coverage.opencover.xml)
+#   LINE_MIN   = 78
+#   BRANCH_MIN = 71
+# Env overrides: COVERAGE_REPORT_DIR, COVERAGE_LINE_MIN, COVERAGE_BRANCH_MIN
+#
+# Portable to macOS bash 3.2 (no globstar/mapfile) — uses find + sort by mtime.
+
+set -eu
+
+REPORT_DIR="${1:-${COVERAGE_REPORT_DIR:-.out/coverage}}"
+LINE_MIN="${2:-${COVERAGE_LINE_MIN:-78}}"
+BRANCH_MIN="${3:-${COVERAGE_BRANCH_MIN:-71}}"
+
+# Resolve the newest coverage.opencover.xml under REPORT_DIR. `find -printf` is not on
+# BSD/macOS, so list with `ls -t` (newest first) over the found paths.
+report="$(find "$REPORT_DIR" -name 'coverage.opencover.xml' -print 2>/dev/null \
+            | xargs -r ls -t 2>/dev/null | head -n1 || true)"
+# `xargs -r` is GNU-only; fall back if it produced nothing but files exist.
+if [ -z "$report" ]; then
+  report="$(find "$REPORT_DIR" -name 'coverage.opencover.xml' 2>/dev/null | head -n1 || true)"
+fi
+
+if [ -z "$report" ]; then
+  echo "coverage-threshold: no coverage.opencover.xml found under '$REPORT_DIR'." >&2
+  echo "coverage-threshold: run 'make coverage' (or the CI coverage step) first." >&2
+  exit 2
+fi
+
+echo "coverage-threshold: using report '$report'"
+
+# OpenCover emits a top-level <Summary ... sequenceCoverage="NN.NN" branchCoverage="NN.NN" .../>.
+# sequenceCoverage == line coverage. Pull the FIRST Summary element (the overall one).
+summary_line="$(grep -o '<Summary[^>]*>' "$report" | head -n1)"
+
+if [ -z "$summary_line" ]; then
+  echo "coverage-threshold: could not find a <Summary> element in '$report'." >&2
+  exit 2
+fi
+
+extract() { # extract <attr> from $summary_line
+  echo "$summary_line" | grep -o "$1=\"[0-9.]*\"" | head -n1 | grep -o '[0-9.]*'
+}
+
+LINE="$(extract sequenceCoverage)"
+BRANCH="$(extract branchCoverage)"
+
+if [ -z "$LINE" ] || [ -z "$BRANCH" ]; then
+  echo "coverage-threshold: failed to parse coverage from Summary: $summary_line" >&2
+  exit 2
+fi
+
+echo "coverage-threshold: line=${LINE}% (floor ${LINE_MIN}%), branch=${BRANCH}% (floor ${BRANCH_MIN}%)"
+
+fail=0
+# awk for float comparison (POSIX shell has no float arithmetic).
+if awk "BEGIN{exit !($LINE < $LINE_MIN)}"; then
+  echo "::error::Line coverage ${LINE}% is below the ${LINE_MIN}% floor (regression)." >&2
+  fail=1
+fi
+if awk "BEGIN{exit !($BRANCH < $BRANCH_MIN)}"; then
+  echo "::error::Branch coverage ${BRANCH}% is below the ${BRANCH_MIN}% floor (regression)." >&2
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "coverage-threshold: FAILED — coverage dropped below the floor." >&2
+  exit 1
+fi
+
+echo "coverage-threshold: PASSED."

@@ -141,7 +141,13 @@ namespace FluentDocker.Tests.Mocks
     {
       if (!_initialized)
         throw new InvalidOperationException("MockDriverPack not initialized.");
-      return _drivers.TryGetValue(interfaceType, out implementation);
+      if (_drivers.TryGetValue(interfaceType, out var found))
+      {
+        implementation = found;
+        return true;
+      }
+      implementation = null!; // interface declares a non-nullable out
+      return false;
     }
 
     /// <inheritdoc />
@@ -150,34 +156,6 @@ namespace FluentDocker.Tests.Mocks
       if (!_initialized)
         throw new InvalidOperationException("MockDriverPack not initialized.");
       return _drivers.Keys.ToList().AsReadOnly();
-    }
-
-    #endregion
-
-    #region ISysCtl Type-Based Resolution
-
-    /// <inheritdoc />
-    public object SysCtl(string driverId, Type interfaceType)
-    {
-      if (!_initialized)
-        throw new InvalidOperationException("MockDriverPack not initialized. Call InitializeAsync first.");
-      if (_drivers.TryGetValue(interfaceType, out var driver))
-        return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-    }
-
-    /// <inheritdoc />
-    public bool TrySysCtl<T>(string driverId, out T instance) where T : class
-    {
-      if (!_initialized)
-        throw new InvalidOperationException("MockDriverPack not initialized. Call InitializeAsync first.");
-      if (_drivers.TryGetValue(typeof(T), out var driver))
-      {
-        instance = (T)driver;
-        return true;
-      }
-      instance = null;
-      return false;
     }
 
     #endregion
@@ -204,6 +182,18 @@ namespace FluentDocker.Tests.Mocks
       SystemDriver
           .Setup(d => d.PingAsync(It.IsAny<DriverContext>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
+
+      // Unmatched inspects fail with NotFound instead of Moq's default null Task,
+      // which would surface as an opaque NullReferenceException in the SUT.
+      ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync((DriverContext _, string id, CancellationToken _) =>
+              FluentDocker.Model.Drivers.CommandResponse<Container>.Fail(
+                  $"No such container: {id}",
+                  FluentDocker.Model.Drivers.ErrorCodes.Container.NotFound));
     }
 
     #region Helper Setup Methods
@@ -284,14 +274,14 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <summary>
-    /// Sets up ContainerDriver.InspectAsync to return a running container.
+    /// Explicitly sets up ContainerDriver.InspectAsync for one container ID.
     /// </summary>
     public MockDriverPack SetupContainerInspect(string containerId = "test-container-123", bool running = true)
     {
       ContainerDriver
           .Setup(d => d.InspectAsync(
               It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
+              containerId,
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Container>.Ok(new Container
           {
@@ -387,7 +377,7 @@ namespace FluentDocker.Tests.Mocks
       NetworkDriver
           .Setup(d => d.InspectAsync(
               It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
+              networkId,
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Network>.Ok(new Network
           {
@@ -436,63 +426,13 @@ namespace FluentDocker.Tests.Mocks
       VolumeDriver
           .Setup(d => d.InspectAsync(
               It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
+              volumeName,
               It.IsAny<CancellationToken>()))
           .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Volume>.Ok(new Volume
           {
             Name = volumeName,
             Driver = "local"
           }));
-      return this;
-    }
-
-    /// <summary>
-    /// Sets up ImageDriver.PullAsync to return success.
-    /// </summary>
-    public MockDriverPack SetupImagePull()
-    {
-      ImageDriver
-          .Setup(d => d.PullAsync(
-              It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
-              It.IsAny<string>(),
-              It.IsAny<IProgress<ImagePullProgress>>(),
-              It.IsAny<CancellationToken>()))
-          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Unit>.Ok(Unit.Default));
-      return this;
-    }
-
-    /// <summary>
-    /// Sets up ImageDriver.InspectAsync to return image details.
-    /// </summary>
-    public MockDriverPack SetupImageInspect(string imageId = "sha256:abc123")
-    {
-      ImageDriver
-          .Setup(d => d.InspectAsync(
-              It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
-              It.IsAny<CancellationToken>()))
-          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<Image>.Ok(new Image
-          {
-            Id = imageId
-          }));
-      return this;
-    }
-
-    /// <summary>
-    /// Sets up ImageDriver.RemoveAsync to return success.
-    /// </summary>
-    public MockDriverPack SetupImageRemove()
-    {
-      ImageDriver
-          .Setup(d => d.RemoveAsync(
-              It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
-              It.IsAny<bool>(),
-              It.IsAny<bool>(),
-              It.IsAny<CancellationToken>()))
-          .ReturnsAsync(FluentDocker.Model.Drivers.CommandResponse<ImageRemoveResult>.Ok(
-              new ImageRemoveResult()));
       return this;
     }
 

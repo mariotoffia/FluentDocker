@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Podman;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Drivers;
@@ -18,7 +19,7 @@ namespace FluentDocker.Tests.CoreTests.Service
   /// Unit tests for PodService (Podman pod lifecycle management).
   /// </summary>
   [Trait("Category", "Unit")]
-  public class PodServiceTests
+  public partial class PodServiceTests
   {
     private static async Task<(FluentDockerKernel kernel, MockDriverPack mockPack, Mock<IPodmanPodDriver> podDriver)>
         CreateWithPodDriverAsync()
@@ -92,7 +93,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var podId = "pod-abc123";
 
       // Act
-      var service = new PodService(kernel, "podman", podId, null);
+      var service = new PodService(kernel, "podman", podId, null!);
 
       // Assert — when podName is null, Name falls back to podId
       Assert.Equal(podId, service.Name);
@@ -153,7 +154,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task StartAsync_Failure_StateRemainsStopped()
+    public async Task StartAsync_Failure_ThrowsDriverException()
     {
       // Arrange
       var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
@@ -169,11 +170,11 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       try
       {
-        // Act
-        await service.StartAsync(TestContext.Current.CancellationToken);
-
-        // Assert — state should remain Stopped since driver reported failure
-        Assert.Equal(ServiceRunningState.Stopped, service.State);
+        // Act & Assert — failures must surface, not be silently swallowed.
+        var ex = await Assert.ThrowsAsync<DriverException>(
+            () => service.StartAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(ErrorCodes.Pod.StartFailed, ex.ErrorCode);
+        Assert.Contains("my-pod", ex.Message);
       }
       finally
       {
@@ -228,7 +229,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public async Task PauseAsync_ThrowsNotSupportedException()
+    public async Task PauseAsync_ThrowsFluentDockerNotSupportedException()
     {
       // Arrange
       var (kernel, _, _) = await CreateWithPodDriverAsync();
@@ -237,7 +238,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       try
       {
         // Act & Assert
-        await Assert.ThrowsAsync<NotSupportedException>(
+        await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
             () => service.PauseAsync(TestContext.Current.CancellationToken));
       }
       finally
@@ -281,6 +282,60 @@ namespace FluentDocker.Tests.CoreTests.Service
       }
     }
 
+    [Fact]
+    public async Task StopAsync_Failure_ThrowsDriverException()
+    {
+      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
+
+      podDriver
+          .Setup(d => d.StopPodAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<int?>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("stop boom"));
+
+      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
+
+      try
+      {
+        var ex = await Assert.ThrowsAsync<DriverException>(
+            () => service.StopAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(ErrorCodes.Pod.StopFailed, ex.ErrorCode);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    public async Task RemoveAsync_Failure_ThrowsDriverException()
+    {
+      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
+
+      podDriver
+          .Setup(d => d.RemovePodAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<bool>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("remove boom"));
+
+      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
+
+      try
+      {
+        var ex = await Assert.ThrowsAsync<DriverException>(
+            () => service.RemoveAsync(force: true, TestContext.Current.CancellationToken));
+        Assert.Equal(ErrorCodes.Pod.RemoveFailed, ex.ErrorCode);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
     #endregion
 
     #region Hook Tests
@@ -314,6 +369,75 @@ namespace FluentDocker.Tests.CoreTests.Service
       kernel.Dispose();
     }
 
+    [Fact]
+    public async Task StartAsync_Success_FiresRegisteredRunningHook()
+    {
+      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
+
+      podDriver
+          .Setup(d => d.StartPodAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+
+      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
+      var runningFired = false;
+      var stoppedFired = false;
+      service.AddHook(ServiceRunningState.Running, _ => { runningFired = true; return Task.CompletedTask; });
+      service.AddHook(ServiceRunningState.Stopped, _ => { stoppedFired = true; return Task.CompletedTask; });
+
+      try
+      {
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(runningFired);
+        // State-accurate: the Stopped hook must NOT fire on a Start transition.
+        Assert.False(stoppedFired);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task AddHook_SameUniqueName_FiresOnceAndCanBeRemoved()
+    {
+      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
+
+      podDriver
+          .Setup(d => d.StartPodAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<string>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+
+      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
+      var count = 0;
+
+      // Re-registering the same uniqueName must REPLACE, not append (no double-fire).
+      service.AddHook(ServiceRunningState.Running, _ => { count++; return Task.CompletedTask; }, "h1");
+      service.AddHook(ServiceRunningState.Running, _ => { count++; return Task.CompletedTask; }, "h1");
+
+      try
+      {
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, count);
+
+        // RemoveHook by name removes exactly that hook so it no longer fires.
+        service.RemoveHook("h1");
+        count = 0;
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(0, count);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
     #endregion
 
     #region StateChange Event Tests
@@ -334,7 +458,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var service = new PodService(kernel, "docker", "pod-abc123", "my-pod");
 
       ServiceRunningState? capturedState = null;
-      object capturedSender = null;
+      object? capturedSender = null;
       service.StateChange += (sender, args) =>
       {
         capturedSender = sender;
@@ -359,104 +483,6 @@ namespace FluentDocker.Tests.CoreTests.Service
 
     #endregion
 
-    #region Dispose Tests
 
-    [Fact]
-    public async Task DisposeAsync_WithRemoveOnDispose_RemovesPod()
-    {
-      // Arrange
-      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
-
-      podDriver
-          .Setup(d => d.RemovePodAsync(
-              It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
-              It.IsAny<bool>(),
-              It.IsAny<CancellationToken>()))
-          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
-
-      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod",
-          removeOnDispose: true);
-
-      try
-      {
-        // Act
-        await service.DisposeAsync();
-
-        // Assert — RemovePodAsync should have been called with force: true
-        podDriver.Verify(d => d.RemovePodAsync(
-            It.IsAny<DriverContext>(),
-            It.Is<string>(s => s == "my-pod"),
-            It.Is<bool>(f => f == true),
-            It.IsAny<CancellationToken>()), Times.Once);
-
-        Assert.Equal(ServiceRunningState.Removed, service.State);
-      }
-      finally
-      {
-        kernel.Dispose();
-      }
-    }
-
-    [Fact]
-    public async Task DisposeAsync_WithoutRemoveOnDispose_DoesNotRemovePod()
-    {
-      // Arrange
-      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
-
-      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod",
-          removeOnDispose: false);
-
-      try
-      {
-        // Act
-        await service.DisposeAsync();
-
-        // Assert — RemovePodAsync should NOT have been called
-        podDriver.Verify(d => d.RemovePodAsync(
-            It.IsAny<DriverContext>(),
-            It.IsAny<string>(),
-            It.IsAny<bool>(),
-            It.IsAny<CancellationToken>()), Times.Never);
-
-        // State should remain Stopped (not Removed)
-        Assert.Equal(ServiceRunningState.Stopped, service.State);
-      }
-      finally
-      {
-        kernel.Dispose();
-      }
-    }
-
-    [Fact]
-    public async Task DisposeAsync_RemoveFailure_DoesNotThrow()
-    {
-      // Arrange
-      var (kernel, _, podDriver) = await CreateWithPodDriverAsync();
-
-      podDriver
-          .Setup(d => d.RemovePodAsync(
-              It.IsAny<DriverContext>(),
-              It.IsAny<string>(),
-              It.IsAny<bool>(),
-              It.IsAny<CancellationToken>()))
-          .ThrowsAsync(new InvalidOperationException("pod removal failed"));
-
-      var service = new PodService(kernel, "docker", "pod-abc123", "my-pod",
-          removeOnDispose: true);
-
-      try
-      {
-        // Act & Assert — DisposeAsync should swallow the exception
-        var exception = await Record.ExceptionAsync(() => service.DisposeAsync().AsTask());
-        Assert.Null(exception);
-      }
-      finally
-      {
-        kernel.Dispose();
-      }
-    }
-
-    #endregion
   }
 }

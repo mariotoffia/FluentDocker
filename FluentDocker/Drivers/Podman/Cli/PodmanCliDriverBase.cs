@@ -1,11 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentDocker.Drivers;
+using System.Linq;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Common;
@@ -19,17 +17,21 @@ namespace FluentDocker.Drivers.Podman.Cli
   /// Base class for Podman CLI driver components.
   /// Provides shared command execution functionality.
   /// </summary>
-  public abstract class PodmanCliDriverBase
+  public abstract partial class PodmanCliDriverBase
   {
     /// <summary>
     /// The Podman command executable name.
     /// </summary>
     protected const string PodmanCommand = "podman";
 
+    private static readonly ConcurrentDictionary<string, byte> CertificateWarnings = new();
+
+    private static readonly ConcurrentDictionary<string, byte> VerifyTlsWarnings = new();
+
     /// <summary>
     /// The driver context.
     /// </summary>
-    protected DriverContext Context { get; private set; }
+    protected DriverContext Context { get; private set; } = null!;
 
     /// <summary>
     /// Logger for this driver component. Category equals the concrete derived type's FQN.
@@ -39,7 +41,14 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <summary>
     /// The binary resolver for resolving Podman command paths.
     /// </summary>
-    protected IPodmanBinaryResolver BinaryResolver { get; private set; }
+    protected IPodmanBinaryResolver BinaryResolver { get; private set; } = null!;
+
+    /// <summary>
+    /// Null-safe enumeration source. The fluent builders null out empty collections before
+    /// calling the driver, so every collection walked while building args must tolerate a null.
+    /// Routing loops through this one helper fixes the NRE once for every argument builders emit.
+    /// </summary>
+    protected static IEnumerable<T> OrEmpty<T>(IEnumerable<T> source) => source ?? Enumerable.Empty<T>();
 
     /// <summary>
     /// Creates a new instance without a binary resolver.
@@ -79,244 +88,70 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     /// <summary>
     /// Builds global CLI flags from the driver context.
-    /// Podman uses --url for remote host. TLS certificate flags are not
-    /// supported via the Podman CLI, so <see cref="DriverContext.CertificatePath"/>
-    /// is ignored.
+    /// Podman uses --url for the remote host. Docker-style TLS is not expressible via the Podman CLI:
+    /// on a <c>tcp://</c> host, setting <see cref="DriverContext.CertificatePath"/> or
+    /// <see cref="DriverContext.VerifyTls"/><c>=true</c> <b>fails closed</b> with a
+    /// <see cref="DriverException"/> rather than silently connecting in plaintext; on <c>ssh://</c>
+    /// or <c>unix://</c> endpoints those settings are ignored with a one-time warning. Warning
+    /// deduplication is process-wide and keyed by driver/host, so long-lived hosts see each once.
     /// </summary>
     /// <param name="context">The driver context (may be null).</param>
+    /// <param name="logger">Optional logger used for one-time warnings about ignored settings.</param>
     /// <returns>A string of global flags to prepend to Podman commands, or empty string.</returns>
-    public static string BuildGlobalArgs(DriverContext context)
+    public static string BuildGlobalArgs(DriverContext context, ILogger? logger = null)
     {
-      if (context == null || string.IsNullOrEmpty(context.Host))
+      if (context == null)
         return "";
 
-      return $"--url {context.Host}";
+      // Fail closed on tcp://: podman CLI cannot apply Docker-style TLS, so honoring a request for
+      // it by silently connecting in plaintext with no server authentication is a security downgrade.
+      // ssh:// tunnels and unix:// sockets are already secure/local, so ignoring the TLS settings there
+      // is legitimate and only warrants a warning (PDM-MAJ-1).
+      var wantsTls = !string.IsNullOrEmpty(context.CertificatePath) || context.VerifyTls == true;
+      if (wantsTls && !string.IsNullOrEmpty(context.Host) &&
+          context.Host.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase))
+      {
+        throw new DriverException(
+            "Podman CLI cannot apply Docker-style TLS (CertificatePath/VerifyTls) to a tcp:// endpoint; " +
+            "proceeding would connect in plaintext with no server authentication. Use an ssh:// or unix:// " +
+            "endpoint, or clear CertificatePath/VerifyTls if a plaintext tcp:// connection is intended.",
+            ErrorCodes.General.InvalidArgument);
+      }
+
+      if (!string.IsNullOrEmpty(context.CertificatePath))
+        WarnCertificatePathIgnoredOnce(context, logger);
+
+      if (context.VerifyTls.HasValue)
+        WarnVerifyTlsIgnoredOnce(context, logger);
+
+      if (string.IsNullOrEmpty(context.Host))
+        return "";
+
+      return $"--url {QuoteArgumentIfNeeded(context.Host)}";
     }
 
-    #endregion
-
-    #region Command Execution
-
-    /// <summary>
-    /// Resolves the binary info for the Podman command, extracting
-    /// the binary path and sudo configuration separately for safe execution.
-    /// </summary>
-    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
+    private static void WarnCertificatePathIgnoredOnce(DriverContext context, ILogger? logger)
     {
-      if (BinaryResolver == null)
-        return (PodmanCommand, SudoMechanism.None, null);
+      if (logger == null)
+        return;
 
-      var binary = BinaryResolver.Resolve(PodmanCommand);
-      return (binary.FqPath, binary.Sudo, binary.SudoPassword);
+      // WarnCertificatePathIgnoredOnce is only called when CertificatePath is non-empty
+      // (guarded by the caller), so the final coalesce operand is non-null.
+      var key = context.DriverId ?? context.Host ?? context.CertificatePath!;
+      if (CertificateWarnings.TryAdd(key, 0))
+        logger.LogWarning(
+            "Podman CLI ignores DriverContext.CertificatePath because podman CLI does not expose Docker-style TLS certificate flags.");
     }
 
-    /// <summary>
-    /// Executes a Podman command asynchronously.
-    /// </summary>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        string arguments, CancellationToken cancellationToken)
+    private static void WarnVerifyTlsIgnoredOnce(DriverContext context, ILogger? logger)
     {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
-    }
+      if (logger == null)
+        return;
 
-    /// <summary>
-    /// Executes a Podman command asynchronously with data piped to stdin.
-    /// </summary>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        string arguments, string stdinData, CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, stdinData, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Executes a process asynchronously using direct stream reading
-    /// to avoid event-based output race conditions.
-    /// Handles sudo by setting the process FileName to "sudo" and passing the
-    /// password via stdin (never on the command line).
-    /// </summary>
-    private static async Task<SimpleCommandResult> ExecuteProcessAsync(
-        string fileName, string arguments,
-        string stdinData,
-        SudoMechanism sudo, string sudoPassword,
-        CancellationToken cancellationToken)
-    {
-      var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(fileName, arguments, sudo, sudoPassword);
-
-      var needsStdin = stdinData != null || passwordForStdin != null;
-
-      Process process = null;
-      try
-      {
-        process = new Process
-        {
-          StartInfo = new ProcessStartInfo
-          {
-            FileName = processFileName,
-            Arguments = processArguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = needsStdin,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-          }
-        };
-
-        process.Start();
-
-        if (needsStdin)
-        {
-          if (passwordForStdin != null)
-            await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
-
-          if (stdinData != null)
-            await process.StandardInput.WriteAsync(stdinData).ConfigureAwait(false);
-
-          process.StandardInput.Close();
-        }
-
-        // Read stdout and stderr concurrently to avoid deadlock
-        // when either pipe buffer fills up.
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-
-        var output = await outputTask.ConfigureAwait(false);
-        var error = await errorTask.ConfigureAwait(false);
-
-        // Ensure process has fully exited and get exit code.
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new SimpleCommandResult
-        {
-          Success = process.ExitCode == 0,
-          Output = output,
-          Error = error,
-          ExitCode = process.ExitCode
-        };
-      }
-      catch (OperationCanceledException)
-      {
-        KillProcessSafely(process, null);
-        throw;
-      }
-      catch (Exception ex)
-      {
-        return new SimpleCommandResult
-        {
-          Success = false,
-          Error = ex.Message,
-          ExitCode = -1
-        };
-      }
-      finally
-      {
-        process?.Dispose();
-      }
-    }
-
-    /// <summary>
-    /// Executes a streaming Podman command asynchronously.
-    /// </summary>
-    protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(
-        string arguments,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-
-      var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
-
-      using var process = new Process
-      {
-        StartInfo = new ProcessStartInfo
-        {
-          FileName = processFileName,
-          Arguments = processArguments,
-          RedirectStandardOutput = true,
-          RedirectStandardError = true,
-          RedirectStandardInput = passwordForStdin != null,
-          UseShellExecute = false,
-          CreateNoWindow = true,
-          StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
-        }
-      };
-
-      process.Start();
-
-      if (passwordForStdin != null)
-      {
-        await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
-        process.StandardInput.Close();
-      }
-
-      var reader = process.StandardOutput;
-
-      try
-      {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-          var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-          if (line == null)
-            break;
-
-          yield return line;
-        }
-      }
-      finally
-      {
-        KillProcessSafely(process, Logger);
-      }
-    }
-
-    /// <summary>
-    /// Starts a long-running attach process with stdin/stdout/stderr redirected.
-    /// </summary>
-    protected AttachResult ExecuteAttachProcess(string arguments)
-    {
-      var (binaryPath, sudo, _) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-
-      var (processFileName, processArguments, _) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, null);
-
-      var process = new Process
-      {
-        StartInfo = new ProcessStartInfo
-        {
-          FileName = processFileName,
-          Arguments = processArguments,
-          RedirectStandardInput = true,
-          RedirectStandardOutput = true,
-          RedirectStandardError = true,
-          UseShellExecute = false,
-          CreateNoWindow = true,
-          StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
-        }
-      };
-
-      process.Start();
-
-      return new AttachResult
-      {
-        InputStream = process.StandardInput.BaseStream,
-        OutputStream = process.StandardOutput.BaseStream,
-        ErrorStream = process.StandardError.BaseStream,
-        IsConnected = true,
-        AttachedProcess = process
-      };
+      var key = context.DriverId ?? context.Host ?? "default";
+      if (VerifyTlsWarnings.TryAdd(key, 0))
+        logger.LogWarning(
+            "Podman CLI ignores DriverContext.VerifyTls because podman CLI has no Docker-style daemon TLS-verify flag; podman's --tls-verify is a per-command registry flag, not a connection setting.");
     }
 
     #endregion
@@ -347,6 +182,27 @@ namespace FluentDocker.Drivers.Podman.Cli
       return CreateErrorContext(Context, operation, result);
     }
 
+    /// <summary>Returns the command's captured stderr if non-empty; otherwise <paramref name="fallback"/>.</summary>
+    protected static string ErrorOrDefault(SimpleCommandResult result, string fallback)
+    {
+      return string.IsNullOrEmpty(result?.Error) ? fallback : result.Error;
+    }
+
+    /// <summary>
+    /// Concatenates buffered stdout then stderr into one string. Ordering is
+    /// <b>stdout-first, then stderr</b> — the two streams are captured into separate
+    /// buffers, so cross-stream chronological interleaving is <b>not</b> preserved
+    /// (a crash line on stderr appears after all stdout, not where it occurred).
+    /// </summary>
+    protected static string MergeOutputAndError(string output, string error)
+    {
+      if (string.IsNullOrEmpty(output))
+        return error ?? string.Empty;
+      if (string.IsNullOrEmpty(error))
+        return output;
+      return output.EndsWith('\n') || error.StartsWith('\n') ? output + error : output + "\n" + error;
+    }
+
     #endregion
 
     #region Process Lifecycle
@@ -356,13 +212,13 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// The password is NEVER placed on the command line — it is returned separately
     /// for writing to stdin.
     /// </summary>
-    private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
-        string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword)
+    private static (string FileName, string Arguments, string? PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string? sudoPassword)
     {
       return sudo switch
       {
-        SudoMechanism.NoPassword => ("sudo", $"{binaryPath} {arguments}", null),
-        SudoMechanism.Password => ("sudo", $"-S {binaryPath} {arguments}", sudoPassword),
+        SudoMechanism.NoPassword => ("sudo", $"-n -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
+        SudoMechanism.Password => ("sudo", $"-S -- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", sudoPassword),
         _ => (binaryPath, arguments, null)
       };
     }
@@ -370,7 +226,7 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <summary>
     /// Safely kills a process if it is still running, suppressing any errors.
     /// </summary>
-    private static void KillProcessSafely(Process process, ILogger logger = null)
+    private static void KillProcessSafely(Process? process, ILogger? logger = null)
     {
       if (process == null)
         return;
@@ -390,24 +246,37 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     #region Argument Quoting
 
-    private static readonly System.Buffers.SearchValues<char> ShellMetaCharacters =
-        System.Buffers.SearchValues.Create([' ', '\t', ';', '&', '|', '>', '<', '"', '\'', '$', '`', '!', '*', '?']);
-
     /// <summary>
-    /// Quotes a command-line argument if it contains shell metacharacters or whitespace.
-    /// Escapes backslashes and double quotes within the argument.
+    /// Quotes a command-line argument if it contains shell metacharacters or whitespace,
+    /// using the shared CommandLineToArgvW-compatible quoting algorithm.
     /// </summary>
     protected static string QuoteArgumentIfNeeded(string argument)
     {
-      if (string.IsNullOrEmpty(argument))
-        return "\"\"";
+      return CommandLineQuoting.QuoteArgumentIfNeeded(argument);
+    }
 
-      var needsQuoting = argument.AsSpan().IndexOfAny(ShellMetaCharacters) >= 0;
-      if (!needsQuoting)
-        return argument;
+    /// <summary>True if <paramref name="value"/> is non-empty and its first character is '-'.</summary>
+    protected static bool StartsWithDash(string value) =>
+        !string.IsNullOrEmpty(value) && value[0] == '-';
 
-      var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
-      return $"\"{escaped}\"";
+    /// <summary>
+    /// Quotes a positional CLI argument, throwing a <see cref="DriverException"/> if it starts
+    /// with '-' (which Podman would otherwise misparse as an option rather than a value).
+    /// </summary>
+    /// <param name="argument">The positional argument value (must not be null — a positional argument is required).</param>
+    /// <param name="argumentName">Argument name used in the exception message.</param>
+    /// <exception cref="DriverException">The argument is null or starts with '-'.</exception>
+    protected static string QuotePositionalArgument(string? argument, string argumentName)
+    {
+      if (argument is null)
+        throw new DriverException(
+            $"{argumentName} is required and must not be null.",
+            ErrorCodes.General.InvalidArgument);
+      if (StartsWithDash(argument))
+        throw new DriverException(
+            $"{argumentName} must not start with '-' because Podman would parse it as an option.",
+            ErrorCodes.General.InvalidArgument);
+      return QuoteArgumentIfNeeded(argument);
     }
 
     #endregion

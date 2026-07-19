@@ -19,7 +19,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// Builds a trivial image via compose and pushes it to a local registry.
     /// Requires Docker to be running. Uses a temporary registry:2 container.
     /// </summary>
-    [Trait("Category", "ManualOnly")]
+    [Trait("Category", "DevLocal")]
+    [Trait("Requires", "ManualOnly")]
     [Fact]
     public async Task Push_ToLocalRegistry_Succeeds()
     {
@@ -102,7 +103,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// <summary>
     /// Pushes a specific service (not all services) to a local registry.
     /// </summary>
-    [Trait("Category", "ManualOnly")]
+    [Trait("Category", "DevLocal")]
+    [Trait("Requires", "ManualOnly")]
     [Fact]
     public async Task Push_SpecificService_ToLocalRegistry_Succeeds()
     {

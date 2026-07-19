@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli.Binary;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
@@ -18,7 +17,7 @@ namespace FluentDocker.Drivers.Docker.Cli
   /// Base class for Docker CLI driver components.
   /// Provides shared command execution functionality.
   /// </summary>
-  public abstract class DockerCliDriverBase
+  public abstract partial class DockerCliDriverBase
   {
     /// <summary>
     /// The Docker command executable name.
@@ -28,7 +27,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <summary>
     /// The driver context.
     /// </summary>
-    protected DriverContext Context { get; private set; }
+    protected DriverContext Context { get; private set; } = null!;
 
     /// <summary>
     /// Logger for this driver component. Category equals the concrete derived type's FQN.
@@ -39,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <summary>
     /// The binary resolver for resolving Docker command paths.
     /// </summary>
-    protected IBinaryResolver BinaryResolver { get; private set; }
+    protected IBinaryResolver? BinaryResolver { get; private set; }
 
     /// <summary>
     /// Creates a new instance without a binary resolver.
@@ -89,11 +88,16 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <returns>A string of global flags to prepend to Docker commands, or empty string.</returns>
     public static string BuildGlobalArgs(DriverContext context)
     {
-      if (context == null || string.IsNullOrEmpty(context.Host))
+      if (context == null)
         return "";
 
+      // Host and cert paths flow into the single-string ProcessStartInfo.Arguments and
+      // are parsed into argv by the runtime, so any spaces/metacharacters in them (a
+      // host string or a cert directory path containing a space) must be quoted to
+      // stay within a single argv token.
       var sb = new StringBuilder();
-      sb.Append($"-H {context.Host}");
+      if (!string.IsNullOrEmpty(context.Host))
+        sb.Append("-H ").Append(QuoteArgumentIfNeeded(context.Host));
 
       if (!string.IsNullOrEmpty(context.CertificatePath))
       {
@@ -102,270 +106,24 @@ namespace FluentDocker.Drivers.Docker.Cli
         var cert = Path.Combine(certPath, "cert.pem");
         var key = Path.Combine(certPath, "key.pem");
 
-        if (context.VerifyTls)
-          sb.Append(" --tlsverify");
+        if (context.VerifyTls != false)
+          AppendWithSpace(sb, "--tlsverify");
         else
-          sb.Append(" --tls");
+          AppendWithSpace(sb, "--tls");
 
-        sb.Append($" --tlscacert {caCert} --tlscert {cert} --tlskey {key}");
+        AppendWithSpace(sb, "--tlscacert ").Append(QuoteArgumentIfNeeded(caCert))
+          .Append(" --tlscert ").Append(QuoteArgumentIfNeeded(cert))
+          .Append(" --tlskey ").Append(QuoteArgumentIfNeeded(key));
       }
 
       return sb.ToString();
     }
 
-    #endregion
-
-    #region Command Execution
-
-    /// <summary>
-    /// Resolves the binary info for the Docker command, extracting
-    /// the binary path and sudo configuration separately for safe execution.
-    /// </summary>
-    private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
+    private static StringBuilder AppendWithSpace(StringBuilder sb, string value)
     {
-      if (BinaryResolver == null)
-        return (DockerCommand, SudoMechanism.None, null);
-
-      var binary = BinaryResolver.Resolve(DockerCommand);
-      return (binary.FqPath, binary.Sudo, binary.SudoPassword);
-    }
-
-    /// <summary>
-    /// Executes a Docker command asynchronously.
-    /// </summary>
-    /// <param name="arguments">Command arguments</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Command result</returns>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(string arguments, CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Executes a Docker command asynchronously with data piped to stdin.
-    /// </summary>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        string arguments, string stdinData, CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, null, stdinData, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Executes a Docker command asynchronously with additional environment variables.
-    /// </summary>
-    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
-        string arguments,
-        IDictionary<string, string> environment,
-        CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-      return await ExecuteProcessAsync(binaryPath, fullArgs, environment, null, sudo, sudoPassword, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Executes a process asynchronously using direct stream reading
-    /// to avoid event-based output race conditions.
-    /// Handles sudo by setting the process FileName to "sudo" and passing the
-    /// password via stdin (never on the command line).
-    /// </summary>
-    private static async Task<SimpleCommandResult> ExecuteProcessAsync(
-        string fileName, string arguments,
-        IDictionary<string, string> environment,
-        string stdinData,
-        SudoMechanism sudo, string sudoPassword,
-        CancellationToken cancellationToken)
-    {
-      // Build the actual process command based on sudo mechanism.
-      // The password is NEVER placed on the command line.
-      var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(fileName, arguments, sudo, sudoPassword);
-
-      var needsStdin = stdinData != null || passwordForStdin != null;
-
-      Process process = null;
-      try
-      {
-        process = new Process
-        {
-          StartInfo = new ProcessStartInfo
-          {
-            FileName = processFileName,
-            Arguments = processArguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = needsStdin,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-          }
-        };
-
-        if (environment != null)
-        {
-          foreach (var kvp in environment)
-            process.StartInfo.Environment[kvp.Key] = kvp.Value;
-        }
-
-        process.Start();
-
-        if (needsStdin)
-        {
-          // Write sudo password first (if any), then caller data.
-          if (passwordForStdin != null)
-            await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
-
-          if (stdinData != null)
-            await process.StandardInput.WriteAsync(stdinData).ConfigureAwait(false);
-
-          process.StandardInput.Close();
-        }
-
-        // Read stdout and stderr concurrently to avoid deadlock
-        // when either pipe buffer fills up.
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-
-        var output = await outputTask.ConfigureAwait(false);
-        var error = await errorTask.ConfigureAwait(false);
-
-        // Ensure process has fully exited and get exit code.
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new SimpleCommandResult
-        {
-          Success = process.ExitCode == 0,
-          Output = output,
-          Error = error,
-          ExitCode = process.ExitCode
-        };
-      }
-      catch (OperationCanceledException)
-      {
-        // Kill the child process on cancellation to prevent orphans.
-        KillProcessSafely(process);
-        throw;
-      }
-      catch (Exception ex)
-      {
-        return new SimpleCommandResult
-        {
-          Success = false,
-          Error = ex.Message,
-          ExitCode = -1
-        };
-      }
-      finally
-      {
-        process?.Dispose();
-      }
-    }
-
-    /// <summary>
-    /// Executes a streaming Docker command asynchronously.
-    /// </summary>
-    /// <param name="arguments">Command arguments</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Async enumerable of output lines</returns>
-    protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-
-      var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
-
-      using var process = new Process
-      {
-        StartInfo = new ProcessStartInfo
-        {
-          FileName = processFileName,
-          Arguments = processArguments,
-          RedirectStandardOutput = true,
-          RedirectStandardError = true,
-          RedirectStandardInput = passwordForStdin != null,
-          UseShellExecute = false,
-          CreateNoWindow = true,
-          StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
-        }
-      };
-
-      process.Start();
-
-      if (passwordForStdin != null)
-      {
-        await process.StandardInput.WriteLineAsync(passwordForStdin).ConfigureAwait(false);
-        process.StandardInput.Close();
-      }
-
-      var reader = process.StandardOutput;
-
-      try
-      {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-          var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-          if (line == null)
-            break;
-
-          yield return line;
-        }
-      }
-      finally
-      {
-        KillProcessSafely(process, Logger);
-      }
-    }
-
-    /// <summary>
-    /// Starts a long-running attach process with stdin/stdout/stderr redirected.
-    /// </summary>
-    protected AttachResult ExecuteAttachProcess(string arguments)
-    {
-      var (binaryPath, sudo, _) = ResolveBinaryInfo();
-      var globalArgs = BuildGlobalArgs(Context);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-
-      // Attach does not support sudo with password (would conflict with stdin).
-      var (processFileName, processArguments, _) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, null);
-
-      var process = new Process
-      {
-        StartInfo = new ProcessStartInfo
-        {
-          FileName = processFileName,
-          Arguments = processArguments,
-          RedirectStandardInput = true,
-          RedirectStandardOutput = true,
-          RedirectStandardError = true,
-          UseShellExecute = false,
-          CreateNoWindow = true,
-          StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
-        }
-      };
-
-      process.Start();
-
-      return new AttachResult
-      {
-        InputStream = process.StandardInput.BaseStream,
-        OutputStream = process.StandardOutput.BaseStream,
-        ErrorStream = process.StandardError.BaseStream,
-        IsConnected = true,
-        AttachedProcess = process
-      };
+      if (sb.Length > 0)
+        sb.Append(' ');
+      return sb.Append(value);
     }
 
     #endregion
@@ -379,12 +137,12 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="operation">Operation name</param>
     /// <param name="result">Command result</param>
     /// <returns>Error context</returns>
-    protected static ErrorContext CreateErrorContext(DriverContext context, string operation, SimpleCommandResult result)
+    protected static ErrorContext CreateErrorContext(DriverContext? context, string operation, SimpleCommandResult result)
     {
       return new ErrorContext(operation)
       {
-        DriverId = context.DriverId,
-        Host = context.Host,
+        DriverId = context?.DriverId,
+        Host = context?.Host,
         ExitCode = result.ExitCode,
         StdOut = result.Output,
         StdErr = result.Error
@@ -402,6 +160,116 @@ namespace FluentDocker.Drivers.Docker.Cli
       return CreateErrorContext(Context, operation, result);
     }
 
+    /// <summary>Returns the command's captured stderr if non-empty; otherwise <paramref name="fallback"/>.</summary>
+    protected static string ErrorOrDefault(SimpleCommandResult result, string fallback)
+    {
+      return string.IsNullOrEmpty(result?.Error) ? fallback : result.Error;
+    }
+
+    /// <summary>Formats a value using invariant culture, ignoring the current thread's locale.</summary>
+    protected static string FormatInvariant<T>(T value)
+        where T : IFormattable
+        => value.ToString(null, CultureInfo.InvariantCulture);
+
+    /// <summary>Formats a value with the given format string using invariant culture.</summary>
+    protected static string FormatInvariant<T>(T value, string format)
+        where T : IFormattable
+        => value.ToString(format, CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Concatenates buffered stdout then stderr into one string. Ordering is
+    /// <b>stdout-first, then stderr</b> — the two streams are captured into separate
+    /// buffers, so cross-stream chronological interleaving is <b>not</b> preserved
+    /// (a crash line on stderr appears after all stdout, not where it occurred).
+    /// Callers needing arrival-ordered lines must use
+    /// <see cref="IStreamDriver.StreamLogEntriesAsync"/> instead.
+    /// </summary>
+    protected static string MergeOutputAndError(string output, string error)
+    {
+      if (string.IsNullOrEmpty(output))
+        return error ?? string.Empty;
+      if (string.IsNullOrEmpty(error))
+        return output;
+      return output.EndsWith('\n') || error.StartsWith('\n') ? output + error : output + "\n" + error;
+    }
+
+    /// <summary>
+    /// Resolves an error code for a failed CLI command from an exception: reuses an existing
+    /// <see cref="DriverException.ErrorCode"/> or falls back to classifying the exception's message.
+    /// </summary>
+    /// <param name="ex">The exception raised while running the command.</param>
+    /// <param name="fallbackCode">Code to use if the message does not indicate a known failure.</param>
+    /// <returns>An error code.</returns>
+    protected static string FailureCode(Exception ex, string fallbackCode)
+    {
+      if (ex is DriverException driverException && !string.IsNullOrEmpty(driverException.ErrorCode))
+        return driverException.ErrorCode;
+      return FailureCode(ex?.Message, fallbackCode);
+    }
+
+    /// <summary>
+    /// Resolves an error code for a failed CLI command from its captured error text:
+    /// <see cref="ErrorCodes.Api.ConnectionFailed"/> when the daemon is unreachable,
+    /// otherwise <paramref name="fallbackCode"/>.
+    /// </summary>
+    /// <param name="error">The captured error text.</param>
+    /// <param name="fallbackCode">Code to use if the text does not indicate a connection failure.</param>
+    /// <returns>An error code.</returns>
+    protected static string FailureCode(string? error, string fallbackCode)
+    {
+      if (IsDaemonConnectionError(error))
+        return ErrorCodes.Api.ConnectionFailed;
+      return fallbackCode;
+    }
+
+    /// <summary>
+    /// True if <paramref name="error"/> matches one of the Docker CLI's known
+    /// daemon-unreachable messages (e.g. "Cannot connect to the Docker daemon").
+    /// </summary>
+    protected static bool IsDaemonConnectionError(string? error)
+    {
+      if (string.IsNullOrEmpty(error))
+        return false;
+      return error.Contains("Cannot connect to the Docker daemon", StringComparison.OrdinalIgnoreCase)
+          || error.Contains("error during connect", StringComparison.OrdinalIgnoreCase)
+          || error.Contains("failed to connect to the docker API", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Builds a failed <see cref="CommandResponse{T}"/> for an argument that starts with
+    /// '-' and would therefore be misparsed by Docker as a CLI option rather than a value.
+    /// </summary>
+    protected static CommandResponse<T> FailInvalidLeadingDash<T>(string argumentName)
+    {
+      return CommandResponse<T>.Fail(
+          $"{argumentName} must not start with '-' because Docker would parse it as an option.",
+          ErrorCodes.General.InvalidArgument);
+    }
+
+    /// <summary>True if <paramref name="value"/> is non-empty and its first character is '-'.</summary>
+    protected static bool StartsWithDash(string? value) =>
+        !string.IsNullOrEmpty(value) && value[0] == '-';
+
+    /// <summary>
+    /// Quotes a positional CLI argument, throwing a <see cref="DriverException"/> if it starts
+    /// with '-' (which Docker would otherwise misparse as an option rather than a value).
+    /// </summary>
+    /// <param name="argument">The positional argument value (must not be null — a positional argument is required).</param>
+    /// <param name="argumentName">Argument name used in the exception message.</param>
+    /// <exception cref="DriverException">The argument is null or starts with '-'.</exception>
+    protected static string QuotePositionalArgument(string? argument, string argumentName)
+    {
+      if (argument is null)
+        throw new DriverException(
+            $"{argumentName} is required and must not be null.",
+            ErrorCodes.General.InvalidArgument);
+      if (StartsWithDash(argument))
+        throw new DriverException(
+            $"{argumentName} must not start with '-' because Docker would parse it as an option.",
+            ErrorCodes.General.InvalidArgument);
+      return QuoteArgumentIfNeeded(argument);
+    }
+
     #endregion
 
     #region Process Lifecycle
@@ -411,21 +279,80 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// The password is NEVER placed on the command line — it is returned separately
     /// for writing to stdin.
     /// </summary>
-    private static (string FileName, string Arguments, string PasswordForStdin) BuildSudoCommand(
-        string binaryPath, string arguments, SudoMechanism sudo, string sudoPassword)
+    private static (string FileName, string Arguments, string? PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string? sudoPassword)
+        => BuildSudoCommand(binaryPath, arguments, sudo, sudoPassword, null);
+
+    /// <summary>
+    /// Builds the actual process FileName and Arguments for sudo-aware execution, forwarding
+    /// caller-supplied environment variable NAMES through sudo via <c>--preserve-env</c>
+    /// (sudo's default <c>env_reset</c> would otherwise silently strip variables that were set
+    /// on the spawned <c>sudo</c> process itself). Only names ever reach the command line —
+    /// values stay in the process environment. Requires sudoers to permit <c>SETENV</c> or a
+    /// matching <c>env_keep</c>; sudo fails loudly otherwise, which beats a silent drop.
+    /// The password is NEVER placed on the command line — it is returned separately for stdin.
+    /// </summary>
+    private static (string FileName, string Arguments, string? PasswordForStdin) BuildSudoCommand(
+        string binaryPath, string arguments, SudoMechanism sudo, string? sudoPassword,
+        IReadOnlyCollection<string>? preserveEnvironmentNames)
     {
+      var preserve = sudo != SudoMechanism.None && preserveEnvironmentNames is { Count: > 0 }
+          ? $"--preserve-env={string.Join(",", preserveEnvironmentNames)} "
+          : string.Empty;
       return sudo switch
       {
-        SudoMechanism.NoPassword => ("sudo", $"{binaryPath} {arguments}", null),
-        SudoMechanism.Password => ("sudo", $"-S {binaryPath} {arguments}", sudoPassword),
+        SudoMechanism.NoPassword => ("sudo", $"-n {preserve}-- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", null),
+        SudoMechanism.Password => ("sudo", $"-S {preserve}-- {QuoteArgumentIfNeeded(binaryPath)} {arguments}", sudoPassword),
         _ => (binaryPath, arguments, null)
       };
     }
 
     /// <summary>
+    /// Validates and returns the environment names to preserve across sudo, or <c>null</c>
+    /// when no forwarding is needed (no sudo, or no extra environment). Names must be plain
+    /// POSIX identifiers (<c>[A-Za-z_][A-Za-z0-9_]*</c>) so the generated
+    /// <c>--preserve-env</c> list cannot be malformed or smuggle extra arguments.
+    /// </summary>
+    /// <exception cref="DriverException">A name is not a plain POSIX identifier.</exception>
+    private static List<string>? ValidatedPreserveEnvNames(
+        IDictionary<string, string>? environment, SudoMechanism sudo)
+    {
+      if (sudo == SudoMechanism.None || environment == null || environment.Count == 0)
+        return null;
+
+      var names = new List<string>(environment.Count);
+      foreach (var name in environment.Keys)
+      {
+        if (!IsPosixEnvironmentName(name))
+          throw new DriverException(
+              $"Environment variable name '{name}' cannot be forwarded through sudo " +
+              "(--preserve-env requires plain identifier names).",
+              ErrorCodes.Driver.CommandExecutionFailed);
+        names.Add(name);
+      }
+
+      return names;
+    }
+
+    private static bool IsPosixEnvironmentName(string name)
+    {
+      if (string.IsNullOrEmpty(name))
+        return false;
+      if (!char.IsAsciiLetter(name[0]) && name[0] != '_')
+        return false;
+      for (var i = 1; i < name.Length; i++)
+      {
+        if (!char.IsAsciiLetterOrDigit(name[i]) && name[i] != '_')
+          return false;
+      }
+
+      return true;
+    }
+
+    /// <summary>
     /// Safely kills a process if it is still running, suppressing any errors.
     /// </summary>
-    private static void KillProcessSafely(Process process, ILogger logger = null)
+    private static void KillProcessSafely(Process? process, ILogger? logger = null)
     {
       if (process == null)
         return;
@@ -441,28 +368,38 @@ namespace FluentDocker.Drivers.Docker.Cli
       }
     }
 
+    private static void StartProcessOrThrow(Process process, string binaryPath)
+    {
+      try
+      {
+        process.Start();
+      }
+      catch (Exception ex)
+      {
+        var processFileName = process.StartInfo.FileName;
+        var binarySuffix = string.Equals(processFileName, binaryPath, StringComparison.Ordinal)
+            ? string.Empty
+            : $" for Docker CLI binary '{binaryPath}'";
+        throw new DriverException(
+            $"Failed to start process '{processFileName}'{binarySuffix}.",
+            ErrorCodes.Driver.CommandExecutionFailed,
+            ex);
+      }
+    }
+
     #endregion
 
     #region Argument Quoting
 
-    private static readonly System.Buffers.SearchValues<char> ShellMetaCharacters =
-        System.Buffers.SearchValues.Create([' ', '\t', ';', '&', '|', '>', '<', '"', '\'', '$', '`', '!', '*', '?']);
-
     /// <summary>
-    /// Quotes a command-line argument if it contains shell metacharacters or whitespace.
-    /// Escapes backslashes and double quotes within the argument.
+    /// Quotes a command-line argument if it contains shell metacharacters or whitespace,
+    /// using the CommandLineToArgvW algorithm so Windows paths with backslashes are not
+    /// corrupted. Interior backslashes are only doubled when they precede a literal
+    /// double-quote or appear at the end of the (quoted) argument.
     /// </summary>
     protected static string QuoteArgumentIfNeeded(string argument)
     {
-      if (string.IsNullOrEmpty(argument))
-        return "\"\"";
-
-      var needsQuoting = argument.AsSpan().IndexOfAny(ShellMetaCharacters) >= 0;
-      if (!needsQuoting)
-        return argument;
-
-      var escaped = argument.Replace("\\", "\\\\").Replace("\"", "\\\"");
-      return $"\"{escaped}\"";
+      return CommandLineQuoting.QuoteArgumentIfNeeded(argument);
     }
 
     #endregion
@@ -479,14 +416,14 @@ namespace FluentDocker.Drivers.Docker.Cli
     public bool Success { get; set; }
 
     /// <summary>
-    /// Standard output from the command.
+    /// Standard output from the command. Empty (never null) when the command produced no stdout.
     /// </summary>
-    public string Output { get; set; }
+    public string Output { get; set; } = string.Empty;
 
     /// <summary>
-    /// Standard error from the command.
+    /// Standard error from the command. Empty (never null) when the command produced no stderr.
     /// </summary>
-    public string Error { get; set; }
+    public string Error { get; set; } = string.Empty;
 
     /// <summary>
     /// Exit code from the command.
@@ -494,4 +431,3 @@ namespace FluentDocker.Drivers.Docker.Cli
     public int ExitCode { get; set; }
   }
 }
-

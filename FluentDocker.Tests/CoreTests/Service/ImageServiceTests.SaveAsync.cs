@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
       var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
       // No repository => FullName falls back to imageId
-      var service = new ImageService(kernel, "docker", "sha256:norepository", null, "latest");
+      var service = new ImageService(kernel, "docker", "sha256:norepository", null!, "latest");
 
       try
       {
@@ -120,7 +120,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
-      var ex = await Assert.ThrowsAsync<NotSupportedException>(
+      var ex = await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
           async () => await service.PauseAsync(TestContext.Current.CancellationToken));
 
       Assert.Contains("paused", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -133,7 +133,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
-      var ex = await Assert.ThrowsAsync<NotSupportedException>(
+      var ex = await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
           async () => await service.StopAsync(TestContext.Current.CancellationToken));
 
       Assert.Contains("stopped", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -226,8 +226,9 @@ namespace FluentDocker.Tests.CoreTests.Service
             async () => await service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("image in use", ex.Message);
-        // State should remain Running on failure
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        // Genuine failure → Unknown (canonical ContainerService contract): a partial remove
+        // leaves the real state uncertain, so the prior state must not be assumed.
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
       }
       finally
       {

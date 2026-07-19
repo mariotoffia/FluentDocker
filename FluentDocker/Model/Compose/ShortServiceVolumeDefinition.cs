@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
@@ -33,6 +34,6 @@ namespace FluentDocker.Model.Compose
     ///   # Named volume
     ///   - datavolume:/var/lib/mysql
     /// </example>
-    public string Entry { get; set; }
+    public string? Entry { get; set; }
   }
 }

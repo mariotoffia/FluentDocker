@@ -9,25 +9,70 @@ nav_order: 2
 
 Package: `FluentDocker.Testing.Xunit`
 
-The xUnit adapter offers three patterns, from simplest to most flexible:
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](../getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
+> **xUnit v3 only.** This package depends on `xunit.v3.extensibility.core` and
+> targets xUnit v3. It is not compatible with xUnit v2 (`xunit` 2.x) projects.
+
+Recommended entry point: use `XunitContainerFixtureBase` (or another `Xunit*FixtureBase`) with `IClassFixture<T>`
+for integration suites. Use `XunitContainerTestBase` only when each test method needs a fresh container.
+
+The xUnit adapter offers three patterns:
 
 | Pattern | Lifecycle | Best for |
 |---|---|---|
-| **Test base** | Per-test (fresh container each test) | Isolated tests |
 | **Fixture base** | Per-class or per-collection (shared) | Integration suites |
+| **Test base** | Per-test (fresh container each test) | Isolated tests |
 | **Concrete fixture** | Manual init (programmatic control) | Dynamic config |
 
 ## Step by Step
 
+- Setup: [Project setup / requirements](#project-setup--requirements)
 - Basics: [Test Bases (Per-Test Lifecycle)](#test-bases-per-test-lifecycle), [Fixture Bases (Shared Lifecycle)](#fixture-bases-shared-lifecycle)
 - Intermediate: [Collection Fixtures](#collection-fixtures), [Lifecycle Hooks with Wait Strategies](#lifecycle-hooks-with-wait-strategies)
 - Advanced: [Concrete Fixtures (Advanced)](#concrete-fixtures-advanced), [Choosing the Right Pattern](#choosing-the-right-pattern)
 
+## Project setup / requirements
+
+`FluentDocker.Testing.Xunit` brings `xunit.v3.extensibility.core` transitively (fixture plumbing),
+but consumers also need the v3 framework, VSTest runner, and test host. Requires **xUnit v3** (`xunit.v3`), not xUnit 2.x.
+
+| Package | Why | Transitive from this package? |
+| --- | --- | --- |
+| `Microsoft.NET.Test.Sdk` | VSTest test host | No — add explicitly |
+| `xunit.v3` | `[Fact]`/`[Theory]`, asserts, v3 framework | No — add explicitly |
+| `xunit.runner.visualstudio` | Discovers/runs v3 tests under VSTest | No — add explicitly |
+
+Minimal consumer `.csproj` (target `net10.0`):
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
+    <PackageReference Include="FluentDocker.Testing.Xunit" Version="3.*" />
+  </ItemGroup>
+</Project>
+```
+
+> **Warning:** On a shared Docker or Podman daemon, the default
+> `CleanupOrphansOnInit = true` can remove another session's eligible resources
+> once they pass the one-hour `OrphanCleanupMinimumAge`: managed stopped
+> containers and unused networks/volumes. Running containers and networks/volumes
+> still in use are preserved. Set `FLUENTDOCKER_TEST_SESSION` for sibling
+> processes, or opt out with `CleanupOrphansOnInit = false` from `GetOptions()`;
+> see [Orphan Cleanup](core.md#orphan-cleanup).
+
 ## Test Bases (Per-Test Lifecycle)
 
-Inherit from an abstract test base. xUnit calls `InitializeAsync` before
-each test and `DisposeAsync` after. Override `ConfigureContainer` (or
-`ConfigureCompose`, `ConfigureTopology`) to provide your setup.
+Inherit from an abstract test base. xUnit calls `InitializeAsync` before each test and
+`DisposeAsync` after. Override `ConfigureContainer` (or `ConfigureCompose`, `ConfigureTopology`) to provide your setup.
 
 ### Container
 
@@ -64,7 +109,7 @@ public class AppTests : XunitComposeTestBase
 {
     protected override void ConfigureCompose(IComposeBuilder b) =>
         b.WithComposeFile("docker-compose.yml")
-         .WithProjectName("app-tests");
+         .WithProjectName($"app-tests-{Guid.NewGuid():N}"); // unique — parallel-safe
 
     [Fact]
     public void Service_IsAvailable() => Assert.NotNull(Service);
@@ -78,13 +123,14 @@ public class MultiContainerTests : XunitTopologyTestBase
 {
     protected override void ConfigureTopology(Builder b)
     {
-        b.UseNetwork(n => n.WithName("test-net"));
+        var net = $"test-net-{Guid.NewGuid():N}"; // unique — parallel-safe
+        b.UseNetwork(n => n.WithName(net));
         b.UseContainer(c => c
             .UseImage("redis:alpine")
-            .WithNetwork("test-net"));
+            .WithNetwork(net));
         b.UseContainer(c => c
             .UseImage("nginx:alpine")
-            .WithNetwork("test-net"));
+            .WithNetwork(net));
     }
 
     [Fact]
@@ -111,7 +157,7 @@ public class PodmanRedisTests : XunitContainerTestBase
 
     protected override Func<Task<FluentDockerKernel>> KernelFactory =>
         () => FluentDockerKernel.Create()
-            .WithPodmanCli("podman", d => d.AsDefault())
+            .WithPodmanCli("podman-cli", d => d.AsDefault())
             .BuildAsync();
 }
 ```
@@ -120,10 +166,9 @@ public class PodmanRedisTests : XunitContainerTestBase
 
 ## Fixture Bases (Shared Lifecycle)
 
-Inherit from an abstract fixture base and use it with `IClassFixture<T>` or
-`ICollectionFixture<T>`. xUnit creates one instance and calls
-`InitializeAsync` / `DisposeAsync` automatically via `IAsyncLifetime` -- no
-sync-over-async `GetAwaiter().GetResult()` needed.
+Inherit from an abstract fixture base and use it with `IClassFixture<T>` or `ICollectionFixture<T>`.
+xUnit creates one instance and calls `InitializeAsync` / `DisposeAsync` automatically via
+`IAsyncLifetime` -- no sync-over-async `GetAwaiter().GetResult()` needed.
 
 ### Container Fixture
 
@@ -163,7 +208,7 @@ public class AppFixture : XunitComposeFixtureBase
 {
     protected override void ConfigureCompose(IComposeBuilder b) =>
         b.WithComposeFile("docker-compose.yml")
-         .WithProjectName("integration");
+         .WithProjectName($"integration-{Guid.NewGuid():N}"); // unique — parallel-safe
 }
 
 public class AppTests : IClassFixture<AppFixture>
@@ -227,9 +272,8 @@ public class RedisReadTests
 
 ## Concrete Fixtures (Advanced)
 
-Use concrete fixtures when you need programmatic control over
-initialization -- e.g., dynamic configuration, conditional setup, or
-runtime-computed parameters.
+Use concrete fixtures when you need programmatic control over initialization -- e.g., dynamic
+configuration, conditional setup, or runtime-computed parameters.
 
 ### Using `Configure` (Recommended)
 
@@ -260,9 +304,14 @@ public class RedisTests : IClassFixture<DynamicFixture>
 
 ### `XunitResourceFixture<TResource>`
 
-Generic fixture for any `ITestResource`, including plugin resources:
+Generic fixture for any `ITestResource`, including plugin resources and
+`ModelResource` (Docker Model Runner). `ContainerResource`/`ModelResource` live
+in `FluentDocker.Testing.Core`:
 
 ```csharp
+using FluentDocker.Testing.Core;
+using FluentDocker.Testing.Xunit;
+
 public class CustomFixture : XunitResourceFixture<ContainerResource>
 {
     public CustomFixture()
@@ -299,6 +348,144 @@ public class ManualFixture : XunitContainerFixture
 
 All support `Configure(...)` with optional `kernelFactory` and
 `DockerResourceOptions`.
+
+---
+
+## Docker Model Runner
+
+`ModelResource` (in `FluentDocker.Testing.Core`) loads a Docker Model Runner
+model for the duration of a test and unloads it on dispose. It exposes
+`resource.Model` (the parsed `ModelReference`, readable before init),
+`resource.Service` (`IModelService`), and `resource.Runner` (`IModelRunner` —
+`ChatAsync`, `ChatStreamAsync`, `EmbedAsync`, …).
+
+Because a `ModelResource` is just an `ITestResource`, drive it with
+`XunitResourceFixture<ModelResource>` exactly like any other resource.
+
+### Skip cleanly when the runner is down
+
+The complete, nullable-enabled test below **probes Docker Model Runner first**,
+creates the `ModelResource` only when it is running, and — to keep the skip
+clean — manages the resource manually via `XunitResourceFixture<ModelResource>`
++ `await fixture.InitializeAsync(...)`. When the runner is absent it
+`Assert.Skip`s, unless `FLUENTDOCKER_REQUIRE_DMR=1` forces a hard fail (so a
+broken DMR path can't pass CI green with zero real coverage). The fixture's
+`IAsyncLifetime.DisposeAsync` unloads the model and disposes the kernel.
+
+```csharp
+#nullable enable
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Drivers;
+using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
+using FluentDocker.Model.Models;
+using FluentDocker.Testing.Core;
+using FluentDocker.Testing.Xunit;
+using Xunit;
+
+[Trait("Category", "Integration")]
+[Trait("Requires", "Dmr")]
+public sealed class SmolLmModelTests : IAsyncLifetime
+{
+    private readonly XunitResourceFixture<ModelResource> _fixture = new();
+    private bool _skipped;
+
+    public async ValueTask InitializeAsync()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Probe DMR through its runtime port on a throwaway kernel.
+        await using (var probe = await ResourceLifecycle.CreateDefaultDockerKernelAsync())
+        {
+            var driverId = probe.DefaultDriverId;
+            var runtime = probe.SysCtl<IModelRuntimeDriver>(driverId);
+            var status = await runtime.StatusAsync(new DriverContext(driverId), ct);
+            var running = status.Success && status.Data.Running;
+
+            if (!running)
+            {
+                // Required lanes hard-fail; PR/local lanes skip cleanly.
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FLUENTDOCKER_REQUIRE_DMR")))
+                {
+                    _skipped = true;
+                    return; // no resource created → DisposeAsync is a no-op
+                }
+
+                throw new InvalidOperationException(
+                    "FLUENTDOCKER_REQUIRE_DMR=1 but Docker Model Runner is not running.");
+            }
+        }
+
+        // Runner is up — load the model. Pin a context size to dodge the DMR
+        // v1.2.1 auto-fit crash on chat models loaded without one.
+        await _fixture.InitializeAsync(
+            k => new ModelResource(k, "ai/smollm2:latest", m => m.WithContextSize(4096)),
+            cancellationToken: ct);
+    }
+
+    public ValueTask DisposeAsync() => _fixture.DisposeAsync();
+
+    [Fact]
+    public async Task Smollm_Chats()
+    {
+        Assert.SkipWhen(_skipped, "Docker Model Runner is not running.");
+        var ct = TestContext.Current.CancellationToken;
+
+        var resource = _fixture.Resource;
+        Assert.Equal("ai/smollm2:latest", resource.Model.ToString());
+
+        var reply = await resource.Runner.ChatAsync("Reply with a single word.", ct);
+        Assert.False(string.IsNullOrWhiteSpace(reply));
+    }
+
+    [Fact]
+    public async Task Smollm_Embeds()
+    {
+        Assert.SkipWhen(_skipped, "Docker Model Runner is not running.");
+        var ct = TestContext.Current.CancellationToken;
+
+        // Embeddings need an embedding model, not the chat default. Pull it once, then embed against it.
+        var embedModel = ModelReference.Parse("ai/embeddinggemma");
+        await _fixture.Resource.Runner.PullAsync(embedModel, cancellationToken: ct);
+        var vector = await _fixture.Resource.Runner.EmbedAsync("hello world", embedModel, ct);
+        Assert.NotEmpty(vector);
+    }
+}
+```
+
+### `IClassFixture` shorthand
+
+When you don't need the conditional skip (e.g. a lane where the runner is
+always present), the shorthand `IClassFixture<>` form is enough:
+
+```csharp
+using FluentDocker.Testing.Core;
+using FluentDocker.Testing.Xunit;
+using Xunit;
+
+public sealed class SmolLmFixture : XunitResourceFixture<ModelResource>
+{
+    public SmolLmFixture()
+        => Configure(k => new ModelResource(k, "ai/smollm2:latest",
+            m => m.WithContextSize(4096)));
+}
+
+public sealed class SmolLmTests : IClassFixture<SmolLmFixture>
+{
+    private readonly SmolLmFixture _f;
+    public SmolLmTests(SmolLmFixture f) => _f = f;
+
+    [Fact]
+    public void Model_IsLoaded() => Assert.NotNull(_f.Resource.Runner);
+}
+```
+
+> The `IClassFixture<>` form loads the model in the fixture *before* any test
+> body runs, so a down runner fails the fixture rather than reaching
+> `Assert.Skip`. Use the probe-first `IAsyncLifetime` pattern above when you
+> need a clean skip.
 
 ---
 
@@ -363,7 +550,7 @@ var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
         r.OnAfterReady(async _ =>
         {
             // Poll until Postgres accepts connections
-            var endpoint = r.Container.ToHostExposedEndpoint("5432/tcp");
+            var endpoint = await r.Container.ToHostExposedEndpointAsync("5432/tcp");
             var connStr = $"Host=localhost;Port={endpoint.Port};" +
                           "Username=postgres;Password=test";
 
@@ -394,9 +581,8 @@ resource
     .OnAfterDispose(async r =>      { /* after cleanup — log final state */ });
 ```
 
-Hooks are chainable and run in registration order. Init-phase hooks that
-throw will abort initialization with diagnostics captured. Dispose-phase
-hooks are best-effort (exceptions are suppressed to ensure cleanup proceeds).
+Hooks are chainable and run in registration order. Init-phase hooks that throw will abort
+initialization with diagnostics captured. Dispose-phase hooks are best-effort (exceptions are suppressed to ensure cleanup proceeds).
 
 ---
 

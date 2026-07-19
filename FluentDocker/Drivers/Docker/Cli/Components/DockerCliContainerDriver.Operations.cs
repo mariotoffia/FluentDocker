@@ -41,7 +41,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           foreach (var env in config.Environment)
             args.Add($"-e {QuoteArgumentIfNeeded($"{env.Key}={env.Value}")}");
 
-        args.Add(QuoteArgumentIfNeeded(containerId));
+        args.Add(QuotePositionalArgument(containerId, nameof(containerId)));
         if (config.Command != null)
         {
           foreach (var cmdArg in config.Command)
@@ -50,7 +50,21 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           }
         }
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+
+        // Separate an INFRASTRUCTURE failure (docker could not run exec at all — no such
+        // container, daemon error, process couldn't start) from the in-container command's
+        // own legitimate non-zero exit, which must be reported as a successful exec carrying
+        // that exit code (callers inspect ExecResult.ExitCode).
+        // Heuristic: a container command can spoof daemon text on empty-stdout stderr.
+        if (IsExecInfrastructureFailure(result.ExitCode, result.Output, result.Error))
+        {
+          return CommandResponse<ExecResult>.Fail(
+              string.IsNullOrEmpty(result.Error) ? "Exec failed" : result.Error,
+              FailureCode(result.Error, ErrorCodes.Container.ExecFailed),
+              CreateErrorContext(context, "Exec", result),
+              result.ExitCode);
+        }
 
         return CommandResponse<ExecResult>.Ok(new ExecResult
         {
@@ -59,10 +73,50 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           StdErr = result.Error
         });
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<ExecResult>.Fail(ex.Message, ErrorCodes.Container.ExecFailed);
+        return CommandResponse<ExecResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.ExecFailed));
       }
+    }
+
+    /// <summary>
+    /// Classifies a <c>docker exec</c> result as an infrastructure failure (docker itself
+    /// could not run the exec) versus the in-container command merely exiting non-zero.
+    /// <para>
+    /// Returns <c>true</c> when the process-couldn't-start sentinel exit code (<c>-1</c>) is
+    /// seen, or when there is no stdout and stderr carries a docker-CLI/daemon error marker
+    /// (<c>Error response from daemon</c> / <c>Cannot connect to the Docker daemon</c>). Bare
+    /// substrings like "is not running" are deliberately NOT matched: they also appear in
+    /// legitimate in-container tool output (systemctl/supervisord/health probes). Otherwise
+    /// returns <c>false</c> so a real command's non-zero exit is preserved rather than
+    /// reported as a false failure. Public so the heuristic can be unit-tested through the
+    /// strong-named public surface (the driver itself spawns a real <c>docker</c> process).
+    /// </para>
+    /// <para>
+    /// On the infra-failure path the exit code is surfaced on <c>CommandResponse.ExitCode</c>
+    /// (with <c>Data</c> null); on success it is on <c>Data.ExitCode</c> of the returned
+    /// <see cref="ExecResult"/>.
+    /// </para>
+    /// </summary>
+    /// <param name="exitCode">Exit code reported by command execution.</param>
+    /// <param name="stdOut">Captured standard output.</param>
+    /// <param name="stdErr">Captured standard error.</param>
+    /// <returns><c>true</c> when the failure is infrastructure-level; otherwise <c>false</c>.</returns>
+    public static bool IsExecInfrastructureFailure(int exitCode, string stdOut, string stdErr)
+    {
+      if (exitCode == -1)
+        return true;
+
+      if (!string.IsNullOrEmpty(stdOut))
+        return false;
+
+      var err = stdErr ?? string.Empty;
+      return err.Contains("Error response from daemon", StringComparison.OrdinalIgnoreCase)
+          || err.Contains("Cannot connect to the Docker daemon", StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -79,22 +133,31 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"cp \"{hostPath}\" \"{containerId}:{containerPath}\"", cancellationToken).ConfigureAwait(false);
+        QuotePositionalArgument(containerId, nameof(containerId));
+        QuotePositionalArgument(hostPath, nameof(hostPath));
+        var result = await ExecuteUnboundedCommandAsync(
+            context,
+            $"cp {QuoteArgumentIfNeeded(hostPath)} {QuoteArgumentIfNeeded($"{containerId}:{containerPath}")}",
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Copy to container failed",
-              ErrorCodes.Container.CopyFailed,
+              ErrorOrDefault(result, "Copy to container failed"),
+              FailureCode(result.Error, ErrorCodes.Container.CopyFailed),
               CreateErrorContext(context, "CopyToContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.CopyFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.CopyFailed));
       }
     }
 
@@ -108,22 +171,31 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"cp \"{containerId}:{containerPath}\" \"{hostPath}\"", cancellationToken).ConfigureAwait(false);
+        QuotePositionalArgument(containerId, nameof(containerId));
+        QuotePositionalArgument(hostPath, nameof(hostPath));
+        var result = await ExecuteUnboundedCommandAsync(
+            context,
+            $"cp {QuoteArgumentIfNeeded($"{containerId}:{containerPath}")} {QuoteArgumentIfNeeded(hostPath)}",
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Copy from container failed",
-              ErrorCodes.Container.CopyFailed,
+              ErrorOrDefault(result, "Copy from container failed"),
+              FailureCode(result.Error, ErrorCodes.Container.CopyFailed),
               CreateErrorContext(context, "CopyFromContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.CopyFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.CopyFailed));
       }
     }
 
@@ -140,22 +212,29 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"export -o \"{outputPath}\" {QuoteArgumentIfNeeded(containerId)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteUnboundedCommandAsync(
+            context,
+            $"export -o {QuoteArgumentIfNeeded(outputPath)} {QuotePositionalArgument(containerId, nameof(containerId))}",
+            cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container export failed",
-              ErrorCodes.Container.ExportFailed,
+              ErrorOrDefault(result, "Container export failed"),
+              FailureCode(result.Error, ErrorCodes.Container.ExportFailed),
               CreateErrorContext(context, "ExportContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.ExportFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.ExportFailed));
       }
     }
 
@@ -168,22 +247,26 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync($"rename {QuoteArgumentIfNeeded(containerId)} {QuoteArgumentIfNeeded(newName)}", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, $"rename {QuotePositionalArgument(containerId, nameof(containerId))} {QuotePositionalArgument(newName, nameof(newName))}", cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container rename failed",
-              ErrorCodes.Container.RenameFailed,
+              ErrorOrDefault(result, "Container rename failed"),
+              FailureCode(result.Error, ErrorCodes.Container.RenameFailed),
               CreateErrorContext(context, "RenameContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.RenameFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.RenameFailed));
       }
     }
 
@@ -199,42 +282,46 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var args = new List<string> { "update" };
 
         if (config.MemoryLimit.HasValue)
-          args.Add($"--memory {config.MemoryLimit.Value}");
+          args.Add($"--memory {FormatInvariant(config.MemoryLimit.Value)}");
         if (config.MemorySwap.HasValue)
-          args.Add($"--memory-swap {config.MemorySwap.Value}");
+          args.Add($"--memory-swap {FormatInvariant(config.MemorySwap.Value)}");
         if (config.MemoryReservation.HasValue)
-          args.Add($"--memory-reservation {config.MemoryReservation.Value}");
+          args.Add($"--memory-reservation {FormatInvariant(config.MemoryReservation.Value)}");
         if (config.CpuShares.HasValue)
-          args.Add($"--cpu-shares {config.CpuShares.Value}");
+          args.Add($"--cpu-shares {FormatInvariant(config.CpuShares.Value)}");
         if (config.CpuPeriod.HasValue)
-          args.Add($"--cpu-period {config.CpuPeriod.Value}");
+          args.Add($"--cpu-period {FormatInvariant(config.CpuPeriod.Value)}");
         if (config.CpuQuota.HasValue)
-          args.Add($"--cpu-quota {config.CpuQuota.Value}");
+          args.Add($"--cpu-quota {FormatInvariant(config.CpuQuota.Value)}");
         if (!string.IsNullOrEmpty(config.CpusetCpus))
           args.Add($"--cpuset-cpus {QuoteArgumentIfNeeded(config.CpusetCpus)}");
         if (!string.IsNullOrEmpty(config.RestartPolicy))
           args.Add($"--restart {QuoteArgumentIfNeeded(config.RestartPolicy)}");
         if (config.PidsLimit.HasValue)
-          args.Add($"--pids-limit {config.PidsLimit.Value}");
+          args.Add($"--pids-limit {FormatInvariant(config.PidsLimit.Value)}");
 
-        args.Add(QuoteArgumentIfNeeded(containerId));
+        args.Add(QuotePositionalArgument(containerId, nameof(containerId)));
 
-        var result = await ExecuteCommandAsync(string.Join(" ", args), cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, string.Join(" ", args), cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {
           return CommandResponse<Unit>.Fail(
-              result.Error ?? "Container update failed",
-              ErrorCodes.Container.UpdateFailed,
+              ErrorOrDefault(result, "Container update failed"),
+              FailureCode(result.Error, ErrorCodes.Container.UpdateFailed),
               CreateErrorContext(context, "UpdateContainer", result),
               result.ExitCode);
         }
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Container.UpdateFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Container.UpdateFailed));
       }
     }
 

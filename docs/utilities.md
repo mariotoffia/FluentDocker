@@ -1,18 +1,20 @@
 ---
 layout: default
 title: Utilities
-nav_order: 10
+nav_order: 16
 ---
 
 # Utilities
 
 FluentDocker provides several utility classes and extension methods to simplify common operations.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
-- Basics: [TemplateString](#templatestring), [HTTP Extensions (Wget)](#http-extensions-wget)
-- Intermediate: [Resource Extensions](#resource-extensions), [Logging](#logging), [Model Extensions](#model-extensions)
-- Advanced: [SudoMechanism](#sudomechanism), [Endpoint Resolution](#endpoint-resolution), [Command Response Handling](#command-response-handling), [Container Stats Parsing](#container-stats-parsing)
+Basics: [TemplateString](#templatestring), [HTTP Health Checks](#http-health-checks); intermediate: [Resource Extensions](#resource-extensions), [Logging](#logging), [Model Extensions](#model-extensions); advanced: [SudoMechanism](#sudomechanism), [Endpoint Resolution](#endpoint-resolution), [Command Response Handling](#command-response-handling), [Container Stats Parsing](#container-stats-parsing), [JsonHelper](#jsonhelper).
 
 ## TemplateString
 
@@ -58,10 +60,6 @@ var customPath = new TemplateString("${E_MY_VAR}/data");
 // If the environment variable is not set, the token remains unexpanded
 var path = new TemplateString("${E_CUSTOM_PATH}");
 // Expands to: value of CUSTOM_PATH env var, or literal "${E_CUSTOM_PATH}" if unset
-
-// Combine with other variables
-var config = new TemplateString("${E_CONFIG_DIR}/data");
-// Expands to: <CONFIG_DIR value>/data
 ```
 
 ### Supported Variables
@@ -80,12 +78,12 @@ var config = new TemplateString("${E_CONFIG_DIR}/data");
 // Create unique temp directory for test
 var testDir = new TemplateString("${TEMP}/integration-test-${RND}");
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .WithVolume(testDir, "/app/data"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Combined Variables
@@ -95,52 +93,52 @@ var path = new TemplateString("${TEMP}/${E_USER}/session-${RND}");
 // Might expand to: /tmp/john/session-tmpk4xz0f.tmp
 ```
 
-## HTTP Extensions (Wget)
+## HTTP Health Checks
 
-Simple HTTP operations for health checks and API testing.
+Use the shared HTTP client for health checks and API testing.
 
 ### Basic GET Request
 
 ```csharp
-using FluentDocker.Extensions;
+using FluentDocker.Common;
 
 // Simple GET
-var response = await "http://localhost:8080/health".Wget();
+using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+var response = await SharedHttpClient.Instance.GetStringAsync(
+    "http://localhost:8080/health", requestCts.Token);
 Console.WriteLine(response);  // Response body
 ```
 
 ### Full Request with Status Code
 
 ```csharp
-using FluentDocker.Extensions;
+using FluentDocker.Common;
 
-// DoRequest returns a RequestResponse struct with Code, Body, Headers, Err
-var result = await "http://localhost:8080/api/users".DoRequest();
-
-if (result.Code == HttpStatusCode.OK)
+using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+using var result = await SharedHttpClient.Instance.GetAsync(
+    "http://localhost:8080/api/users", requestCts.Token);
+if (result.StatusCode == HttpStatusCode.OK)
 {
-    Console.WriteLine($"Users: {result.Body}");
+    Console.WriteLine($"Users: {await result.Content.ReadAsStringAsync()}");
 }
-
-// POST with JSON body
-var postResult = await "http://localhost:8080/api/users".DoRequest(
-    method: HttpMethod.Post,
-    contentType: "application/json",
-    body: "{\"name\":\"test\"}");
 ```
 
 ### Health Check Pattern
 
 ```csharp
-using var results = new Builder()
+using FluentDocker.Builders;
+using FluentDocker.Common;
+using FluentDocker.Services.Extensions;
+
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapi:latest")
         .ExposePort("8080"))
-    .Build();
+    .BuildAsync();
 
 var container = results.Containers.First();
-var endpoint = container.ToHostExposedEndpoint("8080/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("8080/tcp");
 var healthUrl = $"http://localhost:{endpoint.Port}/health";
 
 // Wait for healthy
@@ -148,7 +146,8 @@ for (int i = 0; i < 30; i++)
 {
     try
     {
-        var response = await healthUrl.Wget();
+        using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        var response = await SharedHttpClient.Instance.GetStringAsync(healthUrl, requestCts.Token);
         if (response.Contains("healthy"))
         {
             Console.WriteLine("Service is healthy!");
@@ -161,13 +160,6 @@ for (int i = 0; i < 30; i++)
     }
     await Task.Delay(1000);
 }
-```
-
-### Download File
-
-```csharp
-var url = new Uri("https://example.com/file.zip");
-await url.Download("/local/path/file.zip");
 ```
 
 ## Resource Extensions
@@ -207,7 +199,7 @@ typeof(MyTests).ResourceExtract(
 var resources = typeof(MyTests).ResourceQuery();
 foreach (var resource in resources)
 {
-    Console.WriteLine($"Resource: {resource.Name}");
+    Console.WriteLine($"Resource: {resource.Resource}");
 }
 ```
 
@@ -217,7 +209,7 @@ foreach (var resource in resources)
 // Extract matching resources to a directory (returns void)
 typeof(MyTests)
     .ResourceQuery()
-    .Where(r => r.Name.EndsWith("config.json"))
+    .Where(r => r.Resource.EndsWith("config.json"))
     .ToFile(new TemplateString("${TEMP}/extracted"));
 ```
 
@@ -232,7 +224,7 @@ typeof(MyTests).ResourceExtract(
     "seed-data.json"
 );
 
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
@@ -240,17 +232,16 @@ using var results = new Builder()
         .WithVolume(fixturesPath, "/docker-entrypoint-initdb.d")
         .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 // Database initialized with test-data.sql
 ```
 
 ## Logging
 
-FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. An
-`ILoggerFactory` is **required** when constructing the kernel — there is no
-library-side default. To suppress logs entirely, pass
-`NullLoggerFactory.Instance` explicitly at the call site.
+FluentDocker logs through `Microsoft.Extensions.Logging.Abstractions`. Logging is optional:
+`FluentDockerKernel.Create()` defaults to `NullLoggerFactory.Instance` (no output), and
+`FluentDockerKernel.Create(ILoggerFactory)` takes a custom provider. The `KernelBuilder` constructor itself requires a factory.
 
 ### Plug in any logging provider
 
@@ -315,15 +306,14 @@ using var factory = LoggerFactory.Create(b => b
 
 ## SudoMechanism
 
-Configure sudo behavior for Linux environments via the kernel builder.
+Configure sudo behavior for Linux environments via the kernel builder. `SudoMechanism` is experimental.
 
 ### No Sudo (Default)
 
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
     .BuildAsync();
-// Commands run without sudo
 ```
 
 ### Passwordless Sudo
@@ -331,7 +321,7 @@ using var kernel = await FluentDockerKernel.Create()
 ```csharp
 using FluentDocker.Model.Common;
 
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
         .WithSudo(SudoMechanism.NoPassword)
         .AsDefault())
@@ -342,13 +332,16 @@ using var kernel = await FluentDockerKernel.Create()
 ### Sudo with Password
 
 ```csharp
-using var kernel = await FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d
         .WithSudo(SudoMechanism.Password, "your-password")
         .AsDefault())
     .BuildAsync();
-// Commands prefixed with: echo 'password' | sudo -S
 ```
+
+The command runs as `sudo -S docker …`. The `-S` flag makes `sudo` read the password from
+**stdin** — the library writes it to the child process's standard input, never on the command
+line or via an `echo … |` pipe. (Attach can't use password sudo since it needs stdin for the container; use passwordless sudo there.)
 
 ## Model Extensions
 
@@ -362,9 +355,11 @@ using FluentDocker.Services.Extensions;
 var container = /* ... */;
 
 // Get endpoint for exposed port
-var endpoint = container.ToHostExposedEndpoint("8080/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("8080/tcp");
 Console.WriteLine($"Connect to: {endpoint.Address}:{endpoint.Port}");
 ```
+
+Use `ToHostExposedEndpoint(...)` only in sync-only code; it blocks on the async resolver.
 
 ### Get All Endpoints
 
@@ -400,20 +395,20 @@ Custom endpoint resolvers for special network configurations.
 
 ```csharp
 // Uses container's exposed port mapping
-var endpoint = container.ToHostExposedEndpoint("8080/tcp");
+var endpoint = await container.ToHostExposedEndpointAsync("8080/tcp");
 ```
 
 ### Custom Resolver
 
 The custom resolver is set via `UseCustomResolver()` on the container builder, not passed
-to `ToHostExposedEndpoint()`. The resolver signature is:
+to `ToHostExposedEndpointAsync()`. The resolver signature is:
 `Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint>`
 
 ```csharp
-using FluentDocker.Model.Containers;
+using System.Net;
 
 // Configure custom resolver on the builder
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
@@ -429,10 +424,10 @@ using var results = new Builder()
 
             return null;
         }))
-    .Build();
+    .BuildAsync();
 
-// ToHostExposedEndpoint uses the custom resolver automatically
-var endpoint = results.Containers.First().ToHostExposedEndpoint("8080/tcp");
+// ToHostExposedEndpointAsync uses the custom resolver automatically
+var endpoint = await results.Containers.First().ToHostExposedEndpointAsync("8080/tcp");
 ```
 
 ## Command Response Handling
@@ -446,7 +441,7 @@ var result = await containerDriver.CreateAsync(context, config);
 
 if (result.Success)
 {
-    Console.WriteLine($"Container ID: {result.Data}");
+    Console.WriteLine($"Container ID: {result.Data.Id}");
 }
 else
 {
@@ -458,7 +453,9 @@ else
 ### Access Output
 
 ```csharp
-var result = await containerDriver.ExecAsync(context, containerId, "ls", "-la");
+using FluentDocker.Drivers;   // ExecConfig
+
+var result = await containerDriver.ExecAsync(context, containerId, new ExecConfig { Command = ["ls", "-la"] });
 
 if (result.Success)
 {
@@ -475,7 +472,7 @@ else
 
 ## Container Stats Parsing
 
-Parse Docker stats output.
+Stats parsing is best-effort across Docker/Podman output variants; unparsable fields are skipped with Debug logs.
 
 ```csharp
 var stats = await container.GetStatsAsync();
@@ -509,11 +506,37 @@ string FormatBytes(long bytes)
 }
 ```
 
+## JsonHelper
+
+`JsonHelper` (in `FluentDocker.Common`) is the shared, thread-safe `System.Text.Json` config
+the drivers use — camelCase, string enums, numbers from strings, nulls omitted on write. Use
+it to parse or emit Docker-shaped JSON so your code matches the library; `DefaultOptions`,
+`CaseInsensitiveOptions`, and `IndentedOptions` are also exposed for direct use.
+
+```csharp
+using FluentDocker.Common;
+
+string json = JsonHelper.Serialize(value); // also SerializeIndented, SerializeToUtf8Bytes
+// Never-throw deserialize: false (or default) on invalid JSON / unsupported type.
+// Case-insensitive; UTF-8 span and source-generated JsonTypeInfo<T> overloads also exist.
+if (JsonHelper.TryDeserialize<Container>(json, out var container, out var error))
+    Use(container!);
+else
+    Log(error); // the parse failure, or null when the input was blank
+// Pull one field without materializing the whole object (handy for NDJSON):
+string? id = JsonHelper.TryGetProperty(json, "Id");         // null if absent/not a string
+int? code = JsonHelper.TryGetIntProperty(json, "ExitCode"); // null if absent/not an int
+JsonElement root = JsonHelper.ParseElement(json); // throws JsonException on invalid JSON
+```
+
 ## Utility Examples
 
 ### Test Data Generation
 
 ```csharp
+using FluentDocker.Common;
+using FluentDocker.Model.Common;
+
 public static class TestDataGenerator
 {
     public static string UniqueId() => Guid.NewGuid().ToString("N")[..8];
@@ -527,7 +550,8 @@ public static class TestDataGenerator
         {
             try
             {
-                var response = await url.Wget();
+                using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+                var response = await SharedHttpClient.Instance.GetStringAsync(url, requestCts.Token);
                 if (!string.IsNullOrEmpty(response))
                     return response;
             }
@@ -546,9 +570,13 @@ var response = await TestDataGenerator.WaitForHealthy($"http://localhost:{port}/
 ### Container Factory
 
 ```csharp
+using System.Threading.Tasks;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+
 public static class ContainerFactory
 {
-    public static BuildResults CreatePostgres(
+    public static Task<BuildResults> CreatePostgresAsync(
         FluentDockerKernel kernel, string password = "test")
     {
         return new Builder()
@@ -558,44 +586,14 @@ public static class ContainerFactory
                 .WithEnvironment($"POSTGRES_PASSWORD={password}")
                 .ExposePort("5432")
                 .WaitForPort("5432/tcp", 30000))
-            .Build();
-    }
-
-    public static BuildResults CreateRedis(FluentDockerKernel kernel)
-    {
-        return new Builder()
-            .WithinDriver("docker", kernel)
-            .UseContainer(c => c
-                .UseImage("redis:alpine")
-                .ExposePort("6379")
-                .WaitForPort("6379/tcp", 30000))
-            .Build();
-    }
-
-    public static BuildResults CreateRabbitMQ(FluentDockerKernel kernel)
-    {
-        return new Builder()
-            .WithinDriver("docker", kernel)
-            .UseContainer(c => c
-                .UseImage("rabbitmq:3-management-alpine")
-                .ExposePort("5672")
-                .ExposePort("15672")
-                .WaitForPort("5672/tcp", 60000))
-            .Build();
+            .BuildAsync();
     }
 }
 
 // Usage
-using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
-using var db = ContainerFactory.CreatePostgres(kernel);
-using var cache = ContainerFactory.CreateRedis(kernel);
+await using var db = await ContainerFactory.CreatePostgresAsync(kernel);
 ```
-
-## Next Steps
-
-- [Getting Started](getting-started.html) - Quick start guide
-- [Containers](containers.html) - Container management
-- [Testing](testing.html) - Test support

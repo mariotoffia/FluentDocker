@@ -18,7 +18,7 @@
         },
         {
             "label": "test",
-            "command": "./use-net8.sh test -f net8.0",
+            "command": "dotnet test -f net10.0",
             "type": "shell",
             "group": {
                 "kind": "test",

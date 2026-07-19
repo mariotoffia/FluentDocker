@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using FluentDocker.Drivers;
 using FluentDocker.Kernel;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
@@ -39,6 +40,23 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var result = BuildDockerCliConfig(b => b
           .WithCertificates("/certs/docker"));
       Assert.Equal("/certs/docker", result.Context.CertificatePath);
+    }
+
+    [Fact]
+    public void DockerCliBuilder_WithRequestTimeout_SetsInContext()
+    {
+      // REV-1(c): the CLI builder's WithRequestTimeout must flow to DriverContext.RequestTimeout,
+      // which ResolveBufferedTimeout() reads to bound buffered control-plane commands.
+      var result = BuildDockerCliConfig(b => b
+          .WithRequestTimeout(TimeSpan.FromMinutes(10)));
+      Assert.Equal(TimeSpan.FromMinutes(10), result.Context.RequestTimeout);
+    }
+
+    [Fact]
+    public void DockerCliBuilder_NoRequestTimeout_LeavesContextUnset()
+    {
+      var result = BuildDockerCliConfig(b => b.AsDefault());
+      Assert.Null(result.Context.RequestTimeout);
     }
 
     [Fact]
@@ -147,6 +165,15 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var result = BuildDockerApiConfig(b => b
           .WithTlsVerification());
       Assert.True(result.Context.VerifyTls);
+    }
+
+    [Fact]
+    public void DockerApiBuilder_WithAllowTlsHostnameMismatch_SetsMetadata()
+    {
+      var result = BuildDockerApiConfig(b => b
+          .WithAllowTlsHostnameMismatch());
+
+      Assert.Equal("true", result.Context.Metadata[DockerApiDriverMetadataKeys.AllowTlsHostnameMismatch]);
     }
 
     [Fact]
@@ -376,13 +403,17 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       var isDefaultProp = configObj.GetType().GetProperty("IsDefault");
       var driverIdProp = configObj.GetType().GetProperty("DriverId");
       var driverPackProp = configObj.GetType().GetProperty("DriverPack");
+      var driverPackFactoryProp = configObj.GetType().GetProperty("DriverPackFactory");
+      var driverPack = driverPackProp?.GetValue(configObj);
+      if (driverPackFactoryProp?.GetValue(configObj) is Func<FluentDocker.Drivers.IDriverPack> factory)
+        driverPack = factory();
 
       return new DriverConfigResult
       {
-        Context = (DriverContext)contextProp?.GetValue(configObj),
+        Context = (DriverContext)contextProp?.GetValue(configObj)!,
         IsDefault = (bool)(isDefaultProp?.GetValue(configObj) ?? false),
-        DriverId = (string)driverIdProp?.GetValue(configObj),
-        DriverPackTypeName = driverPackProp?.GetValue(configObj)?.GetType().FullName,
+        DriverId = (string)driverIdProp?.GetValue(configObj)!,
+        DriverPackTypeName = driverPack?.GetType().FullName!,
       };
     }
 

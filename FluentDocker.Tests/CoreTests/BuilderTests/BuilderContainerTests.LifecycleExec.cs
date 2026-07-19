@@ -12,8 +12,8 @@ using Xunit;
 namespace FluentDocker.Tests.CoreTests.BuilderTests
 {
   /// <summary>
-  /// Tests for ExecuteOnRunning lifecycle execution (issue #283): each command runs as a
-  /// separate command, exactly once, AFTER wait conditions, and failures propagate.
+  /// Tests for ExecuteOnRunning lifecycle execution (issue #283): command argv runs
+  /// exactly once, AFTER wait conditions, and failures propagate.
   /// </summary>
   public partial class BuilderContainerTests
   {
@@ -26,7 +26,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .SetupContainerRemove();
 
     [Fact]
-    public async Task ExecuteOnRunning_RunsEachCommandAsSeparateCommand_ExactlyOnce()
+    public async Task ExecuteOnRunning_RunsCommandArgv_ExactlyOnce()
     {
       SetupLifecycleBuild();
 
@@ -46,8 +46,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .ExecuteOnRunning("first", "second"))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
 
-      // Each array element runs as its own command (not joined) and exactly once (no double-exec).
-      Assert.Equal(new[] { "first", "second" }, execCommands);
+      Assert.Equal(new[] { "first second" }, execCommands);
     }
 
     [Fact]

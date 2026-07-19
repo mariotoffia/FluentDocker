@@ -29,6 +29,24 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void TmpVariable_CustomTempPathWithoutTrailingSeparator_DoesNotTrimLastCharacter()
+    {
+      var original = DirectoryHelper.GetTempPath;
+      try
+      {
+        DirectoryHelper.GetTempPath = () => "/custom/temp";
+
+        var path = new TemplateString(@"${TMP}/folder");
+
+        Assert.Equal("/custom/temp/folder", path.Rendered);
+      }
+      finally
+      {
+        DirectoryHelper.GetTempPath = original;
+      }
+    }
+
+    [Fact]
     public void PwdVariable_IsRendered()
     {
       var path = new TemplateString(@"${PWD}/myfile.txt");
@@ -50,6 +68,17 @@ namespace FluentDocker.Tests.CoreTests.Model
 
       // Should be random (different each time)
       Assert.NotEqual(path1.Rendered, path2.Rendered);
+    }
+
+    [Fact]
+    public void RndVariable_MultipleOccurrences_RenderIndependently()
+    {
+      var path = new TemplateString(@"${RND}/${RND}");
+
+      var parts = path.Rendered.Split('/');
+
+      Assert.Equal(2, parts.Length);
+      Assert.NotEqual(parts[0], parts[1]);
     }
 
     [Fact]
@@ -94,16 +123,24 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void UnifiedSeparator_TranslatedOnWindows()
+    public void MixedDockerVolumeSpec_KeepsForwardSlashesOnAllOses()
     {
-      if (!FdOs.IsWindows())
-        return; // Skip on non-Windows
-
-      var path = new TemplateString(@"${TEMP}/folder/${RND}", handleWindowsPathIfNeeded: true);
-      Assert.Contains(@"\folder\", path.Rendered);
+      var path = new TemplateString("c:/data:/data");
+      Assert.Equal("c:/data:/data", path.Rendered);
     }
 
     [Fact]
+    public void HostMountTemplateSpec_ContainerSideKeepsForwardSlashes()
+    {
+      var path = new TemplateString(@"${TMP}/data:/data");
+      var containerSide = path.Rendered[(path.Rendered.LastIndexOf(':') + 1)..];
+
+      Assert.Equal("/data", containerSide);
+      Assert.DoesNotContain('\\', containerSide);
+    }
+
+    [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void SpacesInPath_AreEscapedCorrectly()
     {
       var path = new TemplateString(@"${TEMP}/folder with space/${RND}");
@@ -115,6 +152,7 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void NoSpacesInPath_NotEscaped()
     {
       var path = new TemplateString(@"${TEMP}/folder/${RND}");
@@ -154,8 +192,14 @@ namespace FluentDocker.Tests.CoreTests.Model
     public void NullString_ImplicitConversion_ReturnsNull()
     {
       string? nullString = null;
-      TemplateString ts = nullString;
+      TemplateString ts = nullString!; // intentional null to verify null-handling
       Assert.Null(ts);
+    }
+
+    [Fact]
+    public void Constructor_NullString_ThrowsArgumentNullException()
+    {
+      Assert.Throws<ArgumentNullException>(() => new TemplateString(null!));
     }
 
     [Fact]
@@ -180,6 +224,25 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
+    public void MissingEnvironmentVariable_IsLeftUnresolved()
+    {
+      var key = string.Concat("FD_MISSING_", Guid.NewGuid().ToString("N"));
+      Environment.SetEnvironmentVariable(key, null);
+
+      var ts = new TemplateString($"prefix_${{E_{key}}}_suffix");
+
+      Assert.Equal($"prefix_${{E_{key}}}_suffix", ts.Rendered);
+    }
+
+    [Fact]
+    public void Equality_UsesRenderedValue()
+    {
+      Assert.Equal(new TemplateString("/same"), new TemplateString("/same"));
+      Assert.True(new TemplateString("/same") == new TemplateString("/same"));
+      Assert.NotEqual(new TemplateString("/same"), new TemplateString("/other"));
+    }
+
+    [Fact]
     public void EmbeddedResourcePath_NotAltered()
     {
       var ts = new TemplateString("emb:MyAssembly/Resources/file.txt");
@@ -189,4 +252,3 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
   }
 }
-

@@ -11,9 +11,6 @@ using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.ApiModels;
 using FluentDocker.Model.Drivers;
-using SharpCompress.Common;
-using SharpCompress.Readers;
-using SharpCompress.Writers;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -30,6 +27,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         int? tail = null, bool timestamps = false,
         CancellationToken cancellationToken = default)
     {
+      if (follow)
+        return CommandResponse<string>.Fail(
+            "GetLogsAsync does not support follow=true because Docker API logs can stream indefinitely. " +
+            "Use IStreamDriver.StreamLogsAsync instead.",
+            ErrorCodes.Container.LogsFailed,
+            CreateErrorContext($"GET /containers/{containerId}/logs", 0));
+
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/logs" +
                  $"?stdout=1&stderr=1" +
                  $"&follow={follow.ToString().ToLowerInvariant()}" +
@@ -40,17 +44,21 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
-        var logs = StripDockerStreamHeaders(ms.ToArray());
+        var logs = await ReadDockerLogTailAsync(stream, containerId, cancellationToken).ConfigureAwait(false);
         return CommandResponse<string>.Ok(logs);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
+        var statusCode = HttpStatusCodeOrZero(ex);
         return CommandResponse<string>.Fail(
             $"Failed to get logs for container '{containerId}': {ex.Message}",
             ErrorCodes.Container.LogsFailed,
-            CreateErrorContext($"GET /containers/{containerId}/logs", 0));
+            CreateErrorContext($"GET /containers/{containerId}/logs", statusCode),
+            statusCode);
       }
     }
 
@@ -61,7 +69,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <summary>Gets running processes in a container.</summary>
     public async Task<CommandResponse<ContainerProcesses>> TopAsync(
         DriverContext context, string containerId,
-        string psOptions = null, CancellationToken cancellationToken = default)
+        string? psOptions = null, CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/top";
       if (!string.IsNullOrEmpty(psOptions))
@@ -79,13 +87,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var data = result.Data;
       var titlesEl = data.Prop("Titles");
       if (titlesEl?.ValueKind == JsonValueKind.Array)
-        processes.Titles = [.. titlesEl.Value.EnumerateArray().Select(t => t.GetString())];
+        processes.Titles = [.. titlesEl.Value.EnumerateArray().Select(t => t.GetString() ?? string.Empty)];
       var rowsEl = data.Prop("Processes");
       if (rowsEl?.ValueKind == JsonValueKind.Array)
       {
         processes.Processes = [.. rowsEl.Value.EnumerateArray()
             .Select(row => row.ValueKind == JsonValueKind.Array
-                ? row.EnumerateArray().Select(c => c.GetString()).ToList()
+                ? row.EnumerateArray().Select(c => c.GetString() ?? string.Empty).ToList()
                 : [])];
       }
       return CommandResponse<ContainerProcesses>.Ok(processes);
@@ -145,21 +153,39 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId, ExecConfig config,
         CancellationToken cancellationToken = default)
     {
+      if (config == null)
+        return CommandResponse<ExecResult>.Fail(
+            "ExecConfig is required",
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"POST /containers/{containerId}/exec", 0));
+
+      if (config.Command == null || config.Command.Length == 0)
+        return CommandResponse<ExecResult>.Fail(
+            "ExecConfig.Command is required",
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"POST /containers/{containerId}/exec", 0));
+
+      if (config?.Interactive == true)
+        return CommandResponse<ExecResult>.Fail(
+            "interactive stdin is not supported by the Docker API driver",
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"POST /containers/{containerId}/exec", 0));
+
       // Phase 1: Create exec instance
       var createRequest = new ExecCreateRequest
       {
-        Cmd = config.Command,
+        Cmd = config!.Command,
         WorkingDir = config.WorkingDir,
         User = config.User,
         Privileged = config.Privileged,
         Tty = config.Tty,
-        AttachStdin = config.Interactive,
+        AttachStdin = false,
         AttachStdout = !config.Detach,
         AttachStderr = !config.Detach,
         Detach = config.Detach,
         Env = config.Environment?.Count > 0
               ? [.. config.Environment.Select(kv => $"{kv.Key}={kv.Value}")]
-              : null
+              : null!
       };
 
       var createPath = $"/containers/{Uri.EscapeDataString(containerId)}/exec";
@@ -167,7 +193,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           createPath, createRequest,
           DockerApiJsonContext.Default.ExecCreateRequest,
           DockerApiJsonContext.Default.ExecCreateResponse,
-          cancellationToken);
+          cancellationToken).ConfigureAwait(false);
       if (!createResult.Success)
         return CommandResponse<ExecResult>.Fail(createResult.ErrorMessage,
             MapNotFoundErrorCode(createResult.StatusCode, ErrorCodes.Container.ExecFailed),
@@ -179,6 +205,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (string.IsNullOrEmpty(execId))
         return CommandResponse<ExecResult>.Fail(
             "Exec create returned empty ID", ErrorCodes.Container.ExecFailed);
+      var escapedExecId = Uri.EscapeDataString(execId);
 
       // Phase 2: Start exec and capture output
       var startRequest = new ExecStartRequest { Detach = config.Detach, Tty = config.Tty };
@@ -188,13 +215,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var startContent = JsonContent.Create(
             startRequest, DockerApiJsonContext.Default.ExecStartRequest);
         using var stream = await Connection.PostStreamAsync(
-            $"/exec/{execId}/start", startContent, cancellationToken);
+            $"/exec/{escapedExecId}/start", startContent, cancellationToken).ConfigureAwait(false);
 
         if (config.Tty)
         {
           // TTY mode: raw stream, no multiplexed framing
-          using var reader = new StreamReader(stream, Encoding.UTF8);
-          stdout = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+          stdout = await ReadTextTailAsync(stream, cancellationToken).ConfigureAwait(false);
           stderr = string.Empty;
         }
         else
@@ -203,19 +229,43 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           (stdout, stderr) = await DemultiplexStreamAsync(stream, cancellationToken).ConfigureAwait(false);
         }
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
+        var statusCode = HttpStatusCodeOrZero(ex);
         return CommandResponse<ExecResult>.Fail(
             $"Failed to start exec '{execId}': {ex.Message}",
             ErrorCodes.Container.ExecFailed,
-            CreateErrorContext($"POST /exec/{execId}/start", 0));
+            CreateErrorContext($"POST /exec/{escapedExecId}/start", statusCode),
+            statusCode);
       }
 
       // Phase 3: Inspect exec for exit code
-      var inspectResult = await GetJsonAsync(
-          $"/exec/{execId}/json",
-          DockerApiJsonContext.Default.ExecInspectResponse, cancellationToken);
-      var exitCode = inspectResult.Success ? inspectResult.Data?.ExitCode ?? -1 : -1;
+      var inspectResult = await InspectExecExitCodeAsync(
+          execId, config.Detach, context, cancellationToken).ConfigureAwait(false);
+      if (!inspectResult.Success)
+        return CommandResponse<ExecResult>.Fail(inspectResult.ErrorMessage,
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"GET /exec/{escapedExecId}/json",
+                inspectResult.StatusCode, inspectResult.ResponseBody),
+            inspectResult.StatusCode);
+
+      // A detached exec (docker exec -d) is fire-and-forget: the process is expected to be
+      // still Running at inspect, so we do not wait for an exit code — matching the CLI.
+      // Attached exec polls until the caller/config deadline because Docker can report Running=true
+      // for a while after the streams close; detached exec keeps the single-inspect fast path.
+      if (!config.Detach && (inspectResult.Data?.Running == true || inspectResult.Data?.ExitCode == null))
+        return CommandResponse<ExecResult>.Fail(
+            "Exec exit code is not available yet",
+            ErrorCodes.Container.ExecFailed,
+            CreateErrorContext($"GET /exec/{escapedExecId}/json", 0,
+                $"stdout:{Environment.NewLine}{stdout ?? string.Empty}{Environment.NewLine}" +
+                $"stderr:{Environment.NewLine}{stderr ?? string.Empty}"));
+
+      var exitCode = inspectResult.Data?.ExitCode ?? 0;
 
       return CommandResponse<ExecResult>.Ok(new ExecResult
       {
@@ -228,126 +278,76 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <summary>
     /// Demultiplexes a Docker multiplexed stream into separate stdout and stderr.
     /// Frame format: [1B stream type][3B zero padding][4B big-endian size][payload].
-    /// Stream types: 1=stdout, 2=stderr.
+    /// Stream types: 1=stdout, 2=stderr, 3=systemerr.
     /// </summary>
     private static async Task<(string StdOut, string StdErr)> DemultiplexStreamAsync(
         Stream stream, CancellationToken ct)
     {
-      var stdoutBuf = new StringBuilder();
-      var stderrBuf = new StringBuilder();
+      var stdoutBuf = CreateOutputTail();
+      var stderrBuf = CreateOutputTail();
+      var stdoutDecoder = Encoding.UTF8.GetDecoder();
+      var stderrDecoder = Encoding.UTF8.GetDecoder();
       var header = new byte[8];
 
       while (true)
       {
+        ct.ThrowIfCancellationRequested();
         var headerRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
-        if (headerRead < 8)
+        if (headerRead == 0)
           break;
+        if (headerRead < 8)
+          throw new DriverException(
+              $"Docker exec stream truncated: partial {headerRead}-byte frame header",
+              ErrorCodes.Api.ServerError);
+
+        if (header[0] > 3 || header[1] != 0 || header[2] != 0 || header[3] != 0)
+          throw new DriverException(
+              "Docker exec stream has an invalid multiplexed frame header",
+              ErrorCodes.Api.ServerError);
 
         var streamType = header[0];
         var frameSize = (header[4] << 24) | (header[5] << 16) |
             (header[6] << 8) | header[7];
 
-        if (frameSize <= 0)
+        if (frameSize < 0 || frameSize > MaxFrameSizeBytes)
+          throw new DriverException(
+              $"Docker exec stream frame size {frameSize} exceeds the {MaxFrameSizeBytes} byte limit",
+              ErrorCodes.Api.ServerError);
+        if (frameSize == 0)
           continue;
 
         var payload = new byte[frameSize];
         var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
-        if (payloadRead <= 0)
-          break;
+        if (payloadRead < frameSize)
+          throw new DriverException(
+              $"Docker exec stream truncated: expected {frameSize} payload bytes, read {payloadRead}",
+              ErrorCodes.Api.ServerError);
 
-        var text = Encoding.UTF8.GetString(payload, 0, payloadRead);
         if (streamType == 1)
-          stdoutBuf.Append(text);
-        else if (streamType == 2)
-          stderrBuf.Append(text);
+          AppendUtf8(stdoutDecoder, payload, payloadRead, stdoutBuf);
+        else if (streamType is 2 or 3)
+          // Type 3 systemerr is routed to stderr and the stream continues by design.
+          AppendUtf8(stderrDecoder, payload, payloadRead, stderrBuf);
       }
 
-      return (stdoutBuf.ToString(), stderrBuf.ToString());
+      FlushUtf8(stdoutDecoder, stdoutBuf);
+      FlushUtf8(stderrDecoder, stderrBuf);
+      return (stdoutBuf.ToText(), stderrBuf.ToText());
     }
 
-    #endregion
-
-    #region Copy To Container
-
-    /// <summary>
-    /// Copies files from the host to a container by creating a tar archive
-    /// and uploading it via the container archive API.
-    /// </summary>
-    public async Task<CommandResponse<Unit>> CopyToAsync(
-        DriverContext context, string containerId,
-        string hostPath, string containerPath,
-        CancellationToken cancellationToken = default)
+    private static void AppendUtf8(
+        Decoder decoder, byte[] payload, int count, TailText output)
     {
-      if (!File.Exists(hostPath) && !Directory.Exists(hostPath))
-        return CommandResponse<Unit>.Fail(
-            $"Host path '{hostPath}' does not exist",
-            ErrorCodes.General.InvalidArgument);
-      try
-      {
-        // Docker API PUT /archive extracts the tar INTO the path directory.
-        // For file-to-file copy, we extract into the parent dir with the target filename.
-        var extractPath = containerPath;
-        string tarEntryName = null;
-
-        if (File.Exists(hostPath) && !containerPath.EndsWith('/'))
-        {
-          var parentDir = containerPath.Contains('/')
-              ? containerPath[..containerPath.LastIndexOf('/')]
-              : "/";
-          if (string.IsNullOrEmpty(parentDir))
-            parentDir = "/";
-          tarEntryName = containerPath[(containerPath.LastIndexOf('/') + 1)..];
-          extractPath = parentDir;
-        }
-
-        using var tarStream = new MemoryStream();
-        using (var writer = WriterFactory.OpenWriter(tarStream, ArchiveType.Tar,
-            new WriterOptions(CompressionType.None)))
-        {
-          if (File.Exists(hostPath))
-            writer.Write(tarEntryName ?? Path.GetFileName(hostPath), hostPath);
-          else
-            WriteDirectoryToTar(writer, hostPath, string.Empty);
-        }
-
-        tarStream.Position = 0;
-        var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}" +
-                      $"/archive?path={Uri.EscapeDataString(extractPath)}";
-        var result = await PutStreamAsync(
-            apiPath, tarStream, "application/x-tar", cancellationToken);
-        if (!result.Success)
-          return CommandResponse<Unit>.Fail(result.ErrorMessage,
-              MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Container.CopyFailed),
-              CreateErrorContext($"PUT /containers/{containerId}/archive",
-                  result.StatusCode, result.ResponseBody),
-              result.StatusCode);
-
-        return CommandResponse<Unit>.Ok(Unit.Default);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(
-            $"Failed to copy to container '{containerId}': {ex.Message}",
-            ErrorCodes.Container.CopyFailed,
-            CreateErrorContext($"PUT /containers/{containerId}/archive", 0));
-      }
+      var chars = new char[Encoding.UTF8.GetMaxCharCount(count)];
+      var written = decoder.GetChars(payload, 0, count, chars, 0, flush: false);
+      output.Append(chars.AsSpan(0, written));
     }
 
-    private static void WriteDirectoryToTar(IWriter writer, string rootDir, string entryBase)
+    private static void FlushUtf8(Decoder decoder, TailText output)
     {
-      foreach (var file in Directory.GetFiles(rootDir))
-      {
-        var entryName = string.IsNullOrEmpty(entryBase)
-            ? Path.GetFileName(file) : $"{entryBase}/{Path.GetFileName(file)}";
-        writer.Write(entryName, file);
-      }
-      foreach (var dir in Directory.GetDirectories(rootDir))
-      {
-        var dirName = Path.GetFileName(dir);
-        var newBase = string.IsNullOrEmpty(entryBase)
-            ? dirName : $"{entryBase}/{dirName}";
-        WriteDirectoryToTar(writer, dir, newBase);
-      }
+      var chars = new char[Encoding.UTF8.GetMaxCharCount(0)];
+      var written = decoder.GetChars([], 0, 0, chars, 0, flush: true);
+      output.Append(chars.AsSpan(0, written));
     }
 
     #endregion
@@ -362,34 +362,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId,
         string containerPath, string hostPath,
         CancellationToken cancellationToken = default)
-    {
-      try
-      {
-        var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}" +
-                      $"/archive?path={Uri.EscapeDataString(containerPath)}";
-        using var stream = await GetRawStreamAsync(apiPath, cancellationToken).ConfigureAwait(false);
-        Directory.CreateDirectory(hostPath);
-        using var reader = ReaderFactory.OpenReader(stream);
-        while (reader.MoveToNextEntry())
-        {
-          if (reader.Entry.IsDirectory)
-            continue;
-          reader.WriteEntryToDirectory(hostPath, new ExtractionOptions
-          {
-            ExtractFullPath = true,
-            Overwrite = true
-          });
-        }
-        return CommandResponse<Unit>.Ok(Unit.Default);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail(
-            $"Failed to copy from container '{containerId}': {ex.Message}",
-            ErrorCodes.Container.CopyFailed,
-            CreateErrorContext($"GET /containers/{containerId}/archive", 0));
-      }
-    }
+        => await CopyFromArchiveAsync(context, containerId, containerPath, hostPath, cancellationToken)
+            .ConfigureAwait(false);
 
     #endregion
 
@@ -400,6 +374,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId, string outputPath,
         CancellationToken cancellationToken = default)
     {
+      string? tempPath = null;
       try
       {
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}/export";
@@ -407,17 +382,43 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var outputDir = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(outputDir))
           Directory.CreateDirectory(outputDir);
-        await using var fileStream = new FileStream(
-            outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
+        tempPath = Path.Combine(outputDir ?? ".", $".{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
+        await using (var fileStream = new FileStream(
+            tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+            bufferSize: 81920, FileOptions.Asynchronous))
+        {
+          await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
+        }
+        File.Move(tempPath, outputPath, overwrite: true);
+        tempPath = null;
         return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
+        if (tempPath != null)
+          TryDelete(tempPath);
+        var statusCode = HttpStatusCodeOrZero(ex);
         return CommandResponse<Unit>.Fail(
             $"Failed to export container '{containerId}': {ex.Message}",
             ErrorCodes.Container.ExportFailed,
-            CreateErrorContext($"GET /containers/{containerId}/export", 0));
+            CreateErrorContext($"GET /containers/{containerId}/export", statusCode),
+            statusCode);
+      }
+    }
+
+    private static void TryDelete(string path)
+    {
+      try
+      {
+        if (File.Exists(path))
+          File.Delete(path);
+      }
+      catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+      {
       }
     }
 
@@ -430,6 +431,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId, string newName,
         CancellationToken cancellationToken = default)
     {
+      if (string.IsNullOrWhiteSpace(containerId) || string.IsNullOrWhiteSpace(newName))
+        return CommandResponse<Unit>.Fail(
+            "Container ID and new name are required",
+            ErrorCodes.General.InvalidArgument,
+            CreateErrorContext("POST /containers/{id}/rename", 0));
+
       var path = $"/containers/{Uri.EscapeDataString(containerId)}" +
                  $"/rename?name={Uri.EscapeDataString(newName)}";
       var result = await PostAsync(path, null, cancellationToken).ConfigureAwait(false);

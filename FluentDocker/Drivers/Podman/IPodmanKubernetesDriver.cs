@@ -44,16 +44,16 @@ namespace FluentDocker.Drivers.Podman
   public class KubePlayConfig
   {
     /// <summary>Path to the Kubernetes YAML file (required).</summary>
-    public string YamlPath { get; set; }
+    public string? YamlPath { get; set; }
 
     /// <summary>Network to connect pods to (--network).</summary>
-    public string Network { get; set; }
+    public string? Network { get; set; }
 
     /// <summary>Path(s) to ConfigMap YAML files (--configmap).</summary>
     public List<string> ConfigMaps { get; set; } = [];
 
     /// <summary>Log driver for containers (--log-driver).</summary>
-    public string LogDriver { get; set; }
+    public string? LogDriver { get; set; }
 
     /// <summary>Replace existing pods/containers if they exist (--replace).</summary>
     public bool Replace { get; set; }
@@ -84,7 +84,7 @@ namespace FluentDocker.Drivers.Podman
   public class KubePlayPodResult
   {
     /// <summary>Pod identifier.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Container identifiers within this pod.</summary>
     public IList<string> Containers { get; set; } = [];

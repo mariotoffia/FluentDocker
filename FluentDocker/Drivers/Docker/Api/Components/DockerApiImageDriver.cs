@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -11,24 +9,21 @@ using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Image = FluentDocker.Drivers.Image;
-
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
   /// <summary>
-  /// Docker API implementation of IImageDriver.
-  /// Streaming operations (pull, push, build) are in the Build partial file.
+  /// Docker API implementation of IImageDriver. Pull and push are in the Registry partial,
+  /// image build in the Build partial, and save/load/import in the Transfer partial.
   /// </summary>
   public partial class DockerApiImageDriver : DockerApiDriverBase, IImageDriver
   {
+    /// <summary>Creates the driver over an existing Docker API connection.</summary>
     public DockerApiImageDriver(IDockerApiConnection connection) : base(connection) { }
-
     #region List/Inspect Operations
-
     /// <summary>Lists images via GET /images/json.</summary>
     public async Task<CommandResponse<IList<Image>>> ListAsync(
-        DriverContext context, ImageListFilter filter = null,
+        DriverContext context, ImageListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var query = new List<string>();
@@ -43,7 +38,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           query.Add($"filters={Uri.EscapeDataString(json)}");
         }
       }
-
       var path = "/images/json";
       if (query.Count > 0)
         path += "?" + string.Join("&", query);
@@ -120,13 +114,14 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <summary>Removes an image via DELETE /images/{name}.</summary>
+    /// <remarks>Large remove/prune operations use the 5-minute buffered client and may synthesize 408 while daemon work continues; use WithRequestTimeout.</remarks>
     public async Task<CommandResponse<ImageRemoveResult>> RemoveAsync(
         DriverContext context, string imageId, bool force = false, bool noPrune = false,
         CancellationToken cancellationToken = default)
     {
       var path = $"/images/{Uri.EscapeDataString(imageId)}" +
-                 $"?force={force.ToString().ToLower()}" +
-                 $"&noprune={noPrune.ToString().ToLower()}";
+                 $"?force={force.ToString().ToLowerInvariant()}" +
+                 $"&noprune={noPrune.ToString().ToLowerInvariant()}";
 
       // DELETE /images returns a JSON array; use Connection directly
       // since base DeleteAsync returns ApiResult without body parsing.
@@ -136,15 +131,21 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         response = await Connection.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       }
       catch (Exception ex) when (ex is HttpRequestException
-          or System.Net.Sockets.SocketException or TaskCanceledException)
+          or System.Net.Sockets.SocketException
+          or DriverException { ErrorCode: ErrorCodes.Api.UnsupportedVersion } ||
+          ex is TaskCanceledException && !cancellationToken.IsCancellationRequested)
       {
+        // The typed unsupported-daemon-version negotiation failure is deliberately rethrown by the
+        // connection so the request helpers map it to CommandResponse.Fail; DescribeTransportFailure
+        // synthesizes 505 -> Api.UnsupportedVersion here rather than letting it escape raw (DAPI-2).
+        var (statusCode, message) = DescribeTransportFailure(ex);
         return CommandResponse<ImageRemoveResult>.Fail(
-            $"Cannot connect to Docker daemon: {ex.Message}",
-            ErrorCodes.Api.ConnectionFailed,
-            CreateErrorContext($"DELETE /images/{imageId}", (int)HttpStatusCode.ServiceUnavailable),
-            (int)HttpStatusCode.ServiceUnavailable);
+            message,
+            MapHttpErrorCode(statusCode),
+            CreateErrorContext($"DELETE /images/{imageId}", statusCode),
+            statusCode);
       }
-
+      using var responseToDispose = response;
       var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
       if (!response.IsSuccessStatusCode)
       {
@@ -159,18 +160,27 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var removeResult = new ImageRemoveResult();
       if (!string.IsNullOrWhiteSpace(body))
       {
-        var items = JsonHelper.ParseElement(body);
-        if (items.ValueKind == JsonValueKind.Array)
+        // The daemon already committed the delete (2xx); a malformed summary body only costs
+        // the Deleted/Untagged detail, so it must not turn the success into a raw JsonException.
+        try
         {
-          foreach (var item in items.EnumerateArray())
+          var items = JsonHelper.ParseElement(body);
+          if (items.ValueKind == JsonValueKind.Array)
           {
-            var deleted = item.GetStringOrDefault("Deleted");
-            var untagged = item.GetStringOrDefault("Untagged");
-            if (!string.IsNullOrEmpty(deleted))
-              removeResult.Deleted.Add(deleted);
-            if (!string.IsNullOrEmpty(untagged))
-              removeResult.Untagged.Add(untagged);
+            foreach (var item in items.EnumerateArray())
+            {
+              var deleted = item.GetStringOrDefault("Deleted");
+              var untagged = item.GetStringOrDefault("Untagged");
+              if (!string.IsNullOrEmpty(deleted))
+                removeResult.Deleted.Add(deleted);
+              if (!string.IsNullOrEmpty(untagged))
+                removeResult.Untagged.Add(untagged);
+            }
           }
+        }
+        catch (JsonException ex)
+        {
+          Logger.LogDebug(ex, "Ignoring malformed body of successful DELETE /images response");
         }
       }
 
@@ -178,8 +188,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <summary>Prunes unused images via POST /images/prune.</summary>
+    /// <remarks>Large remove/prune operations use the 5-minute buffered client and may synthesize 408 while daemon work continues; use WithRequestTimeout.</remarks>
     public async Task<CommandResponse<ImagePruneResult>> PruneAsync(
-        DriverContext context, bool all = false, Dictionary<string, string> filter = null,
+        DriverContext context, bool all = false, Dictionary<string, string>? filter = null,
         CancellationToken cancellationToken = default)
     {
       var filters = new Dictionary<string, List<string>>();
@@ -228,143 +239,19 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     #endregion
 
-    #region Save/Load/Import Operations
-
-    /// <summary>Saves images to a tar archive via GET /images/get.</summary>
-    public async Task<CommandResponse<Unit>> SaveAsync(
-        DriverContext context, string[] images, string outputPath,
-        CancellationToken cancellationToken = default)
-    {
-      var names = string.Join("&", images.Select(i => $"names={Uri.EscapeDataString(i)}"));
-      var path = $"/images/get?{names}";
-
-      Stream stream;
-      try
-      { stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false); }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail($"Failed to save images: {ex.Message}",
-            ErrorCodes.Image.SaveFailed, CreateErrorContext("GET /images/get", 0));
-      }
-
-      try
-      {
-        await using (stream)
-        await using (var fileStream = File.Create(outputPath))
-          await stream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
-        return CommandResponse<Unit>.Ok(Unit.Default);
-      }
-      catch (Exception ex)
-      {
-        return CommandResponse<Unit>.Fail($"Failed to write tar archive: {ex.Message}",
-            ErrorCodes.Image.SaveFailed, CreateErrorContext("GET /images/get", 0));
-      }
-    }
-
-    /// <summary>Loads images from a tar archive via POST /images/load.</summary>
-    public async Task<CommandResponse<IList<string>>> LoadAsync(
-        DriverContext context, string inputPath,
-        CancellationToken cancellationToken = default)
-    {
-      if (!File.Exists(inputPath))
-        return CommandResponse<IList<string>>.Fail(
-            $"File not found: {inputPath}", ErrorCodes.Image.LoadFailed);
-
-      await using var fileStream = File.OpenRead(inputPath);
-      var content = new StreamContent(fileStream);
-      content.Headers.ContentType =
-          new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
-
-      var loadedImages = new List<string>();
-      await foreach (var line in ReadNdjsonFromPostStreamAsync(
-          "/images/load", content, cancellationToken))
-      {
-        var json = JsonHelper.ParseElement(line);
-        var streamVal = json.GetStringOrDefault("stream");
-        if (!string.IsNullOrWhiteSpace(streamVal))
-        {
-          var trimmed = streamVal.Trim();
-          if (trimmed.StartsWith("Loaded image:", StringComparison.OrdinalIgnoreCase))
-          {
-            var name = trimmed["Loaded image:".Length..].Trim();
-            if (!string.IsNullOrEmpty(name))
-              loadedImages.Add(name);
-          }
-          else if (trimmed.StartsWith("Loaded image ID:", StringComparison.OrdinalIgnoreCase))
-          {
-            var id = trimmed["Loaded image ID:".Length..].Trim();
-            if (!string.IsNullOrEmpty(id))
-              loadedImages.Add(id);
-          }
-        }
-
-        var error = json.GetStringOrDefault("error");
-        if (!string.IsNullOrWhiteSpace(error))
-          return CommandResponse<IList<string>>.Fail(error,
-              ErrorCodes.Image.LoadFailed, CreateErrorContext("POST /images/load", 0));
-      }
-
-      return CommandResponse<IList<string>>.Ok(loadedImages);
-    }
-
-    /// <summary>Imports a container filesystem as an image via POST /images/create.</summary>
-    public async Task<CommandResponse<string>> ImportAsync(
-        DriverContext context, string source, string repository = null,
-        string tag = null, string message = null,
-        CancellationToken cancellationToken = default)
-    {
-      var query = new List<string> { "fromSrc=-" };
-      if (!string.IsNullOrEmpty(repository))
-        query.Add($"repo={Uri.EscapeDataString(repository)}");
-      if (!string.IsNullOrEmpty(tag))
-        query.Add($"tag={Uri.EscapeDataString(tag)}");
-      if (!string.IsNullOrEmpty(message))
-        query.Add($"message={Uri.EscapeDataString(message)}");
-
-      var path = "/images/create?" + string.Join("&", query);
-
-      if (!File.Exists(source))
-        return CommandResponse<string>.Fail(
-            $"Source file not found: {source}", ErrorCodes.Image.ImportFailed);
-
-      await using var fileStream = File.OpenRead(source);
-      var content = new StreamContent(fileStream);
-      content.Headers.ContentType =
-          new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
-
-      string importedId = null;
-      await foreach (var line in ReadNdjsonFromPostStreamAsync(
-          path, content, cancellationToken))
-      {
-        var json = JsonHelper.ParseElement(line);
-        var status = json.GetStringOrDefault("status");
-        if (!string.IsNullOrWhiteSpace(status))
-          importedId = status.Trim();
-
-        var error = json.GetStringOrDefault("error");
-        if (!string.IsNullOrWhiteSpace(error))
-          return CommandResponse<string>.Fail(error,
-              ErrorCodes.Image.ImportFailed, CreateErrorContext("POST /images/create", 0));
-      }
-
-      return CommandResponse<string>.Ok(importedId ?? string.Empty);
-    }
-
-    #endregion
-
-    #region Partial Method Declarations (implemented in Build partial)
+    #region Partial Method Declarations (Pull/Push in Registry partial, Build in Build partial)
 
     public partial Task<CommandResponse<Unit>> PullAsync(
         DriverContext context, string image, string tag,
-        IProgress<ImagePullProgress> progress, CancellationToken cancellationToken);
+        IProgress<ImagePullProgress>? progress, CancellationToken cancellationToken);
 
     public partial Task<CommandResponse<Unit>> PushAsync(
         DriverContext context, string image,
-        IProgress<ImagePushProgress> progress, CancellationToken cancellationToken);
+        IProgress<ImagePushProgress>? progress, CancellationToken cancellationToken);
 
     public partial Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context, ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress, CancellationToken cancellationToken);
+        IProgress<ImageBuildProgress>? progress, CancellationToken cancellationToken);
 
     #endregion
 
@@ -437,7 +324,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var filters = new Dictionary<string, List<string>>();
       if (filter.Dangling.HasValue)
-        filters["dangling"] = new List<string> { filter.Dangling.Value.ToString().ToLower() };
+        filters["dangling"] = new List<string> { filter.Dangling.Value.ToString().ToLowerInvariant() };
       if (!string.IsNullOrEmpty(filter.Reference))
         filters["reference"] = new List<string> { filter.Reference };
       if (!string.IsNullOrEmpty(filter.Before))
@@ -451,18 +338,6 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             .ToList();
       }
       return filters;
-    }
-
-    private static string TryExtractErrorMessage(string body)
-    {
-      if (string.IsNullOrWhiteSpace(body))
-        return null;
-      try
-      {
-        var el = JsonHelper.ParseElement(body);
-        return el.GetStringOrDefault("message");
-      }
-      catch (Exception ex) { NullLogger.Instance.LogDebug(ex, "Error message JSON parse failed"); return body.Length > 500 ? body[..500] : body; }
     }
 
     #endregion

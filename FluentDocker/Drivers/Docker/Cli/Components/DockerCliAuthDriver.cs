@@ -21,11 +21,11 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// The password is always passed via stdin (--password-stdin) and never
     /// placed on the command line, to prevent exposure in process listings.
     /// </summary>
-    public static (string args, string stdinData) BuildLoginArgs(RegistryLoginConfig config)
+    public static (string args, string? stdinData) BuildLoginArgs(RegistryLoginConfig config)
     {
       var args = "login";
       if (!string.IsNullOrEmpty(config.Username))
-        args += $" -u {config.Username}";
+        args += $" -u {QuoteArgumentIfNeeded(config.Username)}";
 
       // Always use --password-stdin when a password is provided.
       // Never pass password via -p flag (visible in process listings).
@@ -33,7 +33,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args += " --password-stdin";
 
       if (!string.IsNullOrEmpty(config.Server))
-        args += $" {config.Server}";
+        args += $" {QuotePositionalArgument(config.Server, nameof(config.Server))}";
 
       var stdinData = !string.IsNullOrEmpty(config.Password) ? config.Password : null;
 
@@ -55,40 +55,55 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var (args, stdinData) = BuildLoginArgs(config);
         var result = stdinData != null
-            ? await ExecuteCommandAsync(args, stdinData, cancellationToken)
-            : await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+            ? await ExecuteCommandAsync(context, args, stdinData, cancellationToken).ConfigureAwait(false)
+            : await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Login failed", ErrorCodes.Auth.LoginFailed);
+            : CommandResponse<Unit>.Fail(
+                ErrorOrDefault(result, "Login failed"),
+                FailureCode(result.Error, ErrorCodes.Auth.LoginFailed),
+                CreateErrorContext(context, "Login", result),
+                result.ExitCode);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Auth.LoginFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Auth.LoginFailed));
       }
     }
 
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> LogoutAsync(
         DriverContext context,
-        string server = null,
+        string? server = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
         var args = "logout";
         if (!string.IsNullOrEmpty(server))
-          args += $" {server}";
+          args += $" {QuotePositionalArgument(server, nameof(server))}";
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail(result.Error ?? "Logout failed", ErrorCodes.Auth.LogoutFailed);
+            : CommandResponse<Unit>.Fail(
+                ErrorOrDefault(result, "Logout failed"),
+                FailureCode(result.Error, ErrorCodes.Auth.LogoutFailed),
+                CreateErrorContext(context, "Logout", result),
+                result.ExitCode);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.Auth.LogoutFailed);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.Auth.LogoutFailed));
       }
     }
   }
 }
-

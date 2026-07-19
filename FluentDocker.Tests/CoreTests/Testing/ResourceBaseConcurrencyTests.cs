@@ -31,20 +31,20 @@ namespace FluentDocker.Tests.CoreTests.Testing
     public async Task ConcurrentInitializeAsync_OnlyProvisionsOnce()
     {
       var provisionCount = 0;
+      var enteredProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var provisionTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
       var resource = new ConcurrencyTestResource(_kernel, onProvision: async ct =>
       {
         Interlocked.Increment(ref provisionCount);
-        await provisionTcs.Task;
+        enteredProvision.SetResult();
+        await provisionTcs.Task.ConfigureAwait(false);
       });
 
-      // Start two concurrent init calls
       var init1 = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await enteredProvision.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
       var init2 = resource.InitializeAsync(TestContext.Current.CancellationToken);
 
-      // Let provisioning complete
-      await Task.Delay(50, TestContext.Current.CancellationToken);
       provisionTcs.SetResult();
 
       await init1;
@@ -57,11 +57,16 @@ namespace FluentDocker.Tests.CoreTests.Testing
     [Fact]
     public async Task DisposeAsync_DuringInitializeAsync_WaitsForInit()
     {
+      var enteredProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var provisionTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
       var teardownCalled = false;
 
       var resource = new ConcurrencyTestResource(_kernel,
-          onProvision: async ct => await provisionTcs.Task,
+          onProvision: async ct =>
+          {
+            enteredProvision.SetResult();
+            await provisionTcs.Task.ConfigureAwait(false);
+          },
           onTeardown: ct =>
           {
             teardownCalled = true;
@@ -69,14 +74,11 @@ namespace FluentDocker.Tests.CoreTests.Testing
           });
 
       var initTask = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await enteredProvision.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
-      // Start dispose while init is in progress
-      await Task.Delay(50, TestContext.Current.CancellationToken);
       var disposeTask = resource.DisposeAsync().AsTask();
 
-      // Dispose should be blocked (init holds the lock)
-      await Task.Delay(50, TestContext.Current.CancellationToken);
-      Assert.False(disposeTask.IsCompleted);
+      Assert.False(teardownCalled);
 
       // Complete provisioning
       provisionTcs.SetResult();
@@ -110,13 +112,144 @@ namespace FluentDocker.Tests.CoreTests.Testing
       Assert.Equal(1, teardownCount);
     }
 
+    [Fact]
+    public async Task DisposeAsync_CalledTwiceAfterInit_RunsDisposeHooksOnce()
+    {
+      var beforeDisposeCount = 0;
+      var afterDisposeCount = 0;
+      var resource = new ConcurrencyTestResource(_kernel)
+          .OnBeforeDispose(_ =>
+          {
+            Interlocked.Increment(ref beforeDisposeCount);
+            return Task.CompletedTask;
+          })
+          .OnAfterDispose(_ =>
+          {
+            Interlocked.Increment(ref afterDisposeCount);
+            return Task.CompletedTask;
+          });
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await resource.DisposeAsync();
+      await resource.DisposeAsync();
+
+      Assert.Equal(1, beforeDisposeCount);
+      Assert.Equal(1, afterDisposeCount);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenTeardownIgnoresCancellation_ReturnsAfterTeardownTimeout()
+    {
+      var resource = new ConcurrencyTestResource(
+          _kernel,
+          options: new DockerResourceOptions { TeardownTimeout = TimeSpan.FromMilliseconds(50) },
+          onTeardown: _ => new TaskCompletionSource().Task);
+
+      await resource.InitializeAsync(TestContext.Current.CancellationToken);
+
+      await resource.DisposeAsync().AsTask()
+          .WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenProvisionIgnoresCancellation_TimesOut()
+    {
+      var enteredProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var releaseProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var resource = new ConcurrencyTestResource(
+          _kernel,
+          options: new DockerResourceOptions { InitializationTimeout = TimeSpan.FromMilliseconds(50) },
+          onProvision: _ =>
+          {
+            enteredProvision.SetResult();
+            return releaseProvision.Task;
+          });
+
+      var initTask = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await enteredProvision.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+      var completed = await Task.WhenAny(
+          initTask,
+          Task.Delay(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
+      releaseProvision.SetResult();
+
+      if (completed != initTask)
+        Assert.Fail("InitializeAsync did not honor InitializationTimeout.");
+
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(() => initTask);
+      Assert.IsType<TimeoutException>(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenBeforeInitHookIgnoresCancellation_TimesOut()
+    {
+      var resource = new ConcurrencyTestResource(
+          _kernel,
+          options: new DockerResourceOptions { InitializationTimeout = TimeSpan.FromMilliseconds(50) });
+      resource.OnBeforeInitialize(_ => new TaskCompletionSource().Task);
+
+      var ex = await Assert.ThrowsAsync<ResourceInitializationException>(
+          () => resource.InitializeAsync(TestContext.Current.CancellationToken));
+
+      Assert.IsType<TimeoutException>(ex.InnerException);
+      Assert.Contains("timed out", ex.InnerException.Message);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_DuringHungProvision_ReturnsWithinTeardownBudget()
+    {
+      var enteredProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var releaseProvision = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+      var resource = new ConcurrencyTestResource(
+          _kernel,
+          options: new DockerResourceOptions
+          {
+            InitializationTimeout = TimeSpan.FromMinutes(1),
+            TeardownTimeout = TimeSpan.FromMilliseconds(50)
+          },
+          onProvision: _ =>
+          {
+            enteredProvision.SetResult();
+            return releaseProvision.Task;
+          });
+
+      var initTask = resource.InitializeAsync(TestContext.Current.CancellationToken);
+      await enteredProvision.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+      var disposeTask = resource.DisposeAsync().AsTask();
+      var completed = await Task.WhenAny(
+          disposeTask,
+          Task.Delay(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
+      releaseProvision.SetResult();
+      await initTask;
+
+      if (completed != disposeTask)
+        Assert.Fail("DisposeAsync waited indefinitely for the lifecycle lock.");
+
+      await Assert.ThrowsAsync<TimeoutException>(() => disposeTask);
+    }
+
+    [Fact]
+    public void GenerateUniqueName_WithLongPrefix_PreservesGuidEntropy()
+    {
+      var prefix = new string('x', 62);
+      var first = ConcurrencyTestResource.MakeUniqueName(prefix);
+      var second = ConcurrencyTestResource.MakeUniqueName(prefix);
+
+      Assert.NotEqual(first, second);
+      Assert.True(first.Length <= 63);
+      Assert.True(second.Length <= 63);
+    }
+
     /// <summary>
     /// Minimal <see cref="ResourceBase"/> subclass for concurrency testing.
     /// </summary>
     private sealed class ConcurrencyTestResource(
         FluentDockerKernel kernel,
         Func<CancellationToken, Task>? onProvision = null,
-        Func<CancellationToken, Task>? onTeardown = null) : ResourceBase(kernel)
+        Func<CancellationToken, Task>? onTeardown = null,
+        DockerResourceOptions? options = null) : ResourceBase(kernel, options ?? new DockerResourceOptions())
     {
       private readonly Func<CancellationToken, Task> _onProvision = onProvision ?? (_ => Task.CompletedTask);
       private readonly Func<CancellationToken, Task> _onTeardown = onTeardown ?? (_ => Task.CompletedTask);
@@ -132,6 +265,8 @@ namespace FluentDocker.Tests.CoreTests.Testing
 
       protected override Task ForceRemoveAsync(CancellationToken cancellationToken)
           => Task.CompletedTask;
+
+      public static string MakeUniqueName(string prefix) => GenerateUniqueName(prefix);
     }
   }
 }

@@ -11,56 +11,35 @@ namespace FluentDocker.Benchmarks
   [MemoryDiagnoser]
   public class ContainerStatsBenchmarks
   {
-    private const string SampleStatsJson = @"{
-            ""Container"": ""abc123def456"",
-            ""Name"": ""nginx-test"",
-            ""CPUPerc"": ""0.15%"",
-            ""MemUsage"": ""15.5MiB / 1.5GiB"",
-            ""MemPerc"": ""1.02%"",
-            ""NetIO"": ""1.2kB / 3.4MB"",
-            ""BlockIO"": ""0B / 12.5MiB"",
-            ""PIDs"": ""3""
-        }";
-
-    private System.Text.Json.JsonElement _simpleRoot;
-    private System.Text.Json.JsonElement _complexRoot;
-
-    [GlobalSetup]
-    public void Setup()
-    {
-      _simpleRoot = System.Text.Json.JsonDocument.Parse(SampleStatsJson.Trim()).RootElement;
-      _complexRoot = System.Text.Json.JsonDocument.Parse(ComplexStatsJson.Trim()).RootElement;
-    }
-
-    private const string ComplexStatsJson = @"{
-            ""Container"": ""abc123def456789012345678901234567890123456789012345678901234"",
-            ""Name"": ""complex-service-with-long-name"",
-            ""CPUPerc"": ""45.78%"",
-            ""MemUsage"": ""2.35GiB / 8GiB"",
-            ""MemPerc"": ""29.38%"",
-            ""NetIO"": ""15.7MB / 892.3GB"",
-            ""BlockIO"": ""1.2TB / 456.7GiB"",
-            ""PIDs"": ""256""
-        }";
+    private const string SimpleCpuPercent = "0.15%";
+    private const string SimpleMemoryPercent = "1.02%";
+    private const string SimpleMemoryUsage = "15.5MiB / 1.5GiB";
+    private const string SimpleNetIo = "1.2kB / 3.4MB";
+    private const string SimpleBlockIo = "0B / 12.5MiB";
+    private const string ComplexCpuPercent = "45.78%";
+    private const string ComplexMemoryPercent = "29.38%";
+    private const string ComplexMemoryUsage = "2.35GiB / 8GiB";
+    private const string ComplexNetIo = "15.7MB / 892.3GB";
+    private const string ComplexBlockIo = "1.2TB / 456.7GiB";
 
     [Benchmark(Description = "Parse simple stats via CliOutputParser")]
     public void ParseSimpleStats()
     {
-      CliOutputParser.ParsePercent(_simpleRoot.GetProperty("CPUPerc").GetString());
-      CliOutputParser.ParsePercent(_simpleRoot.GetProperty("MemPerc").GetString());
-      CliOutputParser.ParseMemoryUsage(_simpleRoot.GetProperty("MemUsage").GetString());
-      CliOutputParser.ParseIOPair(_simpleRoot.GetProperty("NetIO").GetString());
-      CliOutputParser.ParseIOPair(_simpleRoot.GetProperty("BlockIO").GetString());
+      CliOutputParser.ParsePercent(SimpleCpuPercent);
+      CliOutputParser.ParsePercent(SimpleMemoryPercent);
+      CliOutputParser.ParseMemoryUsage(SimpleMemoryUsage);
+      CliOutputParser.ParseIOPair(SimpleNetIo);
+      CliOutputParser.ParseIOPair(SimpleBlockIo);
     }
 
     [Benchmark(Description = "Parse complex stats via CliOutputParser")]
     public void ParseComplexStats()
     {
-      CliOutputParser.ParsePercent(_complexRoot.GetProperty("CPUPerc").GetString());
-      CliOutputParser.ParsePercent(_complexRoot.GetProperty("MemPerc").GetString());
-      CliOutputParser.ParseMemoryUsage(_complexRoot.GetProperty("MemUsage").GetString());
-      CliOutputParser.ParseIOPair(_complexRoot.GetProperty("NetIO").GetString());
-      CliOutputParser.ParseIOPair(_complexRoot.GetProperty("BlockIO").GetString());
+      CliOutputParser.ParsePercent(ComplexCpuPercent);
+      CliOutputParser.ParsePercent(ComplexMemoryPercent);
+      CliOutputParser.ParseMemoryUsage(ComplexMemoryUsage);
+      CliOutputParser.ParseIOPair(ComplexNetIo);
+      CliOutputParser.ParseIOPair(ComplexBlockIo);
     }
 
     [Benchmark(Description = "Parse byte value - bytes")]

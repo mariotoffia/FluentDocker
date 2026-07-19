@@ -40,14 +40,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config.Timestamps)
         args += " -t";
       if (config.Tail.HasValue)
-        args += $" --tail {config.Tail.Value}";
+        args += $" --tail {FormatInvariant(config.Tail.Value)}";
       if (!string.IsNullOrEmpty(config.Since))
         args += $" --since {QuoteArgumentIfNeeded(config.Since)}";
       if (!string.IsNullOrEmpty(config.Until))
         args += $" --until {QuoteArgumentIfNeeded(config.Until)}";
       if (config.Details)
         args += " --details";
-      args += $" {QuoteArgumentIfNeeded(containerId)}";
+      args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
       return args;
     }
 
@@ -55,21 +55,32 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context,
         string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-      var args = BuildStreamLogsArgs(containerId, config);
+      await foreach (var entry in StreamLogEntriesAsync(context, containerId, config, cancellationToken)
+          .WithCancellation(cancellationToken).ConfigureAwait(false))
+        yield return entry.Source == LogStreamSource.Stderr ? $"[stderr] {entry.Line}" : entry.Line ?? string.Empty;
+    }
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
-      {
-        yield return line;
-      }
+    /// <inheritdoc />
+    public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
+        DriverContext context,
+        string containerId,
+        StreamLogsConfig? config = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+      config ??= new StreamLogsConfig();
+      var args = BuildStreamLogsArgs(containerId, config);
+      await foreach (var entry in ExecuteStreamingCommandWithSourcesAsync(
+          context, args, config.Stdout, config.Stderr, cancellationToken).ConfigureAwait(false))
+        yield return entry;
     }
 
     /// <inheritdoc />
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
         DriverContext context,
-        StreamEventsConfig config = null,
+        StreamEventsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       var args = "events --format \"{{json .}}\"";
@@ -83,21 +94,59 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           args += $" --filter {QuoteArgumentIfNeeded($"{filter.Key}={filter.Value}")}";
       }
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
-        ContainerEvent evt = null;
-        try
-        {
-          evt = JsonSerializer.Deserialize<ContainerEvent>(line, JsonHelper.CaseInsensitiveOptions);
-          evt?.RawJson = line;
-        }
-        catch (Exception ex)
-        {
-          Logger.LogDebug(ex, "Event stream JSON parsing failed");
-        }
+        var evt = ParseEventLine(line, Logger);
 
         if (evt != null)
           yield return evt;
+      }
+    }
+
+    /// <summary>
+    /// Parses one JSON line from <c>docker events --format "{{json .}}"</c>.
+    /// </summary>
+    /// <param name="line">The JSON line to parse.</param>
+    /// <returns>The parsed event, or null if parsing fails.</returns>
+    public static ContainerEvent? ParseEventLine(string line)
+    {
+      return ParseEventLine(line, NullLogger.Instance);
+    }
+
+    private static ContainerEvent? ParseEventLine(string line, ILogger logger)
+    {
+      try
+      {
+        var evt = JsonSerializer.Deserialize<ContainerEvent>(line, JsonHelper.CaseInsensitiveOptions);
+        if (evt == null)
+          return null;
+
+        evt.RawJson = line;
+        var json = JsonHelper.ParseElement(line);
+        evt.Action ??= json.GetStringOrDefault("status");
+        evt.ActorId ??= json.GetStringOrDefault("id");
+
+        var actor = json.Prop("Actor");
+        if (actor?.ValueKind == JsonValueKind.Object)
+        {
+          evt.ActorId = actor.Value.GetStringOrDefault("ID") ?? evt.ActorId;
+          evt.ActorAttributes = actor.Value.GetStringDictionary("Attributes");
+        }
+
+        var time = json.Prop("time");
+        if (time?.ValueKind == JsonValueKind.Number && time.Value.TryGetInt64(out var seconds))
+          evt.Timestamp = DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
+
+        var timeNano = json.Prop("timeNano");
+        if (timeNano?.ValueKind == JsonValueKind.Number && timeNano.Value.TryGetInt64(out var nanos))
+          evt.TimeNano = nanos;
+
+        return evt;
+      }
+      catch (Exception ex)
+      {
+        logger.LogWarning(ex, "Event stream JSON parsing failed");
+        return null;
       }
     }
 
@@ -107,7 +156,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <param name="containerId">Container ID or name (null for all containers).</param>
     /// <param name="config">Stream stats configuration.</param>
     /// <returns>The CLI arguments string.</returns>
-    public static string BuildStreamStatsArgs(string containerId, StreamStatsConfig config)
+    public static string BuildStreamStatsArgs(string? containerId, StreamStatsConfig? config)
     {
       var args = "stats --format \"{{json .}}\"";
       if (config?.Stream == false)
@@ -115,29 +164,29 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       if (config?.All == true)
         args += " -a";
       if (!string.IsNullOrEmpty(containerId))
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
       return args;
     }
 
     /// <inheritdoc />
     public async IAsyncEnumerable<ContainerStats> StreamStatsAsync(
         DriverContext context,
-        string containerId = null,
-        StreamStatsConfig config = null,
+        string? containerId = null,
+        StreamStatsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       var args = BuildStreamStatsArgs(containerId, config);
 
-      await foreach (var line in ExecuteStreamingCommandAsync(args, cancellationToken))
+      await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
-        ContainerStats stats = null;
+        ContainerStats? stats = null;
         try
         {
-          stats = ParseStreamStatsLine(line);
+          stats = ParseStreamStatsLine(line, Logger);
         }
         catch (Exception ex)
         {
-          Logger.LogDebug(ex, "Stats stream JSON parsing failed");
+          Logger.LogWarning(ex, "Stats stream JSON parsing failed");
         }
 
         if (stats != null)
@@ -153,7 +202,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     /// <param name="json">A single JSON line from docker stats CLI output.</param>
     /// <returns>A populated <see cref="ContainerStats"/>, or null if parsing fails.</returns>
-    public static ContainerStats ParseStreamStatsLine(string json)
+    public static ContainerStats? ParseStreamStatsLine(string json)
+    {
+      return ParseStreamStatsLine(json, NullLogger.Instance);
+    }
+
+    private static ContainerStats? ParseStreamStatsLine(string json, ILogger logger)
     {
       if (string.IsNullOrWhiteSpace(json))
         return null;
@@ -163,7 +217,10 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       var start = json.IndexOf('{');
       var end = json.LastIndexOf('}');
       if (start < 0 || end < start)
+      {
+        logger.LogDebug("Stats line skipped: no JSON object (ANSI control frame)");
         return null;
+      }
       json = json[start..(end + 1)];
 
       try
@@ -171,15 +228,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var obj = JsonHelper.ParseElement(json);
 
         var cpuPerc = CliOutputParser.ParsePercent(
-            obj.GetStringOrDefault("CPUPerc"));
+            obj.GetStringOrDefault("CPUPerc") ?? string.Empty);
         var memPerc = CliOutputParser.ParsePercent(
-            obj.GetStringOrDefault("MemPerc"));
+            obj.GetStringOrDefault("MemPerc") ?? string.Empty);
         var (memUsage, memLimit) = CliOutputParser.ParseMemoryUsage(
-            obj.GetStringOrDefault("MemUsage"));
+            obj.GetStringOrDefault("MemUsage") ?? string.Empty);
         var (netRx, netTx) = CliOutputParser.ParseIOPair(
-            obj.GetStringOrDefault("NetIO"));
+            obj.GetStringOrDefault("NetIO") ?? string.Empty);
         var (blockRead, blockWrite) = CliOutputParser.ParseIOPair(
-            obj.GetStringOrDefault("BlockIO"));
+            obj.GetStringOrDefault("BlockIO") ?? string.Empty);
 
         int.TryParse(
             obj.GetStringOrDefault("PIDs"),
@@ -206,7 +263,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
       catch (Exception ex)
       {
-        NullLogger.Instance.LogDebug(ex, "Stats line parsing failed");
+        logger.LogWarning(ex, "Stats line parsing failed");
         return null;
       }
     }
@@ -215,7 +272,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context,
         string containerId,
-        AttachConfig config = null,
+        AttachConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -225,20 +282,29 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
         if (!config.SigProxy)
           args += " --sig-proxy=false";
+        if (config.Stdin == false)
+          args += " --no-stdin";
         if (!string.IsNullOrEmpty(config.DetachKeys))
           args += $" --detach-keys {QuoteArgumentIfNeeded(config.DetachKeys)}";
+        if (config.Tty || !config.Stdout || !config.Stderr || config.NoStdout || config.NoStderr)
+          return Task.FromResult(CommandResponse<AttachResult>.Fail(
+              "Docker CLI attach cannot change TTY/stdout/stderr streams; create the container with those settings instead.",
+              ErrorCodes.General.InvalidArgument));
 
-        args += $" {QuoteArgumentIfNeeded(containerId)}";
+        args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 
-        var result = ExecuteAttachProcess(args);
+        var result = ExecuteAttachProcess(context, args, cancellationToken);
         return Task.FromResult(CommandResponse<AttachResult>.Ok(result));
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
         return Task.FromResult(CommandResponse<AttachResult>.Fail(
-            ex.Message, ErrorCodes.Container.AttachFailed));
+            ex.Message, FailureCode(ex, ErrorCodes.Container.AttachFailed)));
       }
     }
   }
 }
-

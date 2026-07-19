@@ -18,8 +18,8 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       var assemblyName = assembly.GetName().Name;
 
       var resources = new ResourceQuery()
-          .From(assemblyName)
-          .Namespace(assemblyName)
+          .From(assemblyName!)
+          .Namespace(assemblyName!)
           .Query()
           .ToArray();
 
@@ -34,8 +34,8 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       var assemblyName = assembly.GetName().Name;
 
       var query = new ResourceQuery()
-          .From(assemblyName)
-          .Namespace(assemblyName)
+          .From(assemblyName!)
+          .Namespace(assemblyName!)
           .Recursive();
 
       // Just check fluent API works
@@ -69,8 +69,8 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       // This assembly may or may not have embedded resources
       // The key is that the query executes without error
       var resources = new ResourceQuery()
-          .From(assemblyName)
-          .Namespace(assemblyName)
+          .From(assemblyName!)
+          .Namespace(assemblyName!)
           .Query()
           .ToArray();
 

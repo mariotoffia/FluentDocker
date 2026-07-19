@@ -9,6 +9,10 @@ nav_order: 7
 FluentDocker v3 provides full support for Docker volumes, including named volumes and bind mounts.
 All operations go through the kernel and driver-scoped builder pattern.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
 - Basics: [Kernel Setup](#kernel-setup), [Named Volumes](#named-volumes), [Bind Mounts](#bind-mounts)
@@ -23,11 +27,12 @@ Multiple kernels per application are supported:
 ```csharp
 using FluentDocker.Kernel;
 using FluentDocker.Builders;
+using FluentDocker.Services; // ServiceRunningState
 
 // Create once, reuse everywhere
-var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 ```
 
 ## Named Volumes
@@ -35,10 +40,10 @@ var kernel = FluentDockerKernel.Create()
 ### Create a Volume
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("my-data"))
-    .Build();
+    .BuildAsync();
 
 var volume = results.Volumes.First();
 Console.WriteLine($"Volume: {volume.VolumeName}");
@@ -51,20 +56,21 @@ name string in `.WithVolume()`:
 
 ```csharp
 // Step 1: Create the volume
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("postgres-data"))
-    .Build();
+    .BuildAsync();
 
 // Step 2: Create container referencing volume by name
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithEnvironment("POSTGRES_PASSWORD", "secret")
         .WithVolume("postgres-data", "/var/lib/postgresql/data")
+        .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 var container = ctrResults.Containers.First();
 // Data persists in volume
@@ -77,34 +83,34 @@ There is no need for an explicit "reuse" flag.
 
 ```csharp
 // First run - creates volume and writes data
-using var volResults1 = new Builder()
+await using var volResults1 = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("persistent-data"))
-    .Build();
+    .BuildAsync();
 
-using var ctrResults1 = new Builder()
+await using var ctrResults1 = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("alpine:latest")
         .WithVolume("persistent-data", "/data"))
-    .Build();
+    .BuildAsync();
 
 var container1 = ctrResults1.Containers.First();
 await container1.ExecuteAsync("sh -c 'echo Hello > /data/test.txt'");
-container1.Dispose();
+await container1.DisposeAsync();
 
 // Second run - volume already exists and is reused automatically
-using var volResults2 = new Builder()
+await using var volResults2 = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("persistent-data"))
-    .Build();
+    .BuildAsync();
 
-using var ctrResults2 = new Builder()
+await using var ctrResults2 = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("alpine:latest")
         .WithVolume("persistent-data", "/data"))
-    .Build();
+    .BuildAsync();
 
 var container2 = ctrResults2.Containers.First();
 var content = await container2.ExecuteAsync("cat /data/test.txt");
@@ -118,29 +124,46 @@ Console.WriteLine(content);  // "Hello"
 Bind mounts use the same `.WithVolume()` method. When the first argument is a
 host filesystem path (rather than a volume name), Docker creates a bind mount.
 
+The bind source must be an absolute path or a named volume. A relative source
+(`./data`, `../x`, `sub/dir`) is rejected at build time with a `FluentDockerException`;
+Windows drive-absolute (`C:\...`) and UNC (`\\server\share`) sources are accepted.
+
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithVolume("/local/html", "/usr/share/nginx/html")
         .ExposePort("80"))
-    .Build();
+    .BuildAsync();
 
 // Changes to /local/html are immediately visible in container
+```
+
+Mounts are recorded as explicit bind entries, so the same host directory or volume
+can be mounted at multiple container paths. Pass `isReadOnly: true` for a read-only bind:
+
+```csharp
+await using var results = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .WithVolume("/local/html", "/usr/share/nginx/html", isReadOnly: true)
+        .WithVolume("/local/html", "/backup/html", isReadOnly: true))
+    .BuildAsync();
 ```
 
 ### Mount Configuration Files
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("nginx:alpine")
         .WithVolume("/local/nginx.conf", "/etc/nginx/nginx.conf")
         .WithVolume("/local/ssl/", "/etc/ssl/certs/")
         .ExposePort("443"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Volume Drivers
@@ -148,18 +171,18 @@ using var results = new Builder()
 ### Local Driver (Default)
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v
         .WithName("local-vol")
         .UseDriver("local"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### NFS Volume
 
 ```csharp
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v
         .WithName("nfs-vol")
@@ -167,20 +190,20 @@ using var volResults = new Builder()
         .WithDriverOption("type", "nfs")
         .WithDriverOption("o", "addr=192.168.1.100,rw")
         .WithDriverOption("device", ":/shared/data"))
-    .Build();
+    .BuildAsync();
 
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .WithVolume("nfs-vol", "/data"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### CIFS/SMB Volume
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v
         .WithName("smb-vol")
@@ -188,41 +211,41 @@ using var results = new Builder()
         .WithDriverOption("type", "cifs")
         .WithDriverOption("o", "username=user,password=pass")
         .WithDriverOption("device", "//server/share"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Volume Labels
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v
         .WithName("labeled-vol")
         .WithLabel("project", "myapp")
         .WithLabel("environment", "production"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Multiple Volumes
 
 ```csharp
 // Create all volumes
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("app-data"))
     .UseVolume(v => v.WithName("app-logs"))
     .UseVolume(v => v.WithName("app-config"))
-    .Build();
+    .BuildAsync();
 
 // Create container referencing volumes by name
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .WithVolume("app-data", "/app/data")
         .WithVolume("app-logs", "/app/logs")
         .WithVolume("app-config", "/app/config"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Database Volume Examples
@@ -230,12 +253,12 @@ using var ctrResults = new Builder()
 ### PostgreSQL
 
 ```csharp
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("postgres-data"))
-    .Build();
+    .BuildAsync();
 
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
@@ -244,18 +267,18 @@ using var ctrResults = new Builder()
         .WithVolume("postgres-data", "/var/lib/postgresql/data")
         .ExposePort("5432")
         .WaitForPort("5432/tcp", 30000))
-    .Build();
+    .BuildAsync();
 ```
 
 ### MySQL
 
 ```csharp
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("mysql-data"))
-    .Build();
+    .BuildAsync();
 
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("mysql:8")
@@ -263,18 +286,18 @@ using var ctrResults = new Builder()
         .WithVolume("mysql-data", "/var/lib/mysql")
         .ExposePort("3306")
         .WaitForPort("3306/tcp", 60000))
-    .Build();
+    .BuildAsync();
 ```
 
 ### MongoDB
 
 ```csharp
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("mongo-data"))
-    .Build();
+    .BuildAsync();
 
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("mongo:6")
@@ -283,18 +306,18 @@ using var ctrResults = new Builder()
         .WithVolume("mongo-data", "/data/db")
         .ExposePort("27017")
         .WaitForPort("27017/tcp", 30000))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Redis with Persistence
 
 ```csharp
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("redis-data"))
-    .Build();
+    .BuildAsync();
 
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("redis:alpine")
@@ -302,7 +325,7 @@ using var ctrResults = new Builder()
         .WithVolume("redis-data", "/data")
         .ExposePort("6379")
         .WaitForPort("6379/tcp", 30000))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Development Workflow
@@ -310,7 +333,7 @@ using var ctrResults = new Builder()
 ### Hot Reload with Bind Mounts
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("node:18-alpine")
@@ -319,7 +342,7 @@ using var results = new Builder()
         .WithWorkingDirectory("/app")
         .WithCommand("npm", "run", "dev")
         .ExposePort("3000"))
-    .Build();
+    .BuildAsync();
 
 // Edit /local/project/src and see changes live
 ```
@@ -328,14 +351,14 @@ using var results = new Builder()
 
 ```csharp
 // Create cache volumes
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("build-cache"))
     .UseVolume(v => v.WithName("node-modules"))
-    .Build();
+    .BuildAsync();
 
 // Create container with bind mount for source and named volumes for caches
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("node:18-alpine")
@@ -343,31 +366,38 @@ using var ctrResults = new Builder()
         .WithVolume("node-modules", "/app/node_modules")
         .WithVolume("build-cache", "/app/.cache")
         .WithWorkingDirectory("/app"))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Volume Backup Example
 
 ```csharp
-using var volResults = new Builder()
+await using var volResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("app-data"))
-    .Build();
+    .BuildAsync();
 
-using var ctrResults = new Builder()
+await using var ctrResults = await new Builder()
     .WithinDriver("docker", kernel)
     .UseContainer(c => c
         .UseImage("alpine:latest")
         .WithVolume("app-data", "/data")
         .WithVolume("/local/backups", "/backup")
         .WithCommand("tar", "cvf", "/backup/data-backup.tar", "/data"))
-    .Build();
+    .BuildAsync();
 
 var backup = ctrResults.Containers.First();
 
-// Wait for completion
-while (backup.State == ServiceRunningState.Running)
+// Wait for the tar container to exit. `State` is a cached field the library updates only
+// on its own lifecycle calls — a container that exits on its own never flips it, so poll a
+// fresh inspection instead and cap the wait so a stuck container can't loop forever.
+var deadline = DateTime.UtcNow.AddMinutes(2);
+while (DateTime.UtcNow < deadline)
 {
+    var info = await backup.GetConfigurationAsync(fresh: true);
+    if (info.State?.Running != true) // stop on exited or unknown state
+        break;
+
     await Task.Delay(100);
 }
 
@@ -377,10 +407,10 @@ Console.WriteLine("Backup complete: /local/backups/data-backup.tar");
 ## Volume Inspection
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("inspect-vol"))
-    .Build();
+    .BuildAsync();
 
 var volume = results.Volumes.First();
 var info = await volume.InspectAsync();
@@ -398,12 +428,12 @@ By default, volumes are kept when the `BuildResults` is disposed. Use
 `RemoveOnDispose()` to automatically remove the volume on disposal.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v
         .WithName("temp-volume")
         .RemoveOnDispose())
-    .Build();
+    .BuildAsync();
 
 // Volume is removed when results is disposed
 ```
@@ -413,10 +443,10 @@ using var results = new Builder()
 Volumes are kept after disposal by default. No special flag is needed.
 
 ```csharp
-using var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("persistent-volume"))
-    .Build();
+    .BuildAsync();
 
 // Volume remains after disposal (default behavior)
 ```
@@ -424,10 +454,10 @@ using var results = new Builder()
 ### Manual Removal
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseVolume(v => v.WithName("manual-volume"))
-    .Build();
+    .BuildAsync();
 
 var volume = results.Volumes.First();
 
@@ -440,35 +470,44 @@ await volume.RemoveAsync();
 ## Testing with Volumes
 
 ```csharp
-public class DatabaseTest : IAsyncDisposable
-{
-    private readonly BuildResults _volResults;
-    private readonly BuildResults _ctrResults;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using Xunit;
 
-    public DatabaseTest()
+public class DatabaseTest : IAsyncLifetime
+{
+    private FluentDockerKernel _kernel = null!;
+    private BuildResults _volResults = null!;
+    private BuildResults _ctrResults = null!;
+
+    public async ValueTask InitializeAsync()
     {
-        var kernel = FluentDockerKernel.Create()
+        _kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
-            .Build();
+            .BuildAsync();
 
         var testId = Guid.NewGuid().ToString("N")[..8];
 
-        _volResults = new Builder()
-            .WithinDriver("docker", kernel)
+        _volResults = await new Builder()
+            .WithinDriver("docker", _kernel)
             .UseVolume(v => v
                 .WithName($"test-data-{testId}")
                 .RemoveOnDispose())
-            .Build();
+            .BuildAsync();
 
-        _ctrResults = new Builder()
-            .WithinDriver("docker", kernel)
+        _ctrResults = await new Builder()
+            .WithinDriver("docker", _kernel)
             .UseContainer(c => c
                 .WithName($"test-db-{testId}")
                 .UseImage("postgres:15-alpine")
                 .WithEnvironment("POSTGRES_PASSWORD", "test")
                 .WithVolume($"test-data-{testId}", "/var/lib/postgresql/data")
+                .ExposePort("5432")
                 .WaitForPort("5432/tcp", 30000))
-            .Build();
+            .BuildAsync();
     }
 
     [Fact]
@@ -493,20 +532,41 @@ public class DatabaseTest : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await _ctrResults.DisposeAllAsync();
-        await _volResults.DisposeAllAsync();
+        await _ctrResults.DisposeAsync();
+        await _volResults.DisposeAsync();
+        await _kernel.DisposeAsync();
     }
 }
 ```
 
-## Note on tmpfs Mounts
+## Security Options and tmpfs
 
-The v3 `IContainerBuilder` does not include a tmpfs mount method. If you need
-tmpfs mounts, configure them directly through Docker run flags or use a
-`docker-compose.yml` file via the Compose builder.
+`IContainerBuilder` exposes container hardening and tmpfs builders (honored on the
+Docker CLI, Docker API, and Podman CLI drivers):
+
+- `WithTmpfs(containerPath, options)` — mount a tmpfs (e.g. `"rw,noexec,size=64m"`).
+- `WithReadonlyRootfs()` — make the container root filesystem read-only.
+- `WithCapAdd(capability)` / `WithCapDrop(capability)` — add or drop a Linux
+  capability (name without the `CAP_` prefix, e.g. `NET_ADMIN`, `NET_RAW`).
+- `WithSecurityOpt(option)` — pass a `--security-opt` value (e.g. `no-new-privileges`).
+- `WithExtraHost(host, ip)` — add a hosts entry (e.g. `host-gateway`).
+
+```csharp
+using FluentDocker.Builders;
+
+await using var results = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .WithTmpfs("/cache", "rw,noexec,size=64m")
+        .WithReadonlyRootfs()
+        .WithCapDrop("NET_RAW")
+        .WithSecurityOpt("no-new-privileges"))
+    .BuildAsync();
+```
 
 ## Next Steps
 
-- [Images](images.html) - Building custom images
-- [Containers](containers.html) - Container management
-- [Networking](networking.html) - Custom networks
+- [Images](images.md) - Building custom images
+- [Containers](containers.md) - Container management
+- [Networking](networking.md) - Custom networks

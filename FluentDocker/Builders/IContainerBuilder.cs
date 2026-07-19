@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
-using FluentDocker.Common;
 using FluentDocker.Model.Containers;
 using FluentDocker.Services;
 
@@ -29,7 +27,7 @@ namespace FluentDocker.Builders
   /// </code>
   /// </para>
   /// </remarks>
-  public interface IContainerBuilder
+  public partial interface IContainerBuilder
   {
     #region Basic Configuration
 
@@ -40,7 +38,9 @@ namespace FluentDocker.Builders
 
     /// <summary>Sets the container name.</summary>
     /// <param name="name">
-    /// A unique name for the container. Must match the pattern [a-zA-Z0-9][a-zA-Z0-9_.-].
+    /// A unique name for the container. Must match the pattern <c>^[a-zA-Z0-9][a-zA-Z0-9_.-]+$</c>
+    /// (at least two characters, matching the Docker daemon rule). This is the cross-runtime-safe
+    /// rule: names accepted here are valid on both Docker and Podman.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithName(string name);
@@ -53,18 +53,33 @@ namespace FluentDocker.Builders
 
     /// <summary>Sets an environment variable using "KEY=VALUE" format.</summary>
     /// <param name="keyValue">
-    /// The environment variable in "KEY=VALUE" format (e.g. "POSTGRES_PASSWORD=secret").
+    /// The environment variable in "KEY=VALUE" format (e.g. "POSTGRES_PASSWORD=secret");
+    /// a key without "=" is set to an empty value and does not pass through the host value.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithEnvironment(string keyValue);
 
-    /// <summary>Maps a container port to a specific host port.</summary>
+    /// <summary>Adds an extra <c>/etc/hosts</c> entry (e.g. <c>model-runner.docker.internal</c> → <c>host-gateway</c>).</summary>
+    /// <param name="host">The host name.</param>
+    /// <param name="ip">The IP or special value (e.g. <c>host-gateway</c>).</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// Implemented as a <b>default interface method</b> so that adding it does not
+    /// break existing third-party <see cref="IContainerBuilder"/> implementations or
+    /// mocks (a source/binary-compatible addition). The built-in builder overrides it;
+    /// implementations that do not support extra hosts throw <see cref="NotSupportedException"/>.
+    /// </remarks>
+    IContainerBuilder WithExtraHost(string host, string ip) =>
+        throw new NotSupportedException("This IContainerBuilder implementation does not support WithExtraHost.");
+
+    /// <summary>Maps host to container: <c>WithPort("127.0.0.1:8080", "80/tcp")</c>.</summary>
+    /// <param name="hostPort">The host port to bind to (e.g. "8080" or "127.0.0.1:8080").</param>
     /// <param name="containerPort">
     /// The container port with optional protocol (e.g. "8080/tcp", "53/udp").
+    /// One container port can be bound once; use a second container port for another host bind.
     /// </param>
-    /// <param name="hostPort">The host port to bind to (e.g. "8080").</param>
     /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithPort(string containerPort, string hostPort);
+    IContainerBuilder WithPort(string hostPort, string containerPort);
 
     /// <summary>
     /// Exposes a container port, letting Docker/Podman assign a random host port.
@@ -73,15 +88,25 @@ namespace FluentDocker.Builders
     /// The container port with optional protocol (e.g. "8080/tcp", "53/udp").
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// WARNING (v2-heritage trap): unlike <see cref="ExposePort(int, int)"/>, this overload does
+    /// NOT publish a fixed host port — the runtime picks a random free host port. Use
+    /// <see cref="ExposePort(int, int)"/> or <see cref="WithPort"/> for a fixed host binding.
+    /// </remarks>
     IContainerBuilder ExposePort(string containerPort);
 
-    /// <summary>Exposes a container port with explicit host port mapping.</summary>
+    /// <summary>Exposes host→container: <c>ExposePort(8080, 80)</c>.</summary>
     /// <param name="hostPort">The port on the host to bind to.</param>
     /// <param name="containerPort">The port inside the container to expose.</param>
     /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// WARNING (v2-heritage trap): unlike <see cref="ExposePort(string)"/>, this overload
+    /// publishes a FIXED host port — it is an alias of <see cref="WithPort"/>, not a random-port
+    /// exposure. Use <see cref="ExposePort(string)"/> for a runtime-assigned host port.
+    /// </remarks>
     IContainerBuilder ExposePort(int hostPort, int containerPort);
 
-    /// <summary>Sets the command to run in the container, overriding the image's default CMD.</summary>
+    /// <summary>Appends command arguments to run in the container, overriding the image's default CMD.</summary>
     /// <param name="command">
     /// The command and its arguments. Each element is a separate argument
     /// (e.g. <c>"sh", "-c", "echo hello"</c>).
@@ -106,18 +131,29 @@ namespace FluentDocker.Builders
     IContainerBuilder WithTty(bool tty = true);
 
     /// <summary>
-    /// Overrides the image entrypoint (<c>docker run --entrypoint</c>). Each element is a
+    /// Replaces the image entrypoint (<c>docker run --entrypoint</c>). Each element is a
     /// separate token; the first is the executable and the rest are its arguments.
     /// </summary>
     /// <param name="entrypoint">The entrypoint executable and arguments.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithEntrypoint(params string[] entrypoint);
 
-    /// <summary>Binds a host path to a container path as a volume mount.</summary>
-    /// <param name="hostPath">The absolute path on the host filesystem.</param>
-    /// <param name="containerPath">The mount point inside the container.</param>
+    /// <summary>
+    /// Overrides the container-start budget — how long to wait for the container to reach the
+    /// running state before startup is treated as failed. Applies whether or not explicit wait
+    /// conditions are configured; without it the budget defaults to 3 seconds when no wait
+    /// conditions are set, otherwise the longest configured wait-condition timeout.
+    /// </summary>
+    /// <param name="milliseconds">Startup timeout in milliseconds; must be positive.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithVolume(string hostPath, string containerPath);
+    IContainerBuilder WithStartupTimeout(int milliseconds);
+
+    /// <summary>Binds a host path or named volume to a container path as a volume mount.</summary>
+    /// <param name="hostPath">The host path or named volume source.</param>
+    /// <param name="containerPath">The mount point inside the container.</param>
+    /// <param name="isReadOnly">Mount as read-only (<c>:ro</c>) when true.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IContainerBuilder WithVolume(string hostPath, string containerPath, bool isReadOnly = false);
 
     /// <summary>Adds a label to the container.</summary>
     /// <param name="key">The label key.</param>
@@ -166,7 +202,7 @@ namespace FluentDocker.Builders
 #pragma warning restore CA1716
 
     /// <summary>
-    /// Sets a static IPv4 address for the container.
+    /// Sets a static IPv4 address on the first configured network for the container.
     /// Requires the container to be connected to a custom network with a defined subnet.
     /// </summary>
     /// <param name="ipv4Address">The IPv4 address to assign (e.g., "10.18.0.22").</param>
@@ -215,9 +251,10 @@ namespace FluentDocker.Builders
     /// <remarks>
     /// Container linking is a legacy Docker feature. Consider using user-defined networks instead.
     /// Links allow containers to discover each other and securely transfer information about one container to another.
+    /// Linked containers are started only after all build operations complete.
     /// </remarks>
 #pragma warning disable CA1716 // Parameter 'alias' conflicts with reserved keyword — intentional API design
-    IContainerBuilder WithLink(string containerName, string alias = null);
+    IContainerBuilder WithLink(string containerName, string? alias = null);
 #pragma warning restore CA1716
 
     /// <summary>Links this container to multiple other containers (legacy Docker feature).</summary>
@@ -225,7 +262,7 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithLinks(params string[] containerNames);
 
-    /// <summary>Associates this container with a Podman pod. Ignored by Docker.</summary>
+    /// <summary>Associates this container with a Podman pod. Podman-only; ignored by Docker drivers.</summary>
     /// <param name="podName">Name of the pod to join.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithPod(string podName);
@@ -256,13 +293,13 @@ namespace FluentDocker.Builders
     /// <param name="containerPath">Path inside the container.</param>
     /// <param name="options">Mount options (e.g. "rw,noexec,size=64m"). Null for defaults.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithTmpfs(string containerPath, string options = null);
+    IContainerBuilder WithTmpfs(string containerPath, string? options = null);
 
     /// <summary>Maps a host device into the container.</summary>
     /// <param name="hostDevice">Device path on the host (e.g. /dev/sda).</param>
     /// <param name="containerDevice">Device path in the container. Null uses the same path as host.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithDevice(string hostDevice, string containerDevice = null);
+    IContainerBuilder WithDevice(string hostDevice, string? containerDevice = null);
 
     /// <summary>Makes the root filesystem read-only.</summary>
     /// <returns>The builder instance for method chaining.</returns>
@@ -282,7 +319,13 @@ namespace FluentDocker.Builders
 
     #region Container Existence Behavior
 
-    /// <summary>If a container with the same name exists, reuse it instead of creating a new one.</summary>
+    /// <summary>Reuses a same-case name match.</summary>
+    /// <remarks>
+    /// Already-running containers verify wait conditions but skip start hooks
+    /// (<see cref="CopyToOnStart"/>/<see cref="ExecuteOnRunning"/>) and ignore configuration
+    /// differences; <see cref="ForcePullImage"/> is also not applied on the reuse path.
+    /// A stopped borrowed container is started, but disposal does not stop or remove it.
+    /// </remarks>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ReuseIfExists();
 
@@ -296,98 +339,19 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ForcePullImage();
 
+    /// <summary>
+    /// Authenticates to a container registry before the image is pulled, so a private-registry image
+    /// can be used without hand-resolving <c>IAuthDriver</c>. Requires a driver that supports
+    /// <c>IAuthDriver</c>.
+    /// </summary>
+    /// <param name="username">Registry username.</param>
+    /// <param name="password">Registry password or token.</param>
+    /// <param name="server">Registry server URL; <c>null</c> for Docker Hub.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IContainerBuilder WithRegistryAuth(string username, string password, string? server = null);
+
     #endregion
 
-    #region Wait Conditions
-
-    /// <summary>
-    /// Waits for a container port to accept connections after starting.
-    /// </summary>
-    /// <param name="portAndProto">The port and protocol (e.g. "5432/tcp", "53/udp").</param>
-    /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WaitForPort(string portAndProto, long timeoutMs = 30000);
-
-    /// <summary>
-    /// Waits for a container port to accept connections at a specific address after starting.
-    /// </summary>
-    /// <param name="portAndProto">The port and protocol (e.g. "5432/tcp", "53/udp").</param>
-    /// <param name="address">The IP address or hostname to connect to when probing the port.</param>
-    /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WaitForPort(string portAndProto, string address, long timeoutMs = 30000);
-
-    /// <summary>
-    /// Waits for a named process to be running inside the container after starting.
-    /// </summary>
-    /// <param name="processName">The process name to look for (e.g. "postgres", "nginx").</param>
-    /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WaitForProcess(string processName, long timeoutMs = 30000);
-
-    /// <summary>
-    /// Waits for an HTTP endpoint inside the container to return a successful response.
-    /// </summary>
-    /// <param name="portAndProto">The port and protocol (e.g. "8080/tcp").</param>
-    /// <param name="path">The HTTP path to request. Defaults to "/".</param>
-    /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WaitForHttp(string portAndProto, string path = "/", long timeoutMs = 30000);
-
-    /// <summary>
-    /// Waits for an HTTP endpoint with advanced options such as custom method, body, and continuation logic.
-    /// </summary>
-    /// <param name="url">The full URL to probe.</param>
-    /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
-    /// <param name="method">The HTTP method to use. Defaults to GET when null.</param>
-    /// <param name="contentType">The Content-Type header value for the request body.</param>
-    /// <param name="body">The request body content.</param>
-    /// <param name="continuation">
-    /// A callback invoked after each HTTP response. Receives the <see cref="RequestResponse"/> and the
-    /// current attempt count. Return a positive value in milliseconds to retry after that delay,
-    /// 0 to continue immediately, or -1 to indicate success.
-    /// </param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WaitForHttp(
-        string url,
-        long timeoutMs = 30000,
-        HttpMethod method = null,
-        string contentType = null,
-        string body = null,
-        Func<RequestResponse, int, long> continuation = null);
-
-    /// <summary>
-    /// Waits for a specific message to appear in the container's log output after starting.
-    /// </summary>
-    /// <param name="message">The log message substring to wait for.</param>
-    /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WaitForLogMessage(string message, long timeoutMs = 30000);
-
-    /// <summary>
-    /// Waits for the container's health check to report "healthy" (requires a HEALTHCHECK in the image).
-    /// </summary>
-    /// <param name="timeoutMs">Maximum time to wait in milliseconds. Defaults to 30000 (30 seconds).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WaitForHealthy(long timeoutMs = 30000);
-
-    /// <summary>Registers a custom wait condition evaluated in a polling loop.</summary>
-    /// <param name="condition">
-    /// A function receiving the <see cref="IContainerService"/> and the current attempt count (zero-based).
-    /// Return a positive value in milliseconds to retry after that delay,
-    /// 0 to continue polling immediately, or -1 to indicate success.
-    /// </param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder Wait(Func<IContainerService, int, int> condition);
-
-    /// <summary>
-    /// Sets the poll interval for subsequent wait conditions.
-    /// </summary>
-    /// <param name="intervalMs">Delay in milliseconds between poll iterations (default 500).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithWaitPollInterval(int intervalMs);
-
-    #endregion
 
     #region Lifecycle Hooks
 
@@ -407,6 +371,7 @@ namespace FluentDocker.Builders
     /// <param name="hostPath">The destination file path on the host for the tar archive.</param>
     /// <param name="explode">
     /// <c>true</c> to extract the archive contents into a directory; <c>false</c> to keep the tar file.
+    /// Extraction is synchronous and is not cancellable once started.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ExportOnDispose(string hostPath, bool explode = false);
@@ -421,6 +386,7 @@ namespace FluentDocker.Builders
     /// </param>
     /// <param name="explode">
     /// <c>true</c> to extract the archive contents into a directory; <c>false</c> to keep the tar file.
+    /// Extraction is synchronous and is not cancellable once started.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder ExportOnDispose(string hostPath, Func<IContainerService, bool> condition, bool explode = false);
@@ -443,7 +409,7 @@ namespace FluentDocker.Builders
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder KeepContainer();
 
-    /// <summary>Keeps the container running after the service is disposed (does not stop it).</summary>
+    /// <summary>Keeps the container running after the service is disposed (does not stop or delete it).</summary>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder KeepRunning();
 
@@ -464,7 +430,9 @@ namespace FluentDocker.Builders
     /// </summary>
     /// <param name="resolver">
     /// A function that receives the port mapping dictionary, the requested port/protocol string,
-    /// the Docker host URI, and returns the resolved <see cref="IPEndPoint"/>.
+    /// the Docker host URI, and returns the resolved <see cref="IPEndPoint"/>. The resolver is
+    /// consulted even when the container exposes no port map (e.g. host-network containers); the
+    /// port mapping dictionary is then null.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder UseCustomResolver(

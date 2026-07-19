@@ -48,7 +48,7 @@ namespace FluentDocker.Testing.Xunit
     /// </summary>
     public IComposeService Service
     {
-      get { EnsureInitialized(); return _resource!.Service; }
+      get { EnsureInitialized(); return _resource!.Service!; }
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ namespace FluentDocker.Testing.Xunit
             $"{GetType().Name} has not been configured. " +
             "Call Configure() in the fixture constructor, or use " +
             "XunitComposeFixtureBase instead.");
-      await InitializeAsync(_deferredConfigure!, _deferredKernelFactory, _deferredOptions);
+      await InitializeAsync(_deferredConfigure!, _deferredKernelFactory, _deferredOptions).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ namespace FluentDocker.Testing.Xunit
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
           k => new ComposeResource(k, configure, options!),
           kernelFactory!,
-          cancellationToken: cancellationToken);
+          cancellationToken: cancellationToken).ConfigureAwait(false);
 
       _kernel = kernel;
       _resource = resource;
@@ -122,16 +122,12 @@ namespace FluentDocker.Testing.Xunit
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      try
-      {
-        await ResourceLifecycle.DisposeAsync(_resource!, _kernel!);
-      }
-      finally
-      {
-        _resource = null;
-        _kernel = null;
-      }
-
+      // Clear handles only AFTER successful disposal. If cleanup throws, the public
+      // Resource/Kernel handles stay available for LastTeardownDiagnostics, retry, or
+      // manual cleanup, and the exception propagates.
+      await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
+      _resource = null;
+      _kernel = null;
       GC.SuppressFinalize(this);
     }
 

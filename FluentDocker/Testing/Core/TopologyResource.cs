@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentDocker.Builders;
 using FluentDocker.Common;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging;
 
@@ -18,7 +19,12 @@ namespace FluentDocker.Testing.Core
   public class TopologyResource : ResourceBase
   {
     private readonly Action<Builder> _configure;
-    private readonly List<IServiceAsync> _services = [];
+    private IReadOnlyList<IServiceAsync> _services = [];
+    private static readonly Action<ILogger, Exception> DiagnosticsLogCollectionFailed =
+        LoggerMessage.Define(
+            LogLevel.Warning,
+            new EventId(1, nameof(DiagnosticsLogCollectionFailed)),
+            "Topology diagnostics log collection failed.");
 
     /// <summary>
     /// Creates a topology resource.
@@ -29,7 +35,7 @@ namespace FluentDocker.Testing.Core
     public TopologyResource(
         FluentDockerKernel kernel,
         Action<Builder> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -41,23 +47,24 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public IReadOnlyList<IServiceAsync> Services
     {
-      get { EnsureInitialized(); return _services.AsReadOnly(); }
+      get { EnsureInitialized(); return _services; }
     }
 
     /// <summary>
     /// Gets a container service by name.
     /// </summary>
-    public IContainerService GetContainer(string name)
+    public IContainerService? GetContainer(string name)
     {
       EnsureInitialized();
+      var requested = NormalizeContainerName(name);
       return _services.OfType<IContainerService>()
-          .FirstOrDefault(c => c.Name == name);
+          .FirstOrDefault(c => NormalizeContainerName(c.Name) == requested);
     }
 
     /// <summary>
     /// Gets a network service by name.
     /// </summary>
-    public INetworkService GetNetwork(string name)
+    public INetworkService? GetNetwork(string name)
     {
       EnsureInitialized();
       return _services.OfType<INetworkService>()
@@ -84,19 +91,28 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var builder = new Builder();
       builder.WithinDriver(DriverId, Kernel);
       _configure(builder);
+      ApplySessionLabels(builder);
 
       var results = await builder.BuildAsync(
           cleanupTimeout: Options.TeardownTimeout,
           cancellationToken: cancellationToken).ConfigureAwait(false);
-      foreach (var service in results.All.OfType<IServiceAsync>())
+      var services = results.All.OfType<IServiceAsync>().ToArray();
+      if (TryCommitProvision(generation, () =>
       {
-        _services.Add(service);
+        _services = services;
+        // Unique per instance (ResourceName contract) — a count-based name collides across
+        // parallel topologies and degrades diagnostics.
+        ResourceName = GenerateUniqueName("topology");
+      }))
+      {
+        return;
       }
 
-      ResourceName = $"topology-{_services.Count}-services";
+      await RemoveStaleServicesAsync(services).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -121,20 +137,27 @@ namespace FluentDocker.Testing.Core
             $"{failures.Count} service(s) failed to remove during teardown.",
             failures);
 
-      _services.Clear();
+      _services = [];
     }
 
     /// <inheritdoc />
     protected override async Task ForceRemoveAsync(CancellationToken cancellationToken)
     {
+      var failures = new List<Exception>();
       for (var i = _services.Count - 1; i >= 0; i--)
       {
         try
         { await _services[i].RemoveAsync(force: true, cancellationToken).ConfigureAwait(false); }
-        catch { /* best effort */ }
+        catch (DriverException ex) when (IsNotFound(ex)) { /* already gone */ }
+        catch (Exception ex) { failures.Add(ex); }
       }
 
-      _services.Clear();
+      if (failures.Count > 0)
+        throw new AggregateException(
+            $"{failures.Count} service(s) failed to force-remove.",
+            failures);
+
+      _services = [];
     }
 
     /// <inheritdoc />
@@ -156,7 +179,7 @@ namespace FluentDocker.Testing.Core
           }
           catch (Exception ex)
           {
-            Logger.LogWarning(ex, "Topology diagnostics log collection failed");
+            DiagnosticsLogCollectionFailed(Logger, ex);
             logs.Add($"--- {container.Name ?? container.Id} --- (failed to collect)");
           }
         }
@@ -174,6 +197,63 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized)
         throw new InvalidOperationException(
             "Topology resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private static bool IsNotFound(DriverException ex)
+    {
+      return ex.ErrorCode == ErrorCodes.Container.NotFound ||
+             ex.ErrorCode == ErrorCodes.Network.NotFound ||
+             ex.ErrorCode == ErrorCodes.Volume.NotFound ||
+             ex.ErrorCode == ErrorCodes.Driver.NotFound ||
+             ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizeContainerName(string name) =>
+        name?.Trim().TrimStart('/');
+
+    private void ApplySessionLabels(Builder builder)
+    {
+      if (!Options.EnableSessionLabels)
+        return;
+
+      var labels = SessionLabel.CreateLabels(Options.SessionId);
+      foreach (var child in builder.ResourceBuilders)
+      {
+        foreach (var label in labels)
+          ApplyLabel(child, label.Key, label.Value);
+      }
+    }
+
+    private static void ApplyLabel(object builder, string key, string value)
+    {
+      switch (builder)
+      {
+        case IContainerBuilder container:
+          container.WithLabel(key, value);
+          break;
+        case INetworkBuilder network:
+          network.WithLabel(key, value);
+          break;
+        case IVolumeBuilder volume:
+          volume.WithLabel(key, value);
+          break;
+      }
+    }
+
+    private async Task RemoveStaleServicesAsync(IReadOnlyList<IServiceAsync> services)
+    {
+      for (var i = services.Count - 1; i >= 0; i--)
+      {
+        try
+        {
+          using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+          await services[i].RemoveAsync(force: true, cts.Token).ConfigureAwait(false);
+        }
+        catch
+        {
+          OrphanCleanup.MarkAbandonedLateProvision(services[i].Name, Options.SessionId);
+        }
+      }
     }
   }
 }

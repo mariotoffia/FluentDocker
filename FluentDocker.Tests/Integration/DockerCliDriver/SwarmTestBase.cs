@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
@@ -17,6 +18,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   public class DockerSkipException(string message) : Exception("$XunitDynamicSkip$" + message)
   {
   }
+
+  [CollectionDefinition("Swarm", DisableParallelization = true)]
+  public class SwarmCollection { }
 
   /// <summary>
   /// Base class for tests that require Docker Swarm mode.
@@ -58,9 +62,11 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           throw new DockerSkipException(
               $"Failed to initialize Docker Swarm: {error}");
       }
+
+      await SweepStragglersAsync(); // remove orphans from a hard-killed prior run
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
       GC.SuppressFinalize(this);
       // Note: We intentionally do NOT leave Swarm mode here.
@@ -69,8 +75,32 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // tests, Swarm is expected to persist between test runs.
       // To leave Swarm manually: docker swarm leave --force
 
+      await SweepStragglersAsync();
       Kernel?.Dispose();
-      return default;
+    }
+
+    /// <summary>
+    /// Removes any stack-* / svc-* fixtures left by tests. Net for graceful
+    /// failures; init-time call also catches a SIGKILLed prior run.
+    /// ponytail: prefix sweep; needs [Collection("Swarm")] so it can't race a parallel sibling.
+    /// </summary>
+    private async Task SweepStragglersAsync()
+    {
+      try
+      {
+        var stacks = await StackDriver.ListAsync(Context);
+        var names = stacks.Data?.Where(s => s.Name?.StartsWith("stack-", StringComparison.Ordinal) == true)
+            .Select(s => s.Name!).ToArray() ?? [];
+        if (names.Length > 0)
+          await StackDriver.RemoveAsync(Context, names);
+
+        var svcs = await ServiceDriver.ListAsync(Context, new ServiceListFilter { Name = "svc-" });
+        var ids = svcs.Data?.Where(s => s.Name?.StartsWith("svc-", StringComparison.Ordinal) == true)
+            .Select(s => s.Name!).ToArray() ?? [];
+        if (ids.Length > 0)
+          await ServiceDriver.RemoveAsync(Context, ids);
+      }
+      catch { }
     }
 
     protected async Task EnsureImageAsync(string image, bool force = false)

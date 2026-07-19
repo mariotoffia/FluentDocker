@@ -1,7 +1,8 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
-  /// 
+  /// CPU and memory limits or reservations for a compose service.
   /// </summary>
   /// <remarks>
   /// Note: This replaces the older resource constraint options for non swarm mode in Compose files prior to version 3
@@ -19,7 +20,9 @@ namespace FluentDocker.Model.Compose
   /// </remarks>
   public sealed class ResourcesDefinition
   {
-    public ResourcesItemDefinition Limits { get; set; }
-    public ResourcesItemDefinition Reservations { get; set; }
+    /// <summary>The <c>limits</c> key: the upper bound on CPU/memory the service's containers may use.</summary>
+    public ResourcesItemDefinition? Limits { get; set; }
+    /// <summary>The <c>reservations</c> key: the CPU/memory guaranteed to be available to the service's containers.</summary>
+    public ResourcesItemDefinition? Reservations { get; set; }
   }
 }

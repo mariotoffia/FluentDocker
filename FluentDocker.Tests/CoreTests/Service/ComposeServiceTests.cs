@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Kernel;
+using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
@@ -35,7 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       Assert.Equal("docker-compose.yml", service.ComposeFiles[0]);
       Assert.Equal(kernel, service.Kernel);
       Assert.Equal("docker", service.DriverId);
-      Assert.Equal(ServiceRunningState.Running, service.State);
+      Assert.Equal(ServiceRunningState.Stopped, service.State);
 
       kernel.Dispose();
     }
@@ -68,12 +70,15 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void Constructor_NullProjectName_ThrowsArgumentNullException()
+    public void Constructor_NullProjectNameWithoutComposeFiles_Throws()
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
-      var composeFiles = new List<string> { "docker-compose.yml" };
-      Assert.Throws<ArgumentNullException>(() =>
-          new ComposeService(kernel, "docker", composeFiles, null!));
+      // Null project name is legal when compose files identify the project;
+      // with neither, the service could not address anything.
+      Assert.Throws<ArgumentException>(() =>
+          new ComposeService(kernel, "docker", [], null!));
+      var derived = new ComposeService(kernel, "docker", ["docker-compose.yml"], null!);
+      Assert.Null(derived.ProjectName);
       kernel.Dispose();
     }
 
@@ -420,7 +425,61 @@ namespace FluentDocker.Tests.CoreTests.Service
       }
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task RestartAsync_WhenDriverFails_ResetsStateToUnknown()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ComposeDriver
+          .Setup(d => d.RestartAsync(
+              It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+              It.IsAny<ComposeRestartConfig>(),
+              It.IsAny<System.Threading.CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("restart failed"));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      var service = new ComposeService(kernel, "docker", ["docker-compose.yml"], "my-project");
+      try
+      {
+        await Assert.ThrowsAsync<DriverException>(() =>
+            service.RestartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task RestartAsync_WhenTokenPreCanceled_PreservesState()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ComposeDriver
+          .Setup(d => d.RestartAsync(
+              It.IsAny<FluentDocker.Model.Drivers.DriverContext>(),
+              It.IsAny<ComposeRestartConfig>(),
+              It.IsAny<System.Threading.CancellationToken>()))
+          .Callback<FluentDocker.Model.Drivers.DriverContext, ComposeRestartConfig, System.Threading.CancellationToken>(
+              (_, _, token) => token.ThrowIfCancellationRequested())
+          .ReturnsAsync(CommandResponse<Unit>.Ok(Unit.Default));
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      var service = new ComposeService(kernel, "docker", ["docker-compose.yml"], "my-project");
+      using var cts = new System.Threading.CancellationTokenSource();
+      await cts.CancelAsync();
+      try
+      {
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.RestartAsync(cts.Token));
+
+        Assert.Equal(ServiceRunningState.Stopped, service.State);
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
+
     #endregion
   }
 }
-

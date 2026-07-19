@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,72 +17,97 @@ namespace FluentDocker.Common
   public static class DirectoryHelper
   {
     static DirectoryHelper() => GetTempPath = Path.GetTempPath;
-
-    private static readonly Dictionary<string, string> ToRename = new()
-    {
-      {"dot_git", ".git"},
-      {"gitmodules", ".gitmodules"}
-    };
+    private static Func<string> _getTempPath = null!;
 
     private static readonly Type[] Whitelist = [typeof(IOException), typeof(UnauthorizedAccessException)];
 
     /// <summary>
-    /// Gets a path to a temporary folder that is writeable.
+    /// Gets a delegate that returns a writeable temporary folder path.
     /// </summary>
     /// <remarks>
-    ///  This folder may be the same from time to time. It is possible to override this property at
-    ///  startup to provide for a custom path. The default uses the <see cref="Path.GetTempPath"/>
-    ///  implementation.
+    ///  This mutable process-wide hook is intended for test hosts that must redirect temporary
+    ///  files. Set it at startup only; changing it while other operations run affects all callers.
+    ///  The default uses the <see cref="Path.GetTempPath"/> implementation.
     /// </remarks>
-    public static Func<string> GetTempPath { get; set; }
+    public static Func<string> GetTempPath
+    {
+      get => Volatile.Read(ref _getTempPath);
+      set => Interlocked.Exchange(ref _getTempPath, value ?? Path.GetTempPath);
+    }
 
     /// <summary>Recursively copies all files and subdirectories from source to target.</summary>
+    /// <remarks>
+    /// File names are copied verbatim and existing target files are overwritten. Directory
+    /// symlinks/junctions are not followed.
+    /// </remarks>
     /// <param name="source">The source directory to copy from.</param>
     /// <param name="target">The target directory to copy into.</param>
     public static void CopyFilesRecursively(DirectoryInfo source, DirectoryInfo target)
     {
       // From http://stackoverflow.com/questions/58744/best-way-to-copy-the-entire-contents-of-a-directory-in-c/58779#58779
-
       foreach (var dir in source.GetDirectories())
-        CopyFilesRecursively(dir, target.CreateSubdirectory(Rename(dir.Name)));
+      {
+        // Do not follow directory symlinks/junctions: copying through them can escape the source
+        // tree or loop on a cycle (MC-MAJ-4).
+        if ((dir.Attributes & FileAttributes.ReparsePoint) != 0)
+          continue;
+        CopyFilesRecursively(dir, target.CreateSubdirectory(dir.Name));
+      }
       foreach (var file in source.GetFiles())
-        file.CopyTo(Path.Combine(target.FullName, Rename(file.Name)));
-    }
-
-    private static string Rename(string name)
-    {
-      return ToRename.TryGetValue(name, out var renamed) ? renamed : name;
+        file.CopyTo(Path.Combine(target.FullName, file.Name), overwrite: true);
     }
 
     /// <summary>Deletes a directory and all its contents, retrying on transient IO errors.</summary>
     /// <param name="directoryPath">The path of the directory to delete.</param>
     public static void DeleteDirectory(string directoryPath)
     {
+      DeleteDirectory(directoryPath, true);
+    }
+
+    /// <summary>Deletes a directory and all its contents, optionally suppressing final retry failures.</summary>
+    /// <param name="directoryPath">The path of the directory to delete.</param>
+    /// <param name="throwOnFailure">Whether to throw the final retry exception when deletion fails.</param>
+    public static void DeleteDirectory(string directoryPath, bool throwOnFailure)
+    {
       if (!Directory.Exists(directoryPath))
         return;
 
-      NormalizeAttributes(directoryPath);
-      DeleteDirectory(directoryPath, 5, 16, 2);
+      DeleteDirectory(directoryPath, 5, 16, 2, throwOnFailure);
     }
 
     private static void NormalizeAttributes(string directoryPath)
     {
+      // A directory symlink/junction is left untouched: recursing through it can loop forever on a
+      // cycle (StackOverflowException) or clear attributes on files OUTSIDE the tree (MC-MAJ-4).
+      if (IsReparsePoint(directoryPath))
+        return;
+
       var filePaths = Directory.GetFiles(directoryPath);
       var subdirectoryPaths = Directory.GetDirectories(directoryPath);
 
       foreach (var filePath in filePaths)
-        File.SetAttributes(filePath, FileAttributes.Normal);
+        if (!IsReparsePoint(filePath))
+          File.SetAttributes(filePath, FileAttributes.Normal);
       foreach (var subdirectoryPath in subdirectoryPaths)
         NormalizeAttributes(subdirectoryPath);
       File.SetAttributes(directoryPath, FileAttributes.Normal);
     }
 
-    private static void DeleteDirectory(string directoryPath, int maxAttempts, int initialTimeout, int timeoutFactor)
+    private static bool IsReparsePoint(string path) =>
+        (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+
+    private static void DeleteDirectory(
+        string directoryPath, int maxAttempts, int initialTimeout, int timeoutFactor, bool throwOnFailure)
     {
       for (var attempt = 1; attempt <= maxAttempts; attempt++)
         try
         {
+          NormalizeAttributes(directoryPath);
           Directory.Delete(directoryPath, true);
+          return;
+        }
+        catch (DirectoryNotFoundException)
+        {
           return;
         }
         catch (Exception ex)
@@ -92,7 +118,12 @@ namespace FluentDocker.Common
             throw;
 
           if (attempt >= maxAttempts)
-            continue;
+          {
+            if (throwOnFailure)
+              throw;
+            return;
+          }
+
           Thread.Sleep(initialTimeout * (int)Math.Pow(timeoutFactor, attempt - 1));
         }
     }

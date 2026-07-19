@@ -16,7 +16,8 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Ported from V2 FluentDockerComposeTests.cs
   /// </summary>
   [Trait("Category", "Integration")]
-  [Trait("Category", "Compose")]
+  [Trait("Category", "Integration")]
+  [Trait("Area", "Compose")]
   [Collection("DockerDriver")]
   public partial class ComposeDriverTests : DockerDriverTestBase
   {
@@ -235,7 +236,47 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
       // Assert
       Assert.True(configResult.Success, $"Config failed: {configResult.Error}");
       Assert.NotNull(configResult.Data);
-      Assert.Contains("wordpress", configResult.Data.ToLower());
+      Assert.Contains("wordpress", configResult.Data, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Compose_Config_MergesWithModelsOverlay()
+    {
+      // Render the WithModels overlay exactly as the builder does, then prove the
+      // emitted YAML actually parses and merges via the native `docker compose config`
+      // (the unit tests only assert on the rendered overlay string).
+      var outDir = Path.Combine(Path.GetDirectoryName(typeof(ComposeDriverTests).Assembly.Location)!, ".out");
+      Directory.CreateDirectory(outDir);
+      var stamp = UniqueName("models");
+      var basePath = Path.Combine(outDir, $"{stamp}-base.yml");
+      var overlayPath = Path.Combine(outDir, $"{stamp}-overlay.yml");
+
+      File.WriteAllText(basePath, "services:\n  app:\n    image: alpine:latest\n");
+
+      var overlay = new FluentDocker.Builders.Compose.ComposeModelBuilder();
+      overlay.AddModel("llm", s => s.WithModel("ai/smollm2").WithContextSize(4096));
+      overlay.BindToService("app", "llm");
+      overlay.WriteOverlay(overlayPath);
+
+      try
+      {
+        // Act
+        var configResult = await ComposeDriver.ConfigAsync(Context, new ComposeConfigConfig
+        {
+          ComposeFiles = [basePath, overlayPath]
+        }, TestContext.Current.CancellationToken);
+
+        // Assert: the overlay parsed + merged — the model spec and the service binding
+        // survive into the resolved config.
+        Assert.True(configResult.Success, $"Config failed: {configResult.Error}");
+        Assert.Contains("ai/smollm2", configResult.Data);
+        Assert.Contains("llm", configResult.Data);
+      }
+      finally
+      {
+        File.Delete(basePath);
+        File.Delete(overlayPath);
+      }
     }
 
     #endregion
@@ -390,4 +431,3 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     #endregion
   }
 }
-

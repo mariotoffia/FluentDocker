@@ -12,6 +12,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
   /// Marked DevLocal because they require Docker Swarm mode.
   /// </summary>
   [Trait("Category", "DevLocal")]
+  [Collection("Swarm")]
   public class StackDriverTests : SwarmTestBase
   {
     #region Deploy and Remove

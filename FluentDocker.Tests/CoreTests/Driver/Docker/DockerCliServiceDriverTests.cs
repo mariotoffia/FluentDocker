@@ -149,8 +149,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       var args = BuildCreateArgs(config);
 
-      var imageIdx = args.IndexOf("nginx", args.IndexOf("service create") + 14);
-      var cmdIdx = args.IndexOf("-g", imageIdx);
+      var imageIdx = args.IndexOf(
+          "nginx",
+          args.IndexOf("service create", StringComparison.Ordinal) + 14,
+          StringComparison.Ordinal);
+      var cmdIdx = args.IndexOf("-g", imageIdx, StringComparison.Ordinal);
       Assert.True(cmdIdx > imageIdx);
       Assert.Contains("daemon off;", args);
     }

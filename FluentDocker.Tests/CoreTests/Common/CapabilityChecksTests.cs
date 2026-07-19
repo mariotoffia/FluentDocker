@@ -377,5 +377,22 @@ namespace FluentDocker.Tests.CoreTests.Common
         kernel.Dispose();
       }
     }
+
+    [Fact]
+    public async Task EnsureCapabilityAsync_UnknownCapability_ThrowsArgumentOutOfRangeException()
+    {
+      var (kernel, _) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker");
+
+      try
+      {
+        await Assert.ThrowsAsync<System.ArgumentOutOfRangeException>(() =>
+            kernel.EnsureCapabilityAsync(
+                "docker", (DriverCapability)999, TestContext.Current.CancellationToken));
+      }
+      finally
+      {
+        kernel.Dispose();
+      }
+    }
   }
 }

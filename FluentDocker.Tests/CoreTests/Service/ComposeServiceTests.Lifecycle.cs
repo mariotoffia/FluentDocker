@@ -173,6 +173,37 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
+    public async Task StartAsync_Failure_ExecutesRegisteredUnknownHooks()
+    {
+      var mockPack = new MockDriverPack();
+      mockPack.ComposeDriver
+          .Setup(d => d.StartAsync(
+              It.IsAny<DriverContext>(),
+              It.IsAny<ComposeFileConfig>(),
+              It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Unit>.Fail("compose start failed"));
+
+      var kernel = await MockKernelBuilderExtensions.CreateWithMockDriverAsync("docker", mockPack);
+      try
+      {
+        var service = CreateService(kernel);
+        var unknownHookCalled = false;
+        service.AddHook(ServiceRunningState.Unknown, _ =>
+        {
+          unknownHookCalled = true;
+          return Task.CompletedTask;
+        }, "test-unknown-hook");
+
+        await Assert.ThrowsAsync<DriverException>(
+            () => service.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.True(unknownHookCalled);
+        Assert.Equal(ServiceRunningState.Unknown, service.State);
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    [Fact]
     public async Task Hook_ThrowingException_DoesNotPropagateError()
     {
       var mockPack = new MockDriverPack();
@@ -270,7 +301,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     #region DisposeAsync
 
     [Fact]
-    public async Task DisposeAsync_CallsRemoveWithForce()
+    public async Task DisposeAsync_CallsRemoveWithoutVolumesByDefault()
     {
       var mockPack = new MockDriverPack();
       mockPack.SetupComposeDown();
@@ -283,7 +314,7 @@ namespace FluentDocker.Tests.CoreTests.Service
 
         mockPack.ComposeDriver.Verify(d => d.DownAsync(
             It.IsAny<DriverContext>(),
-            It.Is<ComposeDownConfig>(c => c.RemoveVolumes),
+            It.Is<ComposeDownConfig>(c => !c.RemoveVolumes),
             It.IsAny<CancellationToken>()), Times.Once);
       }
       finally { kernel.Dispose(); }
@@ -393,7 +424,7 @@ namespace FluentDocker.Tests.CoreTests.Service
         var states = new List<ServiceRunningState>();
         service.StateChange += (_, args) => states.Add(args.State);
 
-        Assert.Equal(ServiceRunningState.Running, service.State);
+        Assert.Equal(ServiceRunningState.Stopped, service.State);
 
         await service.PauseAsync(TestContext.Current.CancellationToken);
         Assert.Equal(ServiceRunningState.Paused, service.State);
@@ -408,11 +439,14 @@ namespace FluentDocker.Tests.CoreTests.Service
             cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(ServiceRunningState.Removed, service.State);
 
-        Assert.Equal(4, states.Count);
+        Assert.Equal(7, states.Count);
         Assert.Equal(ServiceRunningState.Paused, states[0]);
-        Assert.Equal(ServiceRunningState.Running, states[1]);
-        Assert.Equal(ServiceRunningState.Stopped, states[2]);
-        Assert.Equal(ServiceRunningState.Removed, states[3]);
+        Assert.Equal(ServiceRunningState.Starting, states[1]);
+        Assert.Equal(ServiceRunningState.Running, states[2]);
+        Assert.Equal(ServiceRunningState.Stopping, states[3]);
+        Assert.Equal(ServiceRunningState.Stopped, states[4]);
+        Assert.Equal(ServiceRunningState.Removing, states[5]);
+        Assert.Equal(ServiceRunningState.Removed, states[6]);
       }
       finally { kernel.Dispose(); }
     }

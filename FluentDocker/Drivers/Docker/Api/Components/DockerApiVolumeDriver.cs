@@ -17,6 +17,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// </summary>
   public class DockerApiVolumeDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IVolumeDriver
   {
+    /// <inheritdoc />
     public async Task<CommandResponse<VolumeCreateResult>> CreateAsync(
         DriverContext context, VolumeCreateConfig config,
         CancellationToken cancellationToken = default)
@@ -32,7 +33,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var result = await PostJsonElementAsync("/volumes/create", body, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<VolumeCreateResult>.Fail(result.ErrorMessage,
-            ErrorCodes.Volume.CreateFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Volume.CreateFailed,
             CreateErrorContext("POST /volumes/create", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
@@ -43,11 +46,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       });
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> RemoveAsync(
         DriverContext context, string volumeName, bool force = false,
         CancellationToken cancellationToken = default)
     {
-      var path = $"/volumes/{Uri.EscapeDataString(volumeName)}?force={force.ToString().ToLower()}";
+      var path = $"/volumes/{Uri.EscapeDataString(volumeName)}?force={force.ToString().ToLowerInvariant()}";
       var result = await DeleteAsync(path, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
@@ -58,14 +62,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<IList<Volume>>> ListAsync(
-        DriverContext context, VolumeListFilter filter = null,
+        DriverContext context, VolumeListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var path = "/volumes";
       if (filter?.Name != null)
       {
-        var filters = $"{{\"name\":[\"{filter.Name}\"]}}";
+        var filters = JsonHelper.Serialize(
+            new Dictionary<string, string[]> { ["name"] = [filter.Name] });
         path += $"?filters={System.Uri.EscapeDataString(filters)}";
       }
 
@@ -86,6 +92,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<IList<Volume>>.Ok(volumes);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Volume>> InspectAsync(
         DriverContext context, string volumeName,
         CancellationToken cancellationToken = default)
@@ -100,13 +107,16 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<Volume>.Ok(ParseVolume(result.Data));
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<VolumePruneResult>> PruneAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await PostJsonElementAsync("/volumes/prune", null, cancellationToken).ConfigureAwait(false);
+      var result = await PostJsonElementAsync("/volumes/prune", null!, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<VolumePruneResult>.Fail(result.ErrorMessage,
-            ErrorCodes.Volume.PruneFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Volume.PruneFailed,
             CreateErrorContext("POST /volumes/prune", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
@@ -118,7 +128,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var deleted = result.Data.Prop("VolumesDeleted");
       if (deleted?.ValueKind == JsonValueKind.Array)
       {
-        pruneResult.VolumesDeleted = [.. deleted.Value.EnumerateArray().Select(v => v.GetString())];
+        pruneResult.VolumesDeleted = [.. deleted.Value.EnumerateArray().Select(v => v.GetString() ?? string.Empty)];
       }
 
       return CommandResponse<VolumePruneResult>.Ok(pruneResult);
@@ -132,7 +142,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         Name = token.GetStringOrDefault("Name"),
         Driver = token.GetStringOrDefault("Driver"),
-        Created = token.GetDateTimeOrDefault("CreatedAt"),
+        Created = token.GetDateTimeOffsetOrDefault("CreatedAt"),
         Scope = token.GetStringOrDefault("Scope"),
         Mountpoint = token.GetStringOrDefault("Mountpoint")
       };

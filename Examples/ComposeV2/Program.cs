@@ -1,8 +1,7 @@
 using FluentDocker.Builders;
-using FluentDocker.Extensions;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using FluentDocker.Model.Common;
-using FluentDocker.Services;
 
 namespace ComposeV2;
 
@@ -12,7 +11,7 @@ namespace ComposeV2;
 /// - Directory copy to/from containers
 /// - TemplateString path interpolation
 /// </summary>
-class Program
+sealed class Program
 {
   private const string DriverId = "docker";
 
@@ -21,7 +20,7 @@ class Program
     Console.WriteLine("FluentDocker v3 - Compose V2 & Directory Copy Example");
     Console.WriteLine("======================================================\n");
 
-    using var kernel = await FluentDockerKernel.Create()
+    using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
       .WithDockerCli(DriverId, d => d.AsDefault())
       .BuildAsync();
 
@@ -53,11 +52,16 @@ class Program
         .WithRemoveOrphans())
       .BuildAsync();
 
-    Console.WriteLine($"Services started: {results.Containers.Count}");
-    foreach (var container in results.Containers)
+    var compose = results.ComposeServices[0];
+    var services = await compose.ListServicesAsync();
+    Console.WriteLine($"Services started: {services.Count}");
+    foreach (var service in services)
     {
-      var config = await container.InspectAsync();
-      Console.WriteLine($"  - {container.Name}: {config.State.ToServiceState()}");
+      Console.WriteLine($"  - {service.Name}: {service.State}");
+      foreach (var publisher in service.Publishers)
+      {
+        Console.WriteLine($"    {publisher.TargetPort}/{publisher.Protocol} -> localhost:{publisher.PublishedPort}");
+      }
     }
     Console.WriteLine();
   }
@@ -90,11 +94,12 @@ class Program
         .WithCommand("tail", "-f", "/dev/null"))  // Keep container running
       .BuildAsync();
 
-    var container = results.Containers.First();
+    var container = results.Containers[0];
     Console.WriteLine($"\nContainer: {container.Name}");
 
-    // Copy directory TO container
+    // Copy directory TO container (docker cp requires the destination parent to exist)
     Console.WriteLine("\nCopying directory TO container...");
+    await container.ExecuteAsync("mkdir -p /app");
     await container.CopyToAsync(dataDir, "/app/data");
     Console.WriteLine("  Copied: data/ -> /app/data/");
 

@@ -158,7 +158,7 @@ namespace FluentDocker.Tests.Integration.DockerApiDriver
 
         // Verify our container is in the list
         var found = listResult.Data.Any(c =>
-            c.Id != null && c.Id.StartsWith(containerId[..12]));
+            c.Id != null && c.Id.StartsWith(containerId[..12], StringComparison.Ordinal));
         Assert.True(found, $"Container {containerId[..12]} not found in list");
       }
       finally

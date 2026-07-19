@@ -112,17 +112,20 @@ namespace FluentDocker.Builders
     IComposeBuilder WithProjectName(string name);
 
     /// <summary>Sets an environment variable available during compose interpolation.</summary>
+    /// <remarks>Explicit environment values always win over env-file entries regardless of call order.</remarks>
     /// <param name="key">Environment variable name.</param>
     /// <param name="value">Environment variable value.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithEnvironment(string key, string value);
 
     /// <summary>Sets multiple environment variables from a dictionary.</summary>
+    /// <remarks>Explicit environment values always win over env-file entries regardless of call order.</remarks>
     /// <param name="environment">Dictionary of environment variable key-value pairs.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithEnvironment(IDictionary<string, string> environment);
 
     /// <summary>Loads environment variables from an env file for compose interpolation.</summary>
+    /// <remarks>Precedence matches docker compose: host process/explicit environment wins over env-file entries.</remarks>
     /// <param name="path">Path to the env file.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithEnvFile(string path);
@@ -148,6 +151,10 @@ namespace FluentDocker.Builders
     IComposeBuilder ForServices(params string[] services);
 
     /// <summary>Enables or disables volume removal when the stack is torn down.</summary>
+    /// <remarks>
+    /// Borrow-protection is based on existing compose containers. Volume-only orphans from a
+    /// previous <c>compose down</c> without <c>--volumes</c> are outside that guarantee.
+    /// </remarks>
     /// <param name="removeVolumes">True to remove volumes on down; false to preserve them.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithRemoveVolumes(bool removeVolumes = true);
@@ -188,7 +195,7 @@ namespace FluentDocker.Builders
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithWait(bool wait = true);
 
-    /// <summary>Sets the maximum time to wait for services to become healthy.</summary>
+    /// <summary>Sets the maximum time to wait for services to become healthy and enables waiting.</summary>
     /// <param name="seconds">Wait timeout in seconds.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder WithWaitTimeout(int seconds);
@@ -202,11 +209,13 @@ namespace FluentDocker.Builders
     /// Attaches to an already-running compose project instead of running <c>docker compose up</c>.
     /// On build, the resulting <see cref="Services.IComposeService"/> is returned without starting
     /// or modifying the project, so it can be inspected (e.g. <c>ListServicesAsync</c>,
-    /// <c>RefreshStateAsync</c>, logs) and later managed. Requires <see cref="WithProjectName"/>
-    /// and/or <see cref="WithComposeFile"/> to identify the project.
+    /// <c>RefreshStateAsync</c>, logs) and later managed. Disposing the borrowed service does not
+    /// run <c>docker compose down</c>. Requires <see cref="WithProjectName"/> and/or
+    /// <see cref="WithComposeFile"/> to identify the project.
     /// </summary>
     /// <param name="connect">True to attach to an existing project; false for normal up behavior.</param>
     /// <returns>The builder for fluent chaining.</returns>
     IComposeBuilder ConnectToExisting(bool connect = true);
+
   }
 }

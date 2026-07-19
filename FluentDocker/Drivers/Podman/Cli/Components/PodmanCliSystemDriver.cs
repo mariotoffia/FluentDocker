@@ -1,14 +1,9 @@
 using System;
-using System.Globalization;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
 using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Drivers;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Podman.Cli.Components
 {
@@ -16,9 +11,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
   /// Podman CLI implementation of ISystemDriver.
   /// Adapted for Podman's daemonless architecture.
   /// </summary>
-  public class PodmanCliSystemDriver : PodmanCliDriverBase, ISystemDriver
+  public partial class PodmanCliSystemDriver : PodmanCliDriverBase, ISystemDriver
   {
-    private static readonly char[] LineSeparators = ['\n', '\r'];
+    /// <summary>Creates a new instance with the specified binary resolver.</summary>
     public PodmanCliSystemDriver(IPodmanBinaryResolver binaryResolver) : base(binaryResolver)
     {
     }
@@ -31,18 +26,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("info --format json", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "info --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<SystemInfo>.Fail(
-              result.Error ?? "System info failed", ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "System info failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
+              CreateErrorContext(context, "SystemInfo", result), result.ExitCode);
 
         var info = ParseSystemInfo(result.Output);
         info.PopulateMeta();
         return CommandResponse<SystemInfo>.Ok(info);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<SystemInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<SystemInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -52,18 +52,23 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("version --format json", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "version --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<VersionInfo>.Fail(
-              result.Error ?? "Version check failed", ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "Version check failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
+              CreateErrorContext(context, "SystemVersion", result), result.ExitCode);
 
         var version = ParseVersionInfo(result.Output);
         version.PopulateMeta();
         return CommandResponse<VersionInfo>.Ok(version);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<VersionInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<VersionInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -73,15 +78,26 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        // Podman is daemonless; verify it works by running 'podman info'
-        var result = await ExecuteCommandAsync("info", cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CommandResponse<Unit>.Ok(Unit.Default)
-            : CommandResponse<Unit>.Fail("Podman is not reachable", ErrorCodes.General.Unknown);
+        // Podman is daemonless; verify it works by running 'podman info'. A liveness probe
+        // against a wedged machine/VM must fail in seconds, not hang the readiness loop for the
+        // 5-min buffered default (DCLI-MAJ-3). Cap at 10s (honor a smaller caller RequestTimeout).
+        var probeCeiling = TimeSpan.FromSeconds(10);
+        var probeTimeout = context?.RequestTimeout is { } rt && rt < probeCeiling ? rt : probeCeiling;
+        var result = await ExecuteCommandAsync(context, "info", probeTimeout, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+          return CommandResponse<Unit>.Fail(
+              ErrorOrDefault(result, "Podman is not reachable"), FailureCode(result.Error, ErrorCodes.General.Unknown),
+              CreateErrorContext(context!, "SystemPing", result), result.ExitCode);
+
+        return CommandResponse<Unit>.Ok(Unit.Default);
+      }
+      catch (OperationCanceledException)
+      {
+        throw;
       }
       catch (Exception ex)
       {
-        return CommandResponse<Unit>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<Unit>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -111,40 +127,50 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        var result = await ExecuteCommandAsync("system df --format json", cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, "system df --format json", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<DiskUsageInfo>.Fail(
-              result.Error ?? "Disk usage failed", ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "Disk usage failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
+              CreateErrorContext(context, "SystemDiskUsage", result), result.ExitCode);
 
         var info = ParseDiskUsageOutput(result.Output);
         return CommandResponse<DiskUsageInfo>.Ok(info);
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<DiskUsageInfo>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<DiskUsageInfo>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
     /// <inheritdoc />
     public async Task<CommandResponse<SystemPruneResult>> PruneAsync(
-        DriverContext context, SystemPruneConfig config = null,
+        DriverContext context, SystemPruneConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       try
       {
         var args = BuildSystemPruneArgs(config);
 
-        var result = await ExecuteCommandAsync(args, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteCommandAsync(context, args, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<SystemPruneResult>.Fail(
-              result.Error ?? "System prune failed", ErrorCodes.General.Unknown);
+              ErrorOrDefault(result, "System prune failed"), FailureCode(result.Error, ErrorCodes.General.Unknown),
+              CreateErrorContext(context, "SystemPrune", result), result.ExitCode);
 
         return CommandResponse<SystemPruneResult>.Ok(
             CliPruneOutputParser.ParseSystemPruneOutput(result.Output));
       }
+      catch (OperationCanceledException)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
-        return CommandResponse<SystemPruneResult>.Fail(ex.Message, ErrorCodes.General.Unknown);
+        return CommandResponse<SystemPruneResult>.Fail(ex.Message, FailureCode(ex, ErrorCodes.General.Unknown));
       }
     }
 
@@ -187,7 +213,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>
     /// Builds the CLI arguments string for <c>podman system prune</c>.
     /// </summary>
-    public static string BuildSystemPruneArgs(SystemPruneConfig config)
+    public static string BuildSystemPruneArgs(SystemPruneConfig? config)
     {
       var args = "system prune -f";
       if (config?.All == true)
@@ -197,246 +223,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (config?.Filter != null)
       {
         foreach (var f in config.Filter)
-          args += $" --filter {f.Key}={f.Value}";
+          args += $" --filter {QuoteArgumentIfNeeded($"{f.Key}={f.Value}")}";
       }
       return args;
-    }
-
-    #endregion
-
-    #region JSON Parsing
-
-    private static SystemInfo ParseSystemInfo(string json)
-    {
-      var info = new SystemInfo();
-      try
-      {
-        var obj = JsonHelper.ParseElement(json);
-
-        // Podman info structure: { host: {...}, store: {...}, ... }
-        var host = obj.Prop("host");
-        if (host.HasValue)
-        {
-          var h = host.Value;
-          info.OperatingSystem = h.GetStringOrDefault("os");
-          info.Architecture = h.GetStringOrDefault("arch");
-          info.Hostname = h.GetStringOrDefault("hostname");
-          info.KernelVersion = h.GetStringOrDefault("kernel");
-          info.CPUs = h.GetInt32OrDefault("cpus");
-          info.MemoryTotal = h.GetInt64OrDefault("memTotal");
-
-          var conmon = h.Prop("conmon");
-          if (conmon.HasValue)
-            info.EngineVersion = conmon.Value.GetStringOrDefault("version");
-        }
-
-        var store = obj.Prop("store");
-        if (store.HasValue)
-        {
-          var s = store.Value;
-          info.StorageBackend = s.GetStringOrDefault("graphDriverName");
-          info.DataRoot = s.GetStringOrDefault("graphRoot");
-          var imgStore = s.Prop("imageStore");
-          if (imgStore.HasValue)
-            info.Images = imgStore.Value.GetInt32OrDefault("number");
-        }
-
-        // Podman version info
-        var version = obj.Prop("version");
-        if (version.HasValue)
-          info.EngineVersion = version.Value.GetStringOrDefault("Version") ?? info.EngineVersion;
-
-        info.OSType = "linux"; // Podman always runs Linux containers
-      }
-      catch (Exception ex)
-      {
-        NullLogger.Instance.LogError(ex, "Podman system info parsing failed");
-      }
-
-      return info;
-    }
-
-    private static VersionInfo ParseVersionInfo(string json)
-    {
-      var version = new VersionInfo();
-      try
-      {
-        var obj = JsonHelper.ParseElement(json);
-
-        // Podman version JSON: { Client: {...}, Server: {...} } or flat structure
-        var clientProp = obj.Prop("Client");
-        var client = clientProp ?? obj;
-        version.ClientVersion = client.GetStringOrDefault("Version");
-        version.ClientApiVersion = client.GetStringOrDefault("APIVersion");
-        version.GitCommit = client.GetStringOrDefault("GitCommit");
-        version.RuntimeVersion = client.GetStringOrDefault("GoVersion");
-        version.Os = client.GetStringOrDefault("Os") ?? client.GetStringOrDefault("OsArch");
-        version.Arch = client.GetStringOrDefault("Arch");
-        version.BuildTime = client.GetStringOrDefault("Built");
-
-        var server = obj.Prop("Server");
-        if (server.HasValue)
-        {
-          var s = server.Value;
-          version.ServerVersion = s.GetStringOrDefault("Version");
-          version.ServerApiVersion = s.GetStringOrDefault("APIVersion");
-        }
-        else
-        {
-          // In rootless mode, Server may not be present
-          version.ServerVersion = version.ClientVersion;
-          version.ServerApiVersion = version.ClientApiVersion;
-        }
-
-        version.PlatformName = "Podman";
-      }
-      catch (Exception ex)
-      {
-        NullLogger.Instance.LogError(ex, "Podman version info parsing failed");
-      }
-
-      return version;
-    }
-
-    #endregion
-
-    #region Disk Usage Parsing
-
-    /// <summary>
-    /// Parses Podman CLI <c>system df --format json</c> output.
-    /// Handles both JSON arrays and newline-delimited JSON objects.
-    /// Size/Reclaimable may be numbers (bytes) or human-readable strings.
-    /// </summary>
-    public static DiskUsageInfo ParseDiskUsageOutput(string output)
-    {
-      var info = new DiskUsageInfo();
-      if (string.IsNullOrWhiteSpace(output))
-        return info;
-
-      var trimmed = output.Trim();
-
-      // Try parsing as a JSON array first
-      if (trimmed.StartsWith('['))
-      {
-        try
-        {
-          var root = JsonHelper.ParseElement(trimmed);
-          foreach (var token in root.EnumerateArraySafe())
-          {
-            if (token.ValueKind == JsonValueKind.Object)
-              ApplyDiskUsageItem(info, token);
-          }
-        }
-        catch (Exception ex)
-        {
-          NullLogger.Instance.LogError(ex, "Podman disk usage JSON parsing failed");
-          ParseLineByLine(info, trimmed);
-        }
-      }
-      else
-      {
-        ParseLineByLine(info, trimmed);
-      }
-
-      info.TotalSize = info.Images.Size + info.Containers.Size
-                       + info.Volumes.Size + info.BuildCache.Size;
-      info.Reclaimable = info.Images.Reclaimable + info.Containers.Reclaimable
-                         + info.Volumes.Reclaimable + info.BuildCache.Reclaimable;
-      return info;
-    }
-
-    private static void ParseLineByLine(DiskUsageInfo info, string output)
-    {
-      var lines = output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-      foreach (var line in lines)
-      {
-        var l = line.Trim();
-        if (l.Length == 0 || l[0] != '{')
-          continue;
-
-        try
-        {
-          var obj = JsonHelper.ParseElement(l);
-          ApplyDiskUsageItem(info, obj);
-        }
-        catch (Exception ex)
-        {
-          NullLogger.Instance.LogError(ex, "Podman disk usage line parsing failed");
-        }
-      }
-    }
-
-    private static void ApplyDiskUsageItem(DiskUsageInfo info, JsonElement obj)
-    {
-      var type = obj.GetStringOrDefault("Type") ?? obj.GetStringOrDefault("type") ?? "";
-      var item = new DiskUsageItem
-      {
-        TotalCount = ReadInt(obj, "Total", "TotalCount"),
-        Active = ReadInt(obj, "Active", "active"),
-        Size = ReadByteValue(obj, "Size", "size"),
-        Reclaimable = ReadByteValue(obj, "Reclaimable", "reclaimable")
-      };
-
-      switch (type)
-      {
-        case "Images":
-          info.Images = item;
-          break;
-        case "Containers":
-          info.Containers = item;
-          break;
-        case "Volumes":
-        case "Local Volumes":
-          info.Volumes = item;
-          break;
-        case "Build Cache":
-          info.BuildCache = item;
-          break;
-      }
-    }
-
-    private static int ReadInt(JsonElement obj, string key1, string key2)
-    {
-      var prop = obj.Prop(key1, key2);
-      if (!prop.HasValue)
-        return 0;
-      var p = prop.Value;
-      if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var v))
-        return v;
-      if (p.ValueKind == JsonValueKind.String && int.TryParse(p.GetString(), out v))
-        return v;
-      return 0;
-    }
-
-    /// <summary>
-    /// Reads a byte value from a JsonElement property. The value may be a number
-    /// (raw bytes) or a human-readable string (e.g. "500MB", "1.5GB (40%)").
-    /// </summary>
-    private static long ReadByteValue(JsonElement obj, string key1, string key2)
-    {
-      var prop = obj.Prop(key1, key2);
-      if (!prop.HasValue)
-        return 0;
-      var p = prop.Value;
-
-      if (p.ValueKind == JsonValueKind.Number)
-        return p.TryGetInt64(out var lv) ? lv : 0;
-
-      var str = p.GetStringValue();
-      if (string.IsNullOrWhiteSpace(str))
-        return 0;
-
-      // Strip trailing " (N%)" if present (reclaimable field)
-      var parenIndex = str.IndexOf('(');
-      if (parenIndex >= 0)
-        str = str.Substring(0, parenIndex).Trim();
-
-      // Try raw number first
-      if (long.TryParse(str, NumberStyles.Integer,
-              CultureInfo.InvariantCulture, out var rawLong))
-        return rawLong;
-
-      return PodmanCliContainerDriver.ParseByteValue(str);
     }
 
     #endregion

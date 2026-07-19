@@ -35,20 +35,29 @@ namespace FluentDocker.Testing.Xunit
   /// </remarks>
   public abstract class XunitContainerTestBase : IAsyncLifetime
   {
+    private ContainerResource? _resource;
+    private FluentDockerKernel? _kernel;
+
     /// <summary>
     /// The underlying container resource, available after initialization.
     /// </summary>
-    public ContainerResource? Resource { get; private set; }
+    public ContainerResource Resource
+    {
+      get { EnsureInitialized(); return _resource!; }
+    }
 
     /// <summary>
     /// Shorthand access to the running container service.
     /// </summary>
-    public IContainerService? Container => Resource?.Container;
+    public IContainerService Container => Resource.Container!;
 
     /// <summary>
     /// The kernel managing drivers for this test.
     /// </summary>
-    public FluentDockerKernel? Kernel { get; private set; }
+    public FluentDockerKernel Kernel
+    {
+      get { EnsureInitialized(); return _kernel!; }
+    }
 
     /// <summary>
     /// Override to configure the container. Called during initialization.
@@ -69,32 +78,35 @@ namespace FluentDocker.Testing.Xunit
     /// <inheritdoc />
     public async ValueTask InitializeAsync()
     {
-      if (Resource != null)
+      if (_resource != null)
         throw new InvalidOperationException(
             "Already initialized. Dispose before re-initializing.");
 
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
           k => new ContainerResource(k, ConfigureContainer, GetOptions()!),
-          KernelFactory!);
+          KernelFactory!).ConfigureAwait(false);
 
-      Kernel = kernel;
-      Resource = resource;
+      _kernel = kernel;
+      _resource = resource;
     }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      try
-      {
-        await ResourceLifecycle.DisposeAsync(Resource!, Kernel!);
-      }
-      finally
-      {
-        Resource = null;
-        Kernel = null;
-      }
-
+      // Clear handles only AFTER successful disposal. If cleanup throws, the public
+      // Resource/Kernel handles stay available for LastTeardownDiagnostics, retry, or
+      // manual cleanup, and the exception propagates.
+      await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
+      _resource = null;
+      _kernel = null;
       GC.SuppressFinalize(this);
+    }
+
+    private void EnsureInitialized()
+    {
+      if (_resource == null)
+        throw new InvalidOperationException(
+            "Fixture has not been initialized. Call InitializeAsync first.");
     }
   }
 }

@@ -42,11 +42,46 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
           .BuildAsync();
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
       GC.SuppressFinalize(this);
-      Kernel?.Dispose();
-      return default;
+
+      // Safety-net reap by label (TESTS-2): the base helpers create test-labeled containers,
+      // networks, and volumes; a test that fails mid-run before its own finally would otherwise
+      // leak them, accumulating across a failing run and eventually exhausting the host/CI. Reap
+      // here — while the kernel is still alive — regardless of per-test cleanup, then dispose.
+      if (Kernel != null)
+      {
+        try
+        { await ReapTestResourcesAsync().ConfigureAwait(false); }
+        catch { /* best-effort: never let teardown reaping fail a run */ }
+        Kernel.Dispose();
+      }
+    }
+
+    private async Task ReapTestResourcesAsync()
+    {
+      await Utilities.TestContainerUtils
+          .RemoveContainersByLabelAsync(Kernel, DriverId, TestLabelKey, TestLabelValue)
+          .ConfigureAwait(false);
+
+      var networks = await NetworkDriver.ListAsync(Context,
+          new NetworkListFilter { Labels = new Dictionary<string, string> { [TestLabelKey] = TestLabelValue } })
+          .ConfigureAwait(false);
+      if (networks.Success && networks.Data != null)
+        foreach (var network in networks.Data)
+          try
+          { await NetworkDriver.RemoveAsync(Context, network.Id).ConfigureAwait(false); }
+          catch { /* ignore */ }
+
+      var volumes = await VolumeDriver.ListAsync(Context,
+          new VolumeListFilter { Labels = new Dictionary<string, string> { [TestLabelKey] = TestLabelValue } })
+          .ConfigureAwait(false);
+      if (volumes.Success && volumes.Data != null)
+        foreach (var volume in volumes.Data)
+          try
+          { await VolumeDriver.RemoveAsync(Context, volume.Name, force: true).ConfigureAwait(false); }
+          catch { /* ignore */ }
     }
 
     /// <summary>
@@ -128,6 +163,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     {
       config ??= new NetworkCreateConfig();
       config.Name = name;
+      config.Labels[TestLabelKey] = TestLabelValue;
 
       var result = await NetworkDriver.CreateAsync(Context, config);
       Assert.True(result.Success, $"Failed to create network: {result.Error}");
@@ -137,7 +173,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     /// <summary>
     /// Removes a network.
     /// </summary>
-    protected async Task RemoveNetworkAsync(string networkId)
+    protected async Task RemoveNetworkAsync(string? networkId)
     {
       if (!string.IsNullOrEmpty(networkId))
       {
@@ -151,6 +187,7 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
     protected async Task<string> CreateVolumeAsync(string? name = null)
     {
       var config = new VolumeCreateConfig { Name = name ?? $"test-vol-{Guid.NewGuid():N}" };
+      config.Labels[TestLabelKey] = TestLabelValue;
       var result = await VolumeDriver.CreateAsync(Context, config);
       Assert.True(result.Success, $"Failed to create volume: {result.Error}");
       return result.Data.Name;

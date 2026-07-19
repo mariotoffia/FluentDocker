@@ -31,7 +31,36 @@ namespace FluentDocker.Tests.CoreTests.Service
       mock.Setup(s => s.Name).Returns("test-container");
       mock.Setup(s => s.InspectAsync(It.IsAny<CancellationToken>()))
           .ReturnsAsync(container);
+      mock.Setup(s => s.ToHostExposedEndpointAsync(
+              It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .Returns<string, CancellationToken>(async (port, token) =>
+              ResolveEndpoint(await mock.Object.InspectAsync(token), port));
+      mock.Setup(s => s.GetHostPortAsync(
+              It.IsAny<string>(), It.IsAny<CancellationToken>()))
+          .Returns<string, CancellationToken>(async (port, token) =>
+              (await mock.Object.ToHostExposedEndpointAsync(port, token))?.Port ?? 0);
       return mock;
+    }
+
+    private static IPEndPoint ResolveEndpoint(Container container, string portAndProto)
+    {
+      var ports = container?.NetworkSettings?.Ports;
+      if (ports == null ||
+          !ports.TryGetValue(portAndProto, out var bindings) ||
+          bindings == null ||
+          bindings.Length == 0)
+        return null!;
+
+      var binding = bindings[0];
+      if (binding == null || !int.TryParse(binding.HostPort, out var hostPort))
+        return null!;
+
+      var hostIp = string.IsNullOrEmpty(binding.HostIp) ||
+          binding.HostIp == "0.0.0.0" ||
+          binding.HostIp == "::"
+          ? "127.0.0.1"
+          : binding.HostIp;
+      return new IPEndPoint(IPAddress.Parse(hostIp), hostPort);
     }
 
     /// <summary>
@@ -154,7 +183,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         Id = "test-container-id",
         Name = "test-container",
-        NetworkSettings = null
+        NetworkSettings = null!
       };
       var mock = CreateContainerServiceMock(container);
 
@@ -173,7 +202,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         Id = "test-container-id",
         Name = "test-container",
-        NetworkSettings = new ContainerNetworkSettings { Ports = null }
+        NetworkSettings = new ContainerNetworkSettings { Ports = null! }
       };
       var mock = CreateContainerServiceMock(container);
 
@@ -208,7 +237,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var ports = new Dictionary<string, HostIpEndpoint[]>
       {
-        ["5432/tcp"] = null
+        ["5432/tcp"] = null!
       };
       var container = CreateContainerWithPorts(ports);
       var mock = CreateContainerServiceMock(container);
@@ -224,7 +253,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     public async Task ToHostExposedEndpointAsync_NullContainer_ReturnsNull()
     {
       // Arrange
-      var mock = CreateContainerServiceMock(null);
+      var mock = CreateContainerServiceMock(null!);
 
       // Act
       var endpoint = await mock.Object.ToHostExposedEndpointAsync("5432/tcp", TestContext.Current.CancellationToken);
@@ -332,7 +361,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var container = new Container
       {
         Id = "test-container-id",
-        NetworkSettings = null
+        NetworkSettings = null!
       };
       var mock = CreateContainerServiceMock(container);
 
@@ -422,6 +451,18 @@ namespace FluentDocker.Tests.CoreTests.Service
       var host = mock.Object.GetDockerHost();
 
       // Assert
+      Assert.Equal("127.0.0.1", host);
+    }
+
+    [Fact]
+    public void GetDockerHost_NativeHostWithMachineName_ReturnsLocalhost()
+    {
+      var mock = new Mock<IHostService>();
+      mock.Setup(s => s.IsNative).Returns(true);
+      mock.Setup(s => s.Name).Returns("default");
+
+      var host = mock.Object.GetDockerHost();
+
       Assert.Equal("127.0.0.1", host);
     }
 

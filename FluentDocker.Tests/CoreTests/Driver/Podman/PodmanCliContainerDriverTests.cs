@@ -69,7 +69,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseContainerList_NullString_ReturnsEmptyList()
     {
-      var result = InvokeParseContainerList(null);
+      var result = InvokeParseContainerList(null!);
       Assert.Empty(result);
     }
 
@@ -222,10 +222,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
       var config = new ContainerCreateConfig
       {
         Image = "nginx",
-        Volumes = new Dictionary<string, string>
-                {
-                    { "/data", "/host/data" }
-                }
+        Volumes = ["/data:/host/data"]
       };
       var result = InvokeBuildCreateArgs("create", config);
       Assert.Contains("-v /data:/host/data", result);
@@ -271,7 +268,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
         }
       };
       var result = InvokeBuildCreateArgs("create", config);
-      Assert.Contains("--health-cmd", result);
+      // PDM-MAJ-2: a CMD healthcheck must be exec form (JSON array), not a shell-quoted string,
+      // so it works on distroless/shell-less images. Mirrors --entrypoint JSON serialization.
+      var expectedHealthCmd = "--health-cmd " +
+          CommandLineQuoting.QuoteArgumentIfNeeded(JsonHelper.Serialize(new[] { "curl", "-f", "http://localhost/" }));
+      Assert.Contains(expectedHealthCmd, result);
       Assert.Contains("--health-interval 30s", result);
       Assert.Contains("--health-timeout 10s", result);
       Assert.Contains("--health-retries 3", result);
@@ -385,7 +386,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void QuoteArgumentIfNeeded_Null_ReturnsQuotedEmpty()
     {
-      var result = InvokeQuoteArgumentIfNeeded(null);
+      var result = InvokeQuoteArgumentIfNeeded(null!);
       Assert.Equal("\"\"", result);
     }
 
@@ -393,7 +394,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     public void QuoteArgumentIfNeeded_PathWithBackslashesAndSpaces_EscapesCorrectly()
     {
       var result = InvokeQuoteArgumentIfNeeded(@"C:\Program Files\Podman");
-      Assert.Equal("\"C:\\\\Program Files\\\\Podman\"", result);
+      Assert.Equal("\"C:\\Program Files\\Podman\"", result);
     }
 
     #endregion
@@ -422,7 +423,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "BuildCreateArgs",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [command, config, detach]);
+      return (string)method.Invoke(null, [command, config, detach])!;
     }
 
     private static ContainerProcesses InvokeParseTopOutput(string output)
@@ -431,7 +432,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseTopOutput",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (ContainerProcesses)method.Invoke(null, [output]);
+      return (ContainerProcesses)method.Invoke(null, [output])!;
     }
 
     private static IList<FilesystemChange> InvokeParseDiffOutput(string output)
@@ -440,7 +441,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseDiffOutput",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<FilesystemChange>)method.Invoke(null, [output]);
+      return (IList<FilesystemChange>)method.Invoke(null, [output])!;
     }
 
     private static string InvokeQuoteArgumentIfNeeded(string arg)
@@ -449,7 +450,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "QuoteArgumentIfNeeded",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (string)method.Invoke(null, [arg]);
+      return (string)method.Invoke(null, [arg])!;
     }
 
     #endregion

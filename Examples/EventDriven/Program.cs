@@ -6,19 +6,20 @@ using FluentDocker.Builders;
 using FluentDocker.Drivers;
 using FluentDocker.Extensions;
 using FluentDocker.Kernel;
+using Microsoft.Extensions.Logging.Abstractions;
 using FluentDocker.Model.Drivers;
 using FluentDocker.Services;
 
 namespace EventDriven
 {
-  class Program
+  sealed class Program
   {
     private const string DriverId = "docker";
-    private const string ContainerName = "fd-event-demo";
+    private static readonly string ContainerName = $"fd-event-demo-{Guid.NewGuid():N}";
 
     static async Task Main(string[] args)
     {
-      using var kernel = await FluentDockerKernel.Create()
+      using var kernel = await FluentDockerKernel.Create(NullLoggerFactory.Instance)
         .WithDockerCli(DriverId, d => d.AsDefault())
         .BuildAsync();
 
@@ -31,14 +32,14 @@ namespace EventDriven
       await using (var results = await new Builder()
         .WithinDriver(DriverId, kernel)
         .UseContainer(c => c
-          .UseImage("postgres:9.6-alpine")
+          .UseImage("postgres:16-alpine")
           .WithName(ContainerName)
           .ExposePort("5432/tcp")
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .WaitForPort("5432/tcp", 30000))
         .BuildAsync())
       {
-        var container = results.GetContainer(ContainerName);
+        var container = results.GetContainer(ContainerName)!;
         var config = await container.InspectAsync();
         var running = ServiceRunningState.Running == config.State.ToServiceState();
 

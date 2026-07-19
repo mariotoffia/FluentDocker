@@ -85,7 +85,7 @@ namespace FluentDocker.Tests.CoreTests.Service
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
       // Act
-      var service = new ContainerService(kernel, "docker", "abc123", "nginx", null);
+      var service = new ContainerService(kernel, "docker", "abc123", "nginx", null!);
 
       // Assert
       Assert.StartsWith("container-", service.Name);
@@ -95,20 +95,27 @@ namespace FluentDocker.Tests.CoreTests.Service
     }
 
     [Fact]
-    public void AddHook_AddsHook()
+    public async Task AddHook_FiresWhenStateTransitionMatches()
     {
       // Arrange
-      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var (kernel, pack) = await MockKernelBuilderExtensions.CreateWithMockDriverAsync();
+      pack.SetupContainerStart()
+          .SetupContainerInspect("abc123", running: true);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
       var hookCalled = false;
 
       // Act
-      service.AddHook(ServiceRunningState.Running, async _ => hookCalled = true, "test-hook");
+      service.AddHook(ServiceRunningState.Running, _ =>
+      {
+        hookCalled = true;
+        return Task.CompletedTask;
+      }, "test-hook");
+      await service.StartAsync(TestContext.Current.CancellationToken);
 
-      // Assert - hook is added (we can't easily verify without triggering state change)
-      Assert.NotNull(service);
+      // Assert
+      Assert.True(hookCalled);
 
-      kernel.Dispose();
+      await kernel.DisposeAsync();
     }
 
     [Fact]
@@ -134,10 +141,9 @@ namespace FluentDocker.Tests.CoreTests.Service
       // Arrange
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test");
-      var eventRaised = false;
 
       // Act
-      service.StateChange += (sender, args) => eventRaised = true;
+      service.StateChange += (sender, args) => { };
 
       // Assert - event subscription works
       Assert.NotNull(service);
@@ -157,6 +163,24 @@ namespace FluentDocker.Tests.CoreTests.Service
       service.Dispose();
       service.Dispose();
       service.Dispose();
+
+      kernel.Dispose();
+    }
+
+    [Fact]
+    public async Task SyncDispose_CompletesWithoutHanging()
+    {
+      // Arrange
+      var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
+      var service = new ContainerService(kernel, "docker", "abc123", "nginx", "test",
+          stopOnDispose: false, deleteOnDispose: false);
+
+      // Synchronous Dispose must complete promptly without deadlocking on the
+      // thread-pool-dispatched async disposal.
+      var disposeTask = Task.Run(service.Dispose, TestContext.Current.CancellationToken);
+      var completed = await Task.WhenAny(disposeTask, Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken)) == disposeTask;
+      Assert.True(completed, "Synchronous Dispose() did not complete in time (possible deadlock).");
+      await disposeTask; // surface any exception thrown by Dispose()
 
       kernel.Dispose();
     }

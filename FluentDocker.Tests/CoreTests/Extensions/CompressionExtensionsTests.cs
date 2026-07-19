@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using System.IO;
 using System.Text;
@@ -25,6 +26,8 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     {
       if (Directory.Exists(_tempDir))
         Directory.Delete(_tempDir, true);
+
+      GC.SuppressFinalize(this);
     }
 
     private string CreateTarWithFile(string fileName, string content)

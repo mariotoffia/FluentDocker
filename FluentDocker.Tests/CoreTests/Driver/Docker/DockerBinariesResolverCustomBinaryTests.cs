@@ -18,13 +18,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
     public DockerBinariesResolverCustomBinaryTests()
     {
-      _tempDir = Path.Combine(Path.GetTempPath(), $"fd315_{Guid.NewGuid():N}");
+      _tempDir = Path.Combine(Directory.GetCurrentDirectory(), ".out", $"fd315_{Guid.NewGuid():N}");
       Directory.CreateDirectory(_tempDir);
     }
 
     public void Dispose()
     {
-      try { if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, true); }
+      try
+      { if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, true); }
       catch { /* best effort */ }
       GC.SuppressFinalize(this);
     }
@@ -34,6 +35,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var file = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"{name}.exe" : name;
       var path = Path.Combine(_tempDir, file);
       File.WriteAllText(path, "fake");
+      if (!OperatingSystem.IsWindows())
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
       return path;
     }
 
@@ -76,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       // BinaryName is finch but only a docker binary is present -> not found.
       CreateFakeBinary("docker");
 
-      Assert.Throws<FluentDocker.Common.FluentDockerException>(() =>
+      Assert.Throws<FluentDocker.Common.DriverNotAvailableException>(() =>
           new DockerBinariesResolver(new BinaryConfiguration
           {
             BinaryName = "finch",

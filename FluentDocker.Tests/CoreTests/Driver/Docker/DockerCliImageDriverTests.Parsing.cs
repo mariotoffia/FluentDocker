@@ -38,7 +38,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void ParseSize_Null_ReturnsZero()
     {
-      var result = InvokeParseSize(null);
+      var result = InvokeParseSize(null!);
 
       Assert.Equal(0L, result);
     }
@@ -258,9 +258,9 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       foreach (var line in lines)
       {
-        if (line.StartsWith("Deleted:"))
+        if (line.StartsWith("Deleted:", StringComparison.Ordinal))
           removeResult.Deleted.Add(line[8..].Trim());
-        else if (line.StartsWith("Untagged:"))
+        else if (line.StartsWith("Untagged:", StringComparison.Ordinal))
           removeResult.Untagged.Add(line[9..].Trim());
       }
 

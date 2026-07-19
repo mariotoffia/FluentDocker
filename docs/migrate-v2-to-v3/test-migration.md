@@ -1,24 +1,26 @@
 ---
 layout: default
-title: Test Migration
+title: Test Code Migration
 parent: Migration Guide
 nav_order: 3
 ---
 
-# Test Migration Guide
+# Test Code Migration Guide
 
-How to migrate FluentDocker v2.x.x test code to v3.0.0.
+How to migrate FluentDocker v2.x.x test **code** to v3 — the builder-level API changes.
+For migrating the legacy test **adapter packages** (`Ductus.FluentDocker.XUnit` / `.MsTest`)
+to `FluentDocker.Testing.*`, see [Legacy Test Adapter Migration](../testing/migration-from-legacy.md).
 
-> **Note:** The legacy `Ductus.FluentDocker.MsTest` and `Ductus.FluentDocker.XUnit` packages
-> have been removed. The examples below show the builder-level API changes.
-> For test support, use the new `FluentDocker.Testing.*` packages. See
-> [Migration from Legacy](../testing/migration-from-legacy.html) for
-> side-by-side adapter examples.
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](../getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
-This guide covers the most common test patterns and shows side-by-side v2 vs v3
-code for each. The core change is that v3 requires a **kernel** with a registered
-driver, the builder uses **lambda-scoped** configuration, and `Build()` returns
-a `BuildResults` object instead of a service directly.
+> **Note:** The legacy `Ductus.FluentDocker.MsTest` / `.XUnit` packages have been removed; use
+> the new `FluentDocker.Testing.*` packages. The examples below show the builder-level API changes.
+
+This guide covers the most common test patterns and shows side-by-side v2 vs v3 code for each.
+The core change is that v3 requires a **kernel** with a registered driver, the builder uses
+**lambda-scoped** configuration, and `Build()` returns a `BuildResults` object instead of a service directly.
 
 ---
 
@@ -200,7 +202,7 @@ public class SharedDatabaseFixture : IAsyncLifetime
             .BuildAsync();
 
         Container = _results.Containers.First();
-        var ep = Container.ToHostExposedEndpoint("5432/tcp");
+        var ep = await Container.ToHostExposedEndpointAsync("5432/tcp");
         ConnectionString =
             $"Host=localhost;Port={ep.Port};Database=postgres;" +
             "Username=postgres;Password=test";
@@ -254,8 +256,7 @@ public class OrderRepoTests
 
 ## 3. MSTest with MsTestResourceHelpers
 
-The `FluentDockerTestBase` base class has been removed. Use
-`MsTestResourceHelpers` static methods instead.
+The `FluentDockerTestBase` base class has been removed. Use `MsTestResourceHelpers` static methods instead.
 
 ### v2
 
@@ -347,9 +348,8 @@ Pass a `kernelFactory` parameter for non-default configuration:
 
 ## 4. xUnit with XunitContainerFixture
 
-The `FluentDockerTestBase` base class has been removed. Use
-`XunitContainerFixture` instead. It implements `IAsyncDisposable` and manages
-the kernel and resource lifecycle.
+The `FluentDockerTestBase` base class has been removed. Use `XunitContainerFixture` instead.
+It implements `IAsyncDisposable` and manages the kernel and resource lifecycle.
 
 ### v2
 
@@ -394,11 +394,10 @@ public class NginxFixture : XunitContainerFixture
 {
     public NginxFixture()
     {
-        InitializeAsync(builder => builder
+        Configure(builder => builder
             .UseImage("nginx:alpine")
             .ExposePort("80")
-            .WaitForPort("80/tcp", 30000)
-        ).GetAwaiter().GetResult();
+            .WaitForPort("80/tcp", 30000));
     }
 }
 
@@ -416,7 +415,7 @@ public class NginxTests : IClassFixture<NginxFixture>
     [Fact]
     public async Task Nginx_ReturnsWelcomePage()
     {
-        var endpoint = _fixture.Container.ToHostExposedEndpoint("80/tcp");
+        var endpoint = await _fixture.Container.ToHostExposedEndpointAsync("80/tcp");
         var client = new HttpClient();
         var response = await client.GetStringAsync(
             $"http://localhost:{endpoint.Port}");
@@ -429,10 +428,14 @@ public class NginxTests : IClassFixture<NginxFixture>
 
 - Fixture inherits `XunitContainerFixture` instead of `FluentDockerTestBase`.
 - Namespace: `Ductus.FluentDocker.XUnit` to `FluentDocker.Testing.Xunit`.
-- Container configuration via lambda in `InitializeAsync` instead of `Build()` override.
+- Container configuration via `Configure(...)` in the constructor; xUnit then drives
+  `IAsyncLifetime` — no sync-over-async in the constructor.
 - Extension methods like `ToHostExposedEndpoint` require `using FluentDocker.Services.Extensions`.
 
-> **Tip:** For new code, prefer the `Configure(...)` pattern shown in [docs/testing/xunit.md](../testing/xunit.html) — avoids deadlock risk vs. sync-over-async in constructors.
+> **Tip:** Prefer `XunitContainerFixtureBase` with a `ConfigureContainer` override — xUnit
+> runs the async lifecycle for you (see [docs/testing/xunit.md](../testing/xunit.md)). With the
+> concrete `XunitContainerFixture`, use `Configure(...)` as shown; never call
+> `InitializeAsync(...).GetAwaiter().GetResult()` in the constructor — it is deadlock-prone.
 
 ---
 
@@ -458,7 +461,7 @@ public class ComposeTests : IAsyncLifetime
             .UseCompose()
             .FromFile("docker-compose.yml")
             .RemoveOrphans()
-            .WaitForHttp("api", "http://localhost:8080/health")
+            .WaitForHttpUrl("http://localhost:8080/health")
             .Build()
             .Start();
     }
@@ -524,7 +527,7 @@ public class ComposeTests : IAsyncLifetime
     {
         var api = _results.Containers
             .First(c => c.Name.Contains("api"));
-        var endpoint = api.ToHostExposedEndpoint("8080/tcp");
+        var endpoint = await api.ToHostExposedEndpointAsync("8080/tcp");
 
         var client = new HttpClient();
         var response = await client.GetAsync(
@@ -556,8 +559,6 @@ pattern from section 2 but use `.UseCompose()` instead of `.UseContainer()`.
 |--------|----|----|
 | Kernel | Not needed | Required: `FluentDockerKernel.Create().WithDockerCli(...)` |
 | Build result type | `IContainerService` directly | `BuildResults` (access `.Containers.First()`) |
-| Type for field | `IContainerService` / `ICompositeService` | `BuildResults` (concrete class) |
-| Interface `IBuildResults` | Does not exist | Does not exist -- use `BuildResults` |
 | Dispose | `IDisposable` | `IAsyncDisposable` preferred |
 | xUnit `IAsyncLifetime` | Returns `Task` | Returns `ValueTask` (xUnit v3) |
 | Test base class | `FluentDockerTestBase` | `XunitContainerFixture` / `MsTestResourceHelpers` |
@@ -572,21 +573,19 @@ pattern from section 2 but use `.UseCompose()` instead of `.UseContainer()`.
 
 ## Common Migration Mistakes
 
-1. **Forgetting async disposal order.** Always dispose `BuildResults` before the
-   kernel. The results hold references to containers that need the kernel's
-   driver to clean up.
+1. **Forgetting async disposal order.** Always dispose `BuildResults` before the kernel —
+   the results hold references to containers that need the kernel's driver to clean up.
 
 2. **Using `IBuildResults` as a type.** There is no such interface. Use the
    concrete `BuildResults` class.
 
-3. **Calling `.Start()` after `.Build()`.** In v3, `Build()` / `BuildAsync()`
-   already starts the services. Calling `.Start()` again is harmless but
-   unnecessary.
+3. **Calling `.Start()` after `.Build()`.** In v3, `Build()` / `BuildAsync()` already
+   starts the services, so calling `.Start()` again is harmless but unnecessary.
 
 4. **Missing `using FluentDocker.Services.Extensions;`.** Extension methods like
    `ToHostExposedEndpoint` and `GetConfiguration` moved to this namespace.
 
-5. **Using `container.Resume()`.** Renamed to `container.Start()` in v3.
+5. **Using `container.Resume()`.** Renamed to `container.UnpauseAsync()` in v3 (not `Start()`).
 
 6. **Using `container.Logs()`.** Renamed to `await container.GetLogsAsync()`.
 
@@ -594,6 +593,6 @@ pattern from section 2 but use `.UseCompose()` instead of `.UseContainer()`.
 
 ## Next Steps
 
-- [Migration Guide](../migration.html) -- full API migration reference
-- [Testing](../testing.html) -- complete v3 test documentation
-- [Docker Compose](../compose.html) -- compose patterns and examples
+- [Migration Guide](../migration.md) -- full API migration reference
+- [Testing](../testing.md) -- complete v3 test documentation
+- [Docker Compose](../compose.md) -- compose patterns and examples

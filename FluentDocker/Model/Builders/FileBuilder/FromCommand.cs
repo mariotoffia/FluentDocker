@@ -1,8 +1,10 @@
+#nullable enable
 using FluentDocker.Common;
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
+  /// <summary>Represents a Dockerfile <c>FROM</c> instruction.</summary>
   public sealed class FromCommand : ICommand
   {
     /// <summary>
@@ -10,31 +12,35 @@ namespace FluentDocker.Model.Builders.FileBuilder
     /// </summary>
     /// <param name="imageAndTag">The image to derive from and a optional (colon) tag, e.g. myimg:mytag</param>
     /// <param name="asName">An optional alias.</param>
-    /// <param name="platform">An optional platform such linux/amd64 or windows/amd64.</param>
-    public FromCommand(TemplateString imageAndTag, TemplateString asName = null, TemplateString platform = null)
+    /// <param name="platform">An optional platform such as linux/amd64 or windows/amd64.</param>
+    public FromCommand(TemplateString imageAndTag, TemplateString? asName = null, TemplateString? platform = null)
     {
       if (null == imageAndTag || string.IsNullOrEmpty(imageAndTag.Rendered))
       {
         throw new FluentDockerException("FROM requires at least an image name");
       }
 
-      ImageAndTag = imageAndTag;
+      ImageAndTag = DockerfileInstructionGuard.Validate(imageAndTag.Rendered, "FROM", "image");
 
       if (null != asName && !string.IsNullOrEmpty(asName.Rendered))
       {
-        Alias = asName.Rendered;
+        Alias = DockerfileInstructionGuard.Validate(asName.Rendered, "FROM", "alias");
       }
 
       if (null != platform && !string.IsNullOrEmpty(platform.Rendered))
       {
-        Platform = platform.Rendered;
+        Platform = DockerfileInstructionGuard.Validate(platform.Rendered, "FROM", "platform");
       }
     }
 
+    /// <summary>Gets the base image reference.</summary>
     public string ImageAndTag { get; }
-    public string Platform { get; }
-    public string Alias { get; }
+    /// <summary>Gets the optional platform.</summary>
+    public string? Platform { get; }
+    /// <summary>Gets the optional stage alias.</summary>
+    public string? Alias { get; }
 
+    /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
       var s = "FROM";

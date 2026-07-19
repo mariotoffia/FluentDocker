@@ -1,8 +1,14 @@
+#nullable enable
+using System.Globalization;
 using System.Text;
 using FluentDocker.Extensions;
 
 namespace FluentDocker.Model.Containers
 {
+  /// <summary>
+  /// Legacy <c>docker build</c> command-line options, rendered via <see cref="ToString"/>.
+  /// </summary>
+  [System.Obsolete("Test-only; unused by FluentDocker and scheduled for removal in a future release.")]
   public sealed class ContainerBuildParams
   {
     /// <summary>
@@ -11,7 +17,7 @@ namespace FluentDocker.Model.Containers
     /// <remarks>
     ///   --build-arg=[]
     /// </remarks>
-    public string[] BuildArguments { get; set; }
+    public string[]? BuildArguments { get; set; }
 
     /// <summary>
     ///   CPU shares (relative weight)
@@ -51,7 +57,7 @@ namespace FluentDocker.Model.Containers
     /// <remarks>
     ///   --cpuset-cpus
     /// </remarks>
-    public string AllowCpuExecution { get; set; }
+    public string? AllowCpuExecution { get; set; }
 
     /// <summary>
     ///   MEMs in which to allow execution (0-3, 0,1)
@@ -59,7 +65,7 @@ namespace FluentDocker.Model.Containers
     /// <remarks>
     ///   --cpuset-mems
     /// </remarks>
-    public string AllowMemExecution { get; set; }
+    public string? AllowMemExecution { get; set; }
 
     /// <summary>
     ///   Skip image verification
@@ -75,7 +81,7 @@ namespace FluentDocker.Model.Containers
     /// <remarks>
     ///   -t, --tag=[]
     /// </remarks>
-    public string[] Tags { get; set; }
+    public string[]? Tags { get; set; }
 
     /// <summary>
     ///   Name of the Dockerfile (Default is 'PATH/Dockerfile')
@@ -83,7 +89,7 @@ namespace FluentDocker.Model.Containers
     /// <remarks>
     ///   -f, --file
     /// </remarks>
-    public string File { get; set; }
+    public string? File { get; set; }
 
     /// <summary>
     ///   Always remove intermediate containers
@@ -99,7 +105,7 @@ namespace FluentDocker.Model.Containers
     /// <remarks>
     ///   --label=[]
     /// </remarks>
-    public string[] Labels { get; set; }
+    public string[]? Labels { get; set; }
 
     /// <summary>
     ///   Container isolation technology
@@ -163,7 +169,7 @@ namespace FluentDocker.Model.Containers
     /// <remarks>
     ///   --ulimit=[]
     /// </remarks>
-    public string[] UlimitOptions { get; set; }
+    public string[]? UlimitOptions { get; set; }
 
     /// <summary>
     ///   Do not use cache when building the image
@@ -173,16 +179,20 @@ namespace FluentDocker.Model.Containers
     /// </remarks>
     public bool NoCache { get; set; }
 
+    /// <summary>
+    /// Renders legacy Docker build command-line options.
+    /// </summary>
+    /// <returns>The rendered command-line option string.</returns>
     public override string ToString()
     {
       var sb = new StringBuilder();
 
       sb.OptionIfExists("--build-arg ", BuildArguments);
-      sb.OptionIfExists("--cpu-shares ", CpuShares?.ToString());
-      sb.OptionIfExists("--cgroup-parent ", ParentCGroup?.ToString());
-      sb.OptionIfExists("--cpu-period ", CpuPeriod?.ToString());
-      sb.OptionIfExists("--cpu-quota ", CpuQuota?.ToString());
-      sb.OptionIfExists("--cpuset-cpus", AllowCpuExecution);
+      sb.OptionIfExists("--cpu-shares ", CpuShares?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--cgroup-parent ", ParentCGroup?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--cpu-period ", CpuPeriod?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--cpu-quota ", CpuQuota?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--cpuset-cpus ", AllowCpuExecution);
       sb.OptionIfExists("--cpuset-mems ", AllowMemExecution);
 
       if (SkipImageVerification)
@@ -199,12 +209,12 @@ namespace FluentDocker.Model.Containers
 
       if (null != Isolation.ToDocker())
       {
-        sb.Append($"--isolation {Isolation.ToDocker()}");
+        sb.Append(CultureInfo.InvariantCulture, $" --isolation {Isolation.ToDocker()}");
       }
 
       sb.OptionIfExists("--label=", Labels);
-      sb.OptionIfExists("-m ", Memory?.ToString());
-      sb.OptionIfExists("--memory-swap ", Swap?.ToString());
+      sb.OptionIfExists("-m ", Memory?.ToString(CultureInfo.InvariantCulture));
+      sb.OptionIfExists("--memory-swap ", Swap?.ToString(CultureInfo.InvariantCulture));
 
       if (NoCache)
       {
@@ -226,7 +236,7 @@ namespace FluentDocker.Model.Containers
         sb.Append(" --rm=true");
       }
 
-      sb.OptionIfExists("--shm-size ", ShmSize?.ToString());
+      sb.OptionIfExists("--shm-size ", ShmSize?.ToString(CultureInfo.InvariantCulture));
       sb.OptionIfExists("-t ", Tags);
       sb.OptionIfExists("--ulimit=", UlimitOptions);
 

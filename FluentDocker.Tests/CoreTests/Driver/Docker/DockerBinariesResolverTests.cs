@@ -22,7 +22,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
     public DockerBinariesResolverTests()
     {
-      _tempDir = Path.Combine(Path.GetTempPath(), $"fd_test_{Guid.NewGuid():N}");
+      _tempDir = Path.Combine(Directory.GetCurrentDirectory(), ".out", "docker-binaries-resolver", Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(_tempDir);
     }
 
@@ -55,6 +55,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
       var filePath = Path.Combine(_tempDir, binaryName);
       File.WriteAllText(filePath, "fake-docker-binary");
+      MakeExecutable(filePath);
       return filePath;
     }
 
@@ -63,7 +64,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     /// </summary>
     private DockerBinariesResolver CreateResolverWithFakeBinary(
         SudoMechanism sudo = SudoMechanism.None,
-        string password = null)
+        string password = null!)
     {
       CreateFakeDockerBinary();
       return new DockerBinariesResolver(sudo, password, _tempDir);
@@ -79,13 +80,15 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     private static IEnumerable<DockerBinary> InvokeResolveFromPaths(
         SudoMechanism sudo, string password, params string[] paths)
     {
-      var fakeDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+      var fakeDir = Path.Combine(Directory.GetCurrentDirectory(), ".out", "docker-binaries-resolver", Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(fakeDir);
       try
       {
         var binaryName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? "docker.exe" : "docker";
-        File.WriteAllText(Path.Combine(fakeDir, binaryName), "fake");
+        var fakeDocker = Path.Combine(fakeDir, binaryName);
+        File.WriteAllText(fakeDocker, "fake");
+        MakeExecutable(fakeDocker);
 
         var instance = new DockerBinariesResolver(new BinaryConfiguration
         {
@@ -97,7 +100,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
         Assert.NotNull(method);
 
         var result = method.Invoke(instance, [sudo, password, "docker", paths]);
-        return (IEnumerable<DockerBinary>)result;
+        return (IEnumerable<DockerBinary>)result!;
       }
       finally
       {
@@ -159,30 +162,30 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     #region Constructor -- No Docker Found
 
     [Fact]
-    public void Constructor_NoDockerInSearchPath_ThrowsFluentDockerException()
+    public void Constructor_NoDockerInSearchPath_ThrowsDriverNotAvailableException()
     {
       // The temp directory exists but has no docker binary
-      Assert.Throws<FluentDockerException>(() =>
-          new DockerBinariesResolver(SudoMechanism.None, null, _tempDir));
+      Assert.Throws<DriverNotAvailableException>(() =>
+          new DockerBinariesResolver(SudoMechanism.None, null!, _tempDir));
     }
 
     [Fact]
-    public void Constructor_EmptyDirectory_ThrowsFluentDockerException()
+    public void Constructor_EmptyDirectory_ThrowsDriverNotAvailableException()
     {
       var emptyDir = Path.Combine(_tempDir, "empty");
       Directory.CreateDirectory(emptyDir);
 
-      Assert.Throws<FluentDockerException>(() =>
-          new DockerBinariesResolver(SudoMechanism.None, null, emptyDir));
+      Assert.Throws<DriverNotAvailableException>(() =>
+          new DockerBinariesResolver(SudoMechanism.None, null!, emptyDir));
     }
 
     [Fact]
-    public void Constructor_NonExistentDirectory_ThrowsFluentDockerException()
+    public void Constructor_NonExistentDirectory_ThrowsDriverNotAvailableException()
     {
       var nonExistent = Path.Combine(_tempDir, "does_not_exist");
 
-      Assert.Throws<FluentDockerException>(() =>
-          new DockerBinariesResolver(SudoMechanism.None, null, nonExistent));
+      Assert.Throws<DriverNotAvailableException>(() =>
+          new DockerBinariesResolver(SudoMechanism.None, null!, nonExistent));
     }
 
     #endregion
@@ -214,7 +217,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       // does not throw NullReferenceException.
       try
       {
-        var _ = new DockerBinariesResolver(null);
+        var _ = new DockerBinariesResolver(null!);
         // If docker is installed, this succeeds
       }
       catch (FluentDockerException)
@@ -239,12 +242,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void Resolve_UnknownBinary_ThrowsArgumentException()
+    public void Resolve_UnknownBinary_ThrowsFluentDockerException()
     {
       var resolver = CreateResolverWithFakeBinary();
 
-      // DockerBinary.Translate throws ArgumentException for unknown names
-      Assert.Throws<ArgumentException>(() => resolver.Resolve("podman"));
+      // Unknown names surface as the documented FluentDockerException (the raw
+      // ArgumentException from DockerBinary.Translate is wrapped — DC-5).
+      var ex = Assert.Throws<FluentDockerException>(() => resolver.Resolve("podman"));
+      Assert.IsType<ArgumentException>(ex.InnerException);
     }
 
     #endregion
@@ -262,50 +267,28 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void ResolveBinaryPath_SudoNoPassword_ReturnsSudoPrefix()
+    public void ResolveBinaryPath_SudoNoPassword_ReturnsFqPathOnly()
     {
-      if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        return; // Sudo prefix is not applied on Windows
-
       var resolver = CreateResolverWithFakeBinary(SudoMechanism.NoPassword);
 
       var path = resolver.ResolveBinaryPath("docker");
 
-      Assert.StartsWith("sudo ", path);
-      Assert.Contains(resolver.MainDockerClient.FqPath, path);
+      Assert.Equal(resolver.MainDockerClient.FqPath, path);
+      Assert.DoesNotContain("sudo", path);
       Assert.DoesNotContain("-S", path);
     }
 
     [Fact]
-    public void ResolveBinaryPath_SudoPassword_ReturnsSudoDashSPrefix()
+    public void ResolveBinaryPath_SudoPassword_ReturnsFqPathOnly()
     {
-      if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        return; // Sudo prefix is not applied on Windows
-
       var resolver = CreateResolverWithFakeBinary(SudoMechanism.Password, "secret");
 
       var path = resolver.ResolveBinaryPath("docker");
 
-      Assert.StartsWith("sudo -S ", path);
-      Assert.Contains(resolver.MainDockerClient.FqPath, path);
+      Assert.Equal(resolver.MainDockerClient.FqPath, path);
+      Assert.DoesNotContain("sudo", path);
       // Password should never appear in the path string
       Assert.DoesNotContain("secret", path);
-    }
-
-    #endregion
-
-    #region IsDockerComposeAvailable
-
-    [Fact]
-    public void IsDockerComposeAvailable_WhenComposeIsNull_ReturnsFalse()
-    {
-      // Create a resolver with a fake docker that does not support compose.
-      // CheckCompose will fail since the fake binary is not executable.
-      var resolver = CreateResolverWithFakeBinary();
-
-      // The fake binary cannot run "docker compose version",
-      // so MainDockerCompose should be null.
-      Assert.False(resolver.IsDockerComposeAvailable);
     }
 
     #endregion
@@ -319,7 +302,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Directory.CreateDirectory(emptyDir);
 
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, emptyDir);
+          SudoMechanism.None, null!, emptyDir);
 
       Assert.Empty(binaries);
     }
@@ -328,7 +311,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ResolveFromPaths_NonExistentPath_ReturnsEmpty()
     {
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null,
+          SudoMechanism.None, null!,
           Path.Combine(_tempDir, "nonexistent"));
 
       Assert.Empty(binaries);
@@ -340,7 +323,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       CreateFakeDockerBinary();
 
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, _tempDir).ToList();
+          SudoMechanism.None, null!, _tempDir).ToList();
 
       Assert.Single(binaries);
       Assert.Equal(DockerBinaryType.DockerClient, binaries[0].Type);
@@ -368,7 +351,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       Directory.CreateDirectory(secondDir);
 
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, _tempDir, secondDir).ToList();
+          SudoMechanism.None, null!, _tempDir, secondDir).ToList();
 
       // Only the first directory has docker; second is empty
       Assert.Single(binaries);
@@ -385,7 +368,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       File.WriteAllText(Path.Combine(_tempDir, "dockerfoo"), "not docker");
 
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, _tempDir).ToList();
+          SudoMechanism.None, null!, _tempDir).ToList();
 
       // Should only find the real "docker" binary
       Assert.Single(binaries);
@@ -397,7 +380,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     {
       // When paths is null, should use PATH env variable.
       // We cannot control what PATH contains, but we can verify it does not throw.
-      var binaries = InvokeResolveFromPaths(SudoMechanism.None, null, null);
+      var binaries = InvokeResolveFromPaths(SudoMechanism.None, null!, null!);
       Assert.NotNull(binaries);
     }
 
@@ -405,7 +388,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ResolveFromPaths_EmptyArrayPaths_FallsBackToEnvPath()
     {
       var binaries = InvokeResolveFromPaths(
-          SudoMechanism.None, null, []);
+          SudoMechanism.None, null!, []);
       Assert.NotNull(binaries);
     }
 
@@ -464,5 +447,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     #endregion
+
+    private static void MakeExecutable(string path)
+    {
+      if (!OperatingSystem.IsWindows())
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
   }
 }

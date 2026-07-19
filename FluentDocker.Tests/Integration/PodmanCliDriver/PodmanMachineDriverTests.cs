@@ -12,7 +12,8 @@ namespace FluentDocker.Tests.Integration.PodmanCliDriver
   /// Machine operations manage Linux VMs and can be slow.
   /// </summary>
   [Collection("PodmanDriver")]
-  [Trait("Category", "LongRunning")]
+  [Trait("Category", "PodmanIntegration")]
+  [Trait("Requires", "LongRunning")]
   public class PodmanMachineDriverTests : PodmanDriverTestBase
   {
     #region Query (no VM creation)

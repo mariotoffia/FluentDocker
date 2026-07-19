@@ -33,7 +33,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Contains("port already in use", ex.Message);
       Assert.Equal(ErrorCodes.Container.StartFailed, ex.ErrorCode);
       Assert.Equal(context, ex.Context);
-      Assert.True(ex.IsTransient);
+      Assert.False(ex.IsTransient);
     }
 
     [Fact]
@@ -75,14 +75,27 @@ namespace FluentDocker.Tests.CoreTests.Driver
     public void ImagePullException_WithReason_FormatsMessage()
     {
       // Arrange & Act
-      var ex = new ImagePullException("myimage:v1", "authentication required");
+      var ex = new ImagePullException("myimage:v1", "network timeout");
 
       // Assert
       Assert.Equal("myimage:v1", ex.ImageName);
       Assert.Contains("myimage:v1", ex.Message);
-      Assert.Contains("authentication required", ex.Message);
+      Assert.Contains("network timeout", ex.Message);
       Assert.Equal(ErrorCodes.Image.PullFailed, ex.ErrorCode);
       Assert.True(ex.IsTransient);
+    }
+
+    [Fact]
+    public void ImagePullException_WithPermanentReason_CanBeMarkedNonTransient()
+    {
+      // Arrange & Act
+      var ex = new ImagePullException(
+          "private:v1",
+          "unauthorized",
+          isTransient: ImagePullException.IsTransientReason("unauthorized"));
+
+      // Assert
+      Assert.False(ex.IsTransient);
     }
 
     [Fact]
@@ -108,7 +121,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       // Assert
       Assert.Same(inner, ex.InnerException);
-      Assert.Equal("Inner error", ex.InnerException.Message);
+      Assert.Equal("Inner error", ex.InnerException!.Message);
     }
 
     [Fact]
@@ -251,4 +264,3 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
   }
 }
-

@@ -1,15 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using FluentDocker.Common;
 
 namespace FluentDocker.Drivers
 {
   /// <summary>
-  /// Optional abstract base class for driver packs providing dictionary-based
-  /// interface resolution. Implements IDriverInterfaceResolver and the
-  /// type-based ISysCtl methods. Subclasses register drivers via RegisterDriver.
+  /// Optional dictionary-backed <see cref="IDriverInterfaceResolver"/> helper for driver packs.
+  /// It supplies only exact-type interface resolution over <see cref="Drivers"/>; it is NOT a
+  /// full <see cref="IDriverPack"/>. Extenders that build a pack must implement
+  /// <see cref="IDriverPack"/> themselves (Type/Runtime, InitializeAsync, GetCapabilitiesAsync,
+  /// IsHealthyAsync) plus any disposal, on top of this resolver surface.
   /// </summary>
+  /// <remarks>First-party packs intentionally implement their own resolution when they need behavior beyond this dictionary helper.</remarks>
   public abstract class DriverPackBase : IDriverInterfaceResolver
   {
     /// <summary>
@@ -20,6 +23,10 @@ namespace FluentDocker.Drivers
     /// <summary>
     /// Gets the driver dictionary for subclass use.
     /// </summary>
+    /// <remarks>
+    /// Driver packs populate this map during initialization and must not mutate it
+    /// after <c>InitializeAsync</c> completes; resolution reads are intentionally unlocked.
+    /// </remarks>
     protected Dictionary<Type, object> Drivers => _drivers;
 
     /// <summary>
@@ -31,36 +38,45 @@ namespace FluentDocker.Drivers
       Drivers[typeof(T)] = driver;
     }
 
+    /// <summary>
+    /// Whether this pack has been disposed. The base helper owns no disposable state and is
+    /// never disposed itself, so it reports <c>false</c>. Extenders that add disposal must
+    /// override this to gate resolution on their own disposed state: while <see cref="IsDisposed"/>
+    /// is <c>true</c>, <see cref="TryResolve"/> throws <see cref="ObjectDisposedException"/>,
+    /// honoring the post-disposal contract required by <see cref="IDriverPack"/>.
+    /// </summary>
+    protected virtual bool IsDisposed => false;
+
     /// <inheritdoc />
-    public bool TryResolve(Type interfaceType, out object implementation)
+    /// <remarks>
+    /// Extenders that add disposal should override <see cref="IsDisposed"/>; once it reports
+    /// <c>true</c> this method throws <see cref="ObjectDisposedException"/> so resolution faults
+    /// after disposal as the <see cref="IDriverPack"/> contract requires.
+    /// </remarks>
+    public virtual bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
     {
-      return Drivers.TryGetValue(interfaceType, out implementation);
+      ArgumentNullException.ThrowIfNull(interfaceType);
+      ObjectDisposedException.ThrowIf(IsDisposed, this);
+      // A subclass can write null into Drivers directly (bypassing RegisterDriver); treat a
+      // null-mapped interface as unsupported so the [NotNullWhen(true)] contract holds.
+      return Drivers.TryGetValue(interfaceType, out implementation) && implementation is not null;
     }
 
     /// <inheritdoc />
-    public IReadOnlyCollection<Type> GetSupportedInterfaces()
+    public virtual IReadOnlyCollection<Type> GetSupportedInterfaces()
     {
       return Drivers.Keys.ToList().AsReadOnly();
     }
 
     /// <summary>
-    /// Resolves a driver interface by type. Throws if not found.
+    /// Tries to resolve a driver interface by exact generic type. A null-mapped or
+    /// wrong-typed entry in <see cref="Drivers"/> is treated as unsupported.
     /// </summary>
-    protected object ResolveSysCtl(string driverId, Type interfaceType)
+    protected bool TryResolveSysCtl<T>([NotNullWhen(true)] out T? instance) where T : class
     {
-      if (Drivers.TryGetValue(interfaceType, out var driver))
-        return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
-    }
-
-    /// <summary>
-    /// Tries to resolve a driver interface by generic type.
-    /// </summary>
-    protected bool TryResolveSysCtl<T>(out T instance) where T : class
-    {
-      if (Drivers.TryGetValue(typeof(T), out var driver))
+      if (Drivers.TryGetValue(typeof(T), out var driver) && driver is T typed)
       {
-        instance = (T)driver;
+        instance = typed;
         return true;
       }
       instance = null;

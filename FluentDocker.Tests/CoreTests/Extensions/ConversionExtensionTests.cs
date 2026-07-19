@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using FluentDocker.Extensions;
 using Xunit;
@@ -10,6 +11,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     [Theory]
     [InlineData("")]
     [InlineData(null)]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void NullOrEmptyString_ReturnsMinimumValue(string? input)
     {
       var num = input!.Convert();
@@ -21,6 +23,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     [InlineData("42p")]
     [InlineData("wrongFormat42")]
     [InlineData("-3498lfk")]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void InvalidUnitInput_ReturnsMinimumValue(string input)
     {
       var num = input.Convert();
@@ -28,26 +31,38 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void LessThanLongMinimumValue_ReturnsMinimumValue()
     {
       var lessThanMinimum = (new BigInteger(long.MinValue)) - 1;
-      var input = lessThanMinimum.ToString() + "g";
+      var input = lessThanMinimum.ToString(CultureInfo.InvariantCulture) + "g";
 
       var num = input.Convert();
       Assert.Equal(long.MinValue, num);
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void GreaterThanLongMaximumValue_ReturnsMinimumValue()
     {
       var greaterThanMaximum = (new BigInteger(long.MaxValue)) + 1;
-      var input = greaterThanMaximum.ToString() + "g";
+      var input = greaterThanMaximum.ToString(CultureInfo.InvariantCulture) + "g";
 
       var num = input.Convert();
       Assert.Equal(long.MinValue, num);
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
+    public void DecimalMultiplyOverflow_ReturnsMinimumValue()
+    {
+      var num = "8000000000000000000000000000k".Convert();
+
+      Assert.Equal(long.MinValue, num);
+    }
+
+    [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void ValidByteInput_ReturnsExactNumber()
     {
       var input = "42b";
@@ -57,6 +72,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void ValidKilobyteInput_ReturnsCorrectKilobyteNumber()
     {
       var input = "42k";
@@ -66,6 +82,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void ValidMegabyteInput_ReturnsCorrectMegabyteNumber()
     {
       var input = "42m";
@@ -75,6 +92,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void ValidGigabyteInput_ReturnsCorrectGigabyteNumber()
     {
       var input = "42g";
@@ -84,6 +102,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void CustomUnit_WorksWhenInAllowedList()
     {
       // When 'm' is in the allowed list, it should work
@@ -94,6 +113,7 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void CustomUnit_FailsWhenNotInAllowedList()
     {
       // When 'k' is NOT in the allowed list, it should fail
@@ -104,16 +124,17 @@ namespace FluentDocker.Tests.CoreTests.Extensions
     }
 
     [Fact]
-    public void NoUnit_ReturnsMinValue()
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
+    public void NoUnit_ReturnsBytes()
     {
-      // Plain number without unit should return MinValue as invalid format
       var input = "100";
 
       var num = input.Convert();
-      Assert.Equal(long.MinValue, num);
+      Assert.Equal(100, num);
     }
 
     [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
     public void UnknownUnit_ReturnsMinValue()
     {
       // Unknown unit should return MinValue
@@ -122,6 +143,27 @@ namespace FluentDocker.Tests.CoreTests.Extensions
       var num = input.Convert();
       Assert.Equal(long.MinValue, num);
     }
+
+    [Theory]
+    [InlineData("1.5g", 1610612736L)]
+    [InlineData("1024", 1024L)]
+    [InlineData("1G", 1073741824L)]
+    [InlineData("512m", 536870912L)]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
+    public void Convert_ValidModernInputs_ReturnsBytes(string input, long expected)
+    {
+      var num = input.Convert();
+
+      Assert.Equal(expected, num);
+    }
+
+    [Fact]
+    [Obsolete("Exercises an obsolete API on purpose; the attribute suppresses CS0618 at the call site.")]
+    public void Convert_Garbage_ReturnsMinimumValue()
+    {
+      var num = "garbage".Convert();
+
+      Assert.Equal(long.MinValue, num);
+    }
   }
 }
-

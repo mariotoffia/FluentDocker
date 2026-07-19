@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     public void ParseServiceList_Empty_ReturnsEmpty()
     {
       Assert.Empty(DockerCliComposeDriver.ParseServiceList(""));
-      Assert.Empty(DockerCliComposeDriver.ParseServiceList(null));
+      Assert.Empty(DockerCliComposeDriver.ParseServiceList(null!));
       Assert.Empty(DockerCliComposeDriver.ParseServiceList("  "));
     }
 
@@ -101,6 +101,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       var result = DockerCliComposeDriver.ParseServiceList(json);
       Assert.Single(result);
       Assert.Equal("api", result[0].Name);
+    }
+
+    [Fact]
+    public void ParseServiceList_MalformedJsonArray_ReturnsEmpty()
+    {
+      var result = DockerCliComposeDriver.ParseServiceList("[{");
+
+      Assert.Empty(result);
     }
 
     [Fact]
@@ -321,12 +329,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Fact]
-    public void BuildListSubArgs_AllAndQuiet_IncludesFlags()
+    public void BuildListSubArgs_AllAndQuiet_DoesNotIncludeQuietFlag()
     {
       var config = new ComposeListConfig { All = true, Quiet = true };
       var result = DockerCliComposeDriver.BuildListSubArgs(config);
       Assert.Contains(" -a", result);
-      Assert.Contains(" -q", result);
+      Assert.DoesNotContain(" -q", result);
     }
 
     [Fact]
@@ -340,7 +348,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
       };
       var result = DockerCliComposeDriver.BuildListSubArgs(config);
       Assert.Contains(" -a", result);
-      Assert.Contains(" -q", result);
+      Assert.DoesNotContain(" -q", result);
       Assert.Contains("--filter status=exited", result);
     }
 

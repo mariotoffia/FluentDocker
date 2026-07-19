@@ -23,35 +23,44 @@ dotnet add package FluentDocker.Testing.MsTest
 
 ## Quick Start
 
-### Docker CLI
-
 ```csharp
+using System;
+using System.Linq;
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
+using FluentDocker.Services.Extensions;
 
-await using var kernel = FluentDockerKernel.Create()
+// A kernel is the composition root; multiple kernels per app are supported.
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
-
-await using var results = await new Builder()
-    .WithinDriver("docker", kernel)
-    .UseContainer(c => c
-        .UseImage("postgres:15-alpine")
-        .ExposePort("5432")
-        .WithEnvironment("POSTGRES_PASSWORD", "mysecretpassword")
-        .WaitForPort("5432/tcp", 30000))
     .BuildAsync();
 
-var container = results.Containers.First();
-// Container is running and ready to accept connections on port 5432
+await using var results = await new Builder()
+    .WithinDockerCli("docker", kernel)
+    .UseContainer(c => c
+        .UseImage("nginx:alpine")
+        .ExposePort("80")
+        .WaitForPort("80/tcp", 30000))
+    .BuildAsync();
+
+var endpoint = await results.Containers.First()
+    .ToHostExposedEndpointAsync("80/tcp");
+Console.WriteLine($"nginx is at {endpoint.Address}:{endpoint.Port}");
 ```
+
+> Prefer `await using` + `BuildAsync()`; the synchronous `Build()` wrapper exists only
+> for code that cannot be async.
+
+The quick start uses `WithinDockerCli`, a typed driver scope. See
+[Driver scopes](https://github.com/mariotoffia/FluentDocker/blob/master/docs/getting-started.md#driver-scopes)
+for typed scopes versus the generic `WithinDriver(id, kernel)`.
 
 ### Docker Engine API (no CLI required)
 
 ```csharp
-await using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerApi("docker-api", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
 // Same builder API — just a different driver
 await using var results = await new Builder()
@@ -66,9 +75,9 @@ await using var results = await new Builder()
 ### Podman
 
 ```csharp
-await using var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithPodmanCli("podman", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 
 await using var results = await new Builder()
     .WithinDriver("podman", kernel)
@@ -107,9 +116,17 @@ await using var results = await new Builder()
     .UseContainer(c => c
         .UseImage("postgres:15-alpine")
         .WithNetwork("my-net")
-        .WithVolume("my-data:/var/lib/postgresql/data"))
+        .WithVolume("my-data", "/var/lib/postgresql/data"))
     .BuildAsync();
 ```
+
+### Docker Model Runner (preview)
+
+> **Preview (available in the 3.2 release line)** — manage local LLMs and run inference (chat,
+> completions, embeddings) through the same fluent builder. Requires
+> [Docker Model Runner](https://docs.docker.com/model-runner/).
+
+See the [Docker Model Runner guide](https://github.com/mariotoffia/FluentDocker/blob/master/docs/model-runner.md) for endpoints, configuration, and advanced inference routing.
 
 ## Features
 
@@ -119,8 +136,9 @@ await using var results = await new Builder()
 - **Async-first** — all operations are async with `CancellationToken` support
 - **Auto-cleanup** — resources are disposed when the builder result is disposed
 - **Testing integration** — xUnit, NUnit, and MSTest fixtures with full lifecycle management
-- **Security options** — capabilities, read-only root, security-opt, user namespace
-- **Cross-platform** — Linux, macOS, Windows; .NET 8 and .NET 10
+- **Docker Model Runner** *(preview, v3.2)* — manage local LLMs and run chat, completions, and embeddings via the same builder
+- **Security options** — capabilities, read-only root, security-opt, tmpfs
+- **Cross-platform** — Linux, macOS, Windows; targets **.NET 10** only (v3.2 dropped the net8.0 target — a net8 project restoring this package hits NU1202)
 
 ## Documentation
 

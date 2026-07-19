@@ -1,3 +1,4 @@
+#nullable enable
 namespace FluentDocker.Model.Compose
 {
   /// <summary>
@@ -24,6 +25,6 @@ namespace FluentDocker.Model.Compose
     /// <summary>
     /// The entry on the specified form of this class documentation.
     /// </summary>
-    public string Entry { get; set; }
+    public string? Entry { get; set; }
   }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Drivers.Podman.Cli.Components;
 using Xunit;
@@ -61,7 +62,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     [Fact]
     public void ParseImageList_NullString_ReturnsEmpty()
     {
-      var result = InvokeParseImageList(null);
+      var result = InvokeParseImageList(null!);
       Assert.Empty(result);
     }
 
@@ -100,10 +101,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseImageInspect_InvalidJson_ReturnsEmptyImage()
+    public void ParseImageInspect_InvalidJson_Throws()
     {
-      var result = InvokeParseImageInspect("not json");
-      Assert.NotNull(result);
+      // FIX-7: non-empty, unparseable output must fail loudly with diagnostics rather than
+      // silently yielding an empty Image that masks the bad output.
+      var ex = Assert.Throws<TargetInvocationException>(() => InvokeParseImageInspect("not json"));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
     }
 
     #endregion
@@ -145,10 +148,12 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
     }
 
     [Fact]
-    public void ParseHistory_NonArrayJson_ReturnsEmpty()
+    public void ParseHistory_NonArrayJson_Throws()
     {
-      var result = InvokeParseHistory("{\"key\":\"value\"}");
-      Assert.Empty(result);
+      // FIX-7: history output that is well-formed JSON but not the expected array shape is
+      // unparseable non-empty output and must fail rather than yield an empty layer list.
+      var ex = Assert.Throws<TargetInvocationException>(() => InvokeParseHistory("{\"key\":\"value\"}"));
+      Assert.IsType<FluentDockerException>(ex.InnerException);
     }
 
     #endregion
@@ -161,7 +166,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseImageList",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<Image>)method.Invoke(null, [json]);
+      return (IList<Image>)method.Invoke(null, [json])!;
     }
 
     private static Image InvokeParseImageInspect(string json)
@@ -170,7 +175,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseImageInspect",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (Image)method.Invoke(null, [json]);
+      return (Image)method.Invoke(null, [json])!;
     }
 
     private static IList<ImageLayer> InvokeParseHistory(string json)
@@ -179,7 +184,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Podman
           "ParseHistory",
           BindingFlags.NonPublic | BindingFlags.Static);
       Assert.NotNull(method);
-      return (IList<ImageLayer>)method.Invoke(null, [json]);
+      return (IList<ImageLayer>)method.Invoke(null, [json])!;
     }
 
     #endregion

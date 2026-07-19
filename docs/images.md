@@ -9,6 +9,10 @@ nav_order: 8
 FluentDocker v3 provides a lambda-based API for building Docker images from Dockerfiles
 or inline definitions. All builder operations require a kernel and a driver scope.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
 ## Step by Step
 
 - Basics: [Kernel Setup](#kernel-setup), [Build from Dockerfile](#build-from-dockerfile), [Inline Dockerfile](#inline-dockerfile)
@@ -25,9 +29,9 @@ using FluentDocker.Kernel;
 using FluentDocker.Builders;
 
 // Create kernel (multiple kernels per app are supported)
-var kernel = FluentDockerKernel.Create()
+await using var kernel = await FluentDockerKernel.Create()
     .WithDockerCli("docker", d => d.AsDefault())
-    .Build();
+    .BuildAsync();
 ```
 
 The kernel manages driver lifecycle. Many apps reuse one kernel across builder
@@ -38,11 +42,11 @@ calls, but using multiple kernels in the same app is supported.
 ### Basic Build
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img
         .FromFile("/path/to/Dockerfile"))
-    .Build();
+    .BuildAsync();
 
 var image = results.All.OfType<IImageService>().First();
 Console.WriteLine($"Image: {image.Name}");
@@ -59,11 +63,11 @@ RUN npm install
 CMD [""node"", ""app.js""]
 ";
 
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img
         .FromString(dockerfileContent))
-    .Build();
+    .BuildAsync();
 ```
 
 ## Inline Dockerfile
@@ -71,7 +75,7 @@ var results = new Builder()
 ### Simple Application
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("mynode:latest", img => img
         .From("node:18-alpine")
@@ -82,7 +86,7 @@ var results = new Builder()
         .Run("npm install")
         .ExposePorts(3000)
         .Command("node", "app.js"))
-    .Build();
+    .BuildAsync();
 ```
 
 **Important**: The `UseImage(name, configure)` lambda receives a `DockerfileBuilder`, not an
@@ -111,45 +115,96 @@ that is separate from the Dockerfile instructions. These methods are not availab
 | `Platform(string platform)` | Set the target platform (e.g., `"linux/amd64"`) |
 | `Target(string target)` | Set the target build stage in a multi-stage Dockerfile |
 
+### Copying host files: two patterns
+
+> **Note:** The inline `df => df.Copy(...)` / `df => df.Add(...)` builder stages **individual existing host files** into a temporary build context before invoking Docker. Two restrictions follow from that:
+>
+> - **Directory sources are not supported** and throw `NotSupportedException("Directory sources are not supported by DockerfileBuilder; add files individually.")`. So `.Copy(".", ".")` and `.Copy("src/", "/app/src/")` throw at build time.
+> - **Glob patterns are not expanded or staged.** `.Copy("package*.json", "./")` stages nothing, so the generated `COPY package*.json ./` fails at `docker build` (or throws `COPY source '...' not found` under strict-copy mode).
+>
+> A multi-stage `COPY --from` via the `fromAlias:` parameter is supported. For anything that needs `COPY . .`, globs, or whole directories, use Pattern B below.
+
+**Pattern A -- inline per-file copy.** Use only for a small, explicit set of existing host files:
+
+```csharp
+await using var results = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseImage("doc-snippet:latest", df => df
+        .UseParent("alpine:3.20")
+        .Copy("package.json", "/app/package.json")
+        .Copy("Program.cs", "/app/Program.cs"))
+    .BuildAsync();
+```
+
+**Pattern B -- `FromFile` + `WithBuildContext`.** Use for real projects that need `COPY . .`, globs, directories, or a normal multi-stage build. Write a Dockerfile on disk and point the builder at a build-context directory; Docker resolves the instructions against that context:
+
+```dockerfile
+# ./Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 8080
+CMD ["node", "server.js"]
+```
+
+```csharp
+await using var results = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseImage("myapi:latest", df => df
+        .FromFile("Dockerfile")
+        .WithBuildContext("."))
+    .BuildAsync();
+```
+
 ### With Environment Variables
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapi:latest", img => img
         .From("node:18-alpine")
         .Environment("NODE_ENV=production")
         .Environment("PORT=8080")
         .UseWorkDir("/app")
-        .Copy("package*.json", "./")
+        .Copy("package.json", "/app/package.json")
+        .Copy("package-lock.json", "/app/package-lock.json")
         .Run("npm ci --only=production")
-        .Copy(".", ".")
+        .Copy("server.js", "/app/server.js")
         .ExposePorts(8080)
         .Command("node", "server.js"))
-    .Build();
+    .BuildAsync();
 ```
 
 ### Multi-Stage Build
 
-```csharp
-var results = new Builder()
-    .WithinDriver("docker", kernel)
-    .UseImage("myapp:latest", img => img
-        // Build stage
-        .From("node:18-alpine", "builder")
-        .UseWorkDir("/app")
-        .Copy("package*.json", "./")
-        .Run("npm ci")
-        .Copy(".", ".")
-        .Run("npm run build")
-        // Production stage
-        .From("nginx:alpine")
-        .Copy("/app/dist", "/usr/share/nginx/html", fromAlias: "builder")
-        .ExposePorts(80))
-    .Build();
+Real multi-stage builds copy whole directories and globs, so use Pattern B with a Dockerfile on disk:
+
+```dockerfile
+# ./Dockerfile
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
 ```
 
-Note: For multi-stage COPY --from, use the `fromAlias` parameter on the `Copy` method.
+```csharp
+await using var results = await new Builder()
+    .WithinDriver("docker", kernel)
+    .UseImage("myapp:latest", df => df
+        .FromFile("Dockerfile")
+        .WithBuildContext("."))
+    .BuildAsync();
+```
+
+Note: Docker resolves `COPY --from=builder` against the earlier stage; the build context supplies `COPY . .` and the glob.
 
 ## Dockerfile Instructions
 
@@ -170,13 +225,16 @@ Note: For multi-stage COPY --from, use the `fromAlias` parameter on the `Copy` m
 
 ### COPY and ADD
 
+On the inline builder, `Copy` takes a single existing host file (plus optional `chownUserAndGroup:` and `fromAlias:`):
+
 ```csharp
-.Copy("src/", "/app/src/")
-.Copy("package.json", "/app/")
-.Copy("src/", "/app/src/", chownUserAndGroup: "node:node")
-.Copy("/app/dist", "/usr/share/nginx/html", fromAlias: "builder")  // COPY --from
-.Add("https://example.com/file.tar.gz", "/app/")  // ADD can fetch URLs
+.Copy("package.json", "/app/package.json")                         // single existing host file
+.Copy("Program.cs", "/app/", chownUserAndGroup: "node:node")       // single file, with chown
+.Copy("/app/dist", "/usr/share/nginx/html", fromAlias: "builder")  // COPY --from (stage to stage)
+.Add("https://example.com/file.tar.gz", "/app/")                   // ADD can fetch URLs
 ```
+
+Directories and globs are not supported here. For `COPY . .`, `COPY src/ ...`, or `COPY *.csproj ...`, use Pattern B (`FromFile(...).WithBuildContext(...)`).
 
 ### WORKDIR
 
@@ -252,104 +310,132 @@ Note: For multi-stage COPY --from, use the `fromAlias` parameter on the `Copy` m
 
 ### ASP.NET Core API
 
+```dockerfile
+# ./Dockerfile
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY *.csproj ./
+RUN dotnet restore
+COPY . .
+RUN dotnet publish -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "MyApi.dll"]
+```
+
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
-    .UseImage("myapi:latest", img => img
-        // Build stage
-        .From("mcr.microsoft.com/dotnet/sdk:8.0", "build")
-        .UseWorkDir("/src")
-        .Copy("*.csproj", "./")
-        .Run("dotnet restore")
-        .Copy(".", ".")
-        .Run("dotnet publish -c Release -o /app/publish")
-        // Runtime stage
-        .From("mcr.microsoft.com/dotnet/aspnet:8.0")
-        .UseWorkDir("/app")
-        .Copy("/app/publish", ".", fromAlias: "build")
-        .Environment("ASPNETCORE_URLS=http://+:8080")
-        .ExposePorts(8080)
-        .Entrypoint("dotnet", "MyApi.dll"))
-    .Build();
+    .UseImage("myapi:latest", df => df
+        .FromFile("Dockerfile")
+        .WithBuildContext("."))
+    .BuildAsync();
 ```
 
 ### .NET Worker Service
 
+```dockerfile
+# ./Dockerfile
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet publish -c Release -o /app
+
+FROM mcr.microsoft.com/dotnet/runtime:8.0
+WORKDIR /app
+COPY --from=build /app .
+ENTRYPOINT ["dotnet", "MyWorker.dll"]
+```
+
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
-    .UseImage("myworker:latest", img => img
-        .From("mcr.microsoft.com/dotnet/sdk:8.0", "build")
-        .UseWorkDir("/src")
-        .Copy(".", ".")
-        .Run("dotnet publish -c Release -o /app")
-        .From("mcr.microsoft.com/dotnet/runtime:8.0")
-        .UseWorkDir("/app")
-        .Copy("/app", ".", fromAlias: "build")
-        .Entrypoint("dotnet", "MyWorker.dll"))
-    .Build();
+    .UseImage("myworker:latest", df => df
+        .FromFile("Dockerfile")
+        .WithBuildContext("."))
+    .BuildAsync();
 ```
 
 ## Python Application
 
+```dockerfile
+# ./Dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+ENV FLASK_APP=app.py
+EXPOSE 5000
+CMD ["flask", "run", "--host=0.0.0.0"]
+```
+
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
-    .UseImage("myflask:latest", img => img
-        .From("python:3.11-slim")
-        .UseWorkDir("/app")
-        .Copy("requirements.txt", ".")
-        .Run("pip install --no-cache-dir -r requirements.txt")
-        .Copy(".", ".")
-        .Environment("FLASK_APP=app.py")
-        .ExposePorts(5000)
-        .Command("flask", "run", "--host=0.0.0.0"))
-    .Build();
+    .UseImage("myflask:latest", df => df
+        .FromFile("Dockerfile")
+        .WithBuildContext("."))
+    .BuildAsync();
 ```
 
 ## Go Application
 
+```dockerfile
+# ./Dockerfile
+FROM golang:1.21-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o main .
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/main .
+EXPOSE 8080
+CMD ["./main"]
+```
+
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
-    .UseImage("mygo:latest", img => img
-        // Build stage
-        .From("golang:1.21-alpine", "builder")
-        .UseWorkDir("/app")
-        .Copy("go.mod", "./")
-        .Copy("go.sum", "./")
-        .Run("go mod download")
-        .Copy(".", ".")
-        .Run("CGO_ENABLED=0 go build -o main .")
-        // Runtime stage
-        .From("alpine:latest")
-        .Run("apk --no-cache add ca-certificates")
-        .UseWorkDir("/root/")
-        .Copy("/app/main", ".", fromAlias: "builder")
-        .ExposePorts(8080)
-        .Command("./main"))
-    .Build();
+    .UseImage("mygo:latest", df => df
+        .FromFile("Dockerfile")
+        .WithBuildContext("."))
+    .BuildAsync();
 ```
 
 ## Build with Container
 
-Build an image and immediately run it as a container in the same builder chain:
+Build an image and immediately run it as a container in the same builder chain. The image uses Pattern B so `COPY . .` resolves against the build context:
+
+```dockerfile
+# ./Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY . .
+RUN npm install
+EXPOSE 3000
+CMD ["npm", "start"]
+```
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
-    .UseImage("myapp:test", img => img
-        .From("node:18-alpine")
-        .UseWorkDir("/app")
-        .Copy(".", ".")
-        .Run("npm install")
-        .ExposePorts(3000)
-        .Command("npm", "start"))
+    .UseImage("myapp:test", df => df
+        .FromFile("Dockerfile")
+        .WithBuildContext("."))
     .UseContainer(c => c
         .UseImage("myapp:test")
         .ExposePort(3000, 3000)
         .WaitForPort("3000/tcp", 30000))
-    .Build();
+    .BuildAsync();
 
 // Access the running container from results
 var container = results.Containers.First();
@@ -357,32 +443,55 @@ var container = results.Containers.First();
 
 ## Build Arguments in Dockerfile
 
+> **Warning:** FluentDocker expands `${...}` tokens on the host, in the .NET process, before the Dockerfile is written or handed to Docker. The recognized tokens are `${TMP}` and `${TEMP}` (host temp dir), `${PWD}` (host working directory), `${RND}` (random file name), and `${E_NAME}` for a host environment variable (for example `${E_PATH}`). Recognized tokens are always expanded; there is no escape syntax for a literal `${TMP}`. Because expansion happens on the host, `.Run("mkdir -p ${TMP}/x")` bakes the *host's* temp path into the image rather than a container path. A `${...}` name that is **not** in this list -- for example `${VERSION}` -- is left untouched and passed to Docker verbatim, so Docker's own build-arg expansion still applies. The catch is Docker's own scoping: an `ARG` is only in scope **after** the `FROM` that consumes it. To label an image with a build arg, declare `ARG VERSION` after `FROM` in a real Dockerfile and reference Docker's `$VERSION` (Pattern B), supplying values through `BuildArguments`:
+
+```dockerfile
+# ./Dockerfile
+FROM node:18-alpine
+ARG VERSION
+ARG BUILD_DATE
+LABEL version=$VERSION
+LABEL build-date=$BUILD_DATE
+WORKDIR /app
+COPY . .
+```
+
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
-    .UseImage("myapp:latest", img => img
-        .Arguments("VERSION", "1.0.0")
-        .Arguments("BUILD_DATE")
-        .From("node:18-alpine")
-        .Label("version=${VERSION}")
-        .Label("build-date=${BUILD_DATE}")
-        .UseWorkDir("/app")
-        .Copy(".", "."))
-    .Build();
+    .UseImage("myapp:latest", df => df
+        .FromFile("Dockerfile")
+        .WithBuildContext(".")
+        .ToImage()
+        .BuildArguments("VERSION=1.0.0", "BUILD_DATE=2024-01-01"))
+    .BuildAsync();
+```
+
+## Private Registries
+
+`WithRegistryAuth(username, password, server)` authenticates before the image is pulled — a fluent
+alternative to hand-resolving `IAuthDriver` (`server` is `null` for Docker Hub). Read the password from a secret store, never hard-code it.
+
+```csharp
+.UseContainer(c => c
+    .UseImage("registry.example.com/team/app:latest")
+    .WithRegistryAuth("me", Environment.GetEnvironmentVariable("REGISTRY_TOKEN")!, "registry.example.com")
+    .ForcePullImage()
+    .WithName("app"))
 ```
 
 ## Accessing Build Results
 
-The `Build()` and `BuildAsync()` methods return a `BuildResults` object:
+`BuildAsync()` returns a `BuildResults` object:
 
 ```csharp
-var results = new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img.From("alpine:latest"))
     .UseContainer(c => c
         .UseImage("myapp:latest")
         .WithName("myapp"))
-    .Build();
+    .BuildAsync();
 
 // All services
 var allServices = results.All;
@@ -394,8 +503,7 @@ var containers = results.Containers;
 // By name (requires .WithName("myapp") on the container builder)
 var myContainer = results.GetContainer("myapp");
 
-// Dispose all services when done
-results.Dispose();
+// Disposed asynchronously by await using
 ```
 
 **Note**: `BuildResults` does not have an `Images` property. To access built images, use the
@@ -415,7 +523,7 @@ The available typed convenience properties on `BuildResults` are: `Containers`, 
 For async contexts (ASP.NET, UI applications), use `BuildAsync` to avoid deadlocks:
 
 ```csharp
-var results = await new Builder()
+await using var results = await new Builder()
     .WithinDriver("docker", kernel)
     .UseImage("myapp:latest", img => img
         .From("alpine:latest")
@@ -429,23 +537,33 @@ await results.DisposeAllAsync();
 ## Testing with Custom Images
 
 ```csharp
-public class CustomImageTest : IDisposable
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentDocker.Builders;
+using FluentDocker.Kernel;
+using FluentDocker.Services.Extensions;
+using Xunit;
+
+public class CustomImageTest : IAsyncLifetime
 {
-    private readonly FluentDockerKernel _kernel;
-    private readonly BuildResults _results;
+    private FluentDockerKernel _kernel = null!;
+    private BuildResults _results = null!;
 
-    public CustomImageTest()
+    public async ValueTask InitializeAsync()
     {
-        _kernel = FluentDockerKernel.Create()
+        _kernel = await FluentDockerKernel.Create()
             .WithDockerCli("docker", d => d.AsDefault())
-            .Build();
+            .BuildAsync();
 
-        _results = new Builder()
+        _results = await new Builder()
             .WithinDriver("docker", _kernel)
             .UseImage("test-app:latest", img => img
                 .From("node:18-alpine")
                 .UseWorkDir("/app")
-                .Copy("./test-fixtures/", "/app/")
+                .Copy("test-fixtures/package.json", "/app/package.json")
+                .Copy("test-fixtures/app.js", "/app/app.js")
                 .Run("npm install")
                 .ExposePorts(3000)
                 .Command("npm", "test"))
@@ -453,28 +571,30 @@ public class CustomImageTest : IDisposable
                 .UseImage("test-app:latest")
                 .ExposePort(3000, 3000)
                 .WaitForPort("3000/tcp", 30000))
-            .Build();
+            .BuildAsync();
     }
 
     [Fact]
     public async Task App_ReturnsHealthy()
     {
         var container = _results.Containers.First();
-        var endpoint = container.ToHostExposedEndpoint("3000/tcp");
-        var response = await $"http://localhost:{endpoint.Port}/health".Wget();
+        var endpoint = await container.ToHostExposedEndpointAsync("3000/tcp");
+        using var requestCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var response = await FluentDocker.Common.SharedHttpClient.Instance.GetStringAsync(
+            $"http://localhost:{endpoint.Port}/health", requestCts.Token);
         Assert.Contains("healthy", response);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _results?.Dispose();
-        _kernel?.Dispose();
+        await _results.DisposeAsync();
+        await _kernel.DisposeAsync();
     }
 }
 ```
 
 ## Next Steps
 
-- [Containers](containers.html) - Using built images with containers
-- [Docker Compose](compose.html) - Multi-container orchestration
-- [Testing](testing.html) - Test fixtures and base classes
+- [Containers](containers.md) - Using built images with containers
+- [Docker Compose](compose.md) - Multi-container orchestration
+- [Testing](testing.md) - Test fixtures and base classes

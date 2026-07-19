@@ -35,14 +35,14 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
       Assert.NotNull(testBase.Kernel);
 
       await testBase.DisposeAsync();
-      Assert.Null(testBase.Resource);
-      Assert.Null(testBase.Kernel);
+      Assert.Throws<InvalidOperationException>(() => _ = testBase.Resource);
+      Assert.Throws<InvalidOperationException>(() => _ = testBase.Kernel);
     }
 
     [Fact]
     public async Task DisposeAsync_BeforeInit_DoesNotThrow()
     {
-      var testBase = new TestContainerTestBase(null);
+      var testBase = new TestContainerTestBase(null!);
       await testBase.DisposeAsync();
     }
 
@@ -72,7 +72,7 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     [Fact]
     public async Task DefaultKernelFactory_IsNull()
     {
-      var testBase = new TestContainerTestBase(null);
+      var testBase = new TestContainerTestBase(null!);
       Assert.Null(testBase.ExposedKernelFactory);
     }
 
@@ -109,10 +109,10 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
           => builder.UseImage("alpine:latest");
 
       protected override Func<Task<FluentDockerKernel>> KernelFactory
-          => _kernelFactory;
+          => _kernelFactory!;
 
       public Func<Task<FluentDockerKernel>> ExposedKernelFactory
-          => base.KernelFactory;
+          => base.KernelFactory!;
     }
   }
 
@@ -153,14 +153,14 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     private class TestComposeTestBase(
         Func<Task<FluentDockerKernel>>? kernelFactory = null) : XunitComposeTestBase
     {
-      private readonly Func<Task<FluentDockerKernel>> _kernelFactory = kernelFactory;
+      private readonly Func<Task<FluentDockerKernel>>? _kernelFactory = kernelFactory;
 
       protected override void ConfigureCompose(IComposeBuilder builder)
           => builder.WithComposeFile("docker-compose.yml")
               .WithProjectName("test-base-compose");
 
       protected override Func<Task<FluentDockerKernel>> KernelFactory
-          => _kernelFactory;
+          => _kernelFactory!;
     }
   }
 
@@ -200,13 +200,13 @@ namespace FluentDocker.Tests.CoreTests.Testing.Adapters
     private class TestTopologyTestBase(
         Func<Task<FluentDockerKernel>>? kernelFactory = null) : XunitTopologyTestBase
     {
-      private readonly Func<Task<FluentDockerKernel>> _kernelFactory = kernelFactory;
+      private readonly Func<Task<FluentDockerKernel>>? _kernelFactory = kernelFactory;
 
       protected override void ConfigureTopology(Builder builder)
           => builder.UseContainer(c => c.UseImage("alpine:latest"));
 
       protected override Func<Task<FluentDockerKernel>> KernelFactory
-          => _kernelFactory;
+          => _kernelFactory!;
     }
   }
 }

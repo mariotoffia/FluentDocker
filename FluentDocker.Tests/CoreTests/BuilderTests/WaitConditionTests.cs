@@ -78,7 +78,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     }
 
     [Fact]
-    public void WaitForHttp_AdvancedOptions_SetsWaitCondition()
+    public void WaitForHttpUrl_AdvancedOptions_SetsWaitCondition()
     {
       var builder = new Builder();
       var configured = false;
@@ -86,7 +86,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .UseContainer(c =>
           {
             c.UseImage("test")
-                   .WaitForHttp(
+                   .WaitForHttpUrl(
                        "http://localhost:8080/health",
                        30000,
                        System.Net.Http.HttpMethod.Post,
@@ -183,7 +183,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .GetTypes().First(t => t.Name == "WaitCondition");
       var pollProp = conditionType.GetProperty("PollIntervalMs");
 
-      IContainerBuilder captured = null;
+      IContainerBuilder? captured = null;
       new Builder()
           .WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
@@ -196,12 +196,15 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           });
 
       Assert.NotNull(captured);
+      Assert.NotNull(waitField);
+      Assert.NotNull(pollProp);
       var conditions = waitField.GetValue(captured) as System.Collections.IList;
+      Assert.NotNull(conditions);
       Assert.Equal(2, conditions.Count);
 
       // Both conditions should have the custom poll interval
-      Assert.Equal(200, (int)pollProp.GetValue(conditions[0]));
-      Assert.Equal(200, (int)pollProp.GetValue(conditions[1]));
+      Assert.Equal(200, (int)pollProp.GetValue(conditions[0])!);
+      Assert.Equal(200, (int)pollProp.GetValue(conditions[1])!);
     }
 
     [Fact]
@@ -217,7 +220,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .GetTypes().First(t => t.Name == "WaitCondition");
       var pollProp = conditionType.GetProperty("PollIntervalMs");
 
-      IContainerBuilder captured = null;
+      IContainerBuilder? captured = null;
       new Builder()
           .WithinDriver("test", new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance))
           .UseContainer(c =>
@@ -226,10 +229,12 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             captured = c;
           });
 
+      Assert.NotNull(waitField);
+      Assert.NotNull(pollProp);
       var conditions = waitField.GetValue(captured) as System.Collections.IList;
+      Assert.NotNull(conditions);
       Assert.Single(conditions);
-      Assert.Equal(500, (int)pollProp.GetValue(conditions[0]));
+      Assert.Equal(500, (int)pollProp.GetValue(conditions[0])!);
     }
   }
 }
-

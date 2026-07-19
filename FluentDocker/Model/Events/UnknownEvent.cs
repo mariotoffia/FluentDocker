@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 
@@ -8,14 +9,24 @@ namespace FluentDocker.Model.Events
   /// this event for any logic if you're not prepare at any time replace that
   /// with a managed one!!!
   /// </summary>
+  [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent instead.")]
   public sealed class UnknownEvent : FdEvent<UnknownEvent.UnknownActor>
   {
+    /// <summary>
+    /// Creates the event from the raw action/type strings gathered from the event stream, resolving them to
+    /// <see cref="EventAction"/>/<see cref="EventType"/> where possible (falling back to
+    /// <see cref="EventAction.Unspecified"/>/<see cref="EventType.Generic"/> otherwise).
+    /// </summary>
+    /// <param name="action">The raw, unparsed action string from the event stream.</param>
+    /// <param name="type">The raw, unparsed type string from the event stream.</param>
     public UnknownEvent(string action, string type)
     {
-      if (!Enum.TryParse<EventAction>(action, out var enumAction))
+      if (!Enum.TryParse<EventAction>(action, true, out var enumAction) ||
+          !Enum.IsDefined(enumAction))
         enumAction = EventAction.Unspecified;
 
-      if (!Enum.TryParse<EventType>(type, out var enumType))
+      if (!Enum.TryParse<EventType>(type, true, out var enumType) ||
+          !Enum.IsDefined(enumType))
         enumType = EventType.Generic;
 
       Action = enumAction;
@@ -35,12 +46,13 @@ namespace FluentDocker.Model.Events
     /// <summary>
     /// Contains Id and all attributes it could gather.
     /// </summary>
+    [System.Obsolete("Unused by FluentDocker and scheduled for removal in a future release. Use stream driver ContainerEvent.ActorAttributes instead.")]
     public sealed class UnknownActor : EventActor
     {
       /// <summary>
       /// Attributes gathered from the raw data.
       /// </summary>
-      public IList<Tuple<string, string>> Attributes { get; internal set; }
+      public IList<Tuple<string, string>>? Attributes { get; internal set; }
     }
   }
 }

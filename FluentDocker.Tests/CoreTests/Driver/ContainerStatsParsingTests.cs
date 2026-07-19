@@ -42,7 +42,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData("invalid", 0)]
     public void ParseByteValue_HandlesInvalidInput(string? input, long expected)
     {
-      var result = CliOutputParser.ParseByteValue(input);
+      var result = CliOutputParser.ParseByteValue(input!); // intentional null to verify null-handling
       Assert.Equal(expected, result);
     }
 
@@ -64,7 +64,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     [InlineData("invalid", 0.0)]
     public void ParsePercent_HandlesInvalidInput(string? input, double expected)
     {
-      var result = CliOutputParser.ParsePercent(input);
+      var result = CliOutputParser.ParsePercent(input!); // intentional null to verify null-handling
       Assert.Equal(expected, result);
     }
 
@@ -79,7 +79,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.NotNull(method);
 
-      var result = (ContainerStatsResult)method.Invoke(null, [json, "abc123", null]);
+      var result = (ContainerStatsResult)method.Invoke(null, [json, "abc123", null])!;
 
       Assert.NotNull(result);
       Assert.Equal("abc123", result.ContainerId);
@@ -90,7 +90,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
     }
 
     [Fact]
-    public void ParseStatsOutput_HandlesInvalidJson()
+    public void ParseStatsOutput_InvalidJson_ReturnsNull()
     {
       var invalidJson = "not valid json";
 
@@ -100,11 +100,9 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.NotNull(method);
 
-      var result = (ContainerStatsResult)method.Invoke(null, [invalidJson, "abc123", null]);
+      var result = method.Invoke(null, [invalidJson, "abc123", null]);
 
-      // Should not throw, just return empty stats with container ID
-      Assert.NotNull(result);
-      Assert.Equal("abc123", result.ContainerId);
+      Assert.Null(result);
     }
 
     [Fact]
@@ -119,7 +117,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.NotNull(method);
 
-      var result = (ContainerStatsResult)method.Invoke(null, [partialJson, "abc123", null]);
+      var result = (ContainerStatsResult)method.Invoke(null, [partialJson, "abc123", null])!;
 
       Assert.NotNull(result);
       Assert.Equal("abc123", result.ContainerId);

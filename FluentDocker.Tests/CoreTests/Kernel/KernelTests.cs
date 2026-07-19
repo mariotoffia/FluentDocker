@@ -28,6 +28,29 @@ namespace FluentDocker.Tests.CoreTests.Kernel
     }
 
     [Fact]
+    public async Task Create_NoArgs_UsesNullLogger_AndBuilds()
+    {
+      // The parameterless overload (used throughout the docs) must compile and build a
+      // working kernel that suppresses logging.
+      var builder = FluentDockerKernel.Create();
+      Assert.NotNull(builder);
+      Assert.IsType<KernelBuilder>(builder);
+
+      await using var kernel = await builder.BuildAsync(TestContext.Current.CancellationToken);
+      Assert.NotNull(kernel);
+    }
+
+    [Fact]
+    public async Task WithDriver_AfterBuild_ThrowsInvalidOperationException()
+    {
+      var builder = new KernelBuilder(NullLoggerFactory.Instance);
+      await using var kernel = await builder.BuildAsync(TestContext.Current.CancellationToken);
+
+      Assert.Throws<InvalidOperationException>(() =>
+          builder.WithDriver("late", d => d.UseCustomDriver(new LateDriver())));
+    }
+
+    [Fact]
     public async Task RegisterDriverPackAsync_RegistersSuccessfully()
     {
       // Arrange
@@ -60,6 +83,7 @@ namespace FluentDocker.Tests.CoreTests.Kernel
       {
         kernel.Dispose();
       }
+
     }
 
     [Fact]
@@ -184,6 +208,18 @@ namespace FluentDocker.Tests.CoreTests.Kernel
         kernel1.Dispose();
         kernel2.Dispose();
       }
+    }
+
+    private sealed class LateDriver : IDriver
+    {
+      public DriverType Type => DriverType.Custom;
+      public RuntimeType Runtime => RuntimeType.Unknown;
+      public Task<DriverCapabilities> GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default) =>
+          Task.FromResult(DriverCapabilities.Default());
+      public Task<bool> IsHealthyAsync(System.Threading.CancellationToken cancellationToken = default) =>
+          Task.FromResult(true);
+      public Task InitializeAsync(DriverContext context, System.Threading.CancellationToken cancellationToken = default) =>
+          Task.CompletedTask;
     }
   }
 

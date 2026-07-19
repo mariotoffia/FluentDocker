@@ -102,7 +102,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
             .WithinDriver(DriverId, Kernel)
             .UseContainer(c => c
                 .UseImage("alpine")
-                .WithPort("99999/tcp", "8080"))
+                .WithPort("8080", "99999/tcp"))
             .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
       });
 
@@ -123,7 +123,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c
               .UseImage("alpine")
-              .WithPort("80/tcp", "8080")
+              .WithPort("8080", "80/tcp")
               .WithName("valid-test"))
           .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
     }

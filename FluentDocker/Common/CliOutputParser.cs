@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Globalization;
 
@@ -12,6 +13,7 @@ namespace FluentDocker.Common
     private static readonly string[] SlashSeparator = [" / "];
 
     /// <summary>Parses a percentage string (e.g. "5.23%") into a double. Returns 0 on failure.</summary>
+    /// <remarks>Zero is also the failure sentinel; callers that need to distinguish malformed input must validate separately.</remarks>
     public static double ParsePercent(string value)
     {
       if (string.IsNullOrWhiteSpace(value))
@@ -22,6 +24,7 @@ namespace FluentDocker.Common
     }
 
     /// <summary>Parses a memory usage string (e.g. "100MiB / 2GiB") into (usage, limit) in bytes.</summary>
+    /// <remarks>Zero is also the failure sentinel; callers that need to distinguish malformed input must validate separately.</remarks>
     public static (long usage, long limit) ParseMemoryUsage(string value)
     {
       if (string.IsNullOrWhiteSpace(value))
@@ -33,6 +36,7 @@ namespace FluentDocker.Common
     }
 
     /// <summary>Parses an I/O pair string (e.g. "1.5kB / 2.3kB") into (first, second) in bytes.</summary>
+    /// <remarks>Zero is also the failure sentinel; callers that need to distinguish malformed input must validate separately.</remarks>
     public static (long first, long second) ParseIOPair(string value)
     {
       if (string.IsNullOrWhiteSpace(value))
@@ -45,9 +49,10 @@ namespace FluentDocker.Common
 
     /// <summary>
     /// Parses a byte value string with suffix.
-    /// Uses base-1000 for kB/MB/GB/TB (SI) and base-1024 for KiB/MiB/GiB/TiB (binary).
+    /// Uses base-1000 for kB/MB/GB/TB/PB (SI) and base-1024 for KiB/MiB/GiB/TiB/PiB (binary).
     /// Longer suffixes are checked first to prevent partial matches.
     /// </summary>
+    /// <remarks>Zero is also the failure sentinel; callers that need to distinguish malformed input must validate separately.</remarks>
     public static long ParseByteValue(string value)
     {
       if (string.IsNullOrWhiteSpace(value))
@@ -57,27 +62,40 @@ namespace FluentDocker.Common
       // Order matters: check longer suffixes first to avoid partial matches.
       ReadOnlySpan<(string suffix, double multiplier)> suffixes =
       [
-        ("TiB", 1024.0 * 1024 * 1024 * 1024), ("GiB", 1024.0 * 1024 * 1024),
+        ("PiB", 1024.0 * 1024 * 1024 * 1024 * 1024), ("TiB", 1024.0 * 1024 * 1024 * 1024),
+        ("GiB", 1024.0 * 1024 * 1024),
         ("MiB", 1024.0 * 1024), ("KiB", 1024.0),
-        ("TB", 1000.0 * 1000 * 1000 * 1000), ("GB", 1000.0 * 1000 * 1000),
+        ("PB", 1000.0 * 1000 * 1000 * 1000 * 1000), ("TB", 1000.0 * 1000 * 1000 * 1000),
+        ("GB", 1000.0 * 1000 * 1000),
         ("MB", 1000.0 * 1000), ("kB", 1000.0), ("KB", 1000.0), ("B", 1.0)
       ];
 
       foreach (var (suffix, multiplier) in suffixes)
       {
-        if (!s.EndsWith(suffix, StringComparison.Ordinal))
+        if (!s.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
           continue;
         var numStr = s[..^suffix.Length].Trim();
         if (double.TryParse(numStr, NumberStyles.Float,
                 CultureInfo.InvariantCulture, out var num))
-          return (long)(num * multiplier);
+          return ToInt64Saturated(num * multiplier);
         return 0;
       }
 
       // No suffix — try parsing as raw bytes
       if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var raw))
-        return (long)raw;
+        return ToInt64Saturated(raw);
       return 0;
+    }
+
+    private static long ToInt64Saturated(double value)
+    {
+      if (double.IsNaN(value))
+        return 0;
+      if (value >= long.MaxValue)
+        return long.MaxValue;
+      if (value <= long.MinValue)
+        return long.MinValue;
+      return (long)value;
     }
   }
 }

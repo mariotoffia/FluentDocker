@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,31 +22,37 @@ namespace FluentDocker.Drivers.Podman.Cli
   /// Unlike Docker, Podman does not support Compose, Stack, or Service (Swarm) drivers.
   /// Podman-specific features like Pods are available via IPodmanPodDriver.
   /// </remarks>
-  public class PodmanCliDriverPack : IDriverPack
+  public partial class PodmanCliDriverPack : IDriverPack, IAsyncDisposable
   {
     private readonly Dictionary<Type, object> _drivers = [];
-    private DriverContext _context;
-    private IPodmanBinaryResolver _binaryResolver;
+    private readonly SemaphoreSlim _initializeLock = new(1, 1);
+    private DriverContext _context = null!;
+    private IPodmanBinaryResolver _binaryResolver = null!;
     private ILogger<PodmanCliDriverPack> _logger = NullLogger<PodmanCliDriverPack>.Instance;
+    // Written with Volatile.Write after all driver fields/_drivers entries are assigned and read
+    // with Volatile.Read on lock-free paths (mirrors _disposed), so the release/acquire pairing
+    // publishes those writes to readers on weakly ordered hardware (ARM64). _drivers itself is a
+    // readonly dictionary fully populated before that volatile publication, so its lock-free
+    // readers need no further synchronization.
     private bool _initialized;
+    private int _disposed;
 
     /// <summary>
     /// Gets the binary resolver for this driver pack.
     /// </summary>
     public IPodmanBinaryResolver BinaryResolver => _binaryResolver;
 
-    // Individual driver components
-    private PodmanCliContainerDriver _containerDriver;
-    private PodmanCliImageDriver _imageDriver;
-    private PodmanCliNetworkDriver _networkDriver;
-    private PodmanCliVolumeDriver _volumeDriver;
-    private PodmanCliSystemDriver _systemDriver;
-    private PodmanCliAuthDriver _authDriver;
-    private PodmanCliStreamDriver _streamDriver;
-    private PodmanCliPodDriver _podDriver;
-    private PodmanCliKubernetesDriver _kubernetesDriver;
-    private PodmanCliMachineDriver _machineDriver;
-    private PodmanCliManifestDriver _manifestDriver;
+    private PodmanCliContainerDriver _containerDriver = null!;
+    private PodmanCliImageDriver _imageDriver = null!;
+    private PodmanCliNetworkDriver _networkDriver = null!;
+    private PodmanCliVolumeDriver _volumeDriver = null!;
+    private PodmanCliSystemDriver _systemDriver = null!;
+    private PodmanCliAuthDriver _authDriver = null!;
+    private PodmanCliStreamDriver _streamDriver = null!;
+    private PodmanCliPodDriver _podDriver = null!;
+    private PodmanCliKubernetesDriver _kubernetesDriver = null!;
+    private PodmanCliMachineDriver _machineDriver = null!;
+    private PodmanCliManifestDriver _manifestDriver = null!;
 
     /// <inheritdoc />
     public DriverType Type => DriverType.PodmanCli;
@@ -57,68 +64,84 @@ namespace FluentDocker.Drivers.Podman.Cli
     public async Task InitializeAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      ArgumentNullException.ThrowIfNull(context);
-      _context = context;
-      _logger = context.LoggerFactory.CreateLogger<PodmanCliDriverPack>();
-
-      var binaryConfig = new PodmanBinaryConfiguration
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      await _initializeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+      try
       {
-        Sudo = context.Sudo,
-        SudoPassword = context.SudoPassword,
-        DefaultShell = context.DefaultShell
-      };
-      _binaryResolver = new PodmanBinariesResolver(binaryConfig);
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(context);
+        if (_initialized)
+          throw new InvalidOperationException("PodmanCliDriverPack is already initialized.");
+        _context = context;
+        _logger = context.LoggerFactory.CreateLogger<PodmanCliDriverPack>();
 
-      // Create all driver components with binary resolver
-      _containerDriver = new PodmanCliContainerDriver(_binaryResolver);
-      _imageDriver = new PodmanCliImageDriver(_binaryResolver);
-      _networkDriver = new PodmanCliNetworkDriver(_binaryResolver);
-      _volumeDriver = new PodmanCliVolumeDriver(_binaryResolver);
-      _systemDriver = new PodmanCliSystemDriver(_binaryResolver);
-      _authDriver = new PodmanCliAuthDriver(_binaryResolver);
-      _streamDriver = new PodmanCliStreamDriver(_binaryResolver);
-      _podDriver = new PodmanCliPodDriver(_binaryResolver);
-      _kubernetesDriver = new PodmanCliKubernetesDriver(_binaryResolver);
-      _machineDriver = new PodmanCliMachineDriver(_binaryResolver);
-      _manifestDriver = new PodmanCliManifestDriver(_binaryResolver);
+        var binaryConfig = new PodmanBinaryConfiguration
+        {
+          Sudo = context.Sudo,
+          SudoPassword = context.SudoPassword,
+          DefaultShell = context.DefaultShell,
+          BinaryName = context.BinaryName,
+          SearchPaths = context.SearchPaths
+        };
+        _binaryResolver = new PodmanBinariesResolver(binaryConfig, context.LoggerFactory);
+        cancellationToken.ThrowIfCancellationRequested();
 
-      // Initialize all components with context
-      _containerDriver.Initialize(context);
-      _imageDriver.Initialize(context);
-      _networkDriver.Initialize(context);
-      _volumeDriver.Initialize(context);
-      _systemDriver.Initialize(context);
-      _authDriver.Initialize(context);
-      _streamDriver.Initialize(context);
-      _podDriver.Initialize(context);
-      _kubernetesDriver.Initialize(context);
-      _machineDriver.Initialize(context);
-      _manifestDriver.Initialize(context);
+        _containerDriver = new PodmanCliContainerDriver(_binaryResolver);
+        _imageDriver = new PodmanCliImageDriver(_binaryResolver);
+        _networkDriver = new PodmanCliNetworkDriver(_binaryResolver);
+        _volumeDriver = new PodmanCliVolumeDriver(_binaryResolver);
+        _systemDriver = new PodmanCliSystemDriver(_binaryResolver);
+        _authDriver = new PodmanCliAuthDriver(_binaryResolver);
+        _streamDriver = new PodmanCliStreamDriver(_binaryResolver);
+        _podDriver = new PodmanCliPodDriver(_binaryResolver);
+        _kubernetesDriver = new PodmanCliKubernetesDriver(_binaryResolver);
+        _machineDriver = new PodmanCliMachineDriver(_binaryResolver);
+        _manifestDriver = new PodmanCliManifestDriver(_binaryResolver);
 
-      // Register all drivers by interface type
-      _drivers[typeof(IContainerDriver)] = _containerDriver;
-      _drivers[typeof(IImageDriver)] = _imageDriver;
-      _drivers[typeof(INetworkDriver)] = _networkDriver;
-      _drivers[typeof(IVolumeDriver)] = _volumeDriver;
-      _drivers[typeof(ISystemDriver)] = _systemDriver;
-      _drivers[typeof(IAuthDriver)] = _authDriver;
-      _drivers[typeof(IStreamDriver)] = _streamDriver;
-      _drivers[typeof(IPodmanPodDriver)] = _podDriver;
-      _drivers[typeof(IPodmanKubernetesDriver)] = _kubernetesDriver;
-      _drivers[typeof(IPodmanMachineDriver)] = _machineDriver;
-      _drivers[typeof(IPodmanManifestDriver)] = _manifestDriver;
+        _containerDriver.Initialize(context);
+        _imageDriver.Initialize(context);
+        _networkDriver.Initialize(context);
+        _volumeDriver.Initialize(context);
+        _systemDriver.Initialize(context);
+        _authDriver.Initialize(context);
+        _streamDriver.Initialize(context);
+        _podDriver.Initialize(context);
+        _kubernetesDriver.Initialize(context);
+        _machineDriver.Initialize(context);
+        _manifestDriver.Initialize(context);
 
-      // Auto-start machine if configured
-      if (context.AutoStartMachine != null)
-        await AutoStartMachineAsync(context, cancellationToken).ConfigureAwait(false);
+        _drivers[typeof(IContainerDriver)] = _containerDriver;
+        _drivers[typeof(IImageDriver)] = _imageDriver;
+        _drivers[typeof(INetworkDriver)] = _networkDriver;
+        _drivers[typeof(IVolumeDriver)] = _volumeDriver;
+        _drivers[typeof(ISystemDriver)] = _systemDriver;
+        _drivers[typeof(IAuthDriver)] = _authDriver;
+        _drivers[typeof(IStreamDriver)] = _streamDriver;
+        _drivers[typeof(IPodmanPodDriver)] = _podDriver;
+        _drivers[typeof(IPodmanKubernetesDriver)] = _kubernetesDriver;
+        _drivers[typeof(IPodmanMachineDriver)] = _machineDriver;
+        _drivers[typeof(IPodmanManifestDriver)] = _manifestDriver;
 
-      _initialized = true;
+        if (context.AutoStartMachine != null)
+          await AutoStartMachineAsync(context, cancellationToken).ConfigureAwait(false);
+
+        ThrowIfDisposed();
+        Volatile.Write(ref _initialized, true);
+      }
+      finally
+      {
+        _initializeLock.Release();
+      }
     }
 
     /// <inheritdoc />
     public Task<DriverCapabilities> GetCapabilitiesAsync(
         CancellationToken cancellationToken = default)
     {
+      if (Volatile.Read(ref _disposed) != 0)
+        return Task.FromException<DriverCapabilities>(
+            new ObjectDisposedException(nameof(PodmanCliDriverPack)));
       return Task.FromResult(new DriverCapabilities
       {
         SupportsContainers = true,
@@ -137,13 +160,18 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <inheritdoc />
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
-      if (!_initialized || _systemDriver == null)
+      ThrowIfDisposed();
+      if (!Volatile.Read(ref _initialized) || _systemDriver == null)
         return false;
 
       try
       {
         var result = await _systemDriver.PingAsync(_context, cancellationToken).ConfigureAwait(false);
         return result.Success;
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
@@ -153,20 +181,20 @@ namespace FluentDocker.Drivers.Podman.Cli
     }
 
     /// <inheritdoc />
-    public T SysCtl<T>(string driverId) where T : class
+    public T SysCtl<T>(string? driverId) where T : class
     {
       ThrowIfNotInitialized();
 
       if (_drivers.TryGetValue(typeof(T), out var driver))
         return (T)driver;
 
-      throw new InterfaceNotSupportedException(driverId, typeof(T).Name);
+      throw new InterfaceNotSupportedException(driverId!, TypeNameFormatter.Format(typeof(T)));
     }
 
     #region IDriverInterfaceResolver
 
     /// <inheritdoc />
-    public bool TryResolve(Type interfaceType, out object implementation)
+    public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
     {
       ThrowIfNotInitialized();
       return _drivers.TryGetValue(interfaceType, out implementation);
@@ -184,16 +212,16 @@ namespace FluentDocker.Drivers.Podman.Cli
     #region ISysCtl Type-Based Resolution
 
     /// <inheritdoc />
-    public object SysCtl(string driverId, Type interfaceType)
+    public object SysCtl(string? driverId, Type interfaceType)
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(interfaceType, out var driver))
         return driver;
-      throw new InterfaceNotSupportedException(driverId, interfaceType.Name);
+      throw new InterfaceNotSupportedException(driverId!, TypeNameFormatter.Format(interfaceType));
     }
 
     /// <inheritdoc />
-    public bool TrySysCtl<T>(string driverId, out T instance) where T : class
+    public bool TrySysCtl<T>(string? driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
       ThrowIfNotInitialized();
       if (_drivers.TryGetValue(typeof(T), out var driver))
@@ -277,87 +305,5 @@ namespace FluentDocker.Drivers.Podman.Cli
 
     #endregion
 
-    #region Auto-Start Machine
-
-    private async Task AutoStartMachineAsync(
-        DriverContext context, CancellationToken cancellationToken)
-    {
-      var config = context.AutoStartMachine;
-      var listResult = await _machineDriver.ListAsync(context, cancellationToken).ConfigureAwait(false);
-
-      // Retry once on transient failure (e.g. concurrent Podman CLI access)
-      if (!listResult.Success || listResult.Data.Count == 0)
-      {
-        await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-        listResult = await _machineDriver.ListAsync(context, cancellationToken).ConfigureAwait(false);
-      }
-
-      if (!listResult.Success)
-        throw new PodmanMachineNotRunningException(
-            $"Failed to list Podman machines: {listResult.Error}");
-
-      // Find the target machine
-      MachineInfo target;
-      if (!string.IsNullOrEmpty(config.MachineName))
-        target = listResult.Data.FirstOrDefault(
-            m => string.Equals(m.Name, config.MachineName,
-                StringComparison.OrdinalIgnoreCase));
-      else
-        target = listResult.Data.FirstOrDefault(m => m.Default)
-            ?? listResult.Data.FirstOrDefault();
-
-      if (target != null && target.Running)
-        return; // Machine is already running
-
-      if (target != null)
-      {
-        // Machine exists but is not running — start it
-        var startResult = await _machineDriver.StartAsync(
-            context, target.Name, cancellationToken);
-
-        if (!startResult.Success)
-          throw new PodmanMachineNotRunningException(
-              $"Failed to start Podman machine '{target.Name}': {startResult.Error}");
-
-        return;
-      }
-
-      // Machine does not exist
-      if (!config.CreateIfNotExists)
-        throw new PodmanMachineNotRunningException(
-            $"No Podman machine found" +
-            (string.IsNullOrEmpty(config.MachineName)
-                ? ". "
-                : $" named '{config.MachineName}'. ") +
-            "Start one with: podman machine init && podman machine start");
-
-      // Init a new machine
-      var machineName = config.MachineName ?? "default";
-      var initConfig = new MachineInitConfig
-      {
-        Name = machineName,
-        Cpus = config.InitCpus,
-        MemoryMiB = config.InitMemoryMiB,
-        DiskSizeGiB = config.InitDiskSizeGiB,
-        Rootful = config.InitRootful,
-        Now = true // Start immediately after init
-      };
-
-      var initResult = await _machineDriver.InitAsync(
-          context, initConfig, cancellationToken);
-
-      if (!initResult.Success)
-        throw new PodmanMachineNotRunningException(
-            $"Failed to initialize Podman machine '{machineName}': {initResult.Error}");
-    }
-
-    #endregion
-
-    private void ThrowIfNotInitialized()
-    {
-      if (!_initialized)
-        throw new InvalidOperationException(
-            "PodmanCliDriverPack has not been initialized. Call InitializeAsync first.");
-    }
   }
 }

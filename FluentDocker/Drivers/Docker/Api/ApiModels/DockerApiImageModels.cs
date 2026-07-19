@@ -7,11 +7,12 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   /// </summary>
   internal sealed class PullProgressLine
   {
-    [JsonPropertyName("status")] public string Status { get; set; }
-    [JsonPropertyName("progress")] public string Progress { get; set; }
-    [JsonPropertyName("id")] public string Id { get; set; }
-    [JsonPropertyName("progressDetail")] public ProgressDetail ProgressDetail { get; set; }
-    [JsonPropertyName("error")] public string Error { get; set; }
+    [JsonPropertyName("status")] public string? Status { get; set; }
+    [JsonPropertyName("progress")] public string? Progress { get; set; }
+    [JsonPropertyName("id")] public string? Id { get; set; }
+    [JsonPropertyName("progressDetail")] public ProgressDetail? ProgressDetail { get; set; }
+    [JsonPropertyName("error")] public string? Error { get; set; }
+    [JsonPropertyName("aux")] public BuildAux? Aux { get; set; }
   }
 
   /// <summary>
@@ -19,11 +20,12 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   /// </summary>
   internal sealed class PushProgressLine
   {
-    [JsonPropertyName("status")] public string Status { get; set; }
-    [JsonPropertyName("progress")] public string Progress { get; set; }
-    [JsonPropertyName("id")] public string Id { get; set; }
-    [JsonPropertyName("progressDetail")] public ProgressDetail ProgressDetail { get; set; }
-    [JsonPropertyName("error")] public string Error { get; set; }
+    [JsonPropertyName("status")] public string? Status { get; set; }
+    [JsonPropertyName("progress")] public string? Progress { get; set; }
+    [JsonPropertyName("id")] public string? Id { get; set; }
+    [JsonPropertyName("progressDetail")] public ProgressDetail? ProgressDetail { get; set; }
+    [JsonPropertyName("error")] public string? Error { get; set; }
+    [JsonPropertyName("aux")] public BuildAux? Aux { get; set; }
   }
 
   /// <summary>
@@ -31,15 +33,16 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   /// </summary>
   internal sealed class BuildOutputLine
   {
-    [JsonPropertyName("stream")] public string Stream { get; set; }
-    [JsonPropertyName("error")] public string Error { get; set; }
-    [JsonPropertyName("errorDetail")] public ErrorDetail ErrorDetail { get; set; }
-    [JsonPropertyName("aux")] public BuildAux Aux { get; set; }
+    [JsonPropertyName("stream")] public string? Stream { get; set; }
+    [JsonPropertyName("error")] public string? Error { get; set; }
+    [JsonPropertyName("errorDetail")] public ErrorDetail? ErrorDetail { get; set; }
+    [JsonPropertyName("aux")] public BuildAux? Aux { get; set; }
   }
 
   internal sealed class BuildAux
   {
-    [JsonPropertyName("ID")] public string Id { get; set; }
+    [JsonPropertyName("ID")] public string? Id { get; set; }
+    [JsonPropertyName("Digest")] public string? Digest { get; set; }
   }
 
   internal sealed class ProgressDetail
@@ -50,7 +53,7 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
 
   internal sealed class ErrorDetail
   {
-    [JsonPropertyName("message")] public string Message { get; set; }
+    [JsonPropertyName("message")] public string? Message { get; set; }
     [JsonPropertyName("code")] public int Code { get; set; }
   }
 }

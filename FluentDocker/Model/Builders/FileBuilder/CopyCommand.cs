@@ -1,8 +1,9 @@
-using FluentDocker.Extensions;
+#nullable enable
 using FluentDocker.Model.Common;
 
 namespace FluentDocker.Model.Builders.FileBuilder
 {
+  /// <summary>Represents a Dockerfile <c>COPY</c> instruction.</summary>
   public class CopyCommand : ICommand
   {
     /// <summary>
@@ -17,27 +18,34 @@ namespace FluentDocker.Model.Builders.FileBuilder
     /// _FROM ... AS aliasname_ buildstep as source.
     /// </param>
     public CopyCommand(TemplateString from, TemplateString to,
-      TemplateString chownUserAndGroup = null, TemplateString fromAlias = null)
+      TemplateString? chownUserAndGroup = null, TemplateString? fromAlias = null)
     {
-      From = from.Rendered.WrapWithChar("\"");
-      To = to.Rendered.WrapWithChar("\"");
+      From = from.Rendered;
+      To = to.Rendered;
 
       if (null != chownUserAndGroup && !string.IsNullOrEmpty(chownUserAndGroup.Rendered))
       {
-        Chown = chownUserAndGroup.Rendered;
+        Chown = DockerfileInstructionGuard.ValidateToken(
+            chownUserAndGroup.Rendered, "COPY", "chown");
       }
 
       if (null != fromAlias && !string.IsNullOrEmpty(fromAlias.Rendered))
       {
-        Alias = fromAlias.Rendered;
+        Alias = DockerfileInstructionGuard.ValidateToken(
+            fromAlias.Rendered, "COPY", "from alias");
       }
     }
 
-    public string From { get; }
+    /// <summary>Gets the source path.</summary>
+    public string From { get; internal set; }
+    /// <summary>Gets the destination path.</summary>
     public string To { get; }
-    public string Alias { get; }
-    public string Chown { get; }
+    /// <summary>Gets the optional source build stage alias.</summary>
+    public string? Alias { get; }
+    /// <summary>Gets the optional owner assigned by <c>--chown</c>.</summary>
+    public string? Chown { get; }
 
+    /// <summary>Renders the instruction.</summary>
     public override string ToString()
     {
       var s = "COPY";
@@ -52,7 +60,7 @@ namespace FluentDocker.Model.Builders.FileBuilder
         s = $"{s} --from={Alias}";
       }
 
-      return $"{s} [{From},{To}]";
+      return $"{s} {DockerfileJson.Array([DockerfileJson.NormalizePath(From), DockerfileJson.NormalizePath(To)])}";
     }
   }
 }

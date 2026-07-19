@@ -16,11 +16,14 @@ namespace FluentDocker.Services.Impl
   {
     #region Image Management
 
+    /// <inheritdoc />
     public async Task<IList<IImageService>> GetImagesAsync(
         bool all = true,
-        ImageListFilter filter = null,
+        ImageListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -32,20 +35,19 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to list images: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
       var services = new List<IImageService>();
-      foreach (var image in response.Data)
+      foreach (var image in response.Data!)
       {
-        var tag = image.RepoTags?.FirstOrDefault()?.Split(':').LastOrDefault() ?? "latest";
-        var repo = image.RepoTags?.FirstOrDefault()?.Split(':').FirstOrDefault();
+        var (repo, tag) = ParseImagePullReference(image.RepoTags?.FirstOrDefault());
 
         services.Add(new ImageService(
             _kernel,
             _driverId,
-            image.Id,
+            image.Id!,
             repo,
             tag));
       }
@@ -53,48 +55,88 @@ namespace FluentDocker.Services.Impl
       return services;
     }
 
+    /// <inheritdoc />
+    /// <exception cref="ArgumentException">
+    /// <paramref name="image"/> already carries an explicit tag or a digest that conflicts with a
+    /// non-default <paramref name="tag"/> argument.
+    /// </exception>
     public async Task<IImageService> PullImageAsync(
         string image,
         string tag = "latest",
-        IProgress<ImagePullProgress> progress = null,
+        IProgress<ImagePullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
+      // A null tag means "the default tag": normalize to "latest" so the explicit-tag parse and the
+      // post-pull inspect reference are well-formed instead of "repo:" (SVC-MAJ-3).
+      tag ??= "latest";
+      if (tag != null && tag != "latest" && HasExplicitImageTag(image))
+      {
+        throw new ArgumentException(
+            $"Image '{image}' already includes a tag; remove it or omit {nameof(tag)}.",
+            nameof(tag));
+      }
+
+      // HasExplicitImageTag deliberately returns false for digest refs ("repo@sha256:…"), so guard
+      // them here: the driver pulls a digest ref by the full reference and would silently drop the
+      // conflicting tag argument.
+      if (tag != "latest" && image?.Contains('@') == true)
+      {
+        throw new ArgumentException(
+            $"Image '{image}' already includes a digest; remove it or omit {nameof(tag)}.",
+            nameof(tag));
+      }
+
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
+      var pullImage = image!;
+      var pullTag = tag;
+      if (tag == "latest" && HasExplicitImageTag(image!))
+        (pullImage, pullTag) = ParseImagePullReference(image);
 
-      var response = await driver.PullAsync(context, image, tag, progress, cancellationToken).ConfigureAwait(false);
+      var response = await driver.PullAsync(context, pullImage, pullTag!, progress, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
         throw new DriverException(
-            $"Failed to pull image '{image}:{tag}': {response.Error}",
-            response.ErrorCode,
+            $"Failed to pull image '{pullImage}:{pullTag}': {response.Error}",
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      var inspectResponse = await driver.InspectAsync(context, $"{image}:{tag}", cancellationToken).ConfigureAwait(false);
+      // A digest reference ("repo@sha256:...") must be inspected by the digest ref itself, not
+      // "repo@sha256:...:latest" (which is malformed and fails to inspect).
+      var digestSeparator = image!.IndexOf('@');
+      var isDigest = digestSeparator >= 0;
+      var inspectRef = isDigest ? image : $"{pullImage}:{pullTag}";
+
+      var inspectResponse = await driver.InspectAsync(context, inspectRef, cancellationToken).ConfigureAwait(false);
 
       if (!inspectResponse.Success)
       {
         throw new DriverException(
-            $"Failed to inspect pulled image '{image}:{tag}': {inspectResponse.Error}",
-            inspectResponse.ErrorCode,
+            $"Failed to inspect pulled image '{inspectRef}': {inspectResponse.Error}",
+            inspectResponse.ErrorCode!,
             inspectResponse.ErrorContext);
       }
 
       return new ImageService(
           _kernel,
           _driverId,
-          inspectResponse.Data.Id,
-          image,
-          tag);
+          inspectResponse.Data!.Id!,
+          isDigest ? image[..digestSeparator] : pullImage,
+          isDigest ? image[(digestSeparator + 1)..] : pullTag!);
     }
 
+    /// <inheritdoc />
     public async Task<IImageService> BuildImageAsync(
         ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress = null,
+        IProgress<ImageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IImageDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -104,27 +146,29 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to build image: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      var tag = config.Tags?.FirstOrDefault();
-      var tagParts = tag?.Split(':');
+      var (repo, tag) = ParseImagePullReference(config.Tags?.FirstOrDefault());
 
       return new ImageService(
           _kernel,
           _driverId,
-          response.Data.ImageId,
-          tagParts?.FirstOrDefault(),
-          tagParts?.LastOrDefault() ?? "latest");
+          response.Data!.ImageId!,
+          repo,
+          tag);
     }
 
     #endregion
 
     #region Network Management
 
+    /// <inheritdoc />
     public async Task<IList<INetworkService>> GetNetworksAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -134,57 +178,63 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to list networks: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
       var services = new List<INetworkService>();
-      foreach (var network in response.Data)
+      foreach (var network in response.Data!)
       {
         services.Add(new NetworkService(
             _kernel,
             _driverId,
-            network.Id,
-            network.Name));
+            network.Id!,
+            network.Name!));
       }
 
       return services;
     }
 
+    /// <inheritdoc />
     public async Task<INetworkService> CreateNetworkAsync(
         string name,
-        NetworkCreateConfig config = null,
+        NetworkCreateConfig? config = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<INetworkDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
-      config ??= new NetworkCreateConfig();
-      config.Name = name;
+      var createConfig = CloneNetworkCreateConfig(config);
+      createConfig.Name = name ?? createConfig.Name;
 
-      var response = await driver.CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
+      var response = await driver.CreateAsync(context, createConfig, cancellationToken).ConfigureAwait(false);
 
       if (!response.Success)
       {
         throw new DriverException(
-            $"Failed to create network '{name}': {response.Error}",
-            response.ErrorCode,
+            $"Failed to create network '{createConfig.Name}': {response.Error}",
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
       return new NetworkService(
           _kernel,
           _driverId,
-          response.Data.Id,
-          name);
+          response.Data!.Id!,
+          createConfig.Name!);
     }
 
     #endregion
 
     #region Volume Management
 
+    /// <inheritdoc />
     public async Task<IList<IVolumeService>> GetVolumesAsync(CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -194,30 +244,33 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to list volumes: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
       var services = new List<IVolumeService>();
-      foreach (var volume in response.Data)
+      foreach (var volume in response.Data!)
       {
         services.Add(new VolumeService(
             _kernel,
             _driverId,
-            volume.Name,
-            volume.Driver));
+            volume.Name!,
+            volume.Driver!));
       }
 
       return services;
     }
 
+    /// <inheritdoc />
     public async Task<IVolumeService> CreateVolumeAsync(
-        string name = null,
+        string? name = null,
         string driver = "local",
-        IDictionary<string, string> labels = null,
-        IDictionary<string, string> options = null,
+        IDictionary<string, string>? labels = null,
+        IDictionary<string, string>? options = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var volumeDriver = _kernel.SysCtl<IVolumeDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -235,25 +288,28 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to create volume: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
       return new VolumeService(
           _kernel,
           _driverId,
-          response.Data.Name,
-          response.Data.Driver);
+          response.Data!.Name!,
+          response.Data.Driver!);
     }
 
     #endregion
 
     #region Maintenance
 
+    /// <inheritdoc />
     public async Task<SystemPruneResult> PruneAsync(
-        SystemPruneConfig config = null,
+        SystemPruneConfig? config = null,
         CancellationToken cancellationToken = default)
     {
+      cancellationToken.ThrowIfCancellationRequested();
+      ThrowIfDisposed();
       var driver = _kernel.SysCtl<ISystemDriver>(_driverId);
       var context = new DriverContext(_driverId);
 
@@ -263,13 +319,42 @@ namespace FluentDocker.Services.Impl
       {
         throw new DriverException(
             $"Failed to prune system: {response.Error}",
-            response.ErrorCode,
+            response.ErrorCode!,
             response.ErrorContext);
       }
 
-      return response.Data;
+      return response.Data!;
     }
 
     #endregion
+
+    private static bool HasExplicitImageTag(string image)
+    {
+      if (string.IsNullOrEmpty(image) || image.Contains('@'))
+        return false;
+
+      var slash = image.LastIndexOf('/');
+      var colon = image.LastIndexOf(':');
+      return colon > slash && colon < image.Length - 1;
+    }
+
+    private static NetworkCreateConfig CloneNetworkCreateConfig(NetworkCreateConfig? config)
+    {
+      if (config == null)
+        return new NetworkCreateConfig();
+
+      return new NetworkCreateConfig
+      {
+        Name = config.Name,
+        Driver = config.Driver,
+        Options = config.Options == null ? [] : new Dictionary<string, string>(config.Options),
+        Subnet = config.Subnet,
+        Gateway = config.Gateway,
+        IpRange = config.IpRange,
+        EnableIPv6 = config.EnableIPv6,
+        Internal = config.Internal,
+        Labels = config.Labels == null ? [] : new Dictionary<string, string>(config.Labels)
+      };
+    }
   }
 }

@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,17 +15,22 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of IServiceDriver for Docker Swarm services.
   /// Uses /services and /tasks endpoints.
   /// </summary>
-  public class DockerApiServiceDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IServiceDriver
+  public partial class DockerApiServiceDriver(IDockerApiConnection connection) : DockerApiDriverBase(connection), IServiceDriver
   {
+    /// <inheritdoc />
     public async Task<CommandResponse<ServiceCreateResult>> CreateAsync(
         DriverContext context, ServiceCreateConfig config,
         CancellationToken cancellationToken = default)
     {
       var body = BuildServiceSpec(config);
-      var result = await PostJsonElementAsync("/services/create", body, cancellationToken).ConfigureAwait(false);
+      var result = await PostJsonElementAsync(
+          "/services/create", body, DockerApiRegistryAuth.HeaderFor(Connection, config.Image),
+          cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ServiceCreateResult>.Fail(result.ErrorMessage,
-            ErrorCodes.Service.CreateFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Service.CreateFailed,
             CreateErrorContext("POST /services/create", result.StatusCode, result.ResponseBody),
             result.StatusCode);
 
@@ -34,74 +38,130 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         Id = result.Data.GetStringOrDefault("ID"),
         Warnings = result.Data.Prop("Warnings")?.ValueKind == JsonValueKind.Array
-            ? result.Data.Prop("Warnings").Value.Deserialize<List<string>>()
+            ? result.Data.Prop("Warnings")!.Value.Deserialize<List<string>>() ?? []
             : []
       });
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> RemoveAsync(
         DriverContext context, string[] serviceIds,
         CancellationToken cancellationToken = default)
     {
+      // Attempt every id (mirrors `docker service rm` and DockerApiSystemDriver.PruneAsync's
+      // collect-then-fail) instead of aborting on the first failure, which would silently skip
+      // removal of every id after the first 404 while the caller believes only one id failed.
+      var failures = new List<string>();
+      string? firstFailCode = null;
+
       foreach (var id in serviceIds)
       {
-        var result = await DeleteAsync($"/services/{id}", cancellationToken).ConfigureAwait(false);
+        var result = await DeleteAsync(
+            $"/services/{Uri.EscapeDataString(id)}", cancellationToken).ConfigureAwait(false);
         if (!result.Success)
-          return CommandResponse<Unit>.Fail(result.ErrorMessage,
-              MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Service.NotFound),
-              CreateErrorContext($"DELETE /services/{id}", result.StatusCode, result.ResponseBody),
-              result.StatusCode);
+        {
+          failures.Add($"{id}: {result.ErrorMessage}");
+          firstFailCode ??= MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Service.NotFound);
+        }
       }
+
+      if (failures.Count > 0)
+        return CommandResponse<Unit>.Fail(
+            $"Failed to remove {failures.Count} of {serviceIds.Length} service(s): {string.Join("; ", failures)}",
+            firstFailCode ?? ErrorCodes.Service.RemoveFailed,
+            CreateErrorContext("DELETE /services/{id}", 0));
 
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> UpdateAsync(
         DriverContext context, string serviceId, ServiceUpdateConfig config,
         CancellationToken cancellationToken = default)
     {
-      // First get current service spec and version
-      var inspectResult = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
-      if (!inspectResult.Success)
-        return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
+      var escapedId = Uri.EscapeDataString(serviceId);
+      for (var attempt = 0; attempt < 2; attempt++)
+      {
+        var inspectResult = await InspectAsync(
+            context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!inspectResult.Success)
+          return CommandResponse<Unit>.Fail(inspectResult.Error ?? string.Empty, inspectResult.ErrorCode);
 
-      var version = inspectResult.Data.Version;
-      var body = BuildUpdateSpec(inspectResult.Data, config);
+        var version = inspectResult.Data!.Version;
+        var body = BuildUpdateSpec(inspectResult.Data, config);
+        var image = config.Image ?? inspectResult.Data.Image;
+        var result = await PostAsync(
+            $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString(CultureInfo.InvariantCulture))}",
+            body, DockerApiRegistryAuth.HeaderFor(Connection, image), cancellationToken).ConfigureAwait(false);
+        if (result.Success)
+          return CommandResponse<Unit>.Ok(Unit.Default);
 
-      var result = await PostAsync(
-          $"/services/{serviceId}/update?version={version}", body, cancellationToken);
-      if (!result.Success)
+        if (attempt == 0 && IsVersionConflict(result))
+          continue;
+
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
-            ErrorCodes.Service.UpdateFailed,
+            result.StatusCode is 599 or 408
+                ? MapHttpErrorCode(result.StatusCode)
+                : ErrorCodes.Service.UpdateFailed,
             CreateErrorContext($"POST /services/{serviceId}/update", result.StatusCode, result.ResponseBody),
             result.StatusCode);
+      }
 
-      return CommandResponse<Unit>.Ok(Unit.Default);
+      return CommandResponse<Unit>.Fail(
+          "Service update exhausted conflict retries",
+          ErrorCodes.Service.UpdateFailed,
+          CreateErrorContext($"POST /services/{serviceId}/update", 409),
+          409);
     }
 
+    private static bool IsVersionConflict(ApiResult result) =>
+        result.StatusCode == 409 ||
+        (result.StatusCode >= 500 &&
+         (ContainsVersionConflict(result.ErrorMessage) ||
+          ContainsVersionConflict(result.ResponseBody)));
+
+    private static bool ContainsVersionConflict(string? value) =>
+        value?.Contains("update out of sequence", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> RollbackAsync(
         DriverContext context, string serviceId, bool detach = false,
         CancellationToken cancellationToken = default)
     {
       var inspectResult = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
       if (!inspectResult.Success)
-        return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
+        return CommandResponse<Unit>.Fail(inspectResult.Error ?? string.Empty, inspectResult.ErrorCode);
 
-      var version = inspectResult.Data.Version;
+      var version = inspectResult.Data!.Version;
+      var escapedId = Uri.EscapeDataString(serviceId);
       var result = await PostAsync(
-          $"/services/{serviceId}/update?version={version}&rollback=previous",
-          new { }, cancellationToken);
+          $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString(CultureInfo.InvariantCulture))}&rollback=previous",
+          new { }, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<Unit>.Fail(result.ErrorMessage,
             ErrorCodes.Service.RollbackFailed,
             CreateErrorContext($"POST /services/{serviceId}/update (rollback)", result.StatusCode),
             result.StatusCode);
 
+      // detach=false waits for the rolled-back spec to converge. Re-inspect to learn the (previous)
+      // desired replica count; skip the wait for global mode / unknown counts.
+      if (!detach)
+      {
+        var postInspect = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (postInspect.Success && postInspect.Data!.Replicas > 0)
+        {
+          var converged = await WaitForServiceConvergenceAsync(context, serviceId, postInspect.Data.Replicas, cancellationToken).ConfigureAwait(false);
+          if (!converged.Success)
+            return converged;
+        }
+      }
+
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<IList<ServiceInfo>>> ListAsync(
-        DriverContext context, ServiceListFilter filter = null,
+        DriverContext context, ServiceListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var path = "/services";
@@ -131,11 +191,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<IList<ServiceInfo>>.Ok(services);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<ServiceDetails>> InspectAsync(
         DriverContext context, string serviceId, bool pretty = false,
         CancellationToken cancellationToken = default)
     {
-      var result = await GetJsonElementAsync($"/services/{serviceId}", cancellationToken).ConfigureAwait(false);
+      var result = await GetJsonElementAsync(
+          $"/services/{Uri.EscapeDataString(serviceId)}", cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<ServiceDetails>.Fail(result.ErrorMessage,
             MapNotFoundErrorCode(result.StatusCode, ErrorCodes.Service.NotFound),
@@ -145,9 +207,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<ServiceDetails>.Ok(ParseServiceDetails(result.Data));
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<IList<ServiceTask>>> GetTasksAsync(
         DriverContext context, string serviceId,
-        ServiceTaskFilter filter = null,
+        ServiceTaskFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var filters = new Dictionary<string, List<string>> { ["service"] = [serviceId] };
@@ -168,37 +231,49 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return CommandResponse<IList<ServiceTask>>.Ok(tasks);
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context, string serviceId,
-        ServiceLogsConfig config = null,
+        ServiceLogsConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       config ??= new ServiceLogsConfig();
-      var path = $"/services/{serviceId}/logs?stdout=true&stderr=true";
+      if (config.Follow)
+        return CommandResponse<string>.Fail(
+            "GetLogsAsync does not support follow=true because Docker API service logs can stream indefinitely.",
+            ErrorCodes.Service.LogsFailed,
+            CreateErrorContext($"GET /services/{serviceId}/logs", 0));
+
+      var path = $"/services/{Uri.EscapeDataString(serviceId)}/logs?stdout=true&stderr=true";
       if (config.Tail.HasValue)
         path += $"&tail={config.Tail.Value}";
       if (config.Timestamps)
         path += "&timestamps=true";
       if (!string.IsNullOrEmpty(config.Since))
-        path += $"&since={config.Since}";
+        path += $"&since={Uri.EscapeDataString(config.Since)}";
 
       try
       {
         using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
-        var logs = StripDockerStreamHeaders(ms.ToArray());
+        // No single container backs a service's aggregated log stream, so there is nothing to
+        // TTY-inspect here; the pre-1.42 gate-failure path falls back to the byte-sniff.
+        var logs = await ReadDockerLogTailAsync(stream, null!, cancellationToken).ConfigureAwait(false);
         return CommandResponse<string>.Ok(logs);
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
       }
       catch (Exception ex)
       {
         return CommandResponse<string>.Fail(
             $"Failed to get logs for service '{serviceId}': {ex.Message}",
             ErrorCodes.Service.LogsFailed,
-            CreateErrorContext($"GET /services/{serviceId}/logs", 0));
+            CreateErrorContext($"GET /services/{serviceId}/logs", HttpStatusCodeOrZero(ex)));
       }
     }
 
+    /// <inheritdoc />
     public async Task<CommandResponse<Unit>> ScaleAsync(
         DriverContext context, Dictionary<string, int> serviceReplicas,
         bool detach = false, CancellationToken cancellationToken = default)
@@ -209,157 +284,17 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var result = await UpdateAsync(context, serviceId, updateConfig, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return result;
+
+        // detach=false must wait for the service to actually converge (parity with the CLI driver).
+        if (!detach)
+        {
+          var converged = await WaitForServiceConvergenceAsync(context, serviceId, replicas, cancellationToken).ConfigureAwait(false);
+          if (!converged.Success)
+            return converged;
+        }
       }
 
       return CommandResponse<Unit>.Ok(Unit.Default);
     }
-
-    #region Spec Builders
-
-    private static Dictionary<string, object> BuildServiceSpec(ServiceCreateConfig config)
-    {
-      var spec = new Dictionary<string, object>
-      {
-        ["Name"] = config.Name,
-        ["TaskTemplate"] = new Dictionary<string, object>
-        {
-          ["ContainerSpec"] = BuildContainerSpec(config)
-        }
-      };
-
-      if (config.Replicas.HasValue || !string.IsNullOrEmpty(config.Mode))
-      {
-        var mode = config.Mode?.ToLower() == "global"
-            ? new Dictionary<string, object> { ["Global"] = new { } }
-            : new Dictionary<string, object>
-            {
-              ["Replicated"] = new { Replicas = config.Replicas ?? 1 }
-            };
-        spec["Mode"] = mode;
-      }
-
-      if (config.Networks?.Count > 0)
-        spec["Networks"] = config.Networks.Select(n =>
-            new Dictionary<string, string> { ["Target"] = n }).ToList();
-
-      if (config.Ports?.Count > 0)
-        spec["EndpointSpec"] = new Dictionary<string, object>
-        {
-          ["Ports"] = config.Ports.Select(p => new
-          {
-            p.TargetPort,
-            p.PublishedPort,
-            Protocol = p.Protocol ?? "tcp",
-            PublishMode = p.PublishMode ?? "ingress"
-          }).ToList()
-        };
-
-      if (config.Labels?.Count > 0)
-        spec["Labels"] = config.Labels;
-
-      return spec;
-    }
-
-    private static Dictionary<string, object> BuildContainerSpec(ServiceCreateConfig config)
-    {
-      var containerSpec = new Dictionary<string, object> { ["Image"] = config.Image };
-
-      if (config.Command?.Length > 0)
-        containerSpec["Command"] = config.Command;
-      if (config.Args?.Length > 0)
-        containerSpec["Args"] = config.Args;
-      if (!string.IsNullOrEmpty(config.User))
-        containerSpec["User"] = config.User;
-      if (!string.IsNullOrEmpty(config.WorkDir))
-        containerSpec["Dir"] = config.WorkDir;
-
-      if (config.Environment?.Count > 0)
-        containerSpec["Env"] = config.Environment
-            .Select(kv => $"{kv.Key}={kv.Value}").ToArray();
-
-      if (config.Mounts?.Count > 0)
-        containerSpec["Mounts"] = config.Mounts.Select(m => new
-        {
-          Type = m.Type ?? "volume",
-          m.Source,
-          m.Target,
-          m.ReadOnly
-        }).ToList();
-
-      return containerSpec;
-    }
-
-    private static Dictionary<string, object> BuildUpdateSpec(ServiceDetails current, ServiceUpdateConfig config)
-    {
-      var spec = new Dictionary<string, object>();
-      if (config.Replicas.HasValue)
-      {
-        spec["Mode"] = new Dictionary<string, object>
-        {
-          ["Replicated"] = new { Replicas = config.Replicas.Value }
-        };
-      }
-
-      return spec;
-    }
-
-    #endregion
-
-    #region JSON Parsing
-
-    private static ServiceInfo ParseServiceInfo(JsonElement token)
-    {
-      var spec = token.Prop("Spec");
-      var containerSpec = spec?.Prop("TaskTemplate")?.Prop("ContainerSpec");
-      return new ServiceInfo
-      {
-        Id = token.GetStringOrDefault("ID"),
-        Name = spec?.GetStringOrDefault("Name"),
-        Image = containerSpec?.GetStringOrDefault("Image"),
-        Mode = spec?.Prop("Mode")?.Prop("Replicated") != null ? "replicated" : "global"
-      };
-    }
-
-    private static ServiceDetails ParseServiceDetails(JsonElement json)
-    {
-      if (json.ValueKind != JsonValueKind.Object)
-        return new ServiceDetails();
-      var spec = json.Prop("Spec");
-      var containerSpec = spec?.Prop("TaskTemplate")?.Prop("ContainerSpec");
-      var version = json.Prop("Version");
-
-      var replicatedEl = spec?.Prop("Mode")?.Prop("Replicated");
-
-      return new ServiceDetails
-      {
-        Id = json.GetStringOrDefault("ID"),
-        Version = version?.GetInt64OrDefault("Index") ?? 0,
-        Name = spec?.GetStringOrDefault("Name"),
-        Image = containerSpec?.GetStringOrDefault("Image"),
-        Mode = replicatedEl != null ? "replicated" : "global",
-        Replicas = (int)(replicatedEl?.GetInt64OrDefault("Replicas") ?? 0),
-        CreatedAt = json.GetDateTimeOrDefault("CreatedAt"),
-        UpdatedAt = json.GetDateTimeOrDefault("UpdatedAt"),
-        RawJson = JsonSerializer.Serialize(json, JsonHelper.IndentedOptions)
-      };
-    }
-
-    private static ServiceTask ParseServiceTask(JsonElement token)
-    {
-      var containerSpec = token.Prop("Spec")?.Prop("ContainerSpec");
-      var status = token.Prop("Status");
-      return new ServiceTask
-      {
-        Id = token.GetStringOrDefault("ID"),
-        Name = token.GetStringOrDefault("Name"),
-        Image = containerSpec?.GetStringOrDefault("Image"),
-        Node = token.GetStringOrDefault("NodeID"),
-        DesiredState = token.GetStringOrDefault("DesiredState"),
-        CurrentState = status?.GetStringOrDefault("State"),
-        Error = status?.GetStringOrDefault("Err")
-      };
-    }
-
-    #endregion
   }
 }

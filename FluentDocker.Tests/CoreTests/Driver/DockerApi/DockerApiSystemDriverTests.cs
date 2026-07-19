@@ -198,6 +198,40 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
+    public async Task GetInfoAsync_200WithInvalidJson_ReturnsFailNotThrows()
+    {
+      // M4: a malformed but 2xx body must become a structured Fail, not throw out of the driver.
+      var (driver, mock) = CreateDriver();
+      mock.SetupGet("/info", 200, "{ not valid json");
+
+      var result = await driver.GetInfoAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+    }
+
+    [Fact]
+    public async Task PruneAsync_AllSucceed_ReturnsOkWithAccumulatedCounts()
+    {
+      var (driver, mock) = CreateDriver();
+      mock.SetupPost("/containers/prune", 200,
+          @"{""ContainersDeleted"":[""c1""],""SpaceReclaimed"":100}");
+      mock.SetupPost("/networks/prune", 200,
+          @"{""NetworksDeleted"":[""n1""]}");
+      mock.SetupPost("/images/prune", 200,
+          @"{""ImagesDeleted"":[{""Deleted"":""sha256:abc""}],""SpaceReclaimed"":200}");
+      mock.SetupPost("/build/prune", 200,
+          @"{""CachesDeleted"":[""cache1""],""SpaceReclaimed"":50}");
+
+      var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.True(result.Success);
+      Assert.Single(result.Data.ContainersDeleted);
+      Assert.Single(result.Data.NetworksDeleted);
+      Assert.Single(result.Data.ImagesDeleted);
+      Assert.Equal(350L, result.Data.SpaceReclaimed);
+    }
+
+    [Fact]
     public async Task PruneAsync_DefaultConfig_CallsContainersNetworksImagesBuild()
     {
       var (driver, mock) = CreateDriver();
@@ -295,7 +329,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     }
 
     [Fact]
-    public async Task PruneAsync_PartialFailure_StillReturnsPartialResults()
+    public async Task PruneAsync_PartialFailure_ReturnsFailWithEndpoint()
     {
       var (driver, mock) = CreateDriver();
       mock.SetupPost("/containers/prune", 200,
@@ -308,11 +342,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       var result = await driver.PruneAsync(Ctx, cancellationToken: TestContext.Current.CancellationToken);
 
-      Assert.True(result.Success);
-      Assert.Single(result.Data.ContainersDeleted);
-      Assert.Single(result.Data.ImagesDeleted);
-      Assert.Empty(result.Data.NetworksDeleted); // failed endpoint
-      Assert.Equal(300L, result.Data.SpaceReclaimed);
+      // A failed sub-prune must surface as an overall failure (no false Ok with partial data).
+      Assert.False(result.Success);
+      Assert.Contains("/networks/prune", result.Error);
+      Assert.Contains("network error", result.Error);
+      Assert.Equal(ErrorCodes.Api.ServerError, result.ErrorCode);
     }
 
     [Fact]

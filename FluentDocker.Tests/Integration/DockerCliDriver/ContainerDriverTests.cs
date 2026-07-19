@@ -68,7 +68,9 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
         // Assert
         Assert.True(result.Success);
         Assert.True(result.Data.Count >= 1);
-        Assert.Contains(result.Data, c => c.Id.StartsWith(containerId[..12]) || containerId.StartsWith(c.Id));
+        Assert.Contains(result.Data, c =>
+            c.Id.StartsWith(containerId[..12], StringComparison.Ordinal) ||
+            containerId.StartsWith(c.Id, StringComparison.Ordinal));
       }
       finally
       {
@@ -299,4 +301,3 @@ namespace FluentDocker.Tests.Integration.DockerCliDriver
 
   }
 }
-

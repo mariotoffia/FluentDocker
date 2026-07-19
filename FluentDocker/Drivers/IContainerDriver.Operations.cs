@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,9 +7,9 @@ using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers
 {
-  /// <summary>
-  /// Container operations: exec, copy, logs, stats, wait, rename, update, export.
-  /// </summary>
+  // Container operations: exec, copy, logs, stats, wait, rename, update, export.
+  // Secondary partial declaration; the <summary> lives on the primary IContainerDriver.cs
+  // to avoid a duplicate member entry in the generated XML docs.
   public partial interface IContainerDriver
   {
     #region Wait Operations
@@ -34,11 +35,30 @@ namespace FluentDocker.Drivers
     /// </summary>
     /// <param name="context">Driver context</param>
     /// <param name="containerId">Container ID or name</param>
-    /// <param name="follow">Follow log output</param>
+    /// <param name="follow">
+    /// Follow log output. This buffered port does not support following on Docker CLI,
+    /// Docker API, or Podman CLI; drivers return a failed response when <c>true</c>.
+    /// Use <see cref="IStreamDriver.StreamLogsAsync"/> for indefinite streams.
+    /// </param>
     /// <param name="tail">Number of lines to show from end (null = all)</param>
     /// <param name="timestamps">Show timestamps</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Container logs</returns>
+    /// <returns>
+    /// Container logs. Docker CLI, Docker API, and Podman CLI return the last
+    /// <see cref="FluentDocker.Common.CliOutputTruncation.DefaultTailChars"/> characters with
+    /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/> when truncation occurs.
+    /// Use <paramref name="tail"/> or <see cref="IStreamDriver.StreamLogsAsync"/> for full
+    /// diagnostics. Other buffered CLI calls still fail fast at their memory cap.
+    /// <para>
+    /// <b>Ordering:</b> when the source separates the two streams (Docker CLI, Podman CLI)
+    /// the result is stdout-first, then stderr; cross-stream chronological interleaving is
+    /// not preserved. Use <see cref="IStreamDriver.StreamLogEntriesAsync"/> for arrival-ordered
+    /// entries tagged by stream.
+    /// </para>
+    /// </returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<Model.Drivers.CommandResponse<string>> GetLogsAsync(
         DriverContext context,
         string containerId,
@@ -58,7 +78,7 @@ namespace FluentDocker.Drivers
     Task<Model.Drivers.CommandResponse<ContainerProcesses>> TopAsync(
         DriverContext context,
         string containerId,
-        string psOptions = null,
+        string? psOptions = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -96,7 +116,15 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="config">Exec configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Exec result</returns>
+    /// <returns>
+    /// Exec result. Docker CLI captures stdout/stderr as bounded tails and prefixes
+    /// <see cref="FluentDocker.Common.CliOutputTruncation.Marker(int)"/> when truncation occurs;
+    /// this tail policy is deliberate for potentially unbounded in-container output.
+    /// </returns>
+    /// <remarks>Unknown exit code after exec start is returned as <see cref="ErrorCodes.Container.ExecFailed"/>.</remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<Model.Drivers.CommandResponse<ExecResult>> ExecAsync(
         DriverContext context,
         string containerId,
@@ -148,6 +176,13 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="outputPath">Output file path</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// Docker API removes a partial output file when the export stream fails; a partial file
+    /// may remain if the call is canceled.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<Model.Drivers.CommandResponse<Unit>> ExportAsync(
         DriverContext context,
         string containerId,
@@ -174,6 +209,9 @@ namespace FluentDocker.Drivers
     /// <param name="containerId">Container ID or name</param>
     /// <param name="config">Update configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// Podman CLI <c>update --restart</c> requires Podman 5.1+; older 4.x/5.0 clients reject it.
+    /// </remarks>
     Task<Model.Drivers.CommandResponse<Unit>> UpdateAsync(
         DriverContext context,
         string containerId,
@@ -190,11 +228,15 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ContainerWaitResult
   {
-    /// <summary>Exit code from the container.</summary>
-    public int ExitCode { get; set; }
+    /// <summary>
+    /// Exit code from the container. <see cref="long"/> because the Docker API reports
+    /// int64 status codes — Windows containers routinely exit with values above
+    /// <see cref="int.MaxValue"/> (e.g. 0xC0000005).
+    /// </summary>
+    public long ExitCode { get; set; }
 
     /// <summary>Error message if any.</summary>
-    public string Error { get; set; }
+    public string? Error { get; set; }
   }
 
   /// <summary>
@@ -202,14 +244,17 @@ namespace FluentDocker.Drivers
   /// </summary>
   public class ExecResult
   {
-    /// <summary>Exit code from the command.</summary>
-    public int ExitCode { get; set; }
+    /// <summary>
+    /// Exit code from the command. <see cref="long"/> for the same int64 API contract as
+    /// <see cref="ContainerWaitResult.ExitCode"/>.
+    /// </summary>
+    public long ExitCode { get; set; }
 
-    /// <summary>Standard output from the command.</summary>
-    public string StdOut { get; set; }
+    /// <summary>Standard output from the command; Docker CLI marks it when only a tail was kept.</summary>
+    public string? StdOut { get; set; }
 
-    /// <summary>Standard error from the command.</summary>
-    public string StdErr { get; set; }
+    /// <summary>Standard error from the command; Docker CLI marks it when only a tail was kept.</summary>
+    public string? StdErr { get; set; }
   }
 
   /// <summary>
@@ -230,10 +275,10 @@ namespace FluentDocker.Drivers
   public class FilesystemChange
   {
     /// <summary>Path that changed.</summary>
-    public string Path { get; set; }
+    public string? Path { get; set; }
 
     /// <summary>Type of change (A=Added, C=Changed, D=Deleted).</summary>
-    public string Kind { get; set; }
+    public string? Kind { get; set; }
   }
 
   /// <summary>
@@ -242,10 +287,10 @@ namespace FluentDocker.Drivers
   public class ContainerStatsResult
   {
     /// <summary>Container ID.</summary>
-    public string ContainerId { get; set; }
+    public string? ContainerId { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>CPU usage percentage.</summary>
     public double CpuPercent { get; set; }
@@ -285,16 +330,16 @@ namespace FluentDocker.Drivers
   public class ExecConfig
   {
     /// <summary>Command to execute.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
 
     /// <summary>Working directory inside the container.</summary>
-    public string WorkingDir { get; set; }
+    public string? WorkingDir { get; set; }
 
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
 
     /// <summary>User to run as.</summary>
-    public string User { get; set; }
+    public string? User { get; set; }
 
     /// <summary>Whether to run in privileged mode.</summary>
     public bool Privileged { get; set; }
@@ -302,7 +347,7 @@ namespace FluentDocker.Drivers
     /// <summary>Allocate a TTY.</summary>
     public bool Tty { get; set; }
 
-    /// <summary>Keep STDIN attached.</summary>
+    /// <summary>Keep STDIN attached. The Docker API driver rejects this mode.</summary>
     public bool Interactive { get; set; }
 
     /// <summary>Detach from command after starting.</summary>
@@ -333,10 +378,10 @@ namespace FluentDocker.Drivers
     public long? CpuQuota { get; set; }
 
     /// <summary>CPUs to use (e.g., "0-3", "0,1").</summary>
-    public string CpusetCpus { get; set; }
+    public string? CpusetCpus { get; set; }
 
     /// <summary>Restart policy.</summary>
-    public string RestartPolicy { get; set; }
+    public string? RestartPolicy { get; set; }
 
     /// <summary>Pids limit.</summary>
     public long? PidsLimit { get; set; }

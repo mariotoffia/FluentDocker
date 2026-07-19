@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Legacy Test Migration
+title: Legacy Test Adapter Migration
 parent: Testing
 nav_order: 6
 ---
@@ -11,11 +11,19 @@ This guide shows how to migrate from the legacy `Ductus.FluentDocker.XUnit` and
 `Ductus.FluentDocker.MsTest` packages to the new `FluentDocker.Testing.Core` system
 with framework adapters.
 
+> **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
+> it from source — see [Consume the preview](../getting-started.md#consume-the-preview). The latest published package
+> is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
+
+> **Scope:** migrating the legacy test **adapter packages** to `FluentDocker.Testing.*`.
+> To migrate your v2 test **code** to the v3 builder API, see
+> [Test Code Migration](../migrate-v2-to-v3/test-migration.md).
+
 ## Step by Step
 
 - Basics: [Package Changes](#package-changes), [Why Migrate?](#why-migrate)
 - Intermediate: [xUnit: FluentDockerTestBase to XunitContainerFixture](#xunit-fluentdockertestbase-to-xunitcontainerfixture), [MSTest: FluentDockerTestBase to MsTestResourceHelpers](#mstest-fluentdockertestbase-to-mstestresourcehelpers)
-- Advanced: [Legacy PostgresTestBase to Plugin Pattern](#legacy-postgrestestbase-to-plugin-pattern), [Driver Selection](#driver-selection)
+- Advanced: [Legacy PostgresTestBase to Custom Fixture](#legacy-postgrestestbase-to-custom-fixture), [Driver Selection](#driver-selection)
 
 ## Package Changes
 
@@ -33,7 +41,7 @@ The legacy packages have been removed. Use the new packages listed above.
   constructors.
 - **Driver selection**: Choose Docker CLI, Docker API, or Podman CLI per test.
 - **Diagnostics**: Automatic log capture and inspect data on failure.
-- **Plugin ecosystem**: Use external plugins for Postgres, Redis, etc.
+- **Custom fixtures**: Configure Postgres, Redis, and similar dependencies directly.
 - **Lifecycle hooks**: Before/after initialize and dispose callbacks.
 - **Capability checks**: Preflight validation before provisioning.
 
@@ -101,7 +109,7 @@ public class RedisTests : IClassFixture<RedisFixture>
 }
 ```
 
-> **Tip:** For new code, prefer the `Configure()` pattern shown in [xUnit Testing](../testing/xunit.html) which avoids the `GetAwaiter().GetResult()` blocking call.
+> **Tip:** For new code, prefer the `Configure()` pattern shown in [xUnit Testing](../testing/xunit.md) which avoids the `GetAwaiter().GetResult()` blocking call.
 
 **What changed:**
 
@@ -232,7 +240,7 @@ public class ComposeTests
 
 ---
 
-## Legacy PostgresTestBase to Plugin Pattern
+## Legacy PostgresTestBase to Custom Fixture
 
 ### Before (legacy)
 
@@ -252,10 +260,10 @@ public class MyDbTests : PostgresTestBase
 }
 ```
 
-### After (plugin pattern)
+### After (custom fixture)
 
 Technology-specific fixtures like `PostgresTestBase` are no longer in core.
-Use an external plugin or configure the container directly:
+Configure the container directly:
 
 ```csharp
 using FluentDocker.Testing.MsTest;
@@ -302,16 +310,6 @@ public class MyDbTests
         conn.Open();
     }
 }
-```
-
-Or use a plugin package like `FluentDocker.Testing.Plugin.Postgres` when
-available:
-
-```csharp
-var host = new TestPluginHost();
-host.Add(new PostgresPlugin(kernel));
-var resource = host.Create<ContainerResource>("postgres");
-await resource.InitializeAsync();
 ```
 
 ---

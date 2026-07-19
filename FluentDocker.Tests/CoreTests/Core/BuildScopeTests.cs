@@ -2,7 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Kernel;
-using FluentDocker.Model.Kernel;
 using FluentDocker.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -85,7 +84,7 @@ namespace FluentDocker.Tests.CoreTests.Core
       var scope = new BuildScope(kernel, "docker");
 
       // Act
-      scope.AddResult(null);
+      scope.AddResult(null!);
 
       // Assert
       Assert.Empty(scope.Results);
@@ -118,7 +117,7 @@ namespace FluentDocker.Tests.CoreTests.Core
     {
       public string Name { get; } = name;
       public ServiceRunningState State => ServiceRunningState.Unknown;
-      public FluentDockerKernel Kernel => null;
+      public FluentDockerKernel Kernel => null!;
       public string DriverId => "mock";
 
       public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -127,9 +126,9 @@ namespace FluentDocker.Tests.CoreTests.Core
       public Task RemoveAsync(bool force = false, CancellationToken cancellationToken = default) => Task.CompletedTask;
       public IServiceAsync AddHook(ServiceRunningState state, Func<IServiceAsync, Task> hook, string? uniqueName = null) => this;
       public IServiceAsync RemoveHook(string? uniqueName) => this;
-#pragma warning disable CS0067
+#pragma warning disable CS0067, CS8618 // fake service: event never raised, never assigned
       public event ServiceDelegates.StateChange StateChange;
-#pragma warning restore CS0067
+#pragma warning restore CS0067, CS8618
       public void Dispose() { }
       public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

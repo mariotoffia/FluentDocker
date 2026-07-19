@@ -9,9 +9,11 @@ namespace FluentDocker.Testing.Xunit
 {
   /// <summary>
   /// Generic xUnit fixture for any <see cref="ITestResource"/>.
-  /// Use this for plugin resources or custom resource types.
-  /// Use with <c>IClassFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c> or
-  /// <c>ICollectionFixture&lt;XunitResourceFixture&lt;TResource&gt;&gt;</c>.
+  /// Subclass this fixture, call <see cref="Configure"/> in the subclass
+  /// constructor, then register that subclass with
+  /// <c>IClassFixture&lt;YourFixture&gt;</c> or
+  /// <c>ICollectionFixture&lt;YourFixture&gt;</c>. Registering the open generic
+  /// directly fails because xUnit cannot call <see cref="Configure"/> for you.
   /// </summary>
   /// <remarks>
   /// <para>For container, compose, or topology resources, prefer the typed
@@ -83,7 +85,7 @@ namespace FluentDocker.Testing.Xunit
         throw new InvalidOperationException(
             $"{GetType().Name} has not been configured. " +
             "Call Configure() in the fixture constructor.");
-      await InitializeAsync(_deferredFactory!, _deferredKernelFactory);
+      await InitializeAsync(_deferredFactory!, _deferredKernelFactory).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -101,9 +103,10 @@ namespace FluentDocker.Testing.Xunit
         throw new InvalidOperationException(
             "Fixture has already been initialized. Dispose before re-initializing.");
 
+      // ponytail: xUnit v3 invokes fixture InitializeAsync once; keep only sequential misuse guard.
       var (kernel, resource) = await ResourceLifecycle.CreateAndInitializeAsync(
           resourceFactory, kernelFactory!,
-          cancellationToken: cancellationToken);
+          cancellationToken: cancellationToken).ConfigureAwait(false);
 
       _kernel = kernel;
       _resource = resource;
@@ -112,16 +115,12 @@ namespace FluentDocker.Testing.Xunit
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-      try
-      {
-        await ResourceLifecycle.DisposeAsync(_resource!, _kernel!);
-      }
-      finally
-      {
-        _resource = null;
-        _kernel = null;
-      }
-
+      // Clear handles only AFTER successful disposal. If cleanup throws, the public
+      // Resource/Kernel handles stay available for LastTeardownDiagnostics, retry, or
+      // manual cleanup, and the exception propagates.
+      await ResourceLifecycle.DisposeAsync(_resource!, _kernel!).ConfigureAwait(false);
+      _resource = null;
+      _kernel = null;
       GC.SuppressFinalize(this);
     }
 

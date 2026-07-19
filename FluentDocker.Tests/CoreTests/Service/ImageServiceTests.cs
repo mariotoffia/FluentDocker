@@ -75,7 +75,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
-      var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", null);
+      var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", null!);
 
       Assert.Equal("latest", service.Tag);
       kernel.Dispose();
@@ -101,7 +101,7 @@ namespace FluentDocker.Tests.CoreTests.Service
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
 
-      var service = new ImageService(kernel, "docker", "sha256:abc123", null, "latest");
+      var service = new ImageService(kernel, "docker", "sha256:abc123", null!, "latest");
 
       Assert.Equal("sha256:abc123", service.FullName);
       kernel.Dispose();
@@ -326,24 +326,24 @@ namespace FluentDocker.Tests.CoreTests.Service
     #region Unsupported Operation Tests
 
     [Fact]
-    public async Task PauseAsync_ThrowsNotSupportedException()
+    public async Task PauseAsync_ThrowsFluentDockerNotSupportedException()
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
-      await Assert.ThrowsAsync<NotSupportedException>(
+      await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
           async () => await service.PauseAsync(TestContext.Current.CancellationToken));
 
       kernel.Dispose();
     }
 
     [Fact]
-    public async Task StopAsync_ThrowsNotSupportedException()
+    public async Task StopAsync_ThrowsFluentDockerNotSupportedException()
     {
       var kernel = new FluentDockerKernel(new DriverRegistry(NullLoggerFactory.Instance), NullLoggerFactory.Instance);
       var service = new ImageService(kernel, "docker", "sha256:abc123", "nginx", "latest");
 
-      await Assert.ThrowsAsync<NotSupportedException>(
+      await Assert.ThrowsAsync<FluentDockerNotSupportedException>(
           async () => await service.StopAsync(TestContext.Current.CancellationToken));
 
       kernel.Dispose();

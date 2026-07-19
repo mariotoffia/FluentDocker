@@ -8,6 +8,6 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   internal sealed class DockerApiErrorResponse
   {
     [JsonPropertyName("message")]
-    public string Message { get; set; }
+    public string? Message { get; set; }
   }
 }

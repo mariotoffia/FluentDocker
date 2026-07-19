@@ -32,7 +32,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     /// <param name="loggerFactory">Optional logger factory; defaults to
     /// <see cref="NullLoggerFactory.Instance"/> when omitted. The Docker CLI
     /// driver pack supplies the consumer-provided factory automatically.</param>
-    public DockerBinariesResolver(BinaryConfiguration configuration, ILoggerFactory loggerFactory = null)
+    public DockerBinariesResolver(BinaryConfiguration configuration, ILoggerFactory? loggerFactory = null)
     {
       _configuration = configuration ?? new BinaryConfiguration();
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<DockerBinariesResolver>();
@@ -43,20 +43,23 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
           _configuration.BinaryName,
           _configuration.SearchPaths)];
 
-      MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient);
-      MainDockerCompose = CheckCompose(_configuration.Sudo, _configuration.SudoPassword);
-      MainDockerCli = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.Cli);
+      // Validated non-null by the guard below before the constructor returns; the interface
+      // exposes MainDockerClient as non-null, so keep the invariant rather than widen the type.
+      MainDockerClient = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.DockerClient)!;
+      // Docker Desktop's dockercli is optional; the interface contract is non-null and the only
+      // reader (Resolve) guards with '?? throw', so conform to that contract here.
+      MainDockerCli = Binaries.FirstOrDefault(x => x.Type == DockerBinaryType.Cli)!;
 
       if (MainDockerClient == null)
       {
-        _logger.LogError("Failed to find docker client binary - please add it to your path");
-        throw new FluentDockerException("Failed to find docker client binary - please add it to your path");
+        var reason = "Failed to find docker client binary - please add it to your path";
+        var driverId = string.IsNullOrWhiteSpace(_configuration.BinaryName)
+            ? "docker" : _configuration.BinaryName;
+        _logger.LogError("{Reason}", reason);
+        throw new DriverNotAvailableException(driverId, reason);
       }
 
-      if (MainDockerCompose == null)
-      {
-        _logger.LogWarning("Docker Compose (docker compose) is not available - compose features will not work");
-      }
+      _logger.LogDebug("Docker Compose availability is verified lazily when compose commands run");
     }
 
     /// <summary>
@@ -82,50 +85,73 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
     public DockerBinary MainDockerClient { get; }
 
     /// <inheritdoc />
-    public DockerBinary MainDockerCompose { get; }
-
-    /// <inheritdoc />
     public DockerBinary MainDockerCli { get; }
 
     /// <inheritdoc />
-    public bool IsDockerComposeAvailable => MainDockerCompose != null;
-
-    /// <inheritdoc />
+    /// <exception cref="FluentDockerException">
+    /// The name is unknown, or the binary was not found on the local system.
+    /// </exception>
     public DockerBinary Resolve(string binary)
     {
-      var type = DockerBinary.Translate(binary);
+      ArgumentException.ThrowIfNullOrWhiteSpace(binary);
+
+      // A configured custom client name (nerdctl, finch, …) is resolvable by that name:
+      // discovery mapped it to DockerClient, so the Translate-unknown path must not reject
+      // the very binary the configuration selected.
+      if (MatchesConfiguredClientName(binary))
+      {
+        return MainDockerClient ?? throw new FluentDockerException(
+            $"Could not resolve binary {binary} - is it installed on the local system?");
+      }
+
+      DockerBinaryType type;
+      try
+      {
+        type = DockerBinary.Translate(binary);
+      }
+      catch (ArgumentException ex)
+      {
+        // Keep the documented exception surface: unknown names are a FluentDockerException,
+        // not a raw ArgumentException from the Translate helper.
+        throw new FluentDockerException($"Cannot resolve unknown binary {binary}", ex);
+      }
 
       var resolved = type switch
       {
-        DockerBinaryType.Compose => MainDockerCompose,
+        DockerBinaryType.Compose => MainDockerClient,
         DockerBinaryType.DockerClient => MainDockerClient,
         DockerBinaryType.Cli => MainDockerCli,
-        _ => throw new FluentDockerException($"Cannot resolve unknown binary {binary}"),
+        _ => null,
       } ?? throw new FluentDockerException($"Could not resolve binary {binary} - is it installed on the local system?");
 
       return resolved;
     }
 
+    private bool MatchesConfiguredClientName(string binary)
+    {
+      if (string.IsNullOrWhiteSpace(_configuration.BinaryName))
+        return false;
+
+      static string Normalize(string name) =>
+          name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name;
+      return string.Equals(
+          Normalize(binary), Normalize(_configuration.BinaryName), StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <inheritdoc />
     /// <remarks>
-    /// Returns the binary path with sudo prefix when configured.
-    /// The sudo password is never included in the returned string for security reasons.
-    /// Use <see cref="Resolve"/> to access the full <see cref="DockerBinary"/> with sudo details.
+    /// Returns only the executable path. Use <see cref="Resolve"/> to access sudo details;
+    /// a sudo prefix is not a valid <see cref="ProcessStartInfo.FileName"/>.
     /// </remarks>
     public string ResolveBinaryPath(string dockerCommand)
     {
       var binary = Resolve(dockerCommand);
 
-      if (IsWindows() || binary.Sudo == SudoMechanism.None)
-        return binary.FqPath;
-
-      return binary.Sudo == SudoMechanism.NoPassword
-          ? $"sudo {binary.FqPath}"
-          : $"sudo -S {binary.FqPath}";
+      return binary.FqPath;
     }
 
     private IEnumerable<DockerBinary> ResolveFromPaths(
-        SudoMechanism sudo, string password, string binaryName, params string[] paths)
+        SudoMechanism sudo, string? password, string? binaryName, params string[]? paths)
     {
       var isWindows = IsWindows();
       var clientName = string.IsNullOrWhiteSpace(binaryName) ? "docker" : binaryName;
@@ -146,8 +172,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       var clientFile = isWindows ? $"{clientName}.exe" : clientName;
 
       var list = new List<DockerBinary>();
-      foreach (var path in paths)
+      foreach (var rawPath in paths)
       {
+        var path = StripSurroundingQuotes(rawPath);
         try
         {
           if (!Directory.Exists(path))
@@ -160,7 +187,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
             list.AddRange(from file in Directory.GetFiles(path, $"{clientName}*.*")
                           let f = Path.GetFileName(file)
                           where f != null && f.Equals(clientFile, StringComparison.OrdinalIgnoreCase)
-                          select new DockerBinary(path, f, sudo, password, DockerBinaryType.DockerClient));
+                          select new DockerBinary(path, f, sudo, password!, DockerBinaryType.DockerClient));
 
             // Docker Desktop's dockercli.exe is docker-specific; skip for custom binaries.
             if (isDocker)
@@ -168,7 +195,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
               var dockercli = Path.GetFullPath(Path.Combine(path, "..\\.."));
               if (File.Exists(Path.Combine(dockercli, "dockercli.exe")))
               {
-                list.Add(new DockerBinary(dockercli, "dockercli.exe", sudo, password));
+                list.Add(new DockerBinary(dockercli, "dockercli.exe", sudo, password!));
               }
             }
 
@@ -177,8 +204,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
 
           list.AddRange(from file in Directory.GetFiles(path, $"{clientName}*")
                         let f = Path.GetFileName(file)
-                        where f.Equals(clientFile, StringComparison.Ordinal)
-                        select new DockerBinary(path, f, sudo, password, DockerBinaryType.DockerClient));
+                        where f.Equals(clientFile, StringComparison.Ordinal) && IsExecutable(file)
+                        select new DockerBinary(path, f, sudo, password!, DockerBinaryType.DockerClient));
         }
         catch (Exception e)
         {
@@ -189,57 +216,27 @@ namespace FluentDocker.Drivers.Docker.Cli.Binary
       return list;
     }
 
-    private DockerBinary CheckCompose(SudoMechanism sudo, string password)
+    private static string StripSurroundingQuotes(string path)
     {
-      if (MainDockerClient == null)
-        return null;
+      return path is { Length: >= 2 } && path[0] == '"' && path[^1] == '"'
+          ? path[1..^1]
+          : path;
+    }
+
+    private static bool IsExecutable(string file)
+    {
+      if (OperatingSystem.IsWindows())
+        return File.Exists(file);
 
       try
       {
-        using var process = new Process
-        {
-          StartInfo = new ProcessStartInfo
-          {
-            FileName = MainDockerClient.FqPath,
-            Arguments = "compose version",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-          }
-        };
-
-        process.Start();
-        // Read stdout and stderr concurrently to avoid deadlock
-        // when either pipe buffer fills up.
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-        var errorTask = process.StandardError.ReadToEndAsync();
-        // Wait for exit first with timeout — ReadToEndAsync completes
-        // only after the process closes its pipes (i.e. exits).
-        if (!process.WaitForExit(10_000))
-        {
-          try
-          { process.Kill(); }
-          catch { /* best effort */ }
-          return null;
-        }
-        var output = outputTask.GetAwaiter().GetResult();
-        errorTask.GetAwaiter().GetResult();
-
-        if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output))
-        {
-          return new DockerBinary(
-              Path.GetDirectoryName(MainDockerClient.FqPath),
-              Path.GetFileName(MainDockerClient.FqPath),
-              sudo, password, DockerBinaryType.Compose);
-        }
+        var mode = File.GetUnixFileMode(file);
+        return (mode & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0;
       }
-      catch (Exception ex)
+      catch
       {
-        _logger.LogDebug(ex, "Docker Compose plugin is not available");
+        return false;
       }
-
-      return null;
     }
   }
 }

@@ -7,10 +7,11 @@ using FluentDocker.Services.Impl;
 using FluentDocker.Extensions;
 using FluentDocker.Kernel;
 using FluentDocker.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Simple
 {
-  class Program
+  sealed class Program
   {
     private const string DriverId = "docker";
 
@@ -25,7 +26,7 @@ namespace Simple
 
     private static Task<FluentDockerKernel> CreateKernelAsync()
     {
-      return FluentDockerKernel.Create()
+      return FluentDockerKernel.Create(NullLoggerFactory.Instance)
         .WithDockerCli(DriverId, d => d.AsDefault())
         .BuildAsync();
     }
@@ -35,13 +36,13 @@ namespace Simple
       await using var results = await new Builder()
         .WithinDriver(DriverId, kernel)
         .UseContainer(c => c
-          .UseImage("postgres:9.6-alpine")
+          .UseImage("postgres:16-alpine")
           .ExposePort("5432/tcp")
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .WaitForPort("5432/tcp", 30000))
         .BuildAsync();
 
-      var container = results.Containers.First();
+      var container = results.Containers[0];
       var config = await container.InspectAsync();
       var running = ServiceRunningState.Running == config.State.ToServiceState();
 
@@ -94,7 +95,7 @@ namespace Simple
       await using var results = await new Builder()
         .WithinDriver(DriverId, kernel)
         .UseContainer(c => c
-          .UseImage("postgres:9.6-alpine")
+          .UseImage("postgres:16-alpine")
           .ExposePort("5432/tcp")
           .WithEnvironment("POSTGRES_PASSWORD=mysecretpassword")
           .WaitForPort("5432/tcp", 30000))
@@ -102,7 +103,7 @@ namespace Simple
 
       Console.WriteLine("Build container: " + TimeSpan.FromMilliseconds(stopwatch.ElapsedMilliseconds).TotalSeconds);
 
-      var container = results.Containers.First();
+      var container = results.Containers[0];
 
       stopwatch.Restart();
       var config = await container.InspectAsync();

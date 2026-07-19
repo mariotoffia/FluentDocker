@@ -9,8 +9,13 @@ namespace FluentDocker.Services
   /// </summary>
   public enum EngineScopeType
   {
+    /// <summary>The daemon scope could not be determined.</summary>
     Unknown = 0,
+
+    /// <summary>The daemon is running Windows containers.</summary>
     Windows = 1,
+
+    /// <summary>The daemon is running Linux containers.</summary>
     Linux = 2
   }
 
@@ -18,6 +23,11 @@ namespace FluentDocker.Services
   /// Async interface for switching Docker daemon between Windows and Linux modes.
   /// This is primarily for Docker Desktop on Windows.
   /// </summary>
+  /// <remarks>
+  /// Implementations are not designed for concurrent lifecycle calls on the same scope instance.
+  /// Disposing a scope restores the daemon to the scope detected at creation time. If the initial
+  /// scope cannot be detected, restore is skipped and logged by the implementation.
+  /// </remarks>
   public interface IEngineScope : IDisposable, IAsyncDisposable
   {
     /// <summary>
@@ -48,4 +58,3 @@ namespace FluentDocker.Services
     Task<bool> UseWindowsAsync(CancellationToken cancellationToken = default);
   }
 }
-

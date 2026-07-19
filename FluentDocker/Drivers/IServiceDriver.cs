@@ -1,14 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers
 {
   /// <summary>
-  /// Service management for orchestrated services (Docker Swarm, Kubernetes).
-  /// Supported by: Docker Swarm, Kubernetes (partial)
+  /// Service management for orchestrated services (Docker Swarm).
+  /// Supported by: Docker Swarm.
   /// Not supported by: Podman (use pods instead)
   /// </summary>
   public partial interface IServiceDriver
@@ -22,6 +24,14 @@ namespace FluentDocker.Drivers
     /// <param name="config">Service configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Service create result</returns>
+    /// <remarks>
+    /// Docker API sends registry credentials from the current auth cache as
+    /// <c>X-Registry-Auth</c> when available. Transport failures return
+    /// <see cref="ErrorCodes.Api.ConnectionFailed"/>.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<ServiceCreateResult>> CreateAsync(
         DriverContext context,
         ServiceCreateConfig config,
@@ -45,6 +55,14 @@ namespace FluentDocker.Drivers
     /// <param name="serviceId">Service ID or name</param>
     /// <param name="config">Update configuration</param>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <remarks>
+    /// Docker API sends registry credentials from the current auth cache as
+    /// <c>X-Registry-Auth</c> when a cached credential matches the image's registry.
+    /// Transport failures return <see cref="ErrorCodes.Api.ConnectionFailed"/>.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is canceled by the caller.
+    /// </exception>
     Task<CommandResponse<Unit>> UpdateAsync(
         DriverContext context,
         string serviceId,
@@ -64,7 +82,7 @@ namespace FluentDocker.Drivers
     /// <returns>List of services</returns>
     Task<CommandResponse<IList<ServiceInfo>>> ListAsync(
         DriverContext context,
-        ServiceListFilter filter = null,
+        ServiceListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -72,7 +90,12 @@ namespace FluentDocker.Drivers
     /// </summary>
     /// <param name="context">Driver context</param>
     /// <param name="serviceId">Service ID or name</param>
-    /// <param name="pretty">Format output for readability</param>
+    /// <param name="pretty">
+    /// When <c>true</c>, the CLI's human-readable rendering is returned in
+    /// <see cref="ServiceDetails.Pretty"/> and the structured fields (other than
+    /// <see cref="ServiceDetails.Id"/>) are NOT populated — the pretty format is not
+    /// machine-parseable. Use the default <c>false</c> for structured details.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Service details</returns>
     Task<CommandResponse<ServiceDetails>> InspectAsync(
@@ -92,21 +115,22 @@ namespace FluentDocker.Drivers
   public class ServiceInfo
   {
     /// <summary>Service ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Service name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Service mode (replicated, global).</summary>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
 
     /// <summary>Replicas status (e.g., "3/3").</summary>
-    public string Replicas { get; set; }
+    public string? Replicas { get; set; }
 
     /// <summary>Image used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Ports exposed.</summary>
+    [JsonConverter(typeof(LenientStringListConverter))]
     public List<string> Ports { get; set; } = [];
   }
 
@@ -116,28 +140,35 @@ namespace FluentDocker.Drivers
   public class ServiceDetails
   {
     /// <summary>Service ID.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// The CLI's human-readable inspect rendering. Populated ONLY when
+    /// <c>InspectAsync(..., pretty: true)</c> was requested; <c>null</c> otherwise.
+    /// When set, the structured fields (except <see cref="Id"/>) are not populated.
+    /// </summary>
+    public string? Pretty { get; set; }
 
     /// <summary>Service version.</summary>
     public long Version { get; set; }
 
     /// <summary>Service name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Service mode (replicated, global).</summary>
-    public string Mode { get; set; }
+    public string? Mode { get; set; }
 
     /// <summary>Number of replicas.</summary>
     public int Replicas { get; set; }
 
     /// <summary>Image used.</summary>
-    public string Image { get; set; }
+    public string? Image { get; set; }
 
     /// <summary>Command.</summary>
-    public string[] Command { get; set; }
+    public string[]? Command { get; set; }
 
     /// <summary>Arguments.</summary>
-    public string[] Args { get; set; }
+    public string[]? Args { get; set; }
 
     /// <summary>Environment variables.</summary>
     public Dictionary<string, string> Environment { get; set; } = [];
@@ -155,28 +186,30 @@ namespace FluentDocker.Drivers
     public List<ServiceMount> Mounts { get; set; } = [];
 
     /// <summary>Update configuration.</summary>
-    public ServiceUpdateSettings UpdateConfig { get; set; }
+    public ServiceUpdateSettings? UpdateConfig { get; set; }
 
     /// <summary>Rollback configuration.</summary>
-    public ServiceUpdateSettings RollbackConfig { get; set; }
+    public ServiceUpdateSettings? RollbackConfig { get; set; }
 
     /// <summary>Resource limits.</summary>
-    public ServiceResources Limits { get; set; }
+    public ServiceResources? Limits { get; set; }
 
     /// <summary>Resource reservations.</summary>
-    public ServiceResources Reservations { get; set; }
+    public ServiceResources? Reservations { get; set; }
 
     /// <summary>Placement constraints.</summary>
     public List<string> Constraints { get; set; } = [];
 
     /// <summary>Creation time.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime CreatedAt { get; set; }
 
     /// <summary>Last update time.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime UpdatedAt { get; set; }
 
     /// <summary>Raw JSON.</summary>
-    public string RawJson { get; set; }
+    public string? RawJson { get; set; }
   }
 
   /// <summary>
@@ -203,13 +236,13 @@ namespace FluentDocker.Drivers
   public class ServiceMount
   {
     /// <summary>Mount type (bind, volume, tmpfs).</summary>
-    public string Type { get; set; }
+    public string? Type { get; set; }
 
     /// <summary>Source path or volume name.</summary>
-    public string Source { get; set; }
+    public string? Source { get; set; }
 
     /// <summary>Target path in container.</summary>
-    public string Target { get; set; }
+    public string? Target { get; set; }
 
     /// <summary>Read-only flag.</summary>
     public bool ReadOnly { get; set; }
@@ -224,19 +257,19 @@ namespace FluentDocker.Drivers
     public int Parallelism { get; set; }
 
     /// <summary>Delay between updates.</summary>
-    public string Delay { get; set; }
+    public string? Delay { get; set; }
 
     /// <summary>Failure action (pause, continue, rollback).</summary>
-    public string FailureAction { get; set; }
+    public string? FailureAction { get; set; }
 
     /// <summary>Monitor period after update.</summary>
-    public string Monitor { get; set; }
+    public string? Monitor { get; set; }
 
     /// <summary>Maximum failure ratio.</summary>
     public double MaxFailureRatio { get; set; }
 
     /// <summary>Order (stop-first, start-first).</summary>
-    public string Order { get; set; }
+    public string? Order { get; set; }
   }
 
   /// <summary>
@@ -245,234 +278,10 @@ namespace FluentDocker.Drivers
   public class ServiceResources
   {
     /// <summary>CPU limit/reservation (e.g., "0.5").</summary>
-    public string Cpu { get; set; }
+    public string? Cpu { get; set; }
 
     /// <summary>Memory limit/reservation (e.g., "512M").</summary>
-    public string Memory { get; set; }
-  }
-
-  #endregion
-
-  #region Config Types
-
-  /// <summary>
-  /// Configuration for creating a service.
-  /// </summary>
-  public class ServiceCreateConfig
-  {
-    /// <summary>Service name.</summary>
-    public string Name { get; set; }
-
-    /// <summary>Image to use.</summary>
-    public string Image { get; set; }
-
-    /// <summary>Command to run.</summary>
-    public string[] Command { get; set; }
-
-    /// <summary>Arguments to command.</summary>
-    public string[] Args { get; set; }
-
-    /// <summary>Number of replicas.</summary>
-    public int? Replicas { get; set; }
-
-    /// <summary>Service mode (replicated, global).</summary>
-    public string Mode { get; set; }
-
-    /// <summary>Environment variables.</summary>
-    public Dictionary<string, string> Environment { get; set; } = [];
-
-    /// <summary>Labels.</summary>
-    public Dictionary<string, string> Labels { get; set; } = [];
-
-    /// <summary>Container labels.</summary>
-    public Dictionary<string, string> ContainerLabels { get; set; } = [];
-
-    /// <summary>Published ports.</summary>
-    public List<ServicePort> Ports { get; set; } = [];
-
-    /// <summary>Networks to attach.</summary>
-    public List<string> Networks { get; set; } = [];
-
-    /// <summary>Mounts.</summary>
-    public List<ServiceMount> Mounts { get; set; } = [];
-
-    /// <summary>Working directory.</summary>
-    public string WorkDir { get; set; }
-
-    /// <summary>User to run as.</summary>
-    public string User { get; set; }
-
-    /// <summary>Placement constraints.</summary>
-    public List<string> Constraints { get; set; } = [];
-
-    /// <summary>Resource limits.</summary>
-    public ServiceResources Limits { get; set; }
-
-    /// <summary>Resource reservations.</summary>
-    public ServiceResources Reservations { get; set; }
-
-    /// <summary>Update configuration.</summary>
-    public ServiceUpdateSettings UpdateConfig { get; set; }
-
-    /// <summary>Rollback configuration.</summary>
-    public ServiceUpdateSettings RollbackConfig { get; set; }
-
-    /// <summary>Restart condition (none, on-failure, any).</summary>
-    public string RestartCondition { get; set; }
-
-    /// <summary>Restart delay.</summary>
-    public string RestartDelay { get; set; }
-
-    /// <summary>Maximum restart attempts.</summary>
-    public int? RestartMaxAttempts { get; set; }
-
-    /// <summary>Restart window.</summary>
-    public string RestartWindow { get; set; }
-
-    /// <summary>Health check command.</summary>
-    public string HealthCmd { get; set; }
-
-    /// <summary>Health check interval.</summary>
-    public string HealthInterval { get; set; }
-
-    /// <summary>Health check timeout.</summary>
-    public string HealthTimeout { get; set; }
-
-    /// <summary>Health check retries.</summary>
-    public int? HealthRetries { get; set; }
-
-    /// <summary>Health check start period.</summary>
-    public string HealthStartPeriod { get; set; }
-
-    /// <summary>Secrets to expose.</summary>
-    public List<string> Secrets { get; set; } = [];
-
-    /// <summary>Configs to expose.</summary>
-    public List<string> Configs { get; set; } = [];
-
-    /// <summary>Log driver.</summary>
-    public string LogDriver { get; set; }
-
-    /// <summary>Log driver options.</summary>
-    public Dictionary<string, string> LogOpts { get; set; } = [];
-
-    /// <summary>Endpoint mode (vip, dnsrr).</summary>
-    public string EndpointMode { get; set; }
-
-    /// <summary>Stop grace period.</summary>
-    public string StopGracePeriod { get; set; }
-
-    /// <summary>Detach immediately.</summary>
-    public bool Detach { get; set; }
-
-    /// <summary>Quiet mode.</summary>
-    public bool Quiet { get; set; }
-  }
-
-  /// <summary>
-  /// Configuration for updating a service.
-  /// </summary>
-  public class ServiceUpdateConfig
-  {
-    /// <summary>New image.</summary>
-    public string Image { get; set; }
-
-    /// <summary>Environment variables to add.</summary>
-    public Dictionary<string, string> EnvAdd { get; set; } = [];
-
-    /// <summary>Environment variables to remove.</summary>
-    public List<string> EnvRm { get; set; } = [];
-
-    /// <summary>Labels to add.</summary>
-    public Dictionary<string, string> LabelAdd { get; set; } = [];
-
-    /// <summary>Labels to remove.</summary>
-    public List<string> LabelRm { get; set; } = [];
-
-    /// <summary>Mounts to add.</summary>
-    public List<ServiceMount> MountAdd { get; set; } = [];
-
-    /// <summary>Mounts to remove.</summary>
-    public List<string> MountRm { get; set; } = [];
-
-    /// <summary>Ports to add.</summary>
-    public List<ServicePort> PublishAdd { get; set; } = [];
-
-    /// <summary>Ports to remove.</summary>
-    public List<int> PublishRm { get; set; } = [];
-
-    /// <summary>Constraints to add.</summary>
-    public List<string> ConstraintAdd { get; set; } = [];
-
-    /// <summary>Constraints to remove.</summary>
-    public List<string> ConstraintRm { get; set; } = [];
-
-    /// <summary>Networks to add.</summary>
-    public List<string> NetworkAdd { get; set; } = [];
-
-    /// <summary>Networks to remove.</summary>
-    public List<string> NetworkRm { get; set; } = [];
-
-    /// <summary>Number of replicas.</summary>
-    public int? Replicas { get; set; }
-
-    /// <summary>Resource limits.</summary>
-    public ServiceResources Limits { get; set; }
-
-    /// <summary>Resource reservations.</summary>
-    public ServiceResources Reservations { get; set; }
-
-    /// <summary>Force update even if no changes.</summary>
-    public bool Force { get; set; }
-
-    /// <summary>Rollback to previous specification.</summary>
-    public bool Rollback { get; set; }
-
-    /// <summary>Detach immediately.</summary>
-    public bool Detach { get; set; }
-
-    /// <summary>Quiet mode.</summary>
-    public bool Quiet { get; set; }
-  }
-
-  /// <summary>
-  /// Filter for listing services.
-  /// </summary>
-  public class ServiceListFilter
-  {
-    /// <summary>Filter by service ID.</summary>
-    public string Id { get; set; }
-
-    /// <summary>Filter by service name.</summary>
-    public string Name { get; set; }
-
-    /// <summary>Filter by label.</summary>
-    public Dictionary<string, string> Labels { get; set; } = [];
-
-    /// <summary>Filter by mode.</summary>
-    public string Mode { get; set; }
-
-    /// <summary>Output format.</summary>
-    public string Format { get; set; }
-
-    /// <summary>Only display service IDs.</summary>
-    public bool Quiet { get; set; }
-  }
-
-  #endregion
-
-  #region Result Types
-
-  /// <summary>
-  /// Result of a service create operation.
-  /// </summary>
-  public class ServiceCreateResult
-  {
-    /// <summary>Service ID.</summary>
-    public string Id { get; set; }
-
-    /// <summary>Warnings from the operation.</summary>
-    public List<string> Warnings { get; set; } = [];
+    public string? Memory { get; set; }
   }
 
   #endregion

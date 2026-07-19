@@ -8,10 +8,10 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
+using FluentDocker.Drivers.Connection;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FluentDocker.Drivers.Docker.Api.Components
 {
@@ -19,33 +19,33 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   /// Docker API implementation of IStreamDriver.
   /// Uses streaming endpoints for logs, events, stats, and attach.
   /// </summary>
-  public class DockerApiStreamDriver : DockerApiDriverBase, IStreamDriver
+  public partial class DockerApiStreamDriver : DockerApiDriverBase, IStreamDriver
   {
-    /// <summary>Maximum allowed frame size in the Docker multiplexed stream protocol (10 MB).</summary>
-    private const int MaxFrameSizeBytes = 10 * 1024 * 1024;
-
+    /// <summary>Initializes a Docker API stream driver.</summary>
     public DockerApiStreamDriver(IDockerApiConnection connection) : base(connection) { }
 
+    /// <inheritdoc />
     public async IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context, string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       await foreach (var entry in StreamEntriesAsync(containerId, config, cancellationToken)
           .ConfigureAwait(false))
       {
-        yield return entry.Line;
+        yield return entry.Line ?? string.Empty;
       }
     }
 
     /// <summary>
     /// Streams source-tagged log entries. The originating stream (stdout/stderr) is taken
     /// from the Docker multiplexed stream header, which the line-based <see cref="StreamLogsAsync"/>
-    /// discards.
+    /// discards. Each yielded item is frame-granular unless the Docker frame itself contains
+    /// newline-separated lines.
     /// </summary>
     public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
         DriverContext context, string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       await foreach (var entry in StreamEntriesAsync(containerId, config, cancellationToken)
@@ -58,10 +58,10 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private static string BuildLogsPath(string containerId, StreamLogsConfig config)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/logs?" +
-          $"follow={config.Follow.ToString().ToLower()}" +
-          $"&stdout={config.Stdout.ToString().ToLower()}" +
-          $"&stderr={config.Stderr.ToString().ToLower()}" +
-          $"&timestamps={config.Timestamps.ToString().ToLower()}";
+          $"follow={config.Follow.ToString().ToLowerInvariant()}" +
+          $"&stdout={config.Stdout.ToString().ToLowerInvariant()}" +
+          $"&stderr={config.Stderr.ToString().ToLowerInvariant()}" +
+          $"&timestamps={config.Timestamps.ToString().ToLowerInvariant()}";
 
       if (config.Tail.HasValue)
         path += $"&tail={config.Tail.Value}";
@@ -73,7 +73,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     private async IAsyncEnumerable<LogEntry> StreamEntriesAsync(
-        string containerId, StreamLogsConfig config,
+        string containerId, StreamLogsConfig? config,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       config ??= new StreamLogsConfig();
@@ -84,18 +84,40 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         stream = await Connection.GetStreamAsync(path, cancellationToken).ConfigureAwait(false);
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
         Logger.LogError(ex, "Docker log stream open failed");
-        yield break;
+        throw new DriverException(
+            $"Failed to open Docker log stream for container '{containerId}': {ex.Message}",
+            ClassifyStreamException(ex), ex);
       }
 
-      // Docker log streams use multiplexed format with 8-byte headers
-      // unless the container was started with TTY mode.
       // Use try/finally to dispose the stream when the caller breaks out.
       try
       {
-        await foreach (var entry in ReadMultiplexedStreamAsync(stream, cancellationToken))
+        var contentType = (stream as ResponseOwningStream)?.ContentType;
+        if (UseLogContentType(contentType))
+        {
+          var multiplexed = string.Equals(contentType,
+              MultiplexedStreamContentType, StringComparison.OrdinalIgnoreCase);
+          await foreach (var entry in ReadMultiplexedStreamAsync(
+              stream, !multiplexed, sniffOnInvalidHeader: false, cancellationToken).ConfigureAwait(false))
+          {
+            yield return entry;
+          }
+          yield break;
+        }
+
+        // Older daemons do not emit the authoritative stream Content-Type; inspect TTY
+        // and retain the byte-sniff fallback for that compatibility window.
+        var tty = await DetectTtyAsync(containerId, cancellationToken).ConfigureAwait(false);
+        var sniffOnInvalidHeader = !tty.HasValue;
+        await foreach (var entry in ReadMultiplexedStreamAsync(
+            stream, tty == true, sniffOnInvalidHeader, cancellationToken).ConfigureAwait(false))
         {
           yield return entry;
         }
@@ -106,17 +128,50 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
+    private const string MultiplexedStreamContentType = "application/vnd.docker.multiplexed-stream";
+    private const string RawStreamContentType = "application/vnd.docker.raw-stream";
+
+    // Only trust the stream Content-Type when it is one of Docker's authoritative values
+    // (API 1.42+). An unrecognized type (e.g. rewritten by a proxy) falls through to the
+    // TTY-inspect + byte-sniff path instead of being blindly read as raw.
+    private bool UseLogContentType(string? contentType)
+    {
+      return (string.Equals(contentType, MultiplexedStreamContentType, StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(contentType, RawStreamContentType, StringComparison.OrdinalIgnoreCase)) &&
+          Version.TryParse(Connection.ApiVersion, out var version) &&
+          version.CompareTo(new Version(1, 42)) >= 0;
+    }
+
+    // DetectTtyAsync is inherited from DockerApiDriverBase (shared with the log-tail reader).
+
+    /// <inheritdoc />
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
-        DriverContext context, StreamEventsConfig config = null,
+        DriverContext context, StreamEventsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       config ??= new StreamEventsConfig();
 
       var filters = new Dictionary<string, List<string>>();
       if (config.Types?.Count > 0)
-        filters["type"] = config.Types;
+        filters["type"] = new List<string>(config.Types);
       if (config.Actions?.Count > 0)
-        filters["event"] = config.Actions;
+        filters["event"] = new List<string>(config.Actions);
+
+      // Merge caller-supplied custom filters (e.g. label=foo, container=id) into the
+      // Docker filters map, unioned with the type/event entries above. Null-safe to match
+      // the Types/Actions guards above, in case a caller nulls out the dictionary.
+      if (config.Filters?.Count > 0)
+      {
+        foreach (var kv in config.Filters)
+        {
+          if (!filters.TryGetValue(kv.Key, out var values))
+          {
+            values = new List<string>();
+            filters[kv.Key] = values;
+          }
+          values.Add(kv.Value);
+        }
+      }
 
       var queryParams = new List<string>();
       if (filters.Count > 0)
@@ -130,18 +185,27 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           ? $"/events?{string.Join("&", queryParams)}"
           : "/events";
 
-      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken))
+      // Mirror StreamStatsCoreAsync: await foreach configures ConfigureAwait(false) on both
+      // MoveNextAsync and the enumerator's DisposeAsync. ReadNdjsonStreamAsync already wraps
+      // any mid-stream transport read failure as DriverException (StreamInterrupted) and lets
+      // caller cancellation surface as OperationCanceledException, so no per-item catch is
+      // needed here.
+      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken)
+          .ConfigureAwait(false))
       {
         ContainerEvent evt;
         try
         {
           var json = JsonHelper.ParseElement(line);
+          var timestamp = DateTimeOffset.UtcNow.UtcDateTime;
+          if (json.TryGetProperty("time", out var time) &&
+              time.ValueKind == JsonValueKind.Number && time.TryGetInt64(out var unixSeconds))
+            timestamp = DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
           evt = new ContainerEvent
           {
             Type = json.GetStringOrDefault("Type"),
             Action = json.GetStringOrDefault("Action"),
-            Timestamp = DateTimeOffset.FromUnixTimeSeconds(
-                  json.GetInt64OrDefault("time")).UtcDateTime,
+            Timestamp = timestamp,
             TimeNano = json.GetInt64OrDefault("timeNano"),
             Scope = json.GetStringOrDefault("scope"),
             RawJson = line
@@ -162,23 +226,36 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         yield return evt;
       }
+
+      if (string.IsNullOrEmpty(config.Until))
+        throw new DriverException(
+            "Docker /events stream ended without an 'until' bound (daemon closed the connection)",
+            ErrorCodes.Api.StreamEnded);
     }
 
-    public async IAsyncEnumerable<ContainerStats> StreamStatsAsync(
-        DriverContext context, string containerId = null,
-        StreamStatsConfig config = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public IAsyncEnumerable<ContainerStats> StreamStatsAsync(
+        DriverContext context, string? containerId = null,
+        StreamStatsConfig? config = null,
+        CancellationToken cancellationToken = default)
     {
       // Docker Engine API requires a specific container ID for stats;
       // there is no all-container stats endpoint.
-      if (string.IsNullOrEmpty(containerId))
-        yield break;
+      if (string.IsNullOrWhiteSpace(containerId))
+        throw new ArgumentException("Container ID is required for Docker API stats streaming.", nameof(containerId));
 
+      return StreamStatsCoreAsync(containerId, config, cancellationToken);
+    }
+
+    private async IAsyncEnumerable<ContainerStats> StreamStatsCoreAsync(
+        string containerId, StreamStatsConfig? config,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
       config ??= new StreamStatsConfig();
       var stream = config.Stream ? "true" : "false";
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/stats?stream={stream}";
 
-      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken))
+      await foreach (var line in ReadNdjsonStreamAsync(path, cancellationToken).ConfigureAwait(false))
       {
         ContainerStats stats;
         try
@@ -196,16 +273,43 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
     }
 
+    /// <summary>
+    /// Attaches to stdout/stderr through the Docker API attach endpoint.
+    /// Interactive stdin is rejected because this driver does not implement HTTP hijacking.
+    /// The returned <see cref="AttachResult.OutputStream"/> is the raw Docker attach stream;
+    /// when TTY is disabled it may contain Docker multiplexed frames.
+    /// </summary>
     public async Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context, string containerId,
-        AttachConfig config = null, CancellationToken cancellationToken = default)
+        AttachConfig? config = null, CancellationToken cancellationToken = default)
     {
       config ??= new AttachConfig();
+      if (config.Stdin == true)
+        return CommandResponse<AttachResult>.Fail(
+            "interactive stdin is not supported by the Docker API driver",
+            ErrorCodes.Container.AttachFailed,
+            CreateErrorContext($"POST /containers/{containerId}/attach", 0));
+      if (config.NoStdout)
+        return CommandResponse<AttachResult>.Fail(
+            "NoStdout is not supported by the Docker API driver",
+            ErrorCodes.Container.AttachFailed,
+            CreateErrorContext($"POST /containers/{containerId}/attach", 0));
+      if (config.NoStderr)
+        return CommandResponse<AttachResult>.Fail(
+            "NoStderr is not supported by the Docker API driver",
+            ErrorCodes.Container.AttachFailed,
+            CreateErrorContext($"POST /containers/{containerId}/attach", 0));
+      if (!string.IsNullOrEmpty(config.DetachKeys))
+        return CommandResponse<AttachResult>.Fail(
+            "DetachKeys is not supported by the Docker API driver",
+            ErrorCodes.Container.AttachFailed,
+            CreateErrorContext($"POST /containers/{containerId}/attach", 0));
+
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/attach?" +
           $"stream=1" +
-          $"&stdout={config.Stdout.ToString().ToLower()}" +
-          $"&stderr={config.Stderr.ToString().ToLower()}" +
-          $"&stdin={config.Stdin.ToString().ToLower()}";
+          $"&stdout={config.Stdout.ToString().ToLowerInvariant()}" +
+          $"&stderr={config.Stderr.ToString().ToLowerInvariant()}" +
+          $"&stdin=false";
 
       try
       {
@@ -218,89 +322,23 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           IsConnected = true
         });
       }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
       catch (Exception ex)
       {
+        var statusCode = ex is HttpRequestException { StatusCode: not null } httpEx
+            ? (int)httpEx.StatusCode.Value
+            : 0;
         return CommandResponse<AttachResult>.Fail(
             $"Attach failed: {ex.Message}",
             ErrorCodes.Container.AttachFailed,
             CreateErrorContext($"POST /containers/{containerId}/attach",
-                0, ex.Message));
+                statusCode, ex.Message),
+            statusCode);
       }
     }
-
-    #region Multiplexed Stream Reader
-
-    /// <summary>
-    /// Reads Docker multiplexed stream format, tagging each line with its source stream.
-    /// Header: [stream_type:1][0:3][size:4 big-endian] followed by payload.
-    /// stream_type: 0=stdin, 1=stdout, 2=stderr.
-    /// </summary>
-    private static async IAsyncEnumerable<LogEntry> ReadMultiplexedStreamAsync(
-        Stream stream, [EnumeratorCancellation] CancellationToken ct)
-    {
-      var header = new byte[8];
-
-      while (!ct.IsCancellationRequested)
-      {
-        int bytesRead;
-        try
-        {
-          bytesRead = await ReadExactAsync(stream, header, 8, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { yield break; }
-        catch (Exception ex) { NullLogger.Instance.LogError(ex, "Multiplexed stream read error"); yield break; }
-
-        if (bytesRead < 8)
-        {
-          // Possibly a raw (TTY) stream -- try reading as plain text.
-          // Raw streams carry no source byte, so everything is treated as stdout.
-          if (bytesRead > 0)
-          {
-            var partial = Encoding.UTF8.GetString(header, 0, bytesRead);
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false,
-                bufferSize: 1024, leaveOpen: true);
-            var rest = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
-            foreach (var line in (partial + rest).Split('\n'))
-            {
-              if (!string.IsNullOrEmpty(line))
-                yield return new LogEntry { Source = LogStreamSource.Stdout, Line = line };
-            }
-          }
-          yield break;
-        }
-
-        var source = MapSource(header[0]);
-
-        var frameSize = (header[4] << 24) | (header[5] << 16) |
-            (header[6] << 8) | header[7];
-
-        if (frameSize <= 0 || frameSize > MaxFrameSizeBytes)
-          yield break;
-
-        var payload = new byte[frameSize];
-        var payloadRead = await ReadExactAsync(stream, payload, frameSize, ct).ConfigureAwait(false);
-        if (payloadRead < frameSize)
-          yield break;
-
-        var text = Encoding.UTF8.GetString(payload, 0, payloadRead).TrimEnd('\n', '\r');
-        foreach (var line in text.Split('\n'))
-        {
-          if (!string.IsNullOrEmpty(line))
-            yield return new LogEntry { Source = source, Line = line };
-        }
-      }
-    }
-
-    private static LogStreamSource MapSource(byte streamType) => streamType switch
-    {
-      0 => LogStreamSource.Stdin,
-      2 => LogStreamSource.Stderr,
-      _ => LogStreamSource.Stdout,
-    };
-
-    // ReadExactAsync is inherited from DockerApiDriverBase
-
-    #endregion
 
     #region Stats Parsing
 
@@ -328,7 +366,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var systemDelta =
             cpuStats.Value.GetInt64OrDefault("system_cpu_usage") -
             preCpuStats.Value.GetInt64OrDefault("system_cpu_usage");
-        var numCpus = cpuStats.Value.GetInt32OrDefault("online_cpus", 1);
+        var numCpus = cpuStats.Value.GetInt32OrDefault("online_cpus");
+        if (numCpus <= 0)
+        {
+          var perCpu = cpuStats.Value.Prop("cpu_usage")?.Prop("percpu_usage");
+          numCpus = perCpu?.ValueKind == JsonValueKind.Array ? perCpu.Value.GetArrayLength() : 1;
+        }
 
         if (systemDelta > 0 && cpuDelta > 0)
           stats.CpuPercentage = (double)cpuDelta / systemDelta * numCpus * 100.0;
@@ -362,7 +405,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         foreach (var entry in blkio.Value.EnumerateArray())
         {
-          var op = entry.GetStringOrDefault("op")?.ToLower();
+          var op = entry.GetStringOrDefault("op")?.ToLowerInvariant();
           var value = entry.GetInt64OrDefault("value");
           if (op == "read")
             stats.BlockRead += value;

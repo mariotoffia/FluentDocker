@@ -14,27 +14,42 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
   /// <summary>
   /// A recorded request captured by <see cref="MockDockerApiConnection"/>.
   /// </summary>
-  public sealed record CapturedRequest(string Method, string Path, string Body);
+  public sealed record CapturedRequest(
+      string Method,
+      string Path,
+      string? Body,
+      IReadOnlyDictionary<string, string>? Headers = null,
+      byte[]? BodyBytes = null);
 
   /// <summary>
   /// In-memory mock of <see cref="IDockerApiConnection"/> that returns canned
   /// responses and records every request for later verification.
   /// </summary>
-  public sealed class MockDockerApiConnection : IDockerApiConnection
+  public sealed partial class MockDockerApiConnection : IDockerApiConnection
   {
     private readonly record struct ResponseEntry(
         string Method,
         string PathContains,
         HttpStatusCode StatusCode,
-        string JsonBody,
-        string StreamContent,
-        byte[] StreamBytes);
+        string? JsonBody,
+        string? StreamContent,
+        byte[]? StreamBytes,
+        Exception? StreamException);
 
     private readonly List<ResponseEntry> _entries = [];
+    private readonly List<(string Method, string PathContains, Exception Ex)> _throws = [];
+    private readonly List<(string PathContains, HttpStatusCode StatusCode, IReadOnlyDictionary<string, string> Headers)> _headEntries = [];
+    private readonly List<(string PathContains, Func<Stream> Factory)> _streamFactories = [];
     private readonly List<CapturedRequest> _requests = [];
+    private readonly List<TrackingContent> _contents = [];
+    private readonly List<RecordingStream> _streams = [];
     private bool _pingSuccess = true;
 
     public string ApiVersion { get; set; } = "1.45";
+
+    /// <summary>Every stream handed out by the mock, in order, so tests can assert disposal.</summary>
+    public IReadOnlyList<RecordingStream> Streams => _streams;
+    public IReadOnlyList<TrackingContent> Contents => _contents;
 
     // ── Setup (fluent) ──────────────────────────────────────────────
 
@@ -42,7 +57,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry(
-          "GET", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
+          "GET", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
       return this;
     }
 
@@ -50,7 +65,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry(
-          "POST", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
+          "POST", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
       return this;
     }
 
@@ -58,7 +73,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry(
-          "PUT", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
+          "PUT", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
       return this;
     }
 
@@ -66,7 +81,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, int statusCode, string jsonBody)
     {
       _entries.Add(new ResponseEntry(
-          "DELETE", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null));
+          "DELETE", pathContains, (HttpStatusCode)statusCode, jsonBody, null, null, null));
+      return this;
+    }
+
+    public MockDockerApiConnection SetupHead(
+        string pathContains, int statusCode, IReadOnlyDictionary<string, string> headers)
+    {
+      _headEntries.Add((pathContains, (HttpStatusCode)statusCode, headers));
       return this;
     }
 
@@ -74,7 +96,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, string streamContent)
     {
       _entries.Add(new ResponseEntry(
-          "STREAM", pathContains, HttpStatusCode.OK, null, streamContent, null));
+          "STREAM", pathContains, HttpStatusCode.OK, null, streamContent, null, null));
       return this;
     }
 
@@ -86,13 +108,62 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string pathContains, byte[] bytes)
     {
       _entries.Add(new ResponseEntry(
-          "STREAM", pathContains, HttpStatusCode.OK, null, null, bytes));
+          "STREAM", pathContains, HttpStatusCode.OK, null, null, bytes, null));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up a stream endpoint that throws when opened, simulating a stream-open
+    /// failure (e.g. a non-success status surfaced by the real connection).
+    /// </summary>
+    public MockDockerApiConnection SetupStreamThrows(
+        string pathContains, Exception ex)
+    {
+      _entries.Add(new ResponseEntry(
+          "STREAM_THROW", pathContains, HttpStatusCode.OK, null, null, null, ex));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up a stream endpoint whose stream yields <paramref name="prefix"/> bytes and then
+    /// throws <paramref name="ex"/> on the next read, simulating a mid-stream read failure.
+    /// </summary>
+    public MockDockerApiConnection SetupStreamReadThrows(
+        string pathContains, byte[] prefix, Exception ex)
+    {
+      _entries.Add(new ResponseEntry(
+          "STREAM_READ_THROW", pathContains, HttpStatusCode.OK, null, null, prefix, ex));
+      return this;
+    }
+
+    /// <summary>
+    /// Sets up a stream endpoint whose stream is produced by <paramref name="factory"/>,
+    /// for tests needing full control over read timing (e.g. gated blocking streams).
+    /// Takes precedence over other stream setups for matching paths.
+    /// </summary>
+    public MockDockerApiConnection SetupStreamFactory(
+        string pathContains, Func<Stream> factory)
+    {
+      _streamFactories.Add((pathContains, factory));
       return this;
     }
 
     public MockDockerApiConnection SetupPing(bool success)
     {
       _pingSuccess = success;
+      return this;
+    }
+
+    /// <summary>
+    /// Registers an exception to surface (as a faulted task) when a matching request is issued —
+    /// simulating a request helper that rethrows a typed transport/negotiation failure such as the
+    /// unsupported-daemon-version <see cref="FluentDocker.Common.DriverException"/> (DAPI-2). Wired
+    /// into the non-stream verbs; stream-open failures use <see cref="SetupStreamThrows"/>.
+    /// </summary>
+    public MockDockerApiConnection SetupThrows(
+        string method, string pathContains, Exception ex)
+    {
+      _throws.Add((method, pathContains, ex));
       return this;
     }
 
@@ -106,36 +177,58 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public Task<HttpResponseMessage> GetAsync(
         string path, CancellationToken ct = default)
     {
+      // Observe the token so a driver that forgets to honor cancellation on GET is caught (TESTS-4).
+      ct.ThrowIfCancellationRequested();
       Record("GET", path, null);
       return Task.FromResult(Resolve("GET", path));
+    }
+
+    public Task<HttpResponseMessage> HeadAsync(
+        string path, CancellationToken ct = default)
+    {
+      Record("HEAD", path, null);
+      return Task.FromResult(ResolveHead(path));
     }
 
     public async Task<HttpResponseMessage> PostAsync(
         string path, HttpContent? content = null, CancellationToken ct = default)
     {
-      var body = content is not null
-          ? await content.ReadAsStringAsync(ct)
-          : null;
+      ct.ThrowIfCancellationRequested();
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
 
-      Record("POST", path, body);
+      Record("POST", path, body, bodyBytes: bodyBytes);
+      return Resolve("POST", path);
+    }
+
+    public async Task<HttpResponseMessage> PostAsync(
+        string path, HttpContent? content,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
+    {
+      ct.ThrowIfCancellationRequested();
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
+
+      Record("POST", path, body, headers, bodyBytes);
       return Resolve("POST", path);
     }
 
     public async Task<HttpResponseMessage> PutAsync(
         string path, HttpContent content, CancellationToken ct = default)
     {
-      var body = content is not null
-          ? await content.ReadAsStringAsync(ct)
-          : null;
+      ct.ThrowIfCancellationRequested();
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
 
-      Record("PUT", path, body);
+      Record("PUT", path, body, bodyBytes: bodyBytes);
       return Resolve("PUT", path);
     }
 
     public Task<HttpResponseMessage> DeleteAsync(
         string path, CancellationToken ct = default)
     {
+      // Observe the token so a driver that forgets to honor cancellation on DELETE is caught (TESTS-4).
+      ct.ThrowIfCancellationRequested();
       Record("DELETE", path, null);
+      if (TryGetThrow("DELETE", path, out var ex))
+        return Task.FromException<HttpResponseMessage>(ex);
       return Task.FromResult(Resolve("DELETE", path));
     }
 
@@ -146,11 +239,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return Task.FromResult(ResolveStream(path));
     }
 
-    public Task<Stream> PostStreamAsync(
+    public async Task<Stream> PostStreamAsync(
         string path, HttpContent? content = null, CancellationToken ct = default)
     {
-      Record("POST_STREAM", path, null);
-      return Task.FromResult(ResolveStream(path));
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
+      Record("POST_STREAM", path, body, bodyBytes: bodyBytes);
+      return ResolveStream(path);
+    }
+
+    public async Task<Stream> PostStreamAsync(
+        string path, HttpContent? content,
+        IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
+    {
+      var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
+      Record("POST_STREAM", path, body, headers, bodyBytes);
+      return ResolveStream(path);
     }
 
     public Task<bool> PingAsync(CancellationToken ct = default)
@@ -163,15 +266,68 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
     // ── Internals ───────────────────────────────────────────────────
 
-    private void Record(string method, string path, string body)
+    private void Record(
+        string method, string path, string? body,
+        IReadOnlyDictionary<string, string>? headers = null,
+        byte[]? bodyBytes = null)
     {
-      _requests.Add(new CapturedRequest(method, path, body));
+      _requests.Add(new CapturedRequest(method, path, body, headers, bodyBytes));
+    }
+
+    private static async Task<(string? Body, byte[]? BodyBytes)> ReadContentAsync(
+        HttpContent? content, CancellationToken ct)
+    {
+      if (content is null)
+        return (null, null);
+
+      var bytes = await content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+      return (Encoding.UTF8.GetString(bytes), bytes);
+    }
+
+    // Route by a SEGMENT-BOUNDARY path SUFFIX (after stripping any query), not a loose Contains — a
+    // registered fragment must be a true suffix of the request path AND begin on a '/' boundary. This
+    // rejects two failure modes that a loose Contains would mask (TESTS-4):
+    //   * deeper-segment superstrings: registered "/models" must NOT match a request "/models/ai/x"
+    //     (a suffix match already fails here, since the path does not END with "/models"); and
+    //   * partial-segment matches: registered "models" must NOT match "/submodels" (the boundary
+    //     check rejects it because the char before the match is not '/').
+    // When the registered fragment itself starts with '/', the boundary is inherent, so this is
+    // equivalent to a plain end-anchored suffix — which is how every registration in the suite is
+    // written. Mirrors MockModelApiConnection.
+    private static bool MatchesPath(string actual, string registered)
+    {
+      var q = actual.IndexOf('?', StringComparison.Ordinal);
+      var p = q >= 0 ? actual[..q] : actual;
+      if (!p.EndsWith(registered, StringComparison.Ordinal))
+        return false;
+      var start = p.Length - registered.Length;
+      return start == 0 ||
+          registered.StartsWith('/') ||
+          p[start - 1] == '/';
+    }
+
+    private bool TryGetThrow(string method, string path, out Exception ex)
+    {
+      foreach (var entry in _throws)
+      {
+        if (entry.Method == method && MatchesPath(path, entry.PathContains))
+        {
+          ex = entry.Ex;
+          return true;
+        }
+      }
+
+      ex = null!;
+      return false;
     }
 
     private HttpResponseMessage Resolve(string method, string path)
     {
+      if (TryResolveGetSequence(method, path, out var sequenced))
+        return sequenced;
+
       var entry = _entries
-          .Where(e => e.Method == method && path.Contains(e.PathContains))
+          .Where(e => e.Method == method && MatchesPath(path, e.PathContains))
           .LastOrDefault();
 
       if (entry == default)
@@ -184,26 +340,204 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         };
       }
 
+      var content = new TrackingContent(
+          entry.JsonBody ?? "{}", Encoding.UTF8, "application/json");
+      _contents.Add(content);
       return new HttpResponseMessage(entry.StatusCode)
       {
-        Content = new StringContent(
-              entry.JsonBody ?? "{}", Encoding.UTF8, "application/json")
+        Content = content
       };
+    }
+
+    private HttpResponseMessage ResolveHead(string path)
+    {
+      var entry = _headEntries
+          .Where(e => MatchesPath(path, e.PathContains))
+          .LastOrDefault();
+
+      if (entry == default)
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
+
+      var response = new HttpResponseMessage(entry.StatusCode);
+      foreach (var (name, value) in entry.Headers)
+        response.Headers.TryAddWithoutValidation(name, value);
+      return response;
     }
 
 #pragma warning disable CA1859 // return type must be Stream for Task<Stream> callers
     private Stream ResolveStream(string path)
 #pragma warning restore CA1859
     {
+      var factory = _streamFactories
+          .Where(f => MatchesPath(path, f.PathContains))
+          .Select(f => f.Factory)
+          .LastOrDefault();
+      if (factory != null)
+        return factory();
+
+      // A STREAM_THROW entry simulates a stream-open failure.
+      var throwEntry = _entries
+          .Where(e => e.Method == "STREAM_THROW" && MatchesPath(path, e.PathContains))
+          .LastOrDefault();
+      if (throwEntry != default && throwEntry.StreamException != null)
+        throw throwEntry.StreamException;
+
+      // A STREAM_READ_THROW entry yields a byte prefix then throws on the next read.
+      var readThrowEntry = _entries
+          .Where(e => e.Method == "STREAM_READ_THROW" && MatchesPath(path, e.PathContains))
+          .LastOrDefault();
+      if (readThrowEntry != default && readThrowEntry.StreamException != null)
+        return new ThrowingReadStream(
+            readThrowEntry.StreamBytes ?? Array.Empty<byte>(), readThrowEntry.StreamException);
+
       var entry = _entries
-          .Where(e => e.Method == "STREAM" && path.Contains(e.PathContains))
+          .Where(e => e.Method == "STREAM" && MatchesPath(path, e.PathContains))
           .LastOrDefault();
 
       if (entry != default && entry.StreamBytes != null)
-        return new MemoryStream(entry.StreamBytes);
+        return Record(new RecordingStream(entry.StreamBytes));
 
       var text = entry == default ? string.Empty : entry.StreamContent ?? string.Empty;
-      return new MemoryStream(Encoding.UTF8.GetBytes(text));
+      return Record(new RecordingStream(Encoding.UTF8.GetBytes(text)));
     }
+
+    private RecordingStream Record(RecordingStream stream)
+    {
+      _streams.Add(stream);
+      return stream;
+    }
+  }
+
+  /// <summary>
+  /// Serves a fixed prefix on the first read, signals, then blocks forever on
+  /// subsequent reads until the read's own cancellation token fires.
+  /// </summary>
+  public sealed class GatedTailStream(byte[] prefix, TaskCompletionSource served) : Stream
+  {
+    private bool _prefixServed;
+
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position
+    {
+      get => throw new NotSupportedException();
+      set => throw new NotSupportedException();
+    }
+
+    public override async ValueTask<int> ReadAsync(
+        Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+      if (!_prefixServed)
+      {
+        _prefixServed = true;
+        prefix.CopyTo(buffer);
+        served.TrySetResult();
+        return prefix.Length;
+      }
+
+      await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+      return 0;
+    }
+
+    public override int Read(byte[] buffer, int offset, int count) =>
+        ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+  }
+
+  /// <summary>A MemoryStream that records whether it was disposed, so tests can assert resource cleanup.</summary>
+  public sealed class RecordingStream : MemoryStream
+  {
+    public RecordingStream(byte[] buffer) : base(buffer)
+    {
+    }
+
+    public bool IsDisposed { get; private set; }
+
+    protected override void Dispose(bool disposing)
+    {
+      IsDisposed = true;
+      base.Dispose(disposing);
+    }
+  }
+
+  public sealed class TrackingContent : StringContent
+  {
+    public TrackingContent(string content, Encoding encoding, string mediaType)
+        : base(content, encoding, mediaType)
+    {
+    }
+
+    public bool IsDisposed { get; private set; }
+
+    protected override void Dispose(bool disposing)
+    {
+      IsDisposed = true;
+      base.Dispose(disposing);
+    }
+  }
+
+  /// <summary>
+  /// A read-only stream that yields a fixed byte prefix and then throws on the next read,
+  /// simulating a connection dropped mid-stream.
+  /// </summary>
+  public sealed class ThrowingReadStream : Stream
+  {
+    private readonly byte[] _prefix;
+    private readonly Exception _exception;
+    private int _position;
+
+    public ThrowingReadStream(byte[] prefix, Exception exception)
+    {
+      _prefix = prefix;
+      _exception = exception;
+    }
+
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position
+    {
+      get => _position;
+      set => throw new NotSupportedException();
+    }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+      if (_position >= _prefix.Length)
+        throw _exception;
+
+      var available = Math.Min(count, _prefix.Length - _position);
+      Array.Copy(_prefix, _position, buffer, offset, available);
+      _position += available;
+      return available;
+    }
+
+    public override ValueTask<int> ReadAsync(
+        Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+      if (_position >= _prefix.Length)
+        throw _exception;
+
+      var available = Math.Min(buffer.Length, _prefix.Length - _position);
+      _prefix.AsSpan(_position, available).CopyTo(buffer.Span);
+      _position += available;
+      return ValueTask.FromResult(available);
+    }
+
+    public override Task<int> ReadAsync(
+        byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
   }
 }

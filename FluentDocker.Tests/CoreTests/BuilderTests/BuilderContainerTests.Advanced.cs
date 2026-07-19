@@ -257,8 +257,52 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       // Dispose
       await results.DisposeAllAsync();
 
-      // Assert - The service was created with stopOnDispose=false
-      // Container should not be stopped when KeepRunning is set
+      MockPack.VerifyContainerStopped(Times.Never());
+      MockPack.VerifyContainerRemoved(Times.Never());
+    }
+
+    [Fact]
+    public async Task UseContainer_KeepContainer_StopsButDoesNotRemoveOnDispose()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var results = await new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseContainer(c => c
+              .UseImage("nginx:alpine")
+              .KeepContainer())
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      await results.DisposeAllAsync();
+
+      MockPack.VerifyContainerStopped(Times.Once());
+      MockPack.VerifyContainerRemoved(Times.Never());
+    }
+
+    [Fact]
+    public async Task UseContainer_DefaultDisposal_StopsAndRemoves()
+    {
+      MockPack
+          .SetupContainerCreate()
+          .SetupContainerStart()
+          .SetupContainerInspect(running: true)
+          .SetupContainerStop()
+          .SetupContainerRemove();
+
+      var results = await new Builder()
+          .WithinDriver(DriverId, Kernel)
+          .UseContainer(c => c.UseImage("nginx:alpine"))
+          .BuildAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+      await results.DisposeAllAsync();
+
+      MockPack.VerifyContainerStopped(Times.Once());
+      MockPack.VerifyContainerRemoved(Times.Once());
     }
 
     [Fact]
@@ -266,6 +310,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     {
       // Arrange
       MockPack
+          .SetupImagePull()
           .SetupContainerCreate()
           .SetupContainerStart()
           .SetupContainerInspect(running: true)
@@ -414,7 +459,7 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
               .UseImage("nginx:alpine")
               .WithName("full-config-test")
               .WithEnvironment("ENV", "production")
-              .WithPort("80/tcp", "8080")
+              .WithPort("8080", "80/tcp")
               .WithLabel("app", "test")
               .WithHostname("testhost")
               .WithUser("nginx")

@@ -35,7 +35,7 @@ namespace FluentDocker.Drivers.Podman
 
     /// <summary>Sends a signal to a pod's containers.</summary>
     Task<CommandResponse<Unit>> KillPodAsync(
-        DriverContext context, string name, string signal = null,
+        DriverContext context, string name, string? signal = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Pauses all containers in a pod.</summary>
@@ -70,25 +70,25 @@ namespace FluentDocker.Drivers.Podman
   public class PodCreateConfig
   {
     /// <summary>Pod name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Labels to attach to the pod.</summary>
     public Dictionary<string, string> Labels { get; set; } = [];
 
     /// <summary>Network to connect the pod to.</summary>
-    public string Network { get; set; }
+    public string? Network { get; set; }
 
     /// <summary>Hostname of the pod.</summary>
-    public string Hostname { get; set; }
+    public string? Hostname { get; set; }
 
     /// <summary>DNS servers for the pod.</summary>
     public List<string> Dns { get; set; } = [];
 
     /// <summary>Custom infra container image.</summary>
-    public string InfraImage { get; set; }
+    public string? InfraImage { get; set; }
 
     /// <summary>Namespaces to share (e.g., "ipc,net,uts").</summary>
-    public string Share { get; set; }
+    public string? Share { get; set; }
 
     /// <summary>Port mappings for the pod (e.g., "8080:80").</summary>
     public List<string> Ports { get; set; } = [];
@@ -98,7 +98,7 @@ namespace FluentDocker.Drivers.Podman
   public class PodCreateResult
   {
     /// <summary>Pod identifier.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
   }
 
   /// <summary>
@@ -107,19 +107,19 @@ namespace FluentDocker.Drivers.Podman
   public class PodInfo
   {
     /// <summary>Pod identifier.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Pod name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Pod status (e.g., Running, Stopped, Created).</summary>
-    public string Status { get; set; }
+    public string? Status { get; set; }
 
     /// <summary>Creation timestamp.</summary>
-    public string Created { get; set; }
+    public string? Created { get; set; }
 
     /// <summary>Infra container identifier.</summary>
-    public string InfraId { get; set; }
+    public string? InfraId { get; set; }
 
     /// <summary>Number of containers in the pod.</summary>
     public int NumContainers { get; set; }
@@ -134,22 +134,22 @@ namespace FluentDocker.Drivers.Podman
   public class PodInspectResult
   {
     /// <summary>Pod identifier.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Pod name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Pod state (e.g., Running, Stopped, Created).</summary>
-    public string State { get; set; }
+    public string? State { get; set; }
 
     /// <summary>Creation timestamp.</summary>
-    public string Created { get; set; }
+    public string? Created { get; set; }
 
     /// <summary>Pod hostname.</summary>
-    public string Hostname { get; set; }
+    public string? Hostname { get; set; }
 
     /// <summary>Infra container identifier.</summary>
-    public string InfraContainerId { get; set; }
+    public string? InfraContainerId { get; set; }
 
     /// <summary>Number of containers in the pod.</summary>
     public int NumContainers { get; set; }
@@ -164,12 +164,12 @@ namespace FluentDocker.Drivers.Podman
   public class PodContainerInfo
   {
     /// <summary>Container identifier.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>Container name.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>Container state (e.g., running, exited).</summary>
-    public string State { get; set; }
+    public string? State { get; set; }
   }
 }

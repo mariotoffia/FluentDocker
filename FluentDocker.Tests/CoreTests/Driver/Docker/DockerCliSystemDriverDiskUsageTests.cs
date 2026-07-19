@@ -98,7 +98,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [Fact]
     public void ParseDiskUsageOutput_NullInput_ReturnsEmptyInfo()
     {
-      var info = DockerCliSystemDriver.ParseDiskUsageOutput(null);
+      var info = DockerCliSystemDriver.ParseDiskUsageOutput(null!);
 
       Assert.NotNull(info);
       Assert.Equal(0, info.TotalSize);
@@ -200,6 +200,14 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     }
 
     [Theory]
+    [InlineData("1.5PB", 1_500_000_000_000_000)]
+    [InlineData("2mb", 2_000_000)]
+    public void ParseHumanReadableBytes_PetaAndLowercaseSuffixes_Parse(string input, long expected)
+    {
+      Assert.Equal(expected, DockerCliSystemDriver.ParseHumanReadableBytes(input));
+    }
+
+    [Theory]
     [InlineData("1KiB", 1024)]
     [InlineData("1MiB", 1_048_576)]
     [InlineData("1GiB", 1_073_741_824)]
@@ -215,7 +223,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [InlineData("   ", 0)]
     public void ParseHumanReadableBytes_EmptyOrNull_ReturnsZero(string? input, long expected)
     {
-      Assert.Equal(expected, DockerCliSystemDriver.ParseHumanReadableBytes(input));
+      Assert.Equal(expected, DockerCliSystemDriver.ParseHumanReadableBytes(input!)); // intentional null to verify null-handling
     }
 
     [Fact]
@@ -260,7 +268,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
     [InlineData(null, 0)]
     public void ParseReclaimableBytes_EmptyOrNull_ReturnsZero(string? input, long expected)
     {
-      Assert.Equal(expected, DockerCliSystemDriver.ParseReclaimableBytes(input));
+      Assert.Equal(expected, DockerCliSystemDriver.ParseReclaimableBytes(input!)); // intentional null to verify null-handling
     }
 
     [Fact]

@@ -26,7 +26,7 @@ namespace FluentDocker.Testing.Core
     public VolumeResource(
         FluentDockerKernel kernel,
         Action<VolumeCreateConfig> configure,
-        DockerResourceOptions options = null)
+        DockerResourceOptions? options = null)
         : base(kernel, options)
     {
       ArgumentNullException.ThrowIfNull(configure);
@@ -41,7 +41,7 @@ namespace FluentDocker.Testing.Core
     /// <summary>
     /// Inspects the volume.
     /// </summary>
-    public async Task<Volume> InspectAsync(CancellationToken cancellationToken = default)
+    public async Task<Volume?> InspectAsync(CancellationToken cancellationToken = default)
     {
       EnsureInitialized();
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
@@ -61,9 +61,11 @@ namespace FluentDocker.Testing.Core
     /// <inheritdoc />
     protected override async Task ProvisionAsync(CancellationToken cancellationToken)
     {
+      var generation = ProvisionGeneration;
       var config = new VolumeCreateConfig();
       _configure(config);
 
+      var callerName = !string.IsNullOrEmpty(config.Name);
       if (string.IsNullOrEmpty(config.Name))
         config.Name = GenerateUniqueName("vol");
 
@@ -73,8 +75,6 @@ namespace FluentDocker.Testing.Core
           config.Labels[label.Key] = label.Value;
       }
 
-      ResourceName = config.Name;
-
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
       var result = await driver.CreateAsync(
           new DriverContext(DriverId), config, cancellationToken).ConfigureAwait(false);
@@ -82,6 +82,12 @@ namespace FluentDocker.Testing.Core
       if (!result.Success)
         throw new FluentDockerException(
             $"Failed to create volume '{config.Name}': {result.Error}");
+
+      var volumeName = config.Name;
+      if (TryCommitProvision(generation, () => ResourceName = volumeName))
+        return;
+
+      await RemoveStaleVolumeAsync(driver, volumeName, generation, callerName).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -91,8 +97,17 @@ namespace FluentDocker.Testing.Core
         return;
 
       var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
-      await driver.RemoveAsync(
+      var result = await driver.RemoveAsync(
           new DriverContext(DriverId), ResourceName, false, cancellationToken).ConfigureAwait(false);
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Volume.NotFound)
+        return;
+
+      // Genuine failure: keep ResourceName so DisposeAsync can engage ForceRemoveAsync.
+      throw new DriverException(
+          $"Failed to remove volume '{ResourceName}': {result.Error}",
+          result.ErrorCode!,
+          result.ErrorContext);
     }
 
     /// <inheritdoc />
@@ -102,13 +117,17 @@ namespace FluentDocker.Testing.Core
       if (string.IsNullOrEmpty(name))
         return;
 
-      try
-      {
-        var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
-        await driver.RemoveAsync(
-            new DriverContext(DriverId), name, true, cancellationToken).ConfigureAwait(false);
-      }
-      catch { /* best effort */ }
+      var driver = Kernel.SysCtl<IVolumeDriver>(DriverId);
+      var result = await driver.RemoveAsync(
+          new DriverContext(DriverId), name, true, cancellationToken).ConfigureAwait(false);
+
+      if (result.Success || result.ErrorCode == ErrorCodes.Volume.NotFound)
+        return;
+
+      throw new DriverException(
+          $"Failed to force-remove volume '{name}': {result.Error}",
+          result.ErrorCode!,
+          result.ErrorContext);
     }
 
     #endregion
@@ -118,6 +137,30 @@ namespace FluentDocker.Testing.Core
       if (!IsInitialized)
         throw new InvalidOperationException(
             "Volume resource is not initialized. Call InitializeAsync first.");
+    }
+
+    private async Task RemoveStaleVolumeAsync(
+        IVolumeDriver driver,
+        string volumeName,
+        int generation,
+        bool callerName)
+    {
+      if (callerName && !ShouldCleanupRejectedProvision(generation))
+        return;
+
+      try
+      {
+        using var cts = new CancellationTokenSource(Options.TeardownTimeout);
+        var removeTask = driver.RemoveAsync(
+            new DriverContext(DriverId), volumeName, true, cts.Token);
+        var result = await removeTask.WaitAsync(cts.Token).ConfigureAwait(false);
+        if (!result.Success && result.ErrorCode != ErrorCodes.Volume.NotFound)
+          OrphanCleanup.MarkAbandonedLateProvision(volumeName, Options.SessionId);
+      }
+      catch
+      {
+        OrphanCleanup.MarkAbandonedLateProvision(volumeName, Options.SessionId);
+      }
     }
   }
 }

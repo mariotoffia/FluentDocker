@@ -169,7 +169,7 @@ namespace FluentDocker.Benchmarks
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Small", "Navigate")]
-    public string Navigate_Element_Small()
+    public string? Navigate_Element_Small()
     {
       var el = JsonHelper.ParseElement(SmallJson);
       return el.GetStringOrDefault("Id")
@@ -178,7 +178,7 @@ namespace FluentDocker.Benchmarks
 
     [Benchmark]
     [BenchmarkCategory("Small", "Navigate")]
-    public string Navigate_Node_Small()
+    public string? Navigate_Node_Small()
     {
       var node = JsonNode.Parse(SmallJson)!;
       return node["Id"]?.GetValue<string>()
@@ -187,7 +187,7 @@ namespace FluentDocker.Benchmarks
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Medium", "Navigate")]
-    public (string id, string status, string ip) Navigate_Element_Medium()
+    public (string? id, string? status, string? ip) Navigate_Element_Medium()
     {
       var el = JsonHelper.ParseElement(MediumJson);
       var id = el.GetStringOrDefault("Id");
@@ -200,7 +200,7 @@ namespace FluentDocker.Benchmarks
 
     [Benchmark]
     [BenchmarkCategory("Medium", "Navigate")]
-    public (string id, string status, string ip) Navigate_Node_Medium()
+    public (string? id, string? status, string? ip) Navigate_Node_Medium()
     {
       var node = JsonNode.Parse(MediumJson)!;
       var id = node["Id"]?.GetValue<string>();
@@ -211,7 +211,7 @@ namespace FluentDocker.Benchmarks
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Large", "Navigate")]
-    public (string name, int mountCount, string ip) Navigate_Element_Large()
+    public (string? name, int mountCount, string? ip) Navigate_Element_Large()
     {
       var el = JsonHelper.ParseElement(LargeJson);
       var name = el.GetStringOrDefault("Name");
@@ -229,7 +229,7 @@ namespace FluentDocker.Benchmarks
 
     [Benchmark]
     [BenchmarkCategory("Large", "Navigate")]
-    public (string name, int mountCount, string ip) Navigate_Node_Large()
+    public (string? name, int mountCount, string? ip) Navigate_Node_Large()
     {
       var node = JsonNode.Parse(LargeJson)!;
       var name = node["Name"]?.GetValue<string>();
