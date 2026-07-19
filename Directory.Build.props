@@ -23,8 +23,6 @@
          the nupkg so consumers get SourceLink stepping without a symbol server. Applies to
          FluentDocker and the three Testing.* packages alike (non-packable projects ignore it). -->
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
-    <!-- Suppress until nullable is fully enabled in main lib -->
-    <NoWarn>$(NoWarn);CA1062</NoWarn>
     <!-- CA1507: all hits are [JsonProperty] serialization keys, not symbol refs — nameof is wrong here -->
     <NoWarn>$(NoWarn);CA1507</NoWarn>
     <!-- CA1848: logging is never on a hot path (each op brackets a process spawn / network I/O); LoggerMessage delegates not worth the boilerplate -->
