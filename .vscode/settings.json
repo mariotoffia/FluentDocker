@@ -1,13 +1,11 @@
 {
     "dotnet.defaultSolution": "FluentDocker.sln",
-    "omnisharp.useModernNet": true,
-    "omnisharp.enableEditorConfigSupport": true,
     "csharp.format.enable": true,
     "editor.formatOnType": true,
-    "dotnet.server.useOmnisharp": true,
-    "omnisharp.enableMsBuildLoadProjectsOnDemand": false,
-    "omnisharp.maxProjectResults": 1000,
-    "omnisharp.useEditorFormattingSettings": true,
+    // Use the modern Roslyn-based C# language server (same compiler as `dotnet build`).
+    // OmniSharp is legacy and mis-analyzes net10.0/C#14 projects, producing phantom
+    // CS1998/CS1503 diagnostics that the real build never emits.
+    "dotnet.server.useOmnisharp": false,
     "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles",
     "dotnet-test-explorer.testProjectPath": "**/*Tests.csproj",
     "dotnet-test-explorer.testArguments": "-f net10.0 --logger \"console;verbosity=detailed\"",
