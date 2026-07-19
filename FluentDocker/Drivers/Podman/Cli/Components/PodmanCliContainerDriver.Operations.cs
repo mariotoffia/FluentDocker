@@ -47,7 +47,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var args = "logs";
         if (tail.HasValue)
-          args += $" --tail {tail.Value}";
+          args += $" --tail {tail.Value.ToString(CultureInfo.InvariantCulture)}";
         if (timestamps)
           args += " --timestamps";
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
@@ -74,7 +74,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<ContainerProcesses>> TopAsync(
-        DriverContext context, string containerId, string psOptions = null,
+        DriverContext context, string containerId, string? psOptions = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -172,8 +172,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <remarks>
     /// Captured stdout and stderr retain only the final 256 KiB tail for long-running execs.
     /// Podman uses exit code <c>125</c> when the exec operation itself fails. This driver
-    /// treats <c>125</c> with empty stdout and a Podman error marker as infrastructure failure.
-    /// Other non-zero exits are preserved in <see cref="ExecResult.ExitCode"/>.
+    /// treats exit <c>125</c> with empty stdout as an infrastructure failure unconditionally.
+    /// Other non-zero exits with empty stdout are infrastructure failures only when stderr
+    /// carries a Podman error marker; any exit that produced stdout, and every other non-zero
+    /// exit, is preserved in <see cref="ExecResult.ExitCode"/>.
     /// </remarks>
     public async Task<CommandResponse<ExecResult>> ExecAsync(
         DriverContext context, string containerId, ExecConfig config,

@@ -17,8 +17,9 @@ namespace FluentDocker.Kernel
     /// Disposal order follows the registry dictionaries' enumeration order and is not ordered.
     /// A registration-lock timeout is retried once (a later <see cref="DisposeAsync"/> retry
     /// still proceeds — see its remarks); if the retry also times out, the remaining live
-    /// drivers are counted in <see cref="AbandonedDriverCount"/> and an error is logged so
-    /// the leak is observable rather than silent.
+    /// drivers stay registered and an error logs the leaked total so it is observable rather than
+    /// silent. They are NOT pre-counted into <see cref="AbandonedDriverCount"/>: a later successful
+    /// <see cref="DisposeAsync"/> retry produces the authoritative count, avoiding double-counting.
     /// </summary>
     public void Dispose()
     {
@@ -36,12 +37,12 @@ namespace FluentDocker.Kernel
         }
         catch (TimeoutException ex)
         {
-          // Surface the incomplete state loudly: every remaining driver is left alive while
-          // registry methods throw ObjectDisposedException. Account them as abandoned so
-          // AbandonedDriverCount reflects reality for leak monitors.
+          // Surface the incomplete state loudly by LOGGING the leaked total only. Do NOT pre-count
+          // these still-registered drivers into AbandonedDriverCount: they remain registered and a
+          // later DisposeAsync retry (the fast-path gate only short-circuits at _disposed == 2) can
+          // still dispose them and produce the authoritative abandoned count. Pre-counting here
+          // would double-count — or falsely report a leak — once that later retry succeeds.
           var leaked = _driverPacks.Count + _drivers.Count;
-          if (leaked > 0)
-            Interlocked.Add(ref _abandonedDriverCount, leaked);
           _logger.LogError(ex,
               "Driver registry sync disposal timed out twice; {LeakedCount} driver(s)/pack(s) left undisposed",
               leaked);
@@ -67,12 +68,15 @@ namespace FluentDocker.Kernel
       if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 2)
         return;
 
-      var deadline = DateTimeOffset.UtcNow + DisposeBudget;
-      var timeoutMs = DisposeBudget.TotalMilliseconds;
+      // Monotonic budget: base the deadline on Environment.TickCount64 (see Remaining) so a
+      // wall-clock step during teardown cannot zero or extend the documented 60s budget.
+      var start = Environment.TickCount64;
+      var budget = DisposeBudget;
+      var timeoutMs = budget.TotalMilliseconds;
       var lockTaken = false;
       try
       {
-        if (!await _registrationLock.WaitAsync(Remaining(deadline)).ConfigureAwait(false))
+        if (!await _registrationLock.WaitAsync(Remaining(start, budget)).ConfigureAwait(false))
           throw new TimeoutException("Timed out waiting for driver registration lock during disposal.");
         lockTaken = true;
 
@@ -82,14 +86,14 @@ namespace FluentDocker.Kernel
         foreach (var kvp in _driverPacks)
         {
           if (!await DisposeDriverPackWithinBudgetAsync(
-              kvp.Value.DriverPack, _logger, kvp.Key, Remaining(deadline)).ConfigureAwait(false))
+              kvp.Value.DriverPack, _logger, kvp.Key, Remaining(start, budget)).ConfigureAwait(false))
             Interlocked.Increment(ref _abandonedDriverCount);
         }
 
         foreach (var kvp in _drivers)
         {
           if (!await DisposeDriverWithinBudgetAsync(
-              kvp.Value.Driver, _logger, kvp.Key, Remaining(deadline)).ConfigureAwait(false))
+              kvp.Value.Driver, _logger, kvp.Key, Remaining(start, budget)).ConfigureAwait(false))
             Interlocked.Increment(ref _abandonedDriverCount);
         }
 
@@ -190,7 +194,7 @@ namespace FluentDocker.Kernel
     }
 
     private static async Task DisposeDriverSafelyAsync(
-        IDriver driver, ILogger logger, string driverId = null)
+        IDriver driver, ILogger logger, string? driverId = null)
     {
       try
       {
@@ -209,7 +213,7 @@ namespace FluentDocker.Kernel
     }
 
     private static async Task DisposeDriverPackSafelyAsync(
-        IDriverPack driverPack, ILogger logger, string driverId = null)
+        IDriverPack driverPack, ILogger logger, string? driverId = null)
     {
       try
       {
@@ -227,9 +231,15 @@ namespace FluentDocker.Kernel
       }
     }
 
-    private static TimeSpan Remaining(DateTimeOffset deadline)
+    /// <summary>
+    /// Remaining budget from a monotonic start captured via <see cref="Environment.TickCount64"/>.
+    /// TickCount64 is immune to wall-clock adjustments (NTP, DST) that a
+    /// <see cref="DateTimeOffset.UtcNow"/>-based deadline would let zero or extend mid-teardown.
+    /// </summary>
+    private static TimeSpan Remaining(long startTicks, TimeSpan budget)
     {
-      var remaining = deadline - DateTimeOffset.UtcNow;
+      var elapsed = TimeSpan.FromMilliseconds(Environment.TickCount64 - startTicks);
+      var remaining = budget - elapsed;
       return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
   }

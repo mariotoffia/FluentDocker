@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -44,9 +43,9 @@ namespace FluentDocker.Services.Impl
       // Return cached result if still valid (reduces redundant calls during wait polling).
       // Single volatile reference read ensures data and timestamp are always consistent.
       var entry = _inspectCacheEntry;
-      var now = Stopwatch.GetTimestamp();
+      var now = _timeProvider.GetTimestamp();
       if (entry != null &&
-          Stopwatch.GetElapsedTime(entry.Timestamp, now).TotalMilliseconds < InspectCacheTtlMs)
+          _timeProvider.GetElapsedTime(entry.Timestamp, now).TotalMilliseconds < InspectCacheTtlMs)
       {
         return entry.Data;
       }
@@ -103,7 +102,7 @@ namespace FluentDocker.Services.Impl
           }
         }
 
-        _inspectCacheEntry = new InspectCacheEntry(data, Stopwatch.GetTimestamp());
+        _inspectCacheEntry = new InspectCacheEntry(data, _timeProvider.GetTimestamp());
       }
 
       if (stateChange != null)

@@ -63,15 +63,15 @@ redesign (async-first, kernel/driver architecture), not a drop-in swap — follo
 ## Quick Start
 
 Start an nginx container and read its published endpoint. Every `using` below is
-required to compile in a clean project — `ToHostExposedEndpointAsync` lives in
-`FluentDocker.Services.Extensions`.
+required to compile in a clean project — `System.Linq` supplies `First()`, while
+`ToHostExposedEndpointAsync` is an instance method on `IContainerService` (no extra
+import needed).
 
 ```csharp
 using System;
-using System.Linq;
+using System.Linq;                          // First()
 using FluentDocker.Builders;
 using FluentDocker.Kernel;
-using FluentDocker.Services.Extensions;   // ToHostExposedEndpointAsync
 
 // A kernel is the composition root; register one or more drivers. Multiple kernels
 // per app are supported.

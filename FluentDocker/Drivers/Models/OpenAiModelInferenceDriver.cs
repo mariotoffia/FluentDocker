@@ -21,7 +21,7 @@ namespace FluentDocker.Drivers.Models
   /// Docker API driver base (which is bound to the Docker socket + envelope).
   /// Streaming methods live in the <c>.Streaming.cs</c> partial.
   /// </summary>
-  public partial class OpenAiModelInferenceDriver : IModelInferenceDriver
+  public sealed partial class OpenAiModelInferenceDriver : IModelInferenceDriver
   {
     private readonly IModelApiConnection _connection;
     private readonly ModelRunnerEndpoint _endpoint;
@@ -39,6 +39,7 @@ namespace FluentDocker.Drivers.Models
     public async Task<CommandResponse<ChatCompletionResponse>> ChatCompletionAsync(
         DriverContext context, ChatCompletionRequest request, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(request);
       // Copy so we never mutate the caller's instance (Stream is forced off here).
       var req = new ChatCompletionRequest(request) { Stream = false };
       return await PostJsonAsync<ChatCompletionRequest, ChatCompletionResponse>(
@@ -49,6 +50,7 @@ namespace FluentDocker.Drivers.Models
     public async Task<CommandResponse<CompletionResponse>> CompletionAsync(
         DriverContext context, CompletionRequest request, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(request);
       // Copy so we never mutate the caller's instance (Stream is forced off here).
       var req = new CompletionRequest(request) { Stream = false };
       return await PostJsonAsync<CompletionRequest, CompletionResponse>(
@@ -59,6 +61,7 @@ namespace FluentDocker.Drivers.Models
     public async Task<CommandResponse<EmbeddingsResponse>> EmbeddingsAsync(
         DriverContext context, EmbeddingsRequest request, CancellationToken cancellationToken = default)
     {
+      ArgumentNullException.ThrowIfNull(request);
       // Copy so the wire body cannot be affected by post-call mutation of the caller's instance.
       var req = new EmbeddingsRequest(request);
       return await PostJsonAsync<EmbeddingsRequest, EmbeddingsResponse>(
@@ -82,8 +85,21 @@ namespace FluentDocker.Drivers.Models
               (int)response.StatusCode);
         }
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var list = await JsonSerializer.DeserializeAsync<OpenAiModelList>(stream, JsonHelper.CaseInsensitiveOptions, cancellationToken).ConfigureAwait(false);
+        // Bound the success body exactly like the POST path: a hostile/misbehaving /models
+        // endpoint could otherwise stream gigabytes into DeserializeAsync. Overflow is the same
+        // typed failure (StreamParseError), never a silent truncation (DMR-MAJ-4).
+        var (body, overflow) = await ReadBoundedBodyAsync(response, cancellationToken).ConfigureAwait(false);
+        if (overflow)
+          return CommandResponse<IList<OpenAiModel>>.Fail(
+              $"ListEngineModels: inference response exceeded the {MaxNonStreamingResponseBytes / (1024 * 1024)} MiB limit",
+              ErrorCodes.ModelInference.StreamParseError,
+              CreateApiErrorContext(context, "ListEngineModels", response));
+
+        // An empty (or literal null) body is an empty listing, not a parse failure.
+        if (string.IsNullOrWhiteSpace(body))
+          return CommandResponse<IList<OpenAiModel>>.Ok([]);
+
+        var list = JsonSerializer.Deserialize<OpenAiModelList>(body, JsonHelper.CaseInsensitiveOptions);
         return CommandResponse<IList<OpenAiModel>>.Ok(list?.Data ?? []);
       }
       catch (ModelRunnerException ex)

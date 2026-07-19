@@ -13,6 +13,15 @@ namespace FluentDocker.Drivers.Models.Connection
   public sealed partial class ModelApiConnection
   {
     /// <inheritdoc />
+    /// <exception cref="HttpRequestException">
+    /// The endpoint returned a non-success status. The exception carries the HTTP
+    /// <see cref="HttpRequestException.StatusCode"/> and a bounded error body as its message so the
+    /// caller can map it to a typed failure; the failed response is disposed, not returned.
+    /// </exception>
+    /// <exception cref="ModelRunnerException">
+    /// A transport-level failure (connection refused / DNS / socket) opening the stream, surfaced as
+    /// <see cref="ErrorCodes.ModelInference.EndpointUnreachable"/>.
+    /// </exception>
     public async Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
     {
       // Streaming is exempt from the whole-request timeout (SSE can run for a long time), but the
@@ -98,8 +107,9 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <summary>
     /// Enforces the connection's streaming read budgets on the stream returned by
     /// <see cref="PostStreamAsync"/>: the first body read is bounded by
-    /// <see cref="IModelApiConnection.StreamFirstByteTimeout"/> (falling back to the idle
-    /// timeout when unset) and every subsequent read by
+    /// <see cref="IModelApiConnection.StreamFirstByteTimeout"/> (a null first-byte timeout
+    /// leaves the FIRST read unbounded — it is not silently downgraded to the idle timeout)
+    /// and every subsequent read by
     /// <see cref="IModelApiConnection.StreamReadIdleTimeout"/>, aborting with
     /// <see cref="ModelRunnerException"/> (<see cref="ErrorCodes.ModelInference.Timeout"/>) as the
     /// interface documents. Caller cancellation propagates unchanged. Synchronous reads are not
@@ -122,7 +132,10 @@ namespace FluentDocker.Drivers.Models.Connection
 
       public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
       {
-        var budget = _readAny ? idleTimeout : firstByteTimeout ?? idleTimeout;
+        // A null first-byte timeout means the FIRST read is unbounded (honoring only caller
+        // cancellation), per the documented "null disables the first-byte timeout" contract — it
+        // is NOT downgraded to the idle timeout. The idle timeout applies from the second read on.
+        var budget = _readAny ? idleTimeout : firstByteTimeout;
         if (budget is null)
         {
           var read = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);

@@ -19,7 +19,7 @@ namespace FluentDocker.Model.Models.Options
     /// <summary><c>--temp</c> (default 0.8); range 0.0–2.0.</summary>
     public double? Temperature { get; init; }
 
-    /// <summary><c>--top-k</c> (default 40); range 1–100.</summary>
+    /// <summary><c>--top-k</c> (default 40); <c>&gt;= 0</c> (0 disables top-k in llama.cpp).</summary>
     public int? TopK { get; init; }
 
     /// <summary><c>--top-p</c> (default 0.9); range 0.0–1.0.</summary>
@@ -70,7 +70,7 @@ namespace FluentDocker.Model.Models.Options
     /// <summary><c>--no-prefill-assistant</c>.</summary>
     public bool? NoPrefillAssistant { get; init; }
 
-    /// <summary><c>--reasoning-budget</c> (default 0).</summary>
+    /// <summary><c>--reasoning-budget</c>; <c>-1</c> (unrestricted, llama.cpp's default) or <c>&gt;= 0</c> (0 disables reasoning).</summary>
     public int? ReasoningBudget { get; init; }
 
     /// <summary>Escape hatch: extra raw flags appended verbatim (not validated).</summary>
@@ -87,7 +87,7 @@ namespace FluentDocker.Model.Models.Options
       var args = new List<string>();
 
       AddDouble(args, "--temp", Temperature, 0.0, 2.0, nameof(Temperature));
-      AddInt(args, "--top-k", TopK, 1, 100, nameof(TopK));
+      AddInt(args, "--top-k", TopK, 0, null, nameof(TopK));
       AddDouble(args, "--top-p", TopP, 0.0, 1.0, nameof(TopP));
       AddDouble(args, "--min-p", MinP, 0.0, 1.0, nameof(MinP));
       AddDouble(args, "--repeat-penalty", RepeatPenalty, 1.0, 2.0, nameof(RepeatPenalty));
@@ -106,7 +106,7 @@ namespace FluentDocker.Model.Models.Options
       AddDouble(args, "--rope-freq-scale", RopeFreqScale, null, null, nameof(RopeFreqScale));
       AddString(args, "--rope-scaling", RopeScaling);
       AddBool(args, "--no-prefill-assistant", NoPrefillAssistant);
-      AddInt(args, "--reasoning-budget", ReasoningBudget, 0, null, nameof(ReasoningBudget));
+      AddInt(args, "--reasoning-budget", ReasoningBudget, -1, null, nameof(ReasoningBudget));
 
       if (Raw != null)
         args.AddRange(Raw);

@@ -26,7 +26,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<ModelInfo>> PullAsync(DriverContext context,
-        ModelReference model, IProgress<ModelPullProgress> progress = null,
+        ModelReference model, IProgress<ModelPullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       ArgumentNullException.ThrowIfNull(model);

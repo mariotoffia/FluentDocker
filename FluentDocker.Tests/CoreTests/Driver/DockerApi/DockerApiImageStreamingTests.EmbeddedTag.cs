@@ -24,7 +24,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       var conn = new MockDockerApiConnection();
       conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
       // Non-terminal status line triggers the existence-probe fallback (GET /images/{ref}/json).
-      conn.SetupGet("/images/", 200, "{}");
+      conn.SetupGet("/json", 200, "{}");
 
       var driver = CreateDriver(conn);
       var result = await driver.PullAsync(
@@ -72,7 +72,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var conn = new MockDockerApiConnection();
       conn.SetupStream("/images/create", "{\"status\":\"Pulling\"}\n");
-      conn.SetupGet("/images/", 200, "{}");
+      conn.SetupGet("/json", 200, "{}");
 
       var driver = CreateDriver(conn);
       var result = await driver.PullAsync(

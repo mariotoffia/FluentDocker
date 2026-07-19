@@ -27,7 +27,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <inheritdoc />
     public async IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context, string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       await foreach (var entry in StreamEntriesAsync(containerId, config, cancellationToken)
@@ -45,7 +45,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// </summary>
     public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
         DriverContext context, string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       await foreach (var entry in StreamEntriesAsync(containerId, config, cancellationToken)
@@ -146,7 +146,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <inheritdoc />
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
-        DriverContext context, StreamEventsConfig config = null,
+        DriverContext context, StreamEventsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       config ??= new StreamEventsConfig();
@@ -235,8 +235,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <inheritdoc />
     public IAsyncEnumerable<ContainerStats> StreamStatsAsync(
-        DriverContext context, string containerId = null,
-        StreamStatsConfig config = null,
+        DriverContext context, string? containerId = null,
+        StreamStatsConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       // Docker Engine API requires a specific container ID for stats;
@@ -281,7 +281,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// </summary>
     public async Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context, string containerId,
-        AttachConfig config = null, CancellationToken cancellationToken = default)
+        AttachConfig? config = null, CancellationToken cancellationToken = default)
     {
       config ??= new AttachConfig();
       if (config.Stdin == true)

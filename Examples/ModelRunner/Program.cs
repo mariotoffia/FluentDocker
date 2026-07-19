@@ -27,7 +27,7 @@ namespace ModelRunner
 
     private static async Task Main()
     {
-      using var kernel = await FluentDockerKernel.Create()
+      await using var kernel = await FluentDockerKernel.Create()
           .WithDockerCli(DriverId, d => d.AsDefault())
           .BuildAsync();
 

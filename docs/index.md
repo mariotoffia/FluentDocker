@@ -15,7 +15,7 @@ permalink: /
 FluentDocker is a .NET library providing a fluent API for Docker and Docker Compose. It simplifies container management for development, testing, and CI/CD pipelines.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## New Here?
@@ -250,6 +250,7 @@ Or avoid sudo entirely: `sudo usermod -aG docker $USER`
 - [GitHub Repository](https://github.com/mariotoffia/FluentDocker)
 - [NuGet Package](https://www.nuget.org/packages/FluentDocker)
 - [Architecture Docs](architecture.md)
+- [Runnable Examples](../Examples/README.md) — end-to-end sample projects
 
 ## License
 

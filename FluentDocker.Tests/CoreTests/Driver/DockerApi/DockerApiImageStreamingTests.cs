@@ -102,7 +102,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PushAsync_StreamsProgress_ReturnsSuccess()
     {
       var conn = new MockDockerApiConnection();
-      conn.SetupStream("/images/",
+      conn.SetupStream("/push",
           "{\"status\":\"Pushing\",\"id\":\"layer1\"}\n"
           + "{\"status\":\"Pushed\",\"progressDetail\":{\"current\":500,\"total\":1000},\"id\":\"layer1\"}\n"
           + "{\"status\":\"latest: digest: sha256:abc123\"}\n");
@@ -118,7 +118,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var conn = new MockDockerApiConnection();
       conn.SetupPost("/auth", 200, "{}");
-      conn.SetupStream("/images/", "{\"status\":\"latest: digest: sha256:abc123\"}\n");
+      conn.SetupStream("/push", "{\"status\":\"latest: digest: sha256:abc123\"}\n");
       var auth = new DockerApiAuthDriver(conn);
       var driver = CreateDriver(conn);
 
@@ -152,7 +152,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PushAsync_WithError_ReturnsPushFailedErrorCode()
     {
       var conn = new MockDockerApiConnection();
-      conn.SetupStream("/images/",
+      conn.SetupStream("/push",
           "{\"status\":\"Pushing\"}\n"
           + "{\"error\":\"denied: access forbidden\",\"errorDetail\":{\"message\":\"denied\"}}\n");
 
@@ -182,7 +182,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PushAsync_StreamThrowsMidRead_ReturnsPushFailed()
     {
       var conn = new MockDockerApiConnection();
-      conn.SetupStreamReadThrows("/images/",
+      conn.SetupStreamReadThrows("/push",
           System.Text.Encoding.UTF8.GetBytes("{\"status\":\"Pushing\"}\n"),
           new IOException("connection reset by peer"));
 
@@ -198,7 +198,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PushAsync_EmptyStream_ReturnsPushFailedNoEvidence()
     {
       var conn = new MockDockerApiConnection();
-      conn.SetupStream("/images/", "");
+      conn.SetupStream("/push", "");
 
       var driver = CreateDriver(conn);
       var result = await driver.PushAsync(Ctx, "myrepo/myimage:latest", null!, TestContext.Current.CancellationToken);
@@ -369,7 +369,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PushAsync_DisposesResponseStream()
     {
       var conn = new MockDockerApiConnection();
-      conn.SetupStream("/images/", "{\"status\":\"latest: digest: sha256:abc\"}\n");
+      conn.SetupStream("/push", "{\"status\":\"latest: digest: sha256:abc\"}\n");
 
       var driver = CreateDriver(conn);
       var result = await driver.PushAsync(Ctx, "repo/img:latest", null!, TestContext.Current.CancellationToken);

@@ -32,7 +32,7 @@ namespace FluentDocker.Drivers
     IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context,
         string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -50,7 +50,7 @@ namespace FluentDocker.Drivers
     async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
         DriverContext context,
         string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       await foreach (var line in StreamLogsAsync(context, containerId, config, cancellationToken)
@@ -79,7 +79,7 @@ namespace FluentDocker.Drivers
     /// </remarks>
     IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
         DriverContext context,
-        StreamEventsConfig config = null,
+        StreamEventsConfig? config = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -95,8 +95,8 @@ namespace FluentDocker.Drivers
     /// <returns>Async enumerable of stats</returns>
     IAsyncEnumerable<ContainerStats> StreamStatsAsync(
         DriverContext context,
-        string containerId = null,
-        StreamStatsConfig config = null,
+        string? containerId = null,
+        StreamStatsConfig? config = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -117,7 +117,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context,
         string containerId,
-        AttachConfig config = null,
+        AttachConfig? config = null,
         CancellationToken cancellationToken = default);
   }
 
@@ -147,6 +147,7 @@ namespace FluentDocker.Drivers
     public string Line { get; set; }
 
     /// <summary>Optional timestamp when timestamps are requested in the stream config.</summary>
+    /// <remarks>When populated, the value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime? Timestamp { get; set; }
   }
 
@@ -290,6 +291,7 @@ namespace FluentDocker.Drivers
     public Dictionary<string, string> ActorAttributes { get; set; } = [];
 
     /// <summary>Timestamp of the event.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime Timestamp { get; set; }
 
     /// <summary>Unix timestamp (nanoseconds).</summary>
@@ -341,6 +343,7 @@ namespace FluentDocker.Drivers
     public int Pids { get; set; }
 
     /// <summary>Timestamp of the stats.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime Timestamp { get; set; }
 
     /// <summary>Raw JSON string of stats.</summary>
@@ -365,7 +368,7 @@ namespace FluentDocker.Drivers
     public Stream OutputStream { get; set; }
 
     /// <summary>Error stream (to read error data from container).</summary>
-    public Stream ErrorStream { get; set; }
+    public Stream? ErrorStream { get; set; }
 
     /// <summary>
     /// Whether the attach handle is considered connected. CLI drivers set this to true after
@@ -389,7 +392,7 @@ namespace FluentDocker.Drivers
     /// The aggregate exception from failing to dispose the attach streams, if any. Populated
     /// instead of throwing from <see cref="DisposeAsync"/> — an <see cref="System.IO.IOException"/>
     /// closing stdin of an already-exited process is an everyday, benign trigger and must never
-    /// replace the body's original exception under <c>await using</c> (KRN-MAJ-5).
+    /// replace the body's original exception under <c>await using</c>.
     /// </summary>
     public Exception? StreamDisposeError { get; private set; }
 

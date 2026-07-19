@@ -6,9 +6,9 @@ using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers
 {
-  /// <summary>
-  /// Service operations: logs, scale, rollback, and task listing.
-  /// </summary>
+  // Service operations: logs, scale, rollback, and task listing.
+  // Secondary partial declaration; the <summary> lives on the primary IServiceDriver.cs
+  // to avoid a duplicate member entry in the generated XML docs.
   public partial interface IServiceDriver
   {
     #region Rollback Operations
@@ -41,7 +41,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<IList<ServiceTask>>> GetTasksAsync(
         DriverContext context,
         string serviceId,
-        ServiceTaskFilter filter = null,
+        ServiceTaskFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context,
         string serviceId,
-        ServiceLogsConfig config = null,
+        ServiceLogsConfig? config = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -157,7 +157,7 @@ namespace FluentDocker.Drivers
     /// <summary>Only display task IDs.</summary>
     public bool Quiet { get; set; }
 
-    /// <summary>Output format.</summary>
+    /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
     public string Format { get; set; }
   }
 

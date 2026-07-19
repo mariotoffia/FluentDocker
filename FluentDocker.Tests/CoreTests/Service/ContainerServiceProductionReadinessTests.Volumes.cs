@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Containers;
 using FluentDocker.Model.Drivers;
+using FluentDocker.Services;
 using FluentDocker.Services.Impl;
 using FluentDocker.Tests.Mocks;
 using Moq;
@@ -59,6 +60,35 @@ namespace FluentDocker.Tests.CoreTests.Service
       MockPack.VolumeDriver.Verify(d => d.RemoveAsync(
           It.IsAny<DriverContext>(), "orders-cache", It.IsAny<bool>(),
           It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // SVC-2: the container itself is removed first (terminal Removed state), then the post-remove
+    // named-volume cleanup is canceled. The RemoveCoreAsync catch must NOT downgrade the terminal
+    // Removed state back to Unknown on that cancellation.
+    [Fact]
+    public async Task RemoveAsync_NamedVolumeCleanupCanceledAfterRemove_KeepsTerminalRemovedState()
+    {
+      MockPack.SetupContainerRemove();
+      MockPack.ContainerDriver
+          .Setup(d => d.InspectAsync(
+              It.IsAny<DriverContext>(), "container-123", It.IsAny<CancellationToken>()))
+          .ReturnsAsync(CommandResponse<Container>.Ok(new Container
+          {
+            Id = "container-123",
+            Mounts = [new ContainerMount { Name = "orders-data" }]
+          }));
+      MockPack.VolumeDriver
+          .Setup(d => d.RemoveAsync(
+              It.IsAny<DriverContext>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+          .ThrowsAsync(new OperationCanceledException());
+      var service = new ContainerService(
+          Kernel, DriverId, "container-123", "alpine", "test",
+          stopOnDispose: false, deleteOnDispose: true, deleteNamedVolumeOnDispose: true);
+
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+          service.RemoveAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+      Assert.Equal(ServiceRunningState.Removed, service.State);
     }
   }
 }

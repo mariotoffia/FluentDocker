@@ -18,8 +18,12 @@ namespace FluentDocker.Kernel
     /// 1. Registered driver PACK: the pack's IDriverInterfaceResolver.TryResolve is the single
     ///    resolution path — packs never fall back to a direct cast (KRN-MAJ-7 removed the
     ///    pack-level ISysCtl delegation).
-    /// 2. Plain driver: if it implements IDriverInterfaceResolver, ask it; otherwise fall back
-    ///    to a direct cast (driver is T).
+    /// 2. Plain driver: if it implements IDriverInterfaceResolver, ask it. The direct cast
+    ///    (driver is T) is ALWAYS attempted afterwards as a last resort — even when the driver's
+    ///    own resolver returned false or threw InterfaceNotSupportedException. A resolver author
+    ///    therefore cannot restrict access to interfaces the driver type itself implements; the
+    ///    cast still succeeds for those. (A hard resolver fault — any non-contract exception — is
+    ///    still surfaced as DriverException and short-circuits the cast.)
     /// </summary>
     private bool TryResolveCore(
         string driverId,

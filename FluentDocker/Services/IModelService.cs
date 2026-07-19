@@ -12,6 +12,11 @@ namespace FluentDocker.Services
   /// <c>RemoveAsync</c> removes.
   /// A timed-out/disposed <c>StartAsync</c> abandons the wait; the underlying shared
   /// load may continue in the background and briefly overlap a retry.
+  /// <para>
+  /// <c>Removed</c> is a terminal state: once <c>RemoveAsync</c> completes, <c>StartAsync</c>
+  /// throws <see cref="System.InvalidOperationException"/> rather than silently re-loading the
+  /// model (mirroring the container/compose/pod services).
+  /// </para>
   /// </summary>
   public interface IModelService : IServiceAsync
   {

@@ -228,6 +228,7 @@ namespace FluentDocker.Services.Impl
         ServiceRunningState state, Func<IServiceAsync, Task> hook, string uniqueName = null)
     {
       ThrowIfDisposed();
+      ArgumentNullException.ThrowIfNull(hook);
       var name = uniqueName ?? Guid.NewGuid().ToString();
       _hooks[name] = (state, hook);
       return this;
@@ -237,7 +238,8 @@ namespace FluentDocker.Services.Impl
     public IServiceAsync RemoveHook(string uniqueName)
     {
       ThrowIfDisposed();
-      _hooks.TryRemove(uniqueName, out _);
+      if (uniqueName != null)
+        _hooks.TryRemove(uniqueName, out _);
       return this;
     }
 

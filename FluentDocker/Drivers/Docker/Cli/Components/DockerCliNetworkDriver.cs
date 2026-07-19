@@ -125,7 +125,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Network>>> ListAsync(
         DriverContext context,
-        NetworkListFilter filter = null,
+        NetworkListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try

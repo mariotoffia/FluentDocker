@@ -37,6 +37,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         Exception? StreamException);
 
     private readonly List<ResponseEntry> _entries = [];
+    private readonly List<(string Method, string PathContains, Exception Ex)> _throws = [];
     private readonly List<(string PathContains, HttpStatusCode StatusCode, IReadOnlyDictionary<string, string> Headers)> _headEntries = [];
     private readonly List<(string PathContains, Func<Stream> Factory)> _streamFactories = [];
     private readonly List<CapturedRequest> _requests = [];
@@ -153,6 +154,19 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return this;
     }
 
+    /// <summary>
+    /// Registers an exception to surface (as a faulted task) when a matching request is issued —
+    /// simulating a request helper that rethrows a typed transport/negotiation failure such as the
+    /// unsupported-daemon-version <see cref="FluentDocker.Common.DriverException"/> (DAPI-2). Wired
+    /// into the non-stream verbs; stream-open failures use <see cref="SetupStreamThrows"/>.
+    /// </summary>
+    public MockDockerApiConnection SetupThrows(
+        string method, string pathContains, Exception ex)
+    {
+      _throws.Add((method, pathContains, ex));
+      return this;
+    }
+
     // ── Verification ────────────────────────────────────────────────
 
     /// <summary>Returns every request captured so far, in order.</summary>
@@ -163,6 +177,8 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public Task<HttpResponseMessage> GetAsync(
         string path, CancellationToken ct = default)
     {
+      // Observe the token so a driver that forgets to honor cancellation on GET is caught (TESTS-4).
+      ct.ThrowIfCancellationRequested();
       Record("GET", path, null);
       return Task.FromResult(Resolve("GET", path));
     }
@@ -177,6 +193,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task<HttpResponseMessage> PostAsync(
         string path, HttpContent? content = null, CancellationToken ct = default)
     {
+      ct.ThrowIfCancellationRequested();
       var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
 
       Record("POST", path, body, bodyBytes: bodyBytes);
@@ -187,6 +204,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
         string path, HttpContent? content,
         IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
     {
+      ct.ThrowIfCancellationRequested();
       var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
 
       Record("POST", path, body, headers, bodyBytes);
@@ -196,6 +214,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task<HttpResponseMessage> PutAsync(
         string path, HttpContent content, CancellationToken ct = default)
     {
+      ct.ThrowIfCancellationRequested();
       var (body, bodyBytes) = await ReadContentAsync(content, ct).ConfigureAwait(false);
 
       Record("PUT", path, body, bodyBytes: bodyBytes);
@@ -205,7 +224,11 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public Task<HttpResponseMessage> DeleteAsync(
         string path, CancellationToken ct = default)
     {
+      // Observe the token so a driver that forgets to honor cancellation on DELETE is caught (TESTS-4).
+      ct.ThrowIfCancellationRequested();
       Record("DELETE", path, null);
+      if (TryGetThrow("DELETE", path, out var ex))
+        return Task.FromException<HttpResponseMessage>(ex);
       return Task.FromResult(Resolve("DELETE", path));
     }
 
@@ -261,13 +284,50 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
       return (Encoding.UTF8.GetString(bytes), bytes);
     }
 
+    // Route by a SEGMENT-BOUNDARY path SUFFIX (after stripping any query), not a loose Contains — a
+    // registered fragment must be a true suffix of the request path AND begin on a '/' boundary. This
+    // rejects two failure modes that a loose Contains would mask (TESTS-4):
+    //   * deeper-segment superstrings: registered "/models" must NOT match a request "/models/ai/x"
+    //     (a suffix match already fails here, since the path does not END with "/models"); and
+    //   * partial-segment matches: registered "models" must NOT match "/submodels" (the boundary
+    //     check rejects it because the char before the match is not '/').
+    // When the registered fragment itself starts with '/', the boundary is inherent, so this is
+    // equivalent to a plain end-anchored suffix — which is how every registration in the suite is
+    // written. Mirrors MockModelApiConnection.
+    private static bool MatchesPath(string actual, string registered)
+    {
+      var q = actual.IndexOf('?', StringComparison.Ordinal);
+      var p = q >= 0 ? actual[..q] : actual;
+      if (!p.EndsWith(registered, StringComparison.Ordinal))
+        return false;
+      var start = p.Length - registered.Length;
+      return start == 0 ||
+          registered.StartsWith('/') ||
+          p[start - 1] == '/';
+    }
+
+    private bool TryGetThrow(string method, string path, out Exception ex)
+    {
+      foreach (var entry in _throws)
+      {
+        if (entry.Method == method && MatchesPath(path, entry.PathContains))
+        {
+          ex = entry.Ex;
+          return true;
+        }
+      }
+
+      ex = null!;
+      return false;
+    }
+
     private HttpResponseMessage Resolve(string method, string path)
     {
       if (TryResolveGetSequence(method, path, out var sequenced))
         return sequenced;
 
       var entry = _entries
-          .Where(e => e.Method == method && path.Contains(e.PathContains))
+          .Where(e => e.Method == method && MatchesPath(path, e.PathContains))
           .LastOrDefault();
 
       if (entry == default)
@@ -292,7 +352,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     private HttpResponseMessage ResolveHead(string path)
     {
       var entry = _headEntries
-          .Where(e => path.Contains(e.PathContains))
+          .Where(e => MatchesPath(path, e.PathContains))
           .LastOrDefault();
 
       if (entry == default)
@@ -309,7 +369,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 #pragma warning restore CA1859
     {
       var factory = _streamFactories
-          .Where(f => path.Contains(f.PathContains))
+          .Where(f => MatchesPath(path, f.PathContains))
           .Select(f => f.Factory)
           .LastOrDefault();
       if (factory != null)
@@ -317,21 +377,21 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
 
       // A STREAM_THROW entry simulates a stream-open failure.
       var throwEntry = _entries
-          .Where(e => e.Method == "STREAM_THROW" && path.Contains(e.PathContains))
+          .Where(e => e.Method == "STREAM_THROW" && MatchesPath(path, e.PathContains))
           .LastOrDefault();
       if (throwEntry != default && throwEntry.StreamException != null)
         throw throwEntry.StreamException;
 
       // A STREAM_READ_THROW entry yields a byte prefix then throws on the next read.
       var readThrowEntry = _entries
-          .Where(e => e.Method == "STREAM_READ_THROW" && path.Contains(e.PathContains))
+          .Where(e => e.Method == "STREAM_READ_THROW" && MatchesPath(path, e.PathContains))
           .LastOrDefault();
       if (readThrowEntry != default && readThrowEntry.StreamException != null)
         return new ThrowingReadStream(
             readThrowEntry.StreamBytes ?? Array.Empty<byte>(), readThrowEntry.StreamException);
 
       var entry = _entries
-          .Where(e => e.Method == "STREAM" && path.Contains(e.PathContains))
+          .Where(e => e.Method == "STREAM" && MatchesPath(path, e.PathContains))
           .LastOrDefault();
 
       if (entry != default && entry.StreamBytes != null)

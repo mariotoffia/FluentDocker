@@ -221,7 +221,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<SystemPruneResult>> PruneAsync(
         DriverContext context,
-        SystemPruneConfig config = null,
+        SystemPruneConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       try

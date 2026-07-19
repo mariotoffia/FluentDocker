@@ -44,6 +44,12 @@
     <EmbeddedResource Include="Fixtures\ResourceQuery\Res\app.properties" LogicalName="Res.app.properties" />
     <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Sub\Dockerfile.template" LogicalName="Res.Sub.Dockerfile.template" />
     <EmbeddedResource Include="Fixtures\ResourceQuery\Res\Sub\README" LogicalName="Res.Sub.README" />
+    <!-- COMMON-1: short, extension-less filenames directly under a query root. Distinct roots so a
+         non-recursive query on one does not pick up the other. "Zc.info" is a single-segment root
+         (crash case: ExtractFile returned the whole name -> res[..-1]); "Zd.Sub.data" is a
+         multi-segment root "Zd.Sub" (silent-drop case: ns fell short of the root). -->
+    <EmbeddedResource Include="Fixtures\ResourceQuery\CommonOne\info" LogicalName="Zc.info" />
+    <EmbeddedResource Include="Fixtures\ResourceQuery\CommonOne\Sub\data" LogicalName="Zd.Sub.data" />
   </ItemGroup>
 
   <!-- DMR (Docker Model Runner) fixtures — embedded so they survive Release test runs -->

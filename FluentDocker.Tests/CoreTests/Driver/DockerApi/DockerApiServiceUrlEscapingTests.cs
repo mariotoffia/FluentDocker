@@ -16,7 +16,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task InspectAsync_EscapesServiceIdPathSegment()
     {
       var mock = new MockDockerApiConnection();
-      mock.SetupGet("/services/", 200,
+      mock.SetupGet("/services/svc%2Fa%3Fb%23c", 200,
           @"{""ID"":""svc/a?b#c"",""Version"":{""Index"":1},""Spec"":{""Name"":""svc""}}");
       var driver = new DockerApiServiceDriver(mock);
       driver.Initialize(Ctx);

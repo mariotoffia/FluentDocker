@@ -78,7 +78,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> LogoutAsync(
         DriverContext context,
-        string server = null,
+        string? server = null,
         CancellationToken cancellationToken = default)
     {
       try

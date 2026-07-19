@@ -69,7 +69,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <summary>Gets running processes in a container.</summary>
     public async Task<CommandResponse<ContainerProcesses>> TopAsync(
         DriverContext context, string containerId,
-        string psOptions = null, CancellationToken cancellationToken = default)
+        string? psOptions = null, CancellationToken cancellationToken = default)
     {
       var path = $"/containers/{Uri.EscapeDataString(containerId)}/top";
       if (!string.IsNullOrEmpty(psOptions))

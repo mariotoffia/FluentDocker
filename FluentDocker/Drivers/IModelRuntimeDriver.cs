@@ -44,7 +44,7 @@ namespace FluentDocker.Drivers
     /// <returns>A unit response.</returns>
     /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<Unit>> LoadAsync(DriverContext context,
-        ModelReference model, ModelRunOptions options = null,
+        ModelReference model, ModelRunOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Unloads a single model.</summary>
@@ -89,7 +89,7 @@ namespace FluentDocker.Drivers
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
     Task<CommandResponse<Unit>> InstallRunnerAsync(DriverContext context,
-        ModelRunnerInstallOptions options = null,
+        ModelRunnerInstallOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Uninstalls the runner (Docker Engine CE only).</summary>
@@ -98,7 +98,7 @@ namespace FluentDocker.Drivers
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A unit response.</returns>
     Task<CommandResponse<Unit>> UninstallRunnerAsync(DriverContext context,
-        ModelRunnerUninstallOptions options = null,
+        ModelRunnerUninstallOptions? options = null,
         CancellationToken cancellationToken = default);
   }
 }

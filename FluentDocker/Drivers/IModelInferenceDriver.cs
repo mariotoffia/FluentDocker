@@ -24,6 +24,7 @@ namespace FluentDocker.Drivers
     /// <param name="request">The chat request.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The chat completion response.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is null.</exception>
     Task<CommandResponse<ChatCompletionResponse>> ChatCompletionAsync(
         DriverContext context, ChatCompletionRequest request,
         CancellationToken cancellationToken = default);
@@ -33,6 +34,7 @@ namespace FluentDocker.Drivers
     /// <param name="request">The chat request.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>An async stream of chat completion chunks.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is null (thrown eagerly, before enumeration).</exception>
     IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamAsync(
         DriverContext context, ChatCompletionRequest request,
         CancellationToken cancellationToken = default);
@@ -42,6 +44,7 @@ namespace FluentDocker.Drivers
     /// <param name="request">The completion request.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The completion response.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is null.</exception>
     Task<CommandResponse<CompletionResponse>> CompletionAsync(
         DriverContext context, CompletionRequest request,
         CancellationToken cancellationToken = default);
@@ -51,6 +54,7 @@ namespace FluentDocker.Drivers
     /// <param name="request">The completion request.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>An async stream of completion chunks.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is null (thrown eagerly, before enumeration).</exception>
     IAsyncEnumerable<CompletionChunk> CompletionStreamAsync(
         DriverContext context, CompletionRequest request,
         CancellationToken cancellationToken = default);
@@ -60,6 +64,7 @@ namespace FluentDocker.Drivers
     /// <param name="request">The embeddings request.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The embeddings response.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is null.</exception>
     Task<CommandResponse<EmbeddingsResponse>> EmbeddingsAsync(
         DriverContext context, EmbeddingsRequest request,
         CancellationToken cancellationToken = default);

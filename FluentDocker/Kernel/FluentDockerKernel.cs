@@ -56,7 +56,7 @@ namespace FluentDocker.Kernel
     /// 2. Plain driver: if it implements IDriverInterfaceResolver, ask it; otherwise fall back
     ///    to a direct cast (driver is T).
     /// </summary>
-    public object SysCtl(string driverId, Type interfaceType)
+    public object SysCtl(string? driverId, Type interfaceType)
     {
       ThrowIfDisposed();
       ArgumentNullException.ThrowIfNull(interfaceType);
@@ -77,7 +77,7 @@ namespace FluentDocker.Kernel
     /// Gets a driver component interface by driver ID and generic type.
     /// Delegates to the unified type-based resolution.
     /// </summary>
-    public T SysCtl<T>(string driverId) where T : class
+    public T SysCtl<T>(string? driverId) where T : class
     {
       return (T)SysCtl(driverId, typeof(T));
     }
@@ -87,7 +87,7 @@ namespace FluentDocker.Kernel
     /// unsupported. Missing drivers, disposal/cancellation, I/O failures, and
     /// unexpected resolver faults still throw.
     /// </summary>
-    public bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class
+    public bool TrySysCtl<T>(string? driverId, [NotNullWhen(true)] out T? instance) where T : class
     {
       ThrowIfDisposed();
       instance = null;
@@ -223,7 +223,7 @@ namespace FluentDocker.Kernel
     }
 
     /// <inheritdoc />
-    public async Task<DriverCapabilities> GetCapabilitiesAsync(string driverId, CancellationToken cancellationToken = default)
+    public async Task<DriverCapabilities> GetCapabilitiesAsync(string? driverId, CancellationToken cancellationToken = default)
     {
       var resolved = ResolveDriverIdOrDefault(driverId);
       return IsDriverPack(resolved)
@@ -232,7 +232,7 @@ namespace FluentDocker.Kernel
     }
 
     /// <inheritdoc />
-    public async Task<bool> IsHealthyAsync(string driverId, CancellationToken cancellationToken = default)
+    public async Task<bool> IsHealthyAsync(string? driverId, CancellationToken cancellationToken = default)
     {
       var resolved = ResolveDriverIdOrDefault(driverId);
       return IsDriverPack(resolved)

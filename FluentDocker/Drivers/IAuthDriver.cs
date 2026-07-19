@@ -30,7 +30,7 @@ namespace FluentDocker.Drivers
     /// <param name="cancellationToken">Cancellation token</param>
     Task<CommandResponse<Unit>> LogoutAsync(
         DriverContext context,
-        string server = null,
+        string? server = null,
         CancellationToken cancellationToken = default);
   }
 
@@ -56,7 +56,9 @@ namespace FluentDocker.Drivers
     public string Password { get; set; }
 
     /// <summary>
-    /// Read password from stdin (more secure).
+    /// When <c>true</c>, requires that <see cref="Password"/> is present — adapters fail fast if it
+    /// is missing. This flag does not change how the password is transmitted: the password is
+    /// always passed to the CLI via stdin when set; the flag only validates that one was supplied.
     /// </summary>
     public bool PasswordStdin { get; set; }
 

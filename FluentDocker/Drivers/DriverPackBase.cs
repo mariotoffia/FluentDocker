@@ -38,16 +38,32 @@ namespace FluentDocker.Drivers
       Drivers[typeof(T)] = driver;
     }
 
+    /// <summary>
+    /// Whether this pack has been disposed. The base helper owns no disposable state and is
+    /// never disposed itself, so it reports <c>false</c>. Extenders that add disposal must
+    /// override this to gate resolution on their own disposed state: while <see cref="IsDisposed"/>
+    /// is <c>true</c>, <see cref="TryResolve"/> throws <see cref="ObjectDisposedException"/>,
+    /// honoring the post-disposal contract required by <see cref="IDriverPack"/>.
+    /// </summary>
+    protected virtual bool IsDisposed => false;
+
     /// <inheritdoc />
-    public bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
+    /// <remarks>
+    /// Extenders that add disposal should override <see cref="IsDisposed"/>; once it reports
+    /// <c>true</c> this method throws <see cref="ObjectDisposedException"/> so resolution faults
+    /// after disposal as the <see cref="IDriverPack"/> contract requires.
+    /// </remarks>
+    public virtual bool TryResolve(Type interfaceType, [NotNullWhen(true)] out object? implementation)
     {
+      ArgumentNullException.ThrowIfNull(interfaceType);
+      ObjectDisposedException.ThrowIf(IsDisposed, this);
       // A subclass can write null into Drivers directly (bypassing RegisterDriver); treat a
       // null-mapped interface as unsupported so the [NotNullWhen(true)] contract holds.
       return Drivers.TryGetValue(interfaceType, out implementation) && implementation is not null;
     }
 
     /// <inheritdoc />
-    public IReadOnlyCollection<Type> GetSupportedInterfaces()
+    public virtual IReadOnlyCollection<Type> GetSupportedInterfaces()
     {
       return Drivers.Keys.ToList().AsReadOnly();
     }

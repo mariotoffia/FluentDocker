@@ -452,5 +452,32 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       Assert.Equal(new[] { "Hi" }, contents);
     }
+
+    // ---- DMR-6: a null request on a streaming method must throw ArgumentNullException EAGERLY
+    // (from the call itself), not lazily on first MoveNextAsync, and name the 'request' parameter
+    // (not the iterator's leaked 'other'). ----
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ChatCompletionStreamAsync_NullRequest_ThrowsEagerly()
+    {
+      var driver = Create(new MockModelApiConnection());
+
+      // The throw must surface from the CALL, before any enumeration is started.
+      var ex = Assert.Throws<ArgumentNullException>(() =>
+          driver.ChatCompletionStreamAsync(Ctx, null!, TestContext.Current.CancellationToken));
+      Assert.Equal("request", ex.ParamName);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void CompletionStreamAsync_NullRequest_ThrowsEagerly()
+    {
+      var driver = Create(new MockModelApiConnection());
+
+      var ex = Assert.Throws<ArgumentNullException>(() =>
+          driver.CompletionStreamAsync(Ctx, null!, TestContext.Current.CancellationToken));
+      Assert.Equal("request", ex.ParamName);
+    }
   }
 }

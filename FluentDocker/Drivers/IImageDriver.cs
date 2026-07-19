@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Model.Drivers;
-using FluentDocker.Model.Images;
 
 namespace FluentDocker.Drivers
 {
@@ -28,7 +27,7 @@ namespace FluentDocker.Drivers
         DriverContext context,
         string image,
         string tag = "latest",
-        IProgress<ImagePullProgress> progress = null,
+        IProgress<ImagePullProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -41,7 +40,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<Unit>> PushAsync(
         DriverContext context,
         string image,
-        IProgress<ImagePushProgress> progress = null,
+        IProgress<ImagePushProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -69,7 +68,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context,
         ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress = null,
+        IProgress<ImageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -85,7 +84,7 @@ namespace FluentDocker.Drivers
     /// <returns>List of images</returns>
     Task<CommandResponse<IList<Image>>> ListAsync(
         DriverContext context,
-        ImageListFilter filter = null,
+        ImageListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -163,7 +162,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<ImagePruneResult>> PruneAsync(
         DriverContext context,
         bool all = false,
-        Dictionary<string, string> filter = null,
+        Dictionary<string, string>? filter = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -208,9 +207,9 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<string>> ImportAsync(
         DriverContext context,
         string source,
-        string repository = null,
-        string tag = null,
-        string message = null,
+        string? repository = null,
+        string? tag = null,
+        string? message = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -275,7 +274,7 @@ namespace FluentDocker.Drivers
     public string Id { get; set; }
 
     /// <summary>Error message if the build step failed. Null on success.</summary>
-    public string Error { get; set; }
+    public string? Error { get; set; }
   }
 
   #endregion
@@ -412,6 +411,7 @@ namespace FluentDocker.Drivers
     public string CreatedBy { get; set; }
 
     /// <summary>Creation time.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime Created { get; set; }
 
     /// <summary>Layer size in bytes.</summary>
@@ -425,7 +425,9 @@ namespace FluentDocker.Drivers
   }
 
   /// <summary>
-  /// Represents an image.
+  /// Represents an image. This <c>FluentDocker.Drivers</c> type is the canonical port entity for
+  /// image data crossing the driver boundary; it is distinct from the CLI/API parsing models under
+  /// <c>FluentDocker.Model.Images</c>.
   /// </summary>
   public class Image
   {
@@ -442,6 +444,7 @@ namespace FluentDocker.Drivers
     public List<string> RepoDigests { get; set; } = [];
 
     /// <summary>Creation time.</summary>
+    /// <remarks>The value is in UTC (<see cref="DateTimeKind.Utc"/>).</remarks>
     public DateTime Created { get; set; }
 
     /// <summary>Image size in bytes.</summary>

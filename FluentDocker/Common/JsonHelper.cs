@@ -26,6 +26,8 @@ namespace FluentDocker.Common
     private static readonly JsonConverter<DateTimeOffset> TolerantDateTimeOffsetConverterInstance = new TolerantDateTimeOffsetConverter();
     private static readonly JsonConverter<DateTimeOffset?> TolerantNullableDateTimeOffsetConverterInstance = new TolerantNullableDateTimeOffsetConverter();
     private static readonly JsonConverter<bool> LenientBoolConverterInstance = new LenientBoolConverter();
+    private static readonly JsonConverter<int> LenientInt32ConverterInstance = new LenientInt32Converter();
+    private static readonly JsonConverter<long> LenientInt64ConverterInstance = new LenientInt64Converter();
 
     /// <summary>
     /// Default serializer options matching Docker/Podman JSON conventions.
@@ -270,14 +272,15 @@ namespace FluentDocker.Common
       var resolver = new DefaultJsonTypeInfoResolver();
       resolver.Modifiers.Add(ApplyTolerantDateTimeOffsetConverters);
       resolver.Modifiers.Add(ApplyLenientBoolConverters);
+      resolver.Modifiers.Add(ApplyLenientIntConverters);
       return resolver;
     }
 
     /// <summary>
     /// Applies <see cref="LenientBoolConverter"/> to every non-nullable <see cref="bool"/>
     /// property of FluentDocker's own model DTOs, so one drifting daemon-emitted boolean
-    /// (JSON null, numeric 0/1, or string form) degrades to a parsed value instead of failing
-    /// the entire inspect deserialization. Nullable booleans are left untouched: they already
+    /// (JSON null, any number, a string form, or even a structured object/array) degrades to a
+    /// parsed value instead of failing the entire inspect deserialization. Nullable booleans are left untouched: they already
     /// tolerate JSON null, and null must remain observable as "not set" for options DTOs.
     /// Scoped like the <see cref="DateTimeOffset"/> modifier — user types deserialized through
     /// the shared options are not rewritten (MC-MAJ-1).
@@ -291,6 +294,30 @@ namespace FluentDocker.Common
       {
         if (property.PropertyType == typeof(bool))
           property.CustomConverter = LenientBoolConverterInstance;
+      }
+    }
+
+    /// <summary>
+    /// Applies <see cref="LenientInt32Converter"/> to every non-nullable <see cref="int"/> and
+    /// <see cref="LenientInt64Converter"/> to every non-nullable <see cref="long"/> property of
+    /// FluentDocker's own model DTOs, so one drifting daemon-emitted number (JSON null, a
+    /// fractional value, a string form, or even a structured object/array) degrades to a parsed
+    /// value instead of failing the entire inspect deserialization. Nullable integers are left
+    /// untouched: they already tolerate JSON null, and null must remain observable as "not set".
+    /// Scoped like the <see cref="DateTimeOffset"/>/<see cref="bool"/> modifiers — user types
+    /// deserialized through the shared options are not rewritten (MODEL-2).
+    /// </summary>
+    private static void ApplyLenientIntConverters(JsonTypeInfo typeInfo)
+    {
+      if (typeInfo.Type.Namespace?.StartsWith("FluentDocker.Model", StringComparison.Ordinal) != true)
+        return;
+
+      foreach (var property in typeInfo.Properties)
+      {
+        if (property.PropertyType == typeof(int))
+          property.CustomConverter = LenientInt32ConverterInstance;
+        else if (property.PropertyType == typeof(long))
+          property.CustomConverter = LenientInt64ConverterInstance;
       }
     }
 

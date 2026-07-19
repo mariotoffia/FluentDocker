@@ -23,7 +23,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PushAsync_ProgressWithoutDigest_ReturnsPushFailed()
     {
       var mock = new MockDockerApiConnection();
-      mock.SetupStream("/images/",
+      mock.SetupStream("/push",
           "{\"status\":\"Pushing\",\"id\":\"layer1\"}\n" +
           "{\"status\":\"Pushed\",\"id\":\"layer1\"}\n");
       var driver = new DockerApiImageDriver(mock);
@@ -41,7 +41,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PushAsync_AuxDigest_ReturnsSuccess()
     {
       var mock = new MockDockerApiConnection();
-      mock.SetupStream("/images/",
+      mock.SetupStream("/push",
           "{\"status\":\"Pushing\",\"id\":\"layer1\"}\n" +
           "{\"aux\":{\"Digest\":\"sha256:abc123\"}}\n");
       var driver = new DockerApiImageDriver(mock);
@@ -57,7 +57,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task PushAsync_StatusDigestLine_ReturnsSuccess()
     {
       var mock = new MockDockerApiConnection();
-      mock.SetupStream("/images/",
+      mock.SetupStream("/push",
           "{\"status\":\"Pushing\",\"id\":\"layer1\"}\n" +
           "{\"status\":\"latest: digest: sha256:abc123 size: 123\"}\n");
       var driver = new DockerApiImageDriver(mock);

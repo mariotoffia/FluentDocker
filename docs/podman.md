@@ -10,7 +10,7 @@ runtime-specific behavior you should understand before relying on Podman in CI o
 production. For a runnable sample see the [Podman quick start](index.md#podman-container-runtime).
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## On this page
@@ -130,7 +130,7 @@ gate control flow on receiving progress events.
 
 | Operation | Docker CLI | Podman CLI |
 |---|---|---|
-| Image pull / push / build progress callbacks | Reports parsed progress events where the CLI emits them. | Accepted for API compatibility but not reported; inspect the command result/output instead. |
+| Image pull / push / build progress callbacks | Reports parsed progress events where the CLI emits them. | Reports **line-based** progress: each CLI output line is surfaced unparsed as one event (`ImagePullProgress.Status` / `ImagePushProgress.Status` = the raw line). |
 
 ## Remote TLS verification
 
@@ -143,9 +143,11 @@ via `podman system connection`.
 
 ## Health checks
 
-`HealthCheckConfig.Test` exec-form `CMD` values are emitted through Podman's
-string-only `--health-cmd`, so they still require a shell in the image. Use a
-shell-compatible health command or avoid CLI health checks for shell-less images.
+`HealthCheckConfig.Test` exec-form values — a `CMD` prefix or a bare token list — are
+serialized as a JSON array and passed to Podman's `--health-cmd`, so Podman runs them
+directly (no `/bin/sh -c`). Exec-form/CMD health checks therefore **work on shell-less /
+distroless images**. Only `CMD-SHELL` uses shell form (a single command string that
+requires a shell); `["NONE"]` emits `--no-healthcheck`.
 
 ## Standard output caps
 
@@ -157,8 +159,10 @@ Podman output is bounded so a chatty command can never exhaust memory:
 - **`exec` and `machine ssh`** use the same rolling-tail behavior for stdout/stderr, with
   the same visible truncation marker when output exceeds the retained tail.
 - **"Unbounded" long operations** stream line-by-line and keep only a bounded tail for
-  error reporting, instead of failing once output crosses 4 MiB.
-- **Bounded (non-streaming) commands** still cap at 4 MiB (`MaxNonStreamingOutputBytes`).
+  error reporting, instead of failing once output crosses the 64 MiB stdout cap.
+- **Bounded (non-streaming) commands** cap stdout at 64 MiB (`MaxNonStreamingOutputBytes`,
+  fails the command when exceeded) and stderr at a separate 4 MiB cap (truncated with a
+  marker, never fails).
 
 If you need the full log of a long-running container, attach or stream logs rather than
 relying on the captured `run` output.

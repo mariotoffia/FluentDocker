@@ -20,6 +20,10 @@ namespace FluentDocker.Tests.CoreTests.Driver
   /// tasks alone would discard the accumulated text).
   /// </summary>
   [Trait("Category", "Unit")]
+  // These tests spawn a real OS subprocess and lean on multi-second wall-clock timeouts (a real
+  // `sleep` script through the real probe driver). Tagged so the fastest Unit loop can exclude the
+  // process-spawning tests when iterating (TESTS-8).
+  [Trait("Requires", "Process")]
   public sealed class CliTimeoutDiagnosticsTests
   {
     private const string HangingScript = """
@@ -41,7 +45,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       driver.Initialize(new DriverContext("docker"));
 
       var ex = await Assert.ThrowsAsync<DriverException>(() => driver.ProbeAsync(
-          new DriverContext("docker") { RequestTimeout = TimeSpan.FromSeconds(2) },
+          new DriverContext("docker") { RequestTimeout = TimeSpan.FromSeconds(6) },
           "info", CancellationToken.None));
 
       Assert.Equal(ErrorCodes.General.Timeout, ex.ErrorCode);
@@ -62,7 +66,7 @@ namespace FluentDocker.Tests.CoreTests.Driver
       driver.Initialize(new DriverContext("podman"));
 
       var ex = await Assert.ThrowsAsync<DriverException>(() => driver.ProbeAsync(
-          new DriverContext("podman") { RequestTimeout = TimeSpan.FromSeconds(2) },
+          new DriverContext("podman") { RequestTimeout = TimeSpan.FromSeconds(6) },
           "info", CancellationToken.None));
 
       Assert.Equal(ErrorCodes.General.Timeout, ex.ErrorCode);

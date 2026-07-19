@@ -32,7 +32,7 @@ namespace FluentDocker.Kernel
     /// <see cref="FluentDocker.Common.DriverNotFoundException"/>. After kernel disposal,
     /// fresh resolution throws <see cref="ObjectDisposedException"/>.
     /// </remarks>
-    T SysCtl<T>(string driverId) where T : class;
+    T SysCtl<T>(string? driverId) where T : class;
 
     /// <summary>
     /// Gets a driver component interface by driver ID and runtime type.
@@ -56,7 +56,7 @@ namespace FluentDocker.Kernel
     /// <see cref="FluentDocker.Common.DriverNotFoundException"/>. After kernel disposal,
     /// fresh resolution throws <see cref="ObjectDisposedException"/>.
     /// </remarks>
-    object SysCtl(string driverId, Type interfaceType);
+    object SysCtl(string? driverId, Type interfaceType);
 
     /// <summary>
     /// Tries to get a driver component interface. Returns false instead of throwing
@@ -81,7 +81,7 @@ namespace FluentDocker.Kernel
     /// <see cref="FluentDocker.Common.DriverNotFoundException"/>. After kernel disposal,
     /// fresh resolution throws <see cref="ObjectDisposedException"/>.
     /// </remarks>
-    bool TrySysCtl<T>(string driverId, [NotNullWhen(true)] out T? instance) where T : class;
+    bool TrySysCtl<T>(string? driverId, [NotNullWhen(true)] out T? instance) where T : class;
 
     /// <summary>
     /// The declared capability surface of a driver/pack. Exposed on the abstraction so capability
@@ -92,13 +92,13 @@ namespace FluentDocker.Kernel
     /// <param name="driverId">Driver identifier; null/whitespace resolves the default driver.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
-    Task<Model.Drivers.DriverCapabilities> GetCapabilitiesAsync(string driverId, CancellationToken cancellationToken = default);
+    Task<Model.Drivers.DriverCapabilities> GetCapabilitiesAsync(string? driverId, CancellationToken cancellationToken = default);
 
     /// <summary>Whether the resolved driver/pack reports healthy.</summary>
     /// <param name="driverId">Driver identifier; null/whitespace resolves the default driver.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <exception cref="InvalidOperationException">If no default driver is configured and <paramref name="driverId"/> is null or whitespace</exception>
-    Task<bool> IsHealthyAsync(string driverId, CancellationToken cancellationToken = default);
+    Task<bool> IsHealthyAsync(string? driverId, CancellationToken cancellationToken = default);
 
     /// <summary>The configured default driver id, or <c>null</c> when none is set.</summary>
     string? DefaultDriverId { get; }

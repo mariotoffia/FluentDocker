@@ -50,6 +50,10 @@ namespace FluentDocker.Services.Impl
 
     private readonly TimeSpan _disposeCleanupTimeout;
 
+    // Clock used for the inspect-cache TTL. Defaults to TimeProvider.System so public behavior is
+    // unchanged; tests inject a FakeTimeProvider to advance past the TTL deterministically (TESTS-3).
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>
     /// Creates a new container service.
     /// </summary>
@@ -66,6 +70,7 @@ namespace FluentDocker.Services.Impl
     /// <param name="lifecycleHooks">Lifecycle hooks owned by this service instance.</param>
     /// <param name="disposeCleanupTimeout">Maximum best-effort stop/remove cleanup time during dispose.</param>
     /// <param name="initialState">Initial client-side lifecycle state.</param>
+    /// <param name="timeProvider">Clock used for the inspect-cache TTL; defaults to <see cref="TimeProvider.System"/>.</param>
     public ContainerService(
         FluentDockerKernel kernel,
         string driverId,
@@ -79,7 +84,8 @@ namespace FluentDocker.Services.Impl
         Func<Dictionary<string, HostIpEndpoint[]>, string, Uri, IPEndPoint> customResolver = null,
         List<LifecycleHook> lifecycleHooks = null,
         TimeSpan? disposeCleanupTimeout = null,
-        ServiceRunningState initialState = ServiceRunningState.Unknown)
+        ServiceRunningState initialState = ServiceRunningState.Unknown,
+        TimeProvider timeProvider = null)
     {
       ArgumentNullException.ThrowIfNull(kernel);
       ArgumentNullException.ThrowIfNull(driverId);
@@ -99,6 +105,7 @@ namespace FluentDocker.Services.Impl
       // can't corrupt the service's hooks mid-enumeration (7.9); elements are never mutated here.
       _lifecycleHooks = lifecycleHooks is null ? [] : [.. lifecycleHooks];
       _state = initialState;
+      _timeProvider = timeProvider ?? TimeProvider.System;
       _disposeCleanupTimeout =
           disposeCleanupTimeout ?? TimeSpan.FromMilliseconds(DefaultDisposeCleanupTimeoutMs);
       if (_disposeCleanupTimeout <= TimeSpan.Zero)

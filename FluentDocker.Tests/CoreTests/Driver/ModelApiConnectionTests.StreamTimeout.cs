@@ -188,6 +188,44 @@ namespace FluentDocker.Tests.CoreTests.Driver
       Assert.Contains("async", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task PostStreamAsync_NullFirstByteTimeout_FirstReadUnbounded_ButIdleBoundsLaterReads()
+    {
+      // DMR-1: with StreamFirstByteTimeout = null the FIRST body read must be unbounded (honoring
+      // only caller cancellation) — it must NOT be silently downgraded to the idle timeout. The
+      // idle timeout still bounds every subsequent read.
+      var idle = TimeSpan.FromMilliseconds(50);
+      var firstReadDelay = TimeSpan.FromMilliseconds(300); // deliberately >> idle
+      using var handler = new FuncHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+      {
+        Content = new StreamContent(new SlowFirstReadThenStallStream(firstReadDelay))
+      });
+      await using var conn = new ModelApiConnection(
+          new Uri("http://localhost:12434"), handler, loggerFactory: null,
+          new ModelApiConnectionConfig
+          {
+            StreamFirstByteTimeout = null,
+            StreamReadIdleTimeout = idle
+          });
+
+      using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+      await using var stream = await conn.PostStreamAsync("/x", body, TestContext.Current.CancellationToken);
+
+      // First read is slow (300ms) — far longer than the 50ms idle — yet must NOT abort, proving
+      // the null first-byte timeout leaves the first read unbounded.
+      var buffer = new byte[16];
+      var read = await stream.ReadAsync(buffer, TestContext.Current.CancellationToken)
+          .AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+      Assert.Equal(1, read);
+
+      // The SECOND read stalls forever; the idle timeout must now bound it as a typed Timeout.
+      var ex = await Assert.ThrowsAsync<ModelRunnerException>(() =>
+          stream.ReadAsync(buffer, TestContext.Current.CancellationToken)
+              .AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+      Assert.Equal(ErrorCodes.ModelInference.Timeout, ex.ErrorCode);
+      Assert.Contains("idle timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class NeverHeadersHandler : HttpMessageHandler
     {
       protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -207,6 +245,42 @@ namespace FluentDocker.Tests.CoreTests.Driver
 
       public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
       {
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+        return 0;
+      }
+
+      public override void Flush()
+      {
+      }
+
+      public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+      public override long Seek(long offset, System.IO.SeekOrigin origin) => throw new NotSupportedException();
+      public override void SetLength(long value) => throw new NotSupportedException();
+      public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    // First read completes after a (long) delay and returns one byte; every subsequent read blocks
+    // until its token is cancelled. Used to prove the first read is unbounded while later reads are
+    // bounded by the idle timeout (DMR-1).
+    private sealed class SlowFirstReadThenStallStream(TimeSpan firstReadDelay) : System.IO.Stream
+    {
+      private bool _firstDone;
+
+      public override bool CanRead => true;
+      public override bool CanSeek => false;
+      public override bool CanWrite => false;
+      public override long Length => throw new NotSupportedException();
+      public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+      public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+      {
+        if (!_firstDone)
+        {
+          await Task.Delay(firstReadDelay, cancellationToken).ConfigureAwait(false);
+          _firstDone = true;
+          buffer.Span[0] = (byte)'x';
+          return 1;
+        }
         await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
         return 0;
       }

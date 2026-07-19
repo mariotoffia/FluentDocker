@@ -191,6 +191,10 @@ namespace FluentDocker.Tests.Mocks
     }
 
     /// <inheritdoc />
+    /// <exception cref="HttpRequestException">
+    /// A registered non-success STREAM status (see <see cref="SetupStreamStatus"/>): thrown carrying
+    /// the HTTP status code and a bounded error body as its message, mirroring the real connection.
+    /// </exception>
     public async Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default)
     {
       ct.ThrowIfCancellationRequested();

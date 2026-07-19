@@ -35,6 +35,13 @@ For local secrets, copy `.env.example` to `.env` and run:
 act -j build --env-file .env
 ```
 
+> **⚠️ Do not persist long-lived production credentials in `.env`.** `.env` is git-ignored (and
+> must stay so), but it still sits in cleartext in your worktree where any local tooling can read
+> it. A live `NUGET_API_KEY` can publish/unlist any package the account owns and a `GITHUB_TOKEN`
+> PAT can act on the repo — a real supply-chain blast radius. Prefer short-lived, minimally-scoped
+> tokens supplied from an OS keychain or an `act --secret-file` kept **outside** the repo tree, and
+> rotate any token that has been written to disk on a shared machine (PKG-1).
+
 On Apple Silicon, force the runner architecture when needed:
 
 ```bash

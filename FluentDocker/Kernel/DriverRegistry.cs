@@ -136,8 +136,8 @@ namespace FluentDocker.Kernel
           // driver whose DisposeAsync hangs (e.g. a dead socket after InitializeAsync threw OCE)
           // block this call forever. The caller token is not honored for the dispose itself —
           // external cancellation must not abandon the driver both undisposed and uncounted.
-          var deadline = DateTimeOffset.UtcNow + DisposeBudget;
-          if (!await DisposeDriverWithinBudgetAsync(driver, _logger, driverId, Remaining(deadline)).ConfigureAwait(false))
+          var start = Environment.TickCount64;
+          if (!await DisposeDriverWithinBudgetAsync(driver, _logger, driverId, Remaining(start, DisposeBudget)).ConfigureAwait(false))
             Interlocked.Increment(ref _abandonedDriverCount);
           MarkFailureDisposedInstance(ex);
         }
@@ -188,15 +188,16 @@ namespace FluentDocker.Kernel
       // Removal has committed under the lock, so we now own disposing these instances. Dispose within
       // the budget only: honoring the caller token here would let external cancellation abandon a
       // removed driver both undisposed and uncounted. Matches DisposeAsync.
-      var deadline = DateTimeOffset.UtcNow + DisposeBudget;
+      var start = Environment.TickCount64;
+      var budget = DisposeBudget;
       if (driver != null &&
           !await DisposeDriverWithinBudgetAsync(
-              driver.Driver, _logger, driverId, Remaining(deadline))
+              driver.Driver, _logger, driverId, Remaining(start, budget))
               .ConfigureAwait(false))
         Interlocked.Increment(ref _abandonedDriverCount);
       if (pack != null &&
           !await DisposeDriverPackWithinBudgetAsync(
-              pack.DriverPack, _logger, driverId, Remaining(deadline))
+              pack.DriverPack, _logger, driverId, Remaining(start, budget))
               .ConfigureAwait(false))
         Interlocked.Increment(ref _abandonedDriverCount);
     }
@@ -311,8 +312,8 @@ namespace FluentDocker.Kernel
         {
           // Budgeted, same as UnregisterAsync/DisposeAsync — see RegisterAsync's catch block for
           // why an unbounded dispose here (and honoring the caller token) is unsafe.
-          var deadline = DateTimeOffset.UtcNow + DisposeBudget;
-          if (!await DisposeDriverPackWithinBudgetAsync(driverPack, _logger, driverId, Remaining(deadline)).ConfigureAwait(false))
+          var start = Environment.TickCount64;
+          if (!await DisposeDriverPackWithinBudgetAsync(driverPack, _logger, driverId, Remaining(start, DisposeBudget)).ConfigureAwait(false))
             Interlocked.Increment(ref _abandonedDriverCount);
           MarkFailureDisposedInstance(ex);
         }
@@ -453,7 +454,7 @@ namespace FluentDocker.Kernel
     /// <see cref="UnregisterAsync"/> promotes the first registered driver still present
     /// (or clears the default when none remain) before this getter can observe a stale value.
     /// </summary>
-    public string GetDefaultDriverId()
+    public string? GetDefaultDriverId()
     {
       ThrowIfDisposed();
       lock (_defaultDriverLock)

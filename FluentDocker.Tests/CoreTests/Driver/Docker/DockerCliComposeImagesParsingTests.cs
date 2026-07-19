@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text.Json;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace FluentDocker.Tests.CoreTests.Driver.Docker
@@ -256,27 +258,28 @@ namespace FluentDocker.Tests.CoreTests.Driver.Docker
 
     #region Helper
 
-    /// <summary>
-    /// Replicates the NDJSON parsing logic used in
-    /// <see cref="FluentDocker.Drivers.Docker.Cli.Components.DockerCliComposeDriver"/>
-    /// ImagesAsync method, so we can test it without async infrastructure.
-    /// </summary>
+    // The REAL NDJSON parser used by DockerCliComposeDriver.ImagesAsync is the internal
+    // DockerCliJsonLineParser.TryParse<ComposeImage> (which ImagesAsync delegates to for the
+    // NDJSON branch). Per AGENTS.md's sanctioned pure-parser reflection exception, these Unit
+    // tests invoke that real parser via reflection (mirroring how ContainerStatsParsingTests
+    // reflects ParseStatsOutput) so a regression in the real parsing logic actually fails here,
+    // rather than exercising a divergent test-local copy (TESTS-1).
+    private static readonly Type JsonLineParserType =
+        typeof(ComposeImage).Assembly.GetType(
+            "FluentDocker.Drivers.Docker.Cli.Components.DockerCliJsonLineParser",
+            throwOnError: true)!;
+
     private static List<ComposeImage> ParseNdjsonImages(string output)
     {
-      var images = new List<ComposeImage>();
-      var lines = output.Split(
-          ['\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
-      foreach (var line in lines)
-      {
-        try
-        {
-          var image = JsonSerializer.Deserialize<ComposeImage>(line, JsonHelper.CaseInsensitiveOptions);
-          if (image != null)
-            images.Add(image);
-        }
-        catch { }
-      }
-      return images;
+      var method = JsonLineParserType
+          .GetMethod("TryParse", BindingFlags.Public | BindingFlags.Static)!
+          .MakeGenericMethod(typeof(ComposeImage));
+
+      // Signature: bool TryParse<T>(string output, ILogger logger, string logMessage,
+      //                             out List<T> items, out string error)
+      var args = new object[] { output, NullLogger.Instance, "Compose image line JSON parsing failed", null, null };
+      method.Invoke(null, args);
+      return (List<ComposeImage>)args[3];
     }
 
     #endregion

@@ -32,6 +32,9 @@ namespace FluentDocker.Builders.Compose
     {
       ArgumentNullException.ThrowIfNull(key);
       ArgumentNullException.ThrowIfNull(spec);
+      // Validate the key charset at the fluent call (not only in EmitOverlay) so an injection-bearing
+      // or malformed key fails here rather than mid-build.
+      ValidateKey(key, "model key");
       // Duplicate top-level keys would emit a YAML map with the same key twice — an invalid
       // (or silently last-wins) Compose document. Fail at the fluent call, not at emission.
       if (_models.Any(m => string.Equals(m.Key, key, StringComparison.Ordinal)))
@@ -44,6 +47,9 @@ namespace FluentDocker.Builders.Compose
       // has already run) fails at the fluent call instead of deep inside emission/BuildAsync.
       if (string.IsNullOrEmpty(model.Model))
         throw new ArgumentException($"Model '{key}' has no model reference; call WithModel() in the AddModel spec.", nameof(spec));
+      // Validate the model reference charset at the fluent call too (the spec has now run), so an
+      // injection-bearing reference fails here rather than in EmitOverlay.
+      ValidateModelReference(model.Model);
       _models.Add(model);
       return this;
     }
@@ -53,6 +59,14 @@ namespace FluentDocker.Builders.Compose
     {
       ArgumentNullException.ThrowIfNull(service);
       ArgumentNullException.ThrowIfNull(modelKey);
+      // Validate the key charset and any env-var names at the fluent call (not only in EmitOverlay)
+      // so injection-bearing or malformed input fails here rather than mid-build.
+      ValidateKey(service, "service name");
+      ValidateKey(modelKey, "model key");
+      if (endpointVar != null)
+        ValidateEnvName(endpointVar);
+      if (modelVar != null)
+        ValidateEnvName(modelVar);
       // A service's models: block is one map/list; binding the same model key twice (e.g. once
       // short-form, once long-form) would emit the key twice. Fail at the fluent call.
       if (_bindings.Any(b =>

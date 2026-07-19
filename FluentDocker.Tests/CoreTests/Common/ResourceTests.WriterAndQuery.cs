@@ -435,6 +435,43 @@ namespace FluentDocker.Tests.CoreTests.Common
       Assert.Equal("file.cs", result5);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ResourceQuery_ShortDotlessFile_SingleSegmentRoot_DoesNotCrash()
+    {
+      // COMMON-1: "Cq.info" (root "Cq", file "info" with no extension) previously made ExtractFile
+      // return the whole manifest name, so QueryCore computed res[..-1] and threw
+      // ArgumentOutOfRangeException. It must now resolve to a single file at the root.
+      var results = new ResourceQuery()
+        .From("FluentDocker.Tests")
+        .Namespace("Zc", recursive: false)
+        .Query()
+        .ToList();
+
+      var info = Assert.Single(results);
+      Assert.Equal("info", info.Resource);
+      Assert.Equal("Zc", info.Namespace);
+      Assert.Equal("Zc", info.Root);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void ResourceQuery_ShortDotlessFile_MultiSegmentRoot_IsNotSilentlyDropped()
+    {
+      // COMMON-1: "Cq.Sub.data" (multi-segment root "Cq.Sub", file "data") previously had ExtractFile
+      // grab "Sub.data", making the reconstructed namespace "Cq" fall short of the query root, so the
+      // resource was silently dropped at the ns-length guard. It must now be returned.
+      var results = new ResourceQuery()
+        .From("FluentDocker.Tests")
+        .Namespace("Zd.Sub", recursive: false)
+        .Query()
+        .ToList();
+
+      var data = Assert.Single(results);
+      Assert.Equal("data", data.Resource);
+      Assert.Equal("Zd.Sub", data.Namespace);
+    }
+
     #endregion
   }
 }

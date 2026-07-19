@@ -49,7 +49,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// Returns <c>Ok</c> since there is nothing to undo server-side.
     /// </remarks>
     public Task<CommandResponse<Unit>> LogoutAsync(
-        DriverContext context, string server = null,
+        DriverContext context, string? server = null,
         CancellationToken cancellationToken = default)
     {
       DockerApiRegistryAuth.Remove(Connection, server);

@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers
     /// </remarks>
     Task<CommandResponse<SystemPruneResult>> PruneAsync(
         DriverContext context,
-        SystemPruneConfig config = null,
+        SystemPruneConfig? config = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -214,6 +214,8 @@ namespace FluentDocker.Drivers
 
   /// <summary>
   /// Cross-driver system information, mapped from <c>docker info</c> / <c>podman info</c>.
+  /// This <c>FluentDocker.Drivers</c> type is the canonical port entity for system information
+  /// crossing the driver boundary; it is distinct from adapter-specific parsing models.
   /// </summary>
   public class SystemInfo : RuntimeInfoBase
   {

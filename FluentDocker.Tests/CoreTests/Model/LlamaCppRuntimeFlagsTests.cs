@@ -98,10 +98,23 @@ namespace FluentDocker.Tests.CoreTests.Model
     }
 
     [Fact]
-    public void ToArgs_TopKOutOfRange_Throws()
+    public void ToArgs_TopKNegative_Throws()
     {
-      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { TopK = 0 }.ToArgs());
-      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { TopK = 101 }.ToArgs());
+      // Only a negative top-k is invalid; 0 (disabled) and values above the old 100 ceiling
+      // are legitimate llama.cpp inputs (DMR-3).
+      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { TopK = -1 }.ToArgs());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(100)]
+    [InlineData(500)]
+    public void ToArgs_TopK_ZeroAndAboveOldCeiling_Allowed(int topK)
+    {
+      // 0 disables top-k in llama.cpp and the upper bound is no longer artificially capped at 100.
+      var args = new LlamaCppRuntimeFlags { TopK = topK }.ToArgs();
+      Assert.Equal(new[] { "--top-k", topK.ToString(System.Globalization.CultureInfo.InvariantCulture) }, args);
     }
 
     [Fact]
@@ -147,7 +160,6 @@ namespace FluentDocker.Tests.CoreTests.Model
     {
       Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { GpuLayers = -1 }.ToArgs());
       Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { MainGpu = -1 }.ToArgs());
-      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { ReasoningBudget = -1 }.ToArgs());
     }
 
     [Fact]
@@ -158,6 +170,25 @@ namespace FluentDocker.Tests.CoreTests.Model
       Assert.Contains("--n-gpu-layers", args);
       Assert.Contains("--main-gpu", args);
       Assert.Contains("--reasoning-budget", args);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(2048)]
+    public void ToArgs_ReasoningBudget_AllowsMinusOneAndNonNegative(int budget)
+    {
+      // -1 is llama.cpp's default (unrestricted reasoning) and 0 disables it; both must render
+      // rather than being rejected as out of range (DMR-3).
+      var args = new LlamaCppRuntimeFlags { ReasoningBudget = budget }.ToArgs();
+      Assert.Equal(new[] { "--reasoning-budget", budget.ToString(System.Globalization.CultureInfo.InvariantCulture) }, args);
+    }
+
+    [Fact]
+    public void ToArgs_ReasoningBudget_BelowMinusOne_Throws()
+    {
+      // -1 is the floor (unrestricted); anything more negative is genuinely invalid.
+      Assert.Throws<ArgumentOutOfRangeException>(() => new LlamaCppRuntimeFlags { ReasoningBudget = -2 }.ToArgs());
     }
 
     [Theory]

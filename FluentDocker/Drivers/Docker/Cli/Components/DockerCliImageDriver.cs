@@ -31,7 +31,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         DriverContext context,
         string image,
         string tag = "latest",
-        IProgress<ImagePullProgress> progress = null,
+        IProgress<ImagePullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -69,7 +69,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<Unit>> PushAsync(
         DriverContext context,
         string image,
-        IProgress<ImagePushProgress> progress = null,
+        IProgress<ImagePushProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -167,7 +167,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context,
         ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress = null,
+        IProgress<ImageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -245,7 +245,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Image>>> ListAsync(
         DriverContext context,
-        ImageListFilter filter = null,
+        ImageListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try

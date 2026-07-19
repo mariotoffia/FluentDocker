@@ -10,7 +10,7 @@ description: "Custom driver interfaces, driver-aware builder extensions, and mul
 FluentDocker's extensibility model lets drivers expose custom interfaces and builder extensions without kernel changes. This enables driver-specific features (Podman pods, Docker Swarm, etc.) to integrate cleanly with the fluent API.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
@@ -74,8 +74,9 @@ If the ID names a driver pack:
 
 | Step | Check | Result |
 |------|-------|--------|
-| 1 | `IDriverInterfaceResolver` on driver pack | Return resolved instance |
-| 2 | Driver pack's `SysCtl(driverId, Type)` | Return or throw |
+| 1 | `IDriverInterfaceResolver.TryResolve` on driver pack | Return resolved instance, otherwise unsupported |
+
+A pack has a single resolution path — its `TryResolve`. It never falls back to a direct cast: an unresolved interface surfaces as a soft `InterfaceNotSupportedException` (KRN-MAJ-7 removed the pack-level `ISysCtl` delegation).
 
 If the ID names a single driver:
 
@@ -188,9 +189,9 @@ public interface IPodmanPodDriver
 In the driver pack's `InitializeAsync`, register the implementation:
 
 ```csharp
-// DriverPackBase is optional: it implements IDriverInterfaceResolver and provides
-// RegisterDriver<T>() plus protected ResolveSysCtl/TryResolveSysCtl helpers.
-// IDriverPack (ISysCtl + IDriverInterfaceResolver) adds the pack lifecycle.
+// DriverPackBase is optional: it implements IDriverInterfaceResolver (TryResolve /
+// GetSupportedInterfaces) and provides RegisterDriver<T>() plus a protected
+// TryResolveSysCtl<T> helper. IDriverPack (IDriverInterfaceResolver) adds the pack lifecycle.
 public class CustomDriverPack : DriverPackBase, IDriverPack
 {
     public DriverType Type => DriverType.Custom;
@@ -209,13 +210,9 @@ public class CustomDriverPack : DriverPackBase, IDriverPack
         await Task.CompletedTask;
     }
 
-    // ISysCtl forwards to the base helpers; capabilities/health report this pack.
-    public T SysCtl<T>(string driverId) where T : class
-        => (T)ResolveSysCtl(driverId, typeof(T));
-    public object SysCtl(string driverId, Type interfaceType)
-        => ResolveSysCtl(driverId, interfaceType);
-    public bool TrySysCtl<T>(string driverId, out T? instance) where T : class
-        => TryResolveSysCtl(out instance);
+    // Interface resolution comes from DriverPackBase (TryResolve / GetSupportedInterfaces);
+    // the kernel owns the driverId → pack mapping, so the pack never needs an ISysCtl surface.
+    // Use the inherited TryResolveSysCtl<T> internally when a typed lookup is convenient.
 
     public Task<DriverCapabilities> GetCapabilitiesAsync(
         CancellationToken cancellationToken = default)
@@ -226,7 +223,7 @@ public class CustomDriverPack : DriverPackBase, IDriverPack
 }
 ```
 
-`DriverPackBase` is optional: it implements `IDriverInterfaceResolver` and gives you `RegisterDriver<T>()` plus the protected `ResolveSysCtl` / `TryResolveSysCtl` helpers. Implement `IDriverPack` (which extends `ISysCtl` + `IDriverInterfaceResolver`) for the pack lifecycle — `InitializeAsync`, `GetCapabilitiesAsync`, `IsHealthyAsync` — and forward `SysCtl` to those helpers. Built-in packs such as `PodmanCliDriverPack` implement `IDriverPack` directly against their own driver map instead of deriving `DriverPackBase`.
+`DriverPackBase` is optional: it implements `IDriverInterfaceResolver` and gives you `RegisterDriver<T>()` plus the protected `TryResolveSysCtl<T>` helper. Implement `IDriverPack` (which extends `IDriverInterfaceResolver`) for the pack lifecycle — `InitializeAsync`, `GetCapabilitiesAsync`, `IsHealthyAsync`, plus `Type`/`Runtime`. The kernel resolves each pack through `TryResolve`, so a pack no longer exposes an `ISysCtl` surface of its own. Built-in packs such as `PodmanCliDriverPack` implement `IDriverPack` directly against their own driver map instead of deriving `DriverPackBase`.
 
 ### Step 3: Write Builder Extensions
 
@@ -384,11 +381,10 @@ public abstract class DriverPackBase : IDriverInterfaceResolver
     protected void RegisterDriver<T>(T driver) where T : class;
 
     // IDriverInterfaceResolver — automatically implemented
-    bool TryResolve(Type interfaceType, out object implementation);
-    IReadOnlyCollection<Type> GetSupportedInterfaces();
+    public bool TryResolve(Type interfaceType, out object implementation);
+    public IReadOnlyCollection<Type> GetSupportedInterfaces();
 
-    // Protected helpers for subclass use
-    protected object ResolveSysCtl(string driverId, Type interfaceType);
+    // Protected helper for subclass use (typed exact-type lookup)
     protected bool TryResolveSysCtl<T>(out T instance) where T : class;
 }
 ```

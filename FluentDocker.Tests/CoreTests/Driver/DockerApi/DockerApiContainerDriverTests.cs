@@ -208,7 +208,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task RemoveAsync_ReturnsSuccess()
     {
       var (driver, mock) = CreateDriver();
-      mock.SetupDelete("/containers/", 204, "{}");
+      mock.SetupDelete("/containers/abc123", 204, "{}");
       Assert.True((await driver.RemoveAsync(Ctx, "abc123", cancellationToken: TestContext.Current.CancellationToken)).Success);
     }
 
@@ -216,7 +216,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task RemoveAsync_IncludesForceAndVolumeParams()
     {
       var (driver, mock) = CreateDriver();
-      mock.SetupDelete("/containers/", 204, "{}");
+      mock.SetupDelete("/containers/abc123", 204, "{}");
 
       Assert.True((await driver.RemoveAsync(Ctx, "abc123", force: true, removeVolumes: true, cancellationToken: TestContext.Current.CancellationToken)).Success);
       var req = mock.GetRequests().First(r => r.Method == "DELETE");
@@ -228,7 +228,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     public async Task RemoveAsync_DefaultsForceAndVolumeToFalse()
     {
       var (driver, mock) = CreateDriver();
-      mock.SetupDelete("/containers/", 204, "{}");
+      mock.SetupDelete("/containers/abc123", 204, "{}");
 
       await driver.RemoveAsync(Ctx, "abc123", cancellationToken: TestContext.Current.CancellationToken);
       var req = mock.GetRequests().First(r => r.Method == "DELETE");

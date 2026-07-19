@@ -93,7 +93,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Network>>> ListAsync(
-        DriverContext context, NetworkListFilter filter = null,
+        DriverContext context, NetworkListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var path = "/networks";

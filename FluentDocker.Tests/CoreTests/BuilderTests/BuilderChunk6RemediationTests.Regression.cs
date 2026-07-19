@@ -148,6 +148,10 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public async Task BuildAsync_ContainerBeforeDeclaredPod_ThrowsOrderingError()
     {
+      // BLDR-2: UsePod now fail-fast probes the pod port at the fluent call, so expose it on the
+      // scope; the container-before-declared-pod ordering error is still what we assert here.
+      MockPack.RegisterCustomDriver(Moq.Mock.Of<FluentDocker.Drivers.Podman.IPodmanPodDriver>());
+
       var ex = await Assert.ThrowsAsync<FluentDockerException>(() => new Builder()
           .WithinDriver(DriverId, Kernel)
           .UseContainer(c => c.UseImage("alpine").WithName("web").WithPod("app-pod"))

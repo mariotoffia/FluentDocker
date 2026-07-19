@@ -431,7 +431,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Container>>> ListAsync(
-        DriverContext context, ContainerListFilter filter = null,
+        DriverContext context, ContainerListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try

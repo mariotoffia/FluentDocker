@@ -27,6 +27,14 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     /// <summary>
     /// Connection timeout. Default: 30 seconds.
     /// </summary>
+    /// <remarks>
+    /// Must be strictly positive, or <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> to
+    /// disable time bounds. Besides connect/TTFB, this value bounds the upload stall watchdog (the
+    /// maximum time a body-bearing request may make no write progress before it is cancelled), so a
+    /// zero or negative-but-finite value is rejected by the connection constructor. Setting it to
+    /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> disables the upload stall watchdog
+    /// (slow uploads are never cancelled for lack of progress).
+    /// </remarks>
     public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>

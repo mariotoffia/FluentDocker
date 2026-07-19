@@ -20,7 +20,7 @@ namespace FluentDocker.Builders
     /// <param name="driverId">Driver identifier registered in the kernel.</param>
     /// <param name="kernel">Kernel instance. Required on the first scope selection.</param>
     /// <returns>The builder for fluent chaining.</returns>
-    Builder WithinDriver(string driverId, FluentDockerKernel kernel = null);
+    Builder WithinDriver(string driverId, FluentDockerKernel? kernel = null);
 
     /// <summary>
     /// Adds a container operation to the current driver scope.
@@ -67,8 +67,9 @@ namespace FluentDocker.Builders
     /// <c>BuildFailureManifest</c>.
     /// </remarks>
     /// <param name="cleanupTimeout">
-    /// Maximum time allowed for cleanup on build failure.
-    /// Defaults to 120 seconds.
+    /// Maximum time allowed for cleanup on build failure. Must be non-negative
+    /// (<see cref="TimeSpan.Zero"/> or greater); a negative value throws
+    /// <see cref="ArgumentOutOfRangeException"/>. Defaults to 120 seconds when null.
     /// </param>
     /// <param name="cancellationToken">Token to cancel the build.</param>
     Task<BuildResults> BuildAsync(

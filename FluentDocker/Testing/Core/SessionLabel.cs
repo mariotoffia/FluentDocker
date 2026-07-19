@@ -29,7 +29,12 @@ namespace FluentDocker.Testing.Core
     /// </summary>
     public const string SessionEnvironmentVariable = "FLUENTDOCKER_TEST_SESSION";
 
-    /// <summary>Environment variable opting into best-effort orphan cleanup of the current session's resources on process exit (see <see cref="ProcessExitReaper"/>).</summary>
+    /// <summary>
+    /// Environment variable controlling best-effort cleanup of the current session's resources on
+    /// process exit, SIGINT, and SIGTERM (see <see cref="ProcessExitReaper"/>). Exit reaping is
+    /// <b>ON by default</b> (it force-removes even running session containers on Ctrl-C); set this
+    /// variable to <c>0</c>/<c>false</c> to opt out.
+    /// </summary>
     public const string ReaperEnvironmentVariable = "FLUENTDOCKER_TEST_REAPER_ON_EXIT";
 
     /// <summary>

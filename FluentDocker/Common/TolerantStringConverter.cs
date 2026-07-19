@@ -23,6 +23,7 @@ namespace FluentDocker.Common
   /// <c>"0"</c>); structured tokens (object/array) are skipped whole and read as
   /// <c>null</c>. Genuine string and null tokens are passed through unchanged.
   /// </remarks>
+  [Obsolete("Unused; network prefix-length fields use LenientInt32Converter. Slated for removal in the next major.")]
   public sealed class TolerantStringConverter : JsonConverter<string?>
   {
     /// <summary>

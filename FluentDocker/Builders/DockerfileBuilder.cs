@@ -220,7 +220,7 @@ namespace FluentDocker.Builders
     /// <param name="imageAndTag">Image name and optional tag</param>
     /// <param name="asName">Optional alias (for multi-stage builds)</param>
     /// <param name="platform">Optional platform (e.g., linux/amd64)</param>
-    public DockerfileBuilder From(string imageAndTag, string asName = null, string platform = null)
+    public DockerfileBuilder From(string imageAndTag, string? asName = null, string? platform = null)
     {
       _config.Commands.Add(new FromCommand(imageAndTag, asName, platform));
       return this;
@@ -260,7 +260,7 @@ namespace FluentDocker.Builders
     /// </summary>
     /// <param name="name">Argument name</param>
     /// <param name="defaultValue">Optional default value</param>
-    public DockerfileBuilder Arguments(string name, string defaultValue = null)
+    public DockerfileBuilder Arguments(string name, string? defaultValue = null)
     {
       _config.Commands.Add(new ArgCommand(name, defaultValue));
       return this;
@@ -309,7 +309,7 @@ namespace FluentDocker.Builders
     /// <param name="chownUserAndGroup">Optional --chown user:group</param>
     /// <param name="fromAlias">Optional --from=alias for multi-stage builds</param>
     public DockerfileBuilder Copy(string source, string dest,
-        string chownUserAndGroup = null, string fromAlias = null)
+        string? chownUserAndGroup = null, string? fromAlias = null)
     {
       if (source.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase) ||
           source.StartsWith("ftps://", StringComparison.OrdinalIgnoreCase))
@@ -382,7 +382,7 @@ namespace FluentDocker.Builders
     /// <summary>
     /// Adds a USER instruction.
     /// </summary>
-    public DockerfileBuilder User(string user, string group = null)
+    public DockerfileBuilder User(string user, string? group = null)
     {
       _config.Commands.Add(new UserCommand(user, group));
       return this;
@@ -421,8 +421,8 @@ namespace FluentDocker.Builders
     /// <c>--retries</c> is emitted only when the value differs from 3, while the container
     /// builder uses 0 to mean "not specified" (nothing emitted; daemon default applies).
     /// </remarks>
-    public DockerfileBuilder WithHealthCheck(string cmd, string interval = null,
-        string timeout = null, int retries = 3, string startPeriod = null)
+    public DockerfileBuilder WithHealthCheck(string cmd, string? interval = null,
+        string? timeout = null, int retries = 3, string? startPeriod = null)
     {
       _config.Commands.Add(new HealthCheckCommand(cmd, interval, timeout, startPeriod, retries));
       return this;

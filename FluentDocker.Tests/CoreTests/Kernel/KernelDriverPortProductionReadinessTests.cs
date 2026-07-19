@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -49,6 +50,38 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       Assert.True(pack.TryResolve(typeof(IContainerDriver), out var implementation));
       Assert.Same(pack.ContainerDriver, implementation);
+    }
+
+    [Fact]
+    public void DriverPackBase_WhenDisposed_TryResolveThrowsObjectDisposedException()
+    {
+      // PORTS-3: an extender that overrides IsDisposed to report disposal must make resolution
+      // throw ObjectDisposedException, honoring the IDriverPack post-disposal contract.
+      var pack = new DisposedPackBase();
+
+      Assert.Throws<ObjectDisposedException>(() => pack.TryResolve(typeof(IImageDriver), out _));
+    }
+
+    [Fact]
+    public void DriverPackBase_TryResolveWithNullType_ThrowsArgumentNullExceptionWithInterfaceTypeParam()
+    {
+      // PORTS-3: a null interfaceType surfaces as ArgumentNullException naming the resolver's own
+      // parameter ('interfaceType'), not the backing Dictionary's internal 'key' parameter.
+      var pack = new NullInsertingPackBase();
+
+      var ex = Assert.Throws<ArgumentNullException>(() => pack.TryResolve(null!, out _));
+      Assert.Equal("interfaceType", ex.ParamName);
+    }
+
+    [Fact]
+    public void LabelsConverter_ContinuationSegmentStartingWithEquals_IsAppendedToValue()
+    {
+      // PORTS-6: a comma-split continuation segment whose first char is '=' (eqIdx == 0) must be
+      // treated as a value continuation, not silently dropped, since an empty label key is invalid.
+      var network = JsonSerializer.Deserialize<Network>("{\"Labels\":\"k1=v1,=w\"}");
+
+      Assert.NotNull(network);
+      Assert.Equal("v1,=w", network!.Labels["k1"]);
     }
 
     [Fact]
@@ -213,6 +246,11 @@ namespace FluentDocker.Tests.CoreTests.Kernel
 
       public bool TryResolveImageDriver(out IImageDriver? instance) =>
           TryResolveSysCtl(out instance);
+    }
+
+    private sealed class DisposedPackBase : DriverPackBase
+    {
+      protected override bool IsDisposed => true;
     }
 
     private class FallbackThrowsPack : IDriverPack

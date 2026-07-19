@@ -57,6 +57,16 @@ namespace FluentDocker.Drivers.Models.Connection
     /// <param name="content">The request body.</param>
     /// <param name="ct">A token to cancel the request.</param>
     /// <returns>The response body stream (the caller disposes it).</returns>
+    /// <exception cref="System.Net.Http.HttpRequestException">
+    /// The endpoint returned a non-success status. The exception carries the HTTP
+    /// <see cref="System.Net.Http.HttpRequestException.StatusCode"/> and a bounded error body as its
+    /// message so the caller can map it to a typed failure; the failed response is disposed, not
+    /// returned.
+    /// </exception>
+    /// <exception cref="FluentDocker.Common.ModelRunnerException">
+    /// A transport-level failure (connection refused / DNS / socket) opening the stream, surfaced as
+    /// <see cref="FluentDocker.Model.Drivers.ErrorCodes.ModelInference.EndpointUnreachable"/>.
+    /// </exception>
     Task<Stream> PostStreamAsync(string path, HttpContent content, CancellationToken ct = default);
 
     /// <summary>

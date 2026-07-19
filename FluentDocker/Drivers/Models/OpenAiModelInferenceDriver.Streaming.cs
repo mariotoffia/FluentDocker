@@ -22,7 +22,7 @@ namespace FluentDocker.Drivers.Models
   /// timeout maps to <see cref="ErrorCodes.ModelInference.Timeout"/> and mid-stream transport
   /// faults map to <see cref="ErrorCodes.ModelInference.EndpointUnreachable"/>.
   /// </summary>
-  public partial class OpenAiModelInferenceDriver
+  public sealed partial class OpenAiModelInferenceDriver
   {
     /// <summary>
     /// Maximum number of characters a single SSE line may reach before the stream is aborted.
@@ -39,16 +39,26 @@ namespace FluentDocker.Drivers.Models
 
     /// <summary>
     /// Chunk size (bytes/chars) for the streaming reader's reused buffers.
-    /// ponytail: 4096 matches <see cref="StreamReader"/>'s default and comfortably holds a DMR SSE
+    /// 4096 matches <see cref="StreamReader"/>'s default and comfortably holds a DMR SSE
     /// frame in one read; bump it only if profiling shows read-syscall overhead on very
     /// high-throughput streams (it only affects buffering granularity, never correctness).
     /// </summary>
     private const int StreamBufferBytes = 4096;
 
     /// <inheritdoc />
-    public async IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamAsync(
+    // Public validating wrapper: a null request throws EAGERLY (at the call site), not lazily on
+    // first MoveNextAsync — an async-iterator method would defer the throw into enumeration.
+    public IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamAsync(
         DriverContext context, ChatCompletionRequest request,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+    {
+      ArgumentNullException.ThrowIfNull(request);
+      return ChatCompletionStreamIteratorAsync(context, request, cancellationToken);
+    }
+
+    private async IAsyncEnumerable<ChatCompletionChunk> ChatCompletionStreamIteratorAsync(
+        DriverContext context, ChatCompletionRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       // Copy so we never mutate the caller's instance (Stream is forced on here).
       var req = new ChatCompletionRequest(request) { Stream = true };
@@ -58,9 +68,18 @@ namespace FluentDocker.Drivers.Models
     }
 
     /// <inheritdoc />
-    public async IAsyncEnumerable<CompletionChunk> CompletionStreamAsync(
+    // Public validating wrapper: a null request throws EAGERLY (see ChatCompletionStreamAsync).
+    public IAsyncEnumerable<CompletionChunk> CompletionStreamAsync(
         DriverContext context, CompletionRequest request,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+    {
+      ArgumentNullException.ThrowIfNull(request);
+      return CompletionStreamIteratorAsync(context, request, cancellationToken);
+    }
+
+    private async IAsyncEnumerable<CompletionChunk> CompletionStreamIteratorAsync(
+        DriverContext context, CompletionRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       // Copy so we never mutate the caller's instance (Stream is forced on here).
       var req = new CompletionRequest(request) { Stream = true };

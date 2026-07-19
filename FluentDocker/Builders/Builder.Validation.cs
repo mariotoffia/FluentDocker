@@ -11,21 +11,37 @@ namespace FluentDocker.Builders
     {
       foreach (var operation in _operations)
       {
-        if (operation.ResourceBuilder is not ContainerBuilder builder)
-          continue;
-        operation.ResourceName = builder.ContainerName;
-        operation.NetworkReferences = builder.NetworkReferences;
-        operation.VolumeReferences = builder.VolumeReferences;
-        operation.LinkReferences = builder.LinkReferences;
-        operation.ImageReferences = builder.ImageReferences;
-        operation.PodReferences = builder.PodReferences;
-        // Wait parameters were snapshotted by value at UseContainer time, but StartDeferred is a
-        // live lambda and names/references are refreshed here — so a WaitForPort(...)/AllowCleanExit
-        // set on the stashed builder AFTER UseContainer would otherwise run the deferred start with
-        // the stale budget (BLD-MAJ-3). Refresh them from the builder's current values too.
-        operation.AllowCleanExit = builder.AllowCleanExitOnStart;
-        operation.StartupTimeoutMs = builder.StartupTimeoutMs;
-        operation.StartupPollIntervalMs = builder.StartupPollIntervalMs;
+        // Re-read the stashed builder's current name/references so post-configure mutation (a
+        // WithName/WithProjectName set on the stashed builder AFTER UseXxx returned) is picked up
+        // by ordering validation and manifest naming, which captured ResourceName only once at
+        // queue time. Container/network/volume/compose builders are all stashed on ResourceBuilder.
+        switch (operation.ResourceBuilder)
+        {
+          case ContainerBuilder builder:
+            operation.ResourceName = builder.ContainerName;
+            operation.NetworkReferences = builder.NetworkReferences;
+            operation.VolumeReferences = builder.VolumeReferences;
+            operation.LinkReferences = builder.LinkReferences;
+            operation.ImageReferences = builder.ImageReferences;
+            operation.PodReferences = builder.PodReferences;
+            // Wait parameters were snapshotted by value at UseContainer time, but StartDeferred is a
+            // live lambda and names/references are refreshed here — so a WaitForPort(...)/AllowCleanExit
+            // set on the stashed builder AFTER UseContainer would otherwise run the deferred start with
+            // the stale budget (BLD-MAJ-3). Refresh them from the builder's current values too.
+            operation.AllowCleanExit = builder.AllowCleanExitOnStart;
+            operation.StartupTimeoutMs = builder.StartupTimeoutMs;
+            operation.StartupPollIntervalMs = builder.StartupPollIntervalMs;
+            break;
+          case NetworkBuilder network:
+            operation.ResourceName = network.Name;
+            break;
+          case VolumeBuilder volume:
+            operation.ResourceName = volume.Name;
+            break;
+          case ComposeBuilder compose:
+            operation.ResourceName = compose.ProjectName;
+            break;
+        }
       }
     }
 

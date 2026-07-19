@@ -55,14 +55,14 @@ namespace FluentDocker.Kernel
     }
 
     public IPodmanCliDriverBuilder WithAutoStartMachine(
-        Action<AutoStartMachineConfig> configure = null)
+        Action<AutoStartMachineConfig>? configure = null)
     {
       _autoStartMachine = new AutoStartMachineConfig();
       configure?.Invoke(_autoStartMachine);
       return this;
     }
 
-    public IPodmanCliDriverBuilder WithSudo(SudoMechanism mechanism, string password = null)
+    public IPodmanCliDriverBuilder WithSudo(SudoMechanism mechanism, string? password = null)
     {
       _sudo = mechanism;
       _sudoPassword = password;

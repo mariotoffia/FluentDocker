@@ -178,7 +178,7 @@ namespace FluentDocker.Builders
     #region IImageBuilder Implementation
 
     /// <inheritdoc />
-    public DockerfileBuilder From(string imageAndTag = null)
+    public DockerfileBuilder From(string? imageAndTag = null)
     {
       _dockerfileBuilder = string.IsNullOrEmpty(imageAndTag)
           ? new DockerfileBuilder(this)

@@ -48,7 +48,7 @@ namespace FluentDocker.Kernel
       return this;
     }
 
-    public IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string password = null)
+    public IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string? password = null)
     {
       _sudo = mechanism;
       _sudoPassword = password;

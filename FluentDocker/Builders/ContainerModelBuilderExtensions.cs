@@ -42,7 +42,7 @@ namespace FluentDocker.Builders
     public static IContainerBuilder WithModel(
         this IContainerBuilder builder,
         ModelReference model,
-        ModelRunnerEndpoint endpoint = null,
+        ModelRunnerEndpoint? endpoint = null,
         string endpointVar = "LLM_URL",
         string modelVar = "LLM_MODEL",
         bool addHostGateway = true)

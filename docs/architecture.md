@@ -10,7 +10,7 @@ description: "FluentDocker architecture - Driver layer, kernel configuration, as
 This document describes the pluggable driver layer, kernel configuration, and async patterns.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
@@ -192,7 +192,7 @@ if (kernel.TrySysCtl<IPodmanPodDriver>("podman", out var podDriver))
 }
 ```
 
-The kernel resolves interfaces through `IDriverInterfaceResolver` when the driver pack or driver implements it, falling back to direct `ISysCtl` delegation and then direct cast. This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.md) for details.
+The kernel resolves interfaces through `IDriverInterfaceResolver`. A driver **pack** has a single path — its `TryResolve` — and stops there (an unresolved interface surfaces as a soft `InterfaceNotSupportedException`; KRN-MAJ-7 removed the pack-level `ISysCtl` delegation). A plain **driver** asks its `IDriverInterfaceResolver` if it implements one, then falls back to a direct cast (`driver is T`). This means any driver can expose custom interfaces without kernel changes. See [Driver Extensibility](extensibility.md) for details.
 
 ### Available Driver Interfaces
 
@@ -309,7 +309,7 @@ entity. Component drivers are resolved at runtime via `ISysCtl`, not through
 direct properties.
 
 ```csharp
-public interface IDriverPack : ISysCtl, IDriverInterfaceResolver
+public interface IDriverPack : IDriverInterfaceResolver
 {
     DriverType Type { get; }        // values: DockerCli, DockerApi, PodmanCli, PodmanApi, Custom
                                     // (PodmanApi and Custom are reserved for future use)

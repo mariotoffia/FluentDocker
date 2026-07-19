@@ -124,6 +124,35 @@ namespace FluentDocker.Tests.CoreTests.Services
       finally { kernel.Dispose(); }
     }
 
+    // SVC-4: AddHook must reject a null hook up front (previously a null was stored and only blew up
+    // later when the hook fired). The exception's param name identifies the offending argument.
+    [Fact]
+    public void AddHook_NullHook_ThrowsArgumentNullExceptionForHookParam()
+    {
+      var (service, kernel) = CreateService();
+      try
+      {
+        var ex = Assert.Throws<ArgumentNullException>(
+            () => service.AddHook(ServiceRunningState.Running, null!, "x"));
+        Assert.Equal("hook", ex.ParamName);
+      }
+      finally { kernel.Dispose(); }
+    }
+
+    // SVC-4: RemoveHook(null) must be a safe no-op. Previously the ConcurrentDictionary.TryRemove
+    // threw ArgumentNullException with the misleading param name 'key'.
+    [Fact]
+    public void RemoveHook_NullName_DoesNotThrow()
+    {
+      var (service, kernel) = CreateService();
+      try
+      {
+        var exception = Record.Exception(() => service.RemoveHook(null!));
+        Assert.Null(exception);
+      }
+      finally { kernel.Dispose(); }
+    }
+
     [Fact]
     public async Task StartAsync_FiresStateChangeEvent()
     {

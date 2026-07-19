@@ -187,6 +187,18 @@ namespace FluentDocker.Resources
                    .Where(x => x.StartsWith(namespacePrefix, StringComparison.Ordinal)))
       {
         var file = ExtractFile(res);
+
+        // ExtractFile is namespace-agnostic: for a short, extension-less filename directly under the
+        // query root it can return the WHOLE manifest name (single-dot root, e.g. "App.data" -> the
+        // split below computes res[..-1] and throws ArgumentOutOfRangeException) or grab a root
+        // segment into the filename (multi-segment root, e.g. "App.Resources.data" -> ns "App" falls
+        // short of the root and the resource is silently dropped at the guard). We KNOW the query root
+        // here, so when the tail after the root carries no further dot it is unambiguously one file at
+        // the root — derive it from the known root instead of the guess (COMMON-1).
+        var rootTail = res[(_namespace.Length + 1)..];
+        if (!rootTail.Contains('.', StringComparison.Ordinal))
+          file = rootTail;
+
         var ns = res[..(res.Length - file.Length - 1)];
         if (ns.Length < _namespace.Length)
         {

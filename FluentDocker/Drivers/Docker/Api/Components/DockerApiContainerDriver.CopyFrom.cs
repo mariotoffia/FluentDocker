@@ -129,10 +129,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
               Directory.CreateDirectory(target);
               continue;
             case TarEntryType.SymbolicLink:
-              logger.LogWarning(
-                  "Skipping Docker archive link entry dereference; preserving symlink '{Entry}' with target '{Target}' during CopyFrom extraction",
-                  entry.Name, entry.LinkName);
-              PreserveSymlink(target, entry.LinkName, root, rootWithSeparator, logger);
+              PreserveSymlink(entry.Name, target, entry.LinkName, root, rootWithSeparator, logger);
               continue;
             case TarEntryType.HardLink:
               // A hardlink's LinkName is the archive-root-relative name of an already-extracted
@@ -288,16 +285,34 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         File.Delete(target);
     }
 
+    // Recreate an in-tree RELATIVE symlink as a symlink (never dereferenced). A symlink whose target
+    // is absolute, or a relative one whose resolved path escapes the extraction root, is SKIPPED with a
+    // warning instead of being recreated: blindly restoring such a link could point outside the
+    // requested destination (docs/docker-api.md, CopyFromAsync), and absolute links are routine
+    // (e.g. alpine's /bin/sh -> /bin/busybox). This is the extraction counterpart of the build-context
+    // WarnSymlinkDropped posture and, unlike the write-destination guards, throws for nothing here — a
+    // link whose TARGET points out of tree is not an out-of-tree WRITE (the write lands at `target`,
+    // which the parent-chain/leaf guards above already contained).
     private static void PreserveSymlink(
-        string target, string linkTarget, string root, string rootWithSeparator, ILogger logger)
+        string entryName, string target, string linkTarget,
+        string root, string rootWithSeparator, ILogger logger)
     {
       if (Path.IsPathRooted(linkTarget))
-        throw new InvalidOperationException($"Docker archive link target escapes destination: {linkTarget}");
+      {
+        WarnCopyFromSymlinkSkipped(logger, entryName, linkTarget);
+        return;
+      }
       var parent = Path.GetDirectoryName(target)!;
       var resolved = Path.GetFullPath(Path.Combine(parent, linkTarget));
       if (!string.Equals(resolved, root, StringComparison.Ordinal) &&
           !resolved.StartsWith(rootWithSeparator, StringComparison.Ordinal))
-        throw new InvalidOperationException($"Docker archive link target escapes destination: {linkTarget}");
+      {
+        WarnCopyFromSymlinkSkipped(logger, entryName, linkTarget);
+        return;
+      }
+      logger.LogWarning(
+          "Skipping Docker archive link entry dereference; preserving symlink '{Entry}' with target '{Target}' during CopyFrom extraction",
+          entryName, linkTarget);
       Directory.CreateDirectory(parent);
       try
       {
@@ -310,8 +325,20 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         logger.LogWarning(ex,
             "Could not preserve Docker archive symlink '{Entry}' with target '{Target}'",
-            target, linkTarget);
+            entryName, linkTarget);
       }
+    }
+
+    // A symlink whose target is absolute or escapes the extraction root is deliberately skipped rather
+    // than recreated (restoring it could point outside the requested destination). Log it so the
+    // divergence from a raw archive extract is observable rather than silent (DAPI-1), matching the
+    // build-context WarnSymlinkDropped posture.
+    private static void WarnCopyFromSymlinkSkipped(ILogger logger, string entryName, string linkTarget)
+    {
+      logger.LogWarning(
+          "Skipping Docker archive symlink '{Entry}' -> '{Target}' during CopyFrom extraction " +
+          "(absolute or escapes the destination); restoring it could point outside the requested destination.",
+          entryName, linkTarget ?? "<null>");
     }
 
     private static void ApplyUnixFileMode(string target, TarEntry entry)

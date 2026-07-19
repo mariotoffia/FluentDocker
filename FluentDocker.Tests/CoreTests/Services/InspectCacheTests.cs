@@ -134,16 +134,17 @@ namespace FluentDocker.Tests.CoreTests.Services
       _kernel = await MockKernelBuilderExtensions
           .CreateWithMockDriverAsync("docker", _mockPack);
 
+      // TESTS-3: inject a controllable clock so the TTL is advanced deterministically rather than
+      // slept through with a real Task.Delay that races the 500ms wall-clock TTL.
+      var fakeTime = new ManualTimeProvider();
       var service = new ContainerService(
-          _kernel, "docker", "cache-test-123", "nginx:latest", "cache-test");
+          _kernel, "docker", "cache-test-123", "nginx:latest", "cache-test", timeProvider: fakeTime);
 
       // Act -- first call populates cache
       var first = await service.InspectAsync(TestContext.Current.CancellationToken);
 
-      // Wait for TTL to expire (add margin to avoid flakiness)
-      await Task.Delay(
-          (int)ContainerService.InspectCacheTtlMs + 100,
-          TestContext.Current.CancellationToken);
+      // Advance the injected clock past the TTL.
+      fakeTime.Advance(TimeSpan.FromMilliseconds(ContainerService.InspectCacheTtlMs + 100));
 
       var second = await service.InspectAsync(TestContext.Current.CancellationToken);
 
@@ -497,6 +498,22 @@ namespace FluentDocker.Tests.CoreTests.Services
             Volatile.Read(ref fetchCount) > fetchesBeforeVerification,
             $"Round {round}: a pre-invalidation inspect result was served from the cache.");
       }
+    }
+
+    // TESTS-3: minimal controllable clock. Microsoft.Extensions.TimeProvider.Testing
+    // (FakeTimeProvider) is not referenced by this test project, so a tiny local TimeProvider
+    // subclass supplies a timestamp we can advance deterministically past the inspect-cache TTL.
+    // TimestampFrequency is ticks/second so GetTimestamp() returns ticks and the base
+    // GetElapsedTime math is exact.
+    private sealed class ManualTimeProvider : TimeProvider
+    {
+      private long _timestamp;
+
+      public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+      public override long GetTimestamp() => Interlocked.Read(ref _timestamp);
+
+      public void Advance(TimeSpan delta) => Interlocked.Add(ref _timestamp, delta.Ticks);
     }
   }
 }

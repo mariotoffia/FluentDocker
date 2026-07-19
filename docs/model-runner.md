@@ -9,12 +9,11 @@ has_children: true
 
 FluentDocker can manage and consume local LLMs through **Docker Model Runner (DMR)**
 — and, by extension, any OpenAI-compatible endpoint (a bare `llama-server`, vLLM,
-LM Studio, or a hosted endpoint). It mirrors the existing
-`Builder → WithinDriver → UseXxx` pattern, so a model handle lives in the *same*
-kernel and lifecycle as your containers, networks and volumes.
+LM Studio, or a hosted endpoint). It mirrors the existing `Builder → WithinDriver → UseXxx`
+pattern, so a model handle lives in the *same* kernel and lifecycle as your containers.
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Two surfaces, one façade
@@ -37,8 +36,7 @@ DMR exposes two surfaces, and FluentDocker keeps them behind one interface famil
 
 The public `IModelRunner` composes three small capability interfaces
 (`IModelStore`, `IModelEngine`, `IModelInference`) plus a few ergonomic helpers.
-Implementations may support only a subset; feature-detect static adapter support via
-`runner.Capabilities`.
+Implementations may support only a subset; feature-detect via `runner.Capabilities`.
 
 ## Quick start
 
@@ -67,17 +65,15 @@ var reply = await runner.ChatAsync("Reply with a single word.");
 await foreach (var token in runner.ChatStreamAsync("Count: one two three"))
   Console.Write(token);
 
-// Embeddings — note the embedding model is a *different* artifact than the chat
-// default and must be present first. Pull it (once) before embedding:
+// Embeddings use a *different* artifact than the chat default; pull it once first.
 var embedModel = FluentDocker.Model.Models.ModelReference.Parse("ai/embeddinggemma");
-await runner.PullAsync(embedModel);            // idempotent; or: docker model pull ai/embeddinggemma
+await runner.PullAsync(embedModel);            // idempotent
 var vector = await runner.EmbedAsync("hello world", model: embedModel);
 ```
 
-> **CI cost of `PullIfMissing()`.** On a cache miss, `PullIfMissing()` downloads
-> the model during build, which in CI can be slow and consume bandwidth and disk.
-> Pre-pull models in CI (`docker model pull ...`) or gate model-dependent tests,
-> and keep `PullIfMissing()` for local/dev convenience.
+> **CI cost of `PullIfMissing()`.** On a cache miss it downloads the model during
+> build (slow, uses bandwidth/disk). Pre-pull in CI (`docker model pull ...`) or gate
+> model-dependent tests; keep `PullIfMissing()` for local/dev convenience.
 
 To set a time budget, pass a `CancellationToken` from your app. FluentDocker does
 not guess your production timeout:
@@ -95,6 +91,12 @@ By default `UseModelRunner()` uses **CLI** for management/runtime and **HTTP**
 (`:12434`) for inference. Management failures surface as `ModelRunnerException`
 carrying the originating error code and diagnostic context; streaming faults are
 thrown mid-enumeration.
+
+> **Model builders stand alone.** `UseModelRunner()` / `UseModel()` must run on a
+> **fresh `Builder`** and return their handle **directly** — an `IModelRunnerBuilder` /
+> `IModelServiceBuilder` that builds to a runner/service, **not** a `BuildResults`. They
+> **cannot** be chained after `UseContainer`/`UseNetwork`/`UseVolume`/`UseImage`/`UseCompose`/`UsePod`
+> on the same builder; doing so throws.
 
 ## Managing models
 
@@ -120,9 +122,8 @@ await runner.RemoveAsync(ModelReference.Parse("ai/smollm2"), force: true);
 
 ### Runtime flags (typed)
 
-`docker model configure` passes engine flags verbatim after a `--` separator.
-Use the raw list, or the validated `LlamaCppRuntimeFlags` builder which renders
-into it and fails fast on out-of-range values:
+`docker model configure` passes engine flags verbatim after a `--` separator. Use
+the raw list, or the validated `LlamaCppRuntimeFlags` builder (fails fast on out-of-range values):
 
 ```csharp
 using FluentDocker.Model.Models.Options;  // LlamaCppRuntimeFlags, ModelConfigureOptions
@@ -133,10 +134,9 @@ await runner.ConfigureAsync(model, new ModelConfigureOptions { RuntimeFlags = fl
 
 ## Completions
 
-Beyond the ergonomic `ChatAsync` / `ChatStreamAsync` helpers, the runner exposes the
-OpenAI-compatible **text completion** surface directly. It is DTO-based: build a
-`CompletionRequest` (set `Model` and `Prompt`) and read the generated text off
-`CompletionResponse.Choices[i].Text`:
+Beyond `ChatAsync` / `ChatStreamAsync`, the runner exposes the OpenAI-compatible
+**text completion** surface directly (DTO-based): build a `CompletionRequest` (set
+`Model` and `Prompt`) and read the text off `CompletionResponse.Choices[i].Text`:
 
 ```csharp
 using FluentDocker.Model.Models.Inference;  // CompletionRequest, CompletionResponse, CompletionChunk

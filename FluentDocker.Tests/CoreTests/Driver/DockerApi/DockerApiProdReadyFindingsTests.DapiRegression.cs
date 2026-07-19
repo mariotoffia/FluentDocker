@@ -10,6 +10,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Api.Components;
 using FluentDocker.Drivers.Docker.Api.Connection;
 using FluentDocker.Model.Drivers;
@@ -217,6 +218,188 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
           $"upload stall not bounded by the watchdog; elapsed {sw.Elapsed}");
       // The watchdog (not the 10s safety token) must be what cancelled — its message is distinctive.
       Assert.Contains("upload stalled", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PostStreamAsync_InfiniteConnectionTimeout_DoesNotCancelSlowUpload()
+    {
+      // DAPI-3: ConnectionTimeout = Timeout.InfiniteTimeSpan disables the upload stall watchdog. The
+      // same stalled upload that the finite-timeout test above cancels within its window must now be
+      // left pending (never cancelled for lack of write progress). With the pre-fix watchdog, an
+      // infinite bound computed boundMs = -1 and cancelled every body-bearing upload within ~25 ms.
+      using var listener = new TcpListener(IPAddress.Loopback, 0);
+      listener.Start();
+      var endpoint = (IPEndPoint)listener.LocalEndpoint;
+      using var cts = CancellationTokenSource.CreateLinkedTokenSource(
+          TestContext.Current.CancellationToken);
+      var server = ServeHeadersThenIgnoreBodyAsync(listener, cts.Token);
+      await using var connection = new DockerApiConnection(new DockerApiConnectionConfig
+      {
+        Host = $"tcp://127.0.0.1:{endpoint.Port}",
+        ApiVersion = "1.45",
+        ConnectionTimeout = Timeout.InfiniteTimeSpan,
+        RequestTimeout = TimeSpan.FromSeconds(30)
+      });
+      using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(
+          TestContext.Current.CancellationToken);
+      // 64MB guarantees socket backpressure so the upload genuinely stalls (server never drains it).
+      var body = new byte[64 * 1024 * 1024];
+      using var content = new ByteArrayContent(body);
+
+      var post = connection.PostStreamAsync("/build", content, attemptCts.Token);
+      var settled = await Task.WhenAny(
+          post, Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+
+      // The upload is still pending after a full second — the watchdog did NOT cancel it.
+      Assert.NotSame(post, settled);
+
+      // Tear down: cancel the still-pending upload and the server, swallowing the resulting cancel.
+      attemptCts.Cancel();
+      cts.Cancel();
+      try
+      {
+        await post;
+      }
+      catch (OperationCanceledException)
+      {
+      }
+      catch (HttpRequestException)
+      {
+      }
+      await server;
+    }
+
+    [Fact]
+    public async Task ImageRemove_UnsupportedVersionDriverException_MapsToFailNotThrow()
+    {
+      // DAPI-2: the typed unsupported-daemon-version failure the connection rethrows must surface as a
+      // failed CommandResponse (mapped via DescribeTransportFailure -> 505 -> Api.UnsupportedVersion),
+      // not escape raw through the CommandResponse contract.
+      var mock = new MockDockerApiConnection();
+      mock.SetupThrows("DELETE", "/images/nginx%3Alatest",
+          new DriverException("Docker daemon API version too old",
+              ErrorCodes.Api.UnsupportedVersion, isTransient: false));
+      var driver = new DockerApiImageDriver(mock);
+      driver.Initialize(Ctx);
+
+      var result = await driver.RemoveAsync(Ctx, "nginx:latest",
+          cancellationToken: TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Api.UnsupportedVersion, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ImagePull_UnsupportedVersionDriverException_MapsToFailNotThrow()
+    {
+      // DAPI-2: same guarantee for the Pull stream-open path.
+      var mock = new MockDockerApiConnection();
+      mock.SetupStreamThrows("/images/create",
+          new DriverException("Docker daemon API version too old",
+              ErrorCodes.Api.UnsupportedVersion, isTransient: false));
+      var driver = new DockerApiImageDriver(mock);
+      driver.Initialize(Ctx);
+
+      var result = await driver.PullAsync(Ctx, "nginx", "latest", null!,
+          TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Api.UnsupportedVersion, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ImagePush_UnsupportedVersionDriverException_MapsToFailNotThrow()
+    {
+      // DAPI-2: same guarantee for the Push stream-open path.
+      var mock = new MockDockerApiConnection();
+      mock.SetupStreamThrows("/push",
+          new DriverException("Docker daemon API version too old",
+              ErrorCodes.Api.UnsupportedVersion, isTransient: false));
+      var driver = new DockerApiImageDriver(mock);
+      driver.Initialize(Ctx);
+
+      var result = await driver.PushAsync(Ctx, "myrepo/app:latest", null!,
+          TestContext.Current.CancellationToken);
+
+      Assert.False(result.Success);
+      Assert.Equal(ErrorCodes.Api.UnsupportedVersion, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task MockMatchesPath_RegisteredFragmentDoesNotMatchDeeperSegmentSuperstring()
+    {
+      // TESTS-4: a registered fragment must not satisfy a request that continues into a DEEPER
+      // resource segment. Registered "/foo" must match "/foo" but NOT "/foo/bar".
+      var mock = new MockDockerApiConnection();
+      mock.SetupGet("/foo", 200, "{\"ok\":true}");
+
+      using var exact = await mock.GetAsync("/foo", TestContext.Current.CancellationToken);
+      Assert.Equal(HttpStatusCode.OK, exact.StatusCode);
+
+      using var deeper = await mock.GetAsync("/foo/bar", TestContext.Current.CancellationToken);
+      Assert.Equal(HttpStatusCode.NotFound, deeper.StatusCode);
+    }
+
+    [Fact]
+    public async Task CopyFromAsync_AbsoluteSymlinkEntry_SkipsLinkAndSucceeds()
+    {
+      // DAPI-1: an absolute symlink target (routine, e.g. alpine's /bin/sh -> /bin/busybox) must be
+      // skipped with a warning, not abort the whole CopyFromAsync. The rest of the archive still
+      // extracts; the absolute link is never recreated.
+      var outputRoot = Path.Combine(".out", "docker-api-copyfrom-abs-symlink",
+          Guid.NewGuid().ToString("N"));
+      var destination = Path.Combine(outputRoot, "dest") + Path.DirectorySeparatorChar;
+      Directory.CreateDirectory(outputRoot);
+      var tarBytes = await CreateAbsoluteSymlinkWithRegularFileTarAsync();
+      var logs = new List<string>();
+      var context = new DriverContext("docker-api-prod-ready-test")
+      {
+        LoggerFactory = new CollectingLoggerFactory(logs)
+      };
+      var mock = new MockDockerApiConnection();
+      mock.SetupStreamBytes("/archive", tarBytes);
+      var driver = new DockerApiContainerDriver(mock);
+      driver.Initialize(context);
+      try
+      {
+        var result = await driver.CopyFromAsync(context, "ctr", "/src", destination,
+            TestContext.Current.CancellationToken);
+
+        // The whole extraction succeeded (no throw / no failure) despite the absolute-target link...
+        Assert.True(result.Success, result.Error);
+        // ...the regular file was extracted...
+        Assert.Equal("REAL", await File.ReadAllTextAsync(
+            Path.Combine(destination, "data.txt"), TestContext.Current.CancellationToken));
+        // ...and the absolute symlink was skipped (never recreated) with a warning.
+        Assert.False(Path.Exists(Path.Combine(destination, "sh")),
+            "absolute symlink must not be recreated");
+        Assert.Contains(logs, m =>
+            m.Contains("Skipping Docker archive symlink", StringComparison.Ordinal) &&
+            m.Contains("/bin/busybox", StringComparison.Ordinal));
+      }
+      finally
+      {
+        if (Directory.Exists(outputRoot))
+          Directory.Delete(outputRoot, recursive: true);
+      }
+    }
+
+    private static async Task<byte[]> CreateAbsoluteSymlinkWithRegularFileTarAsync()
+    {
+      await using var ms = new MemoryStream();
+      await using (var writer = new TarWriter(ms, TarEntryFormat.Pax, leaveOpen: true))
+      {
+        await writer.WriteEntryAsync(new PaxTarEntry(TarEntryType.RegularFile, "data.txt")
+        {
+          DataStream = new MemoryStream(Encoding.UTF8.GetBytes("REAL"))
+        }, TestContext.Current.CancellationToken);
+        // Absolute link target (like alpine /bin/sh -> /bin/busybox): must be skipped, not throw.
+        await writer.WriteEntryAsync(new PaxTarEntry(TarEntryType.SymbolicLink, "sh")
+        {
+          LinkName = "/bin/busybox"
+        }, TestContext.Current.CancellationToken);
+      }
+      return ms.ToArray();
     }
 
     [Fact]

@@ -168,7 +168,7 @@ namespace FluentDocker.Drivers
     /// </returns>
     Task<Model.Drivers.CommandResponse<IList<Container>>> ListAsync(
         DriverContext context,
-        ContainerListFilter filter = null,
+        ContainerListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     #endregion
@@ -197,13 +197,13 @@ namespace FluentDocker.Drivers
   public class ContainerRunResult
   {
     /// <summary>Container ID when the driver can determine it; Docker/Podman CLI foreground runs populate it from a cidfile.</summary>
-    public string Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>
     /// Container output (when Detach = false) or null (when Detach = true). Docker CLI keeps
     /// only a marked tail for very large foreground output.
     /// </summary>
-    public string Output { get; set; }
+    public string? Output { get; set; }
 
     /// <summary>
     /// Container exit code for foreground runs where the container was created and ran to

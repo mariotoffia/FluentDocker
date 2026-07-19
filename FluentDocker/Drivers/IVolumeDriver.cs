@@ -63,7 +63,7 @@ namespace FluentDocker.Drivers
     /// </returns>
     Task<CommandResponse<IList<Volume>>> ListAsync(
         DriverContext context,
-        VolumeListFilter filter = null,
+        VolumeListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -105,7 +105,7 @@ namespace FluentDocker.Drivers
     /// The name to assign to the volume. When <c>null</c>, the engine generates a
     /// random name automatically.
     /// </summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     /// <summary>
     /// The volume driver to use (e.g., "local", "nfs"). Defaults to "local".

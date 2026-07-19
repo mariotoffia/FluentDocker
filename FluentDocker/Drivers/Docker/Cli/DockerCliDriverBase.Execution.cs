@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -364,7 +363,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       catch (OperationCanceledException)
       {
         // Kill the child process on cancellation to prevent orphans.
-        KillProcessSafely(process);
+        KillProcessSafely(process, Logger);
 
         // Drain the readers so `finally` doesn't dispose the process under an in-flight read;
         // keep what was captured so the timeout is diagnosable (DC-6). A cancelled reader
@@ -421,101 +420,6 @@ namespace FluentDocker.Drivers.Docker.Cli
       {
         process?.Dispose();
       }
-    }
-
-    /// <summary>
-    /// Executes a streaming Docker command asynchronously.
-    /// </summary>
-    /// <param name="arguments">Command arguments</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Async enumerable of output lines</returns>
-    protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-      await foreach (var line in ExecuteStreamingCommandAsync((DriverContext)null, arguments, cancellationToken).ConfigureAwait(false))
-        yield return line;
-    }
-
-    /// <summary>
-    /// Executes a streaming Docker command using the given driver context: yields stdout lines
-    /// as they arrive (stderr is drained concurrently, not yielded) and throws a
-    /// <see cref="DriverException"/> if the process exits non-zero.
-    /// </summary>
-    /// <param name="context">Driver context supplying host/TLS/sudo settings.</param>
-    /// <param name="arguments">Command arguments.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>An async stream of stdout lines.</returns>
-    /// <exception cref="DriverException">The process exited with a non-zero code.</exception>
-    protected async IAsyncEnumerable<string> ExecuteStreamingCommandAsync(
-        DriverContext context, string arguments, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-      var effectiveContext = CreateEffectiveContext(context);
-      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
-      var globalArgs = BuildGlobalArgs(effectiveContext);
-      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
-
-      var (processFileName, processArguments, passwordForStdin) =
-          BuildSudoCommand(binaryPath, fullArgs, sudo, sudoPassword);
-
-      using var process = new Process
-      {
-        StartInfo = new ProcessStartInfo
-        {
-          FileName = processFileName,
-          Arguments = processArguments,
-          RedirectStandardOutput = true,
-          RedirectStandardError = true,
-          RedirectStandardInput = passwordForStdin != null,
-          UseShellExecute = false,
-          CreateNoWindow = true,
-          StandardOutputEncoding = Encoding.UTF8,
-          StandardErrorEncoding = Encoding.UTF8
-        }
-      };
-
-      if (process.StartInfo.RedirectStandardInput)
-        process.StartInfo.StandardInputEncoding = Utf8NoBom;
-
-      StartProcessOrThrow(process, binaryPath);
-
-      // Drain stderr concurrently so a chatty child cannot deadlock by filling the
-      // stderr pipe buffer while we only read stdout.
-      var errorTask = ReadBoundedTruncatingAsync(process.StandardError, MaxNonStreamingErrorBytes, cancellationToken);
-      var lineReader = new BoundedLineReader(process.StandardOutput);
-      string failure = null;
-
-      try
-      {
-        // Write the sudo password inside the guarded region: if sudo exits immediately the
-        // write throws a broken-pipe IOException, and it must still reach KillProcessSafely in
-        // finally instead of orphaning the child (DCLI-MAJ-1). TryWrite swallows + closes stdin.
-        if (passwordForStdin != null)
-          _ = await TryWriteStandardInputAsync(process, passwordForStdin, null, cancellationToken)
-              .ConfigureAwait(false);
-
-        string line;
-        while ((line = await lineReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
-          yield return line;
-
-        // Stdout reached EOF — wait for the process and surface a non-zero exit as a
-        // failure rather than ending the stream silently (a failed pull/logs must throw).
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        var error = await errorTask.ConfigureAwait(false);
-        if (process.ExitCode != 0)
-        {
-          var trimmed = (error ?? string.Empty).Trim();
-          if (trimmed.Length > 2000)
-            trimmed = trimmed[..2000] + "…";
-          failure = $"exit code {FormatInvariant(process.ExitCode)}{(trimmed.Length == 0 ? string.Empty : $": {trimmed}")}";
-        }
-      }
-      finally
-      {
-        KillProcessSafely(process, Logger);
-        await ObserveQuietlyAsync(errorTask).ConfigureAwait(false);
-      }
-
-      if (failure != null)
-        throw new DriverException($"Streaming command failed ({failure}).", ErrorCodes.Driver.CommandExecutionFailed);
     }
 
     #endregion

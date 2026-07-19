@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
@@ -73,6 +74,76 @@ namespace FluentDocker.Tests.CoreTests.Service
       {
         await service.RemoveAsync(false, TestContext.Current.CancellationToken);
         Assert.Equal(ServiceRunningState.Removed, service.State);
+      }
+    }
+
+    // SVC-1: Removed is terminal. RemoveAsync resets the start-once gate (_loadInitiated), so without
+    // the guard a removed model could be silently re-loaded. StartAsync must throw instead.
+    [Fact]
+    public async Task StartAsync_AfterRemove_ThrowsInvalidOperationException_AndStaysRemoved()
+    {
+      var (kernel, service) = await BuildAsync();
+      await using (kernel)
+      {
+        await service.RemoveAsync(false, TestContext.Current.CancellationToken);
+        Assert.Equal(ServiceRunningState.Removed, service.State);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.StartAsync(TestContext.Current.CancellationToken));
+
+        // The terminal state must not be resurrected to Starting/Running.
+        Assert.Equal(ServiceRunningState.Removed, service.State);
+      }
+    }
+
+    // SVC-3: once dispose has completed, the private UpdateState must suppress state changes and
+    // StateChange events (mirrors ContainerService). Invoked via reflection to isolate the guard,
+    // since the public lifecycle paths bail on ThrowIfDisposed before reaching UpdateState.
+    [Fact]
+    public async Task UpdateState_AfterDispose_IsSuppressed_NoEventAndNoStateChange()
+    {
+      var (kernel, service) = await BuildAsync();
+      await using (kernel)
+      {
+        var events = 0;
+        service.StateChange += (_, _) => Interlocked.Increment(ref events);
+
+        await service.DisposeAsync();
+
+        var updateState = typeof(ModelService).GetMethod(
+            "UpdateState", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(updateState);
+        updateState.Invoke(service, [ServiceRunningState.Running]);
+
+        Assert.Equal(0, Volatile.Read(ref events));
+        Assert.NotEqual(ServiceRunningState.Running, service.State);
+      }
+    }
+
+    // SVC-3: ExecuteHooksAsync must short-circuit once dispose has completed.
+    [Fact]
+    public async Task ExecuteHooksAsync_AfterDispose_IsSuppressed_HookDoesNotFire()
+    {
+      var (kernel, service) = await BuildAsync();
+      await using (kernel)
+      {
+        var fired = 0;
+        service.AddHook(ServiceRunningState.Running, _ =>
+        {
+          Interlocked.Increment(ref fired);
+          return Task.CompletedTask;
+        }, "running");
+
+        await service.DisposeAsync();
+
+        var executeHooks = typeof(ModelService).GetMethod(
+            "ExecuteHooksAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(executeHooks);
+        var task = (Task)executeHooks.Invoke(
+            service, [ServiceRunningState.Running, CancellationToken.None])!;
+        await task;
+
+        Assert.Equal(0, Volatile.Read(ref fired));
       }
     }
 

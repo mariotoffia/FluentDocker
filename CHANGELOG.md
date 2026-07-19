@@ -254,8 +254,8 @@ Production-readiness remediation of the preview API surface. Recompile and revie
 
 See [GitHub releases](https://github.com/mariotoffia/FluentDocker/releases) for v2.x history.
 
-[Unreleased]: https://github.com/mariotoffia/FluentDocker/compare/3.1.0...HEAD
-[3.2.0-preview.2]: https://github.com/mariotoffia/FluentDocker/compare/3.1.0...HEAD
+[Unreleased]: https://github.com/mariotoffia/FluentDocker/compare/3.2.0-preview.2...HEAD
+[3.2.0-preview.2]: https://github.com/mariotoffia/FluentDocker/compare/3.1.0...3.2.0-preview.2
 [3.1.0]: https://github.com/mariotoffia/FluentDocker/compare/3.0.1...3.1.0
 [3.0.1]: https://github.com/mariotoffia/FluentDocker/compare/3.0.0...3.0.1
 [3.0.0]: https://github.com/mariotoffia/FluentDocker/releases/tag/3.0.0

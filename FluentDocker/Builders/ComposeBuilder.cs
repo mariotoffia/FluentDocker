@@ -73,6 +73,7 @@ namespace FluentDocker.Builders
 
     public IComposeBuilder WithEnvironment(IDictionary<string, string> environment)
     {
+      ArgumentNullException.ThrowIfNull(environment);
       foreach (var kvp in environment)
       {
         _environment[kvp.Key] = kvp.Value;
@@ -83,6 +84,7 @@ namespace FluentDocker.Builders
 
     public IComposeBuilder WithEnvFile(string path)
     {
+      ArgumentException.ThrowIfNullOrWhiteSpace(path);
       _envFiles.Add(path);
       return this;
     }

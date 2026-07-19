@@ -32,7 +32,7 @@ namespace FluentDocker.Builders
     /// bearer API key (parity with <see cref="IModelRunnerBuilder.WithEndpoint"/>).
     /// </summary>
     IModelServiceBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
-        ModelApiConnectionConfig config = null, string apiKey = null);
+        ModelApiConnectionConfig? config = null, string? apiKey = null);
 
     /// <summary>Routes inference to an explicit <see cref="IModelInferenceDriver"/> (caller-owned).</summary>
     IModelServiceBuilder WithInferenceDriver(IModelInferenceDriver inference);

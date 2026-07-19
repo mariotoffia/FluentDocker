@@ -78,8 +78,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       try
       {
-        // Podman is daemonless; verify it works by running 'podman info'
-        var result = await ExecuteCommandAsync(context, "info", cancellationToken).ConfigureAwait(false);
+        // Podman is daemonless; verify it works by running 'podman info'. A liveness probe
+        // against a wedged machine/VM must fail in seconds, not hang the readiness loop for the
+        // 5-min buffered default (DCLI-MAJ-3). Cap at 10s (honor a smaller caller RequestTimeout).
+        var probeCeiling = TimeSpan.FromSeconds(10);
+        var probeTimeout = context?.RequestTimeout is { } rt && rt < probeCeiling ? rt : probeCeiling;
+        var result = await ExecuteCommandAsync(context, "info", probeTimeout, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Podman is not reachable"), FailureCode(result.Error, ErrorCodes.General.Unknown),
@@ -144,7 +148,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<SystemPruneResult>> PruneAsync(
-        DriverContext context, SystemPruneConfig config = null,
+        DriverContext context, SystemPruneConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       try

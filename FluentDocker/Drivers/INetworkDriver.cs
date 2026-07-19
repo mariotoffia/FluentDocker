@@ -59,7 +59,7 @@ namespace FluentDocker.Drivers
     /// </returns>
     Task<CommandResponse<IList<Network>>> ListAsync(
         DriverContext context,
-        NetworkListFilter filter = null,
+        NetworkListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -158,13 +158,13 @@ namespace FluentDocker.Drivers
     /// The subnet for the network in CIDR notation (e.g., "172.28.0.0/16").
     /// When <c>null</c>, the engine assigns a subnet automatically.
     /// </summary>
-    public string Subnet { get; set; }
+    public string? Subnet { get; set; }
 
     /// <summary>
     /// The gateway address for the network (e.g., "172.28.0.1").
     /// When <c>null</c>, the engine assigns a gateway automatically.
     /// </summary>
-    public string Gateway { get; set; }
+    public string? Gateway { get; set; }
 
     /// <summary>
     /// The IP range for automatic container allocation in CIDR notation.
@@ -223,6 +223,8 @@ namespace FluentDocker.Drivers
 
   /// <summary>
   /// Represents a Docker or Podman network with its configuration and metadata.
+  /// This <c>FluentDocker.Drivers</c> type is the canonical port entity for network data crossing
+  /// the driver boundary; it is distinct from adapter-specific parsing models.
   /// </summary>
   public class Network
   {
@@ -312,8 +314,10 @@ namespace FluentDocker.Drivers
         return result;
 
       // Label VALUES may themselves contain commas (e.g. "desc=a,b"), so a comma-split
-      // segment without '=' is a continuation of the previous pair's value and is rejoined
-      // with ','. Well-formed "k1=v1,k2=v2" lists parse exactly as before.
+      // segment that does not start a new "key=value" pair is a continuation of the previous
+      // pair's value and is rejoined with ','. An empty label key is never valid, so a segment
+      // whose first char is '=' (eqIdx == 0) is also a continuation (e.g. "v1,=w"), not a new
+      // pair. Well-formed "k1=v1,k2=v2" lists parse exactly as before.
       string currentKey = null;
       foreach (var pair in str.Split(','))
       {
@@ -323,7 +327,7 @@ namespace FluentDocker.Drivers
           currentKey = pair[..eqIdx];
           result[currentKey] = pair[(eqIdx + 1)..];
         }
-        else if (eqIdx < 0 && currentKey != null)
+        else if (currentKey != null)
         {
           result[currentKey] = result[currentKey] + "," + pair;
         }

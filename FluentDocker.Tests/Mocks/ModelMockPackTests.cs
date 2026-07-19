@@ -9,8 +9,11 @@ using Xunit;
 namespace FluentDocker.Tests.Mocks
 {
   /// <summary>
-  /// Self-test for the model-port extensions of <see cref="MockDriverPack"/> (M1):
-  /// the kernel resolves all three model ports and the Setup* helpers drive them.
+  /// Mock-infrastructure self-tests (TESTS-7) for the model-port extensions of
+  /// <see cref="MockDriverPack"/> (M1): they assert the mock wiring itself — that the kernel
+  /// resolves all three model ports and the Setup* helpers echo their configured values. These
+  /// are deliberately mock-echo checks and are NOT product coverage; real service/driver tests
+  /// must assert transformed behavior rather than the configured value verbatim.
   /// </summary>
   [Trait("Category", "Unit")]
   public class ModelMockPackTests

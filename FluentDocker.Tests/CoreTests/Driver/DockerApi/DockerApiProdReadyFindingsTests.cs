@@ -250,7 +250,7 @@ namespace FluentDocker.Tests.CoreTests.Driver.DockerApi
     {
       var mock = new MockDockerApiConnection();
       mock.SetupPost("/exec", 201, @"{""Id"":""exec/with?chars""}");
-      mock.SetupStreamBytes("/exec/", Array.Empty<byte>());
+      mock.SetupStreamBytes("/start", Array.Empty<byte>());
       mock.SetupGet("/json", 200, @"{""Running"":false,""ExitCode"":0}");
       var driver = new DockerApiContainerDriver(mock);
       driver.Initialize(Ctx);

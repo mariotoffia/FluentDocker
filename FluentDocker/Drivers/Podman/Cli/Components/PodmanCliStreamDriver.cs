@@ -58,7 +58,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <inheritdoc />
     public async IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context, string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       await foreach (var entry in StreamLogEntriesAsync(context, containerId, config, cancellationToken)
@@ -70,7 +70,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <remarks>Podman CLI has no Docker-equivalent <c>--details</c>; <see cref="StreamLogsConfig.Details"/> is ignored and warned once per driver instance.</remarks>
     public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
         DriverContext context, string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       config ??= new StreamLogsConfig();
@@ -111,7 +111,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
-        DriverContext context, StreamEventsConfig config = null,
+        DriverContext context, StreamEventsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       var args = BuildStreamEventsArgs(config);
@@ -144,8 +144,8 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async IAsyncEnumerable<ContainerStats> StreamStatsAsync(
-        DriverContext context, string containerId = null,
-        StreamStatsConfig config = null,
+        DriverContext context, string? containerId = null,
+        StreamStatsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       var args = BuildStreamStatsArgs(containerId, config);
@@ -204,7 +204,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <inheritdoc />
     public Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context, string containerId,
-        AttachConfig config = null,
+        AttachConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -214,8 +214,14 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         if (!config.SigProxy)
           args += " --sig-proxy=false";
+        if (config.Stdin == false)
+          args += " --no-stdin";
         if (!string.IsNullOrEmpty(config.DetachKeys))
           args += $" --detach-keys {QuoteArgumentIfNeeded(config.DetachKeys)}";
+        if (config.Tty || !config.Stdout || !config.Stderr || config.NoStdout || config.NoStderr)
+          return Task.FromResult(CommandResponse<AttachResult>.Fail(
+              "Podman CLI attach cannot change TTY/stdout/stderr streams; create the container with those settings instead.",
+              ErrorCodes.General.InvalidArgument));
 
         args += $" {QuotePositionalArgument(containerId, nameof(containerId))}";
 

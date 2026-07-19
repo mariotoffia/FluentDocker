@@ -157,17 +157,16 @@ namespace FluentDocker.Services.Extensions
       // On Linux, use host network or Docker's gateway
       if (FdOs.IsLinux())
       {
-        // Docker gateway is typically 172.17.0.1 for bridge network
-        // But for host access, use host.docker.internal if available
-        if (await IsDockerDnsAvailableAsync(cancellationToken).ConfigureAwait(false))
+        // Docker gateway is typically 172.17.0.1 for bridge network, but for host access prefer
+        // host.docker.internal when it resolves. Resolve exactly once (SVC-7): the previous
+        // IsDockerDnsAvailableAsync pre-check performed a second, redundant DNS lookup, doubling
+        // latency; branching on the resolved addresses gives the same result in a single lookup.
+        var addresses = await TryResolveDockerDnsAsync(cancellationToken).ConfigureAwait(false);
+        if (addresses.Length > 0)
         {
-          var addresses = await TryResolveDockerDnsAsync(cancellationToken).ConfigureAwait(false);
-          if (addresses.Length > 0)
-          {
-            var v4Address = Array.Find(addresses,
-                x => x.AddressFamily == AddressFamily.InterNetwork);
-            return CacheDockerHostAddress(v4Address ?? addresses[^1], useCache);
-          }
+          var v4Address = Array.Find(addresses,
+              x => x.AddressFamily == AddressFamily.InterNetwork);
+          return CacheDockerHostAddress(v4Address ?? addresses[^1], useCache);
         }
 
         return CacheDockerHostAddress(IPAddress.Parse("172.17.0.1"), useCache);

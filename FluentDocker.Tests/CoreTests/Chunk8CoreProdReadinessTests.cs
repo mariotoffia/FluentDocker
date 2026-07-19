@@ -68,10 +68,10 @@ namespace FluentDocker.Tests.CoreTests
     [Fact]
     public void ComposeModelEnvName_RejectsTrailingNewline()
     {
+      // BLDR-8: env-var-name validation now fails at the fluent BindToService call, not at emission.
       var builder = new ComposeModelBuilder();
-      builder.BindToService("svc", "llm", "LLM_URL\n");
 
-      Assert.Throws<ArgumentException>(() => builder.EmitOverlay());
+      Assert.Throws<ArgumentException>(() => builder.BindToService("svc", "llm", "LLM_URL\n"));
     }
 
     [Fact]

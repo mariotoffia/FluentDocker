@@ -113,8 +113,11 @@ namespace FluentDocker.Testing.Core
     /// two kernels registering the SAME driver id against DIFFERENT daemon endpoints
     /// share one sweep slot, and only the first endpoint is swept. Register a distinct
     /// driver id per endpoint when per-endpoint sweeps matter.
-    /// Set <c>FLUENTDOCKER_TEST_REAPER_ON_EXIT=1</c> to also run best-effort
-    /// cleanup for the current session on process exit, SIGINT, and SIGTERM.
+    /// Exit reaping is ON by default: on process exit, SIGINT (Ctrl-C), and SIGTERM the
+    /// current session's own managed resources are force-removed as a best-effort sweep —
+    /// <em>including still-running containers</em>. Set
+    /// <c>FLUENTDOCKER_TEST_REAPER_ON_EXIT=0</c> (or <c>false</c>) to opt out, e.g. when you
+    /// Ctrl-C a run specifically to inspect a container you want left alive.
     /// Shared <c>FLUENTDOCKER_TEST_SESSION</c> sessions skip exit reaping so one
     /// process cannot delete a sibling process's live fixtures.
     /// SIGKILL and hard host termination cannot be caught.

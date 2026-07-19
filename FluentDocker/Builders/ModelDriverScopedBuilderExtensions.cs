@@ -1,3 +1,4 @@
+using System;
 using FluentDocker.Common;
 using FluentDocker.Drivers;
 using FluentDocker.Model.Models;
@@ -19,6 +20,7 @@ namespace FluentDocker.Builders
     /// <exception cref="InterfaceNotSupportedException">The driver does not support model running.</exception>
     public static IModelRunnerBuilder UseModelRunner(this IDriverScopedBuilder builder)
     {
+      ArgumentNullException.ThrowIfNull(builder);
       if (!HasAnyModelPort(builder))
         throw new InterfaceNotSupportedException(builder.DriverId, nameof(IModelRunnerBuilder));
 
@@ -35,6 +37,7 @@ namespace FluentDocker.Builders
     /// <returns><c>true</c> when model running is supported.</returns>
     public static bool TryUseModelRunner(this IDriverScopedBuilder builder, out IModelRunnerBuilder runnerBuilder)
     {
+      ArgumentNullException.ThrowIfNull(builder);
       if (HasAnyModelPort(builder))
       {
         runnerBuilder = new ModelRunnerBuilder(builder.Kernel, builder.DriverId);
@@ -52,8 +55,11 @@ namespace FluentDocker.Builders
     /// <param name="reference">The model reference string.</param>
     /// <returns>A model service builder.</returns>
     /// <exception cref="InterfaceNotSupportedException">The driver does not support model running.</exception>
-    public static IModelServiceBuilder UseModel(this IDriverScopedBuilder builder, string reference) =>
-        UseModel(builder, ModelReference.Parse(reference));
+    public static IModelServiceBuilder UseModel(this IDriverScopedBuilder builder, string reference)
+    {
+      ArgumentNullException.ThrowIfNull(builder);
+      return UseModel(builder, ModelReference.Parse(reference));
+    }
 
     /// <summary>
     /// Begins building a managed single-model <see cref="Services.IModelService"/> from a
@@ -65,6 +71,7 @@ namespace FluentDocker.Builders
     /// <exception cref="InterfaceNotSupportedException">The driver does not support model running.</exception>
     public static IModelServiceBuilder UseModel(this IDriverScopedBuilder builder, ModelReference reference)
     {
+      ArgumentNullException.ThrowIfNull(builder);
       if (!HasModelRuntime(builder))
         throw new InterfaceNotSupportedException(builder.DriverId, nameof(IModelRuntimeDriver));
 

@@ -291,6 +291,10 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
     [Fact]
     public void PodBuilder_WithEmptyPort_ThrowsArgumentException()
     {
+      // BLDR-2: UsePod now fail-fast probes the pod port at the fluent call, so the scope must
+      // expose it before we can reach the WithPort argument validation this test targets.
+      MockPack.RegisterCustomDriver(Moq.Mock.Of<FluentDocker.Drivers.Podman.IPodmanPodDriver>());
+
       Assert.Throws<ArgumentException>(() => new Builder()
           .WithinDriver(DriverId, Kernel)
           .UsePod(p => p.WithPort("", "80")));

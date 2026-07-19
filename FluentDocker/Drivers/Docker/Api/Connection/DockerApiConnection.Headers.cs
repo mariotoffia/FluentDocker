@@ -103,8 +103,13 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         Func<long> lastProgress, Func<bool> uploadCompleted, TimeSpan bound,
         TimeSpan responseHeaderBound, CancellationTokenSource stallCts, CancellationToken done)
     {
+      // An infinite bound means "no stall watchdog": keep polling only to observe upload completion
+      // (so the response-header wait can still be armed) and never cancel for a write stall. Without
+      // this, boundMs would be -1 and the elapsed-since-progress check below would fire on the first
+      // poll (~25 ms), cancelling every body-bearing upload (DAPI-3).
+      var infinite = bound == Timeout.InfiniteTimeSpan;
       var boundMs = (long)bound.TotalMilliseconds;
-      var pollMs = Math.Clamp(boundMs / 4, 25, 1000);
+      var pollMs = infinite ? 1000 : Math.Clamp(boundMs / 4, 25, 1000);
       try
       {
         while (!done.IsCancellationRequested)
@@ -117,7 +122,7 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
             return;
           }
 
-          if (Environment.TickCount64 - lastProgress() > boundMs)
+          if (!infinite && Environment.TickCount64 - lastProgress() > boundMs)
           {
             stallCts.Cancel();
             return;

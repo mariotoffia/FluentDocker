@@ -123,10 +123,7 @@ namespace FluentDocker.Drivers
   {
     /// <summary>Show all containers (default: running only).</summary>
     public bool All { get; set; }
-    /// <summary>
-    /// Output format passed through to the compose adapter. Accepted values are
-    /// <c>json</c>, <c>table</c>, and adapter-supported template strings.
-    /// </summary>
+    /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
     public string Format { get; set; }
     /// <summary>Only display IDs.</summary>
     public bool Quiet { get; set; }
@@ -162,7 +159,7 @@ namespace FluentDocker.Drivers
     public bool ShowServices { get; set; }
     /// <summary>Only show volumes.</summary>
     public bool ShowVolumes { get; set; }
-    /// <summary>Print resolved file paths.</summary>
+    /// <summary>Pin image tags to digests in the rendered config.</summary>
     public bool ResolveImageDigests { get; set; }
     /// <summary>Output format.</summary>
     public string Format { get; set; }
@@ -336,7 +333,7 @@ namespace FluentDocker.Drivers
     /// the name from the project directory; subsequent commands identify the project via
     /// the compose files instead of <c>-p</c>).
     /// </summary>
-    public string ProjectName { get; set; }
+    public string? ProjectName { get; set; }
     /// <summary>Warnings from the operation.</summary>
     public List<string> Warnings { get; set; } = [];
   }
@@ -406,7 +403,7 @@ namespace FluentDocker.Drivers
     /// unavailable (ps failed, malformed, or no matching container), in which case only
     /// <see cref="ContainerName"/> is authoritative.
     /// </summary>
-    public string ContainerId { get; set; }
+    public string? ContainerId { get; set; }
     /// <summary>Container name (e.g. project-service-1).</summary>
     public string ContainerName { get; set; }
     /// <summary>Process information.</summary>

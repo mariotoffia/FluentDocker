@@ -55,7 +55,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async IAsyncEnumerable<string> StreamLogsAsync(
         DriverContext context,
         string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       await foreach (var entry in StreamLogEntriesAsync(context, containerId, config, cancellationToken)
@@ -67,7 +67,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async IAsyncEnumerable<LogEntry> StreamLogEntriesAsync(
         DriverContext context,
         string containerId,
-        StreamLogsConfig config = null,
+        StreamLogsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       config ??= new StreamLogsConfig();
@@ -80,7 +80,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async IAsyncEnumerable<ContainerEvent> StreamEventsAsync(
         DriverContext context,
-        StreamEventsConfig config = null,
+        StreamEventsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       var args = "events --format \"{{json .}}\"";
@@ -171,8 +171,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async IAsyncEnumerable<ContainerStats> StreamStatsAsync(
         DriverContext context,
-        string containerId = null,
-        StreamStatsConfig config = null,
+        string? containerId = null,
+        StreamStatsConfig? config = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
       var args = BuildStreamStatsArgs(containerId, config);
@@ -272,7 +272,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public Task<CommandResponse<AttachResult>> AttachAsync(
         DriverContext context,
         string containerId,
-        AttachConfig config = null,
+        AttachConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       try

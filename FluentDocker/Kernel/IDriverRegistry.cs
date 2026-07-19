@@ -155,7 +155,7 @@ namespace FluentDocker.Kernel
     /// <summary>
     /// Gets the default driver ID (if set).
     /// </summary>
-    string GetDefaultDriverId();
+    string? GetDefaultDriverId();
 
     /// <summary>
     /// Sets the default driver ID.

@@ -68,7 +68,7 @@ namespace FluentDocker.Builders
     /// </summary>
     /// <param name="driverId">Driver identifier</param>
     /// <param name="kernel">Kernel instance (reuses previous if null)</param>
-    public Builder WithinDriver(string driverId, FluentDockerKernel kernel = null)
+    public Builder WithinDriver(string driverId, FluentDockerKernel? kernel = null)
     {
       SetScope(driverId, kernel);
       return this;
@@ -80,7 +80,7 @@ namespace FluentDocker.Builders
     /// <param name="driverId">Driver identifier</param>
     /// <param name="kernel">Kernel instance (reuses previous if null)</param>
     public DockerCliFluentBuilder WithinDockerCli(
-        string driverId, FluentDockerKernel kernel = null)
+        string driverId, FluentDockerKernel? kernel = null)
     {
       SetScope(driverId, kernel);
       // Deliberately no IComposeDriver probe here: containers/networks/volumes/images do not
@@ -95,7 +95,7 @@ namespace FluentDocker.Builders
     /// <param name="driverId">Driver identifier</param>
     /// <param name="kernel">Kernel instance (reuses previous if null)</param>
     public DockerApiFluentBuilder WithinDockerApi(
-        string driverId, FluentDockerKernel kernel = null)
+        string driverId, FluentDockerKernel? kernel = null)
     {
       SetScope(driverId, kernel);
       return new DockerApiFluentBuilder(this, _currentKernel, _currentDriverId);
@@ -107,7 +107,7 @@ namespace FluentDocker.Builders
     /// <param name="driverId">Driver identifier</param>
     /// <param name="kernel">Kernel instance (reuses previous if null)</param>
     public PodmanCliFluentBuilder WithinPodmanCli(
-        string driverId, FluentDockerKernel kernel = null)
+        string driverId, FluentDockerKernel? kernel = null)
     {
       SetScope(driverId, kernel);
       // Fail fast when the scoped driver is not actually Podman-CLI-capable: otherwise a later
@@ -221,6 +221,7 @@ namespace FluentDocker.Builders
       {
         Kernel = _currentKernel,
         DriverId = _currentDriverId,
+        ResourceBuilder = builder,
         ResourceKind = "compose",
         ResourceName = builder.ProjectName,
         ExecuteAsync = (cleanupTimeout, ct) => builder.ExecuteAsync(cleanupTimeout, ct),
@@ -241,6 +242,8 @@ namespace FluentDocker.Builders
     {
       ArgumentNullException.ThrowIfNull(configure);
       ValidateScope();
+      // Fail fast when the scoped driver is not pod-capable (mirrors UseCompose).
+      RequireScopedPort<Drivers.Podman.IPodmanPodDriver>();
       var builder = new PodBuilder(_currentKernel, _currentDriverId);
       configure(builder);
       _operations.Add(new BuildOperation
@@ -297,13 +300,15 @@ namespace FluentDocker.Builders
     /// </summary>
     /// <param name="cancellationToken">Token to cancel the build.</param>
     /// <param name="cleanupTimeout">
-    /// Maximum time allowed for cleanup on build failure.
-    /// Defaults to 120 seconds.
+    /// Maximum time allowed for cleanup on build failure. Must be non-negative; a negative value
+    /// throws <see cref="ArgumentOutOfRangeException"/>. Defaults to 120 seconds when null.
     /// </param>
     public async Task<BuildResults> BuildAsync(
         TimeSpan? cleanupTimeout = null,
         CancellationToken cancellationToken = default)
     {
+      // Reject a negative cleanup timeout up front (before the latch); it would otherwise detonate in the failure path.
+      ArgumentOutOfRangeException.ThrowIfLessThan(cleanupTimeout.GetValueOrDefault(), TimeSpan.Zero);
       if (_buildSucceeded)
         throw new InvalidOperationException("builder already consumed by BuildAsync; create a new Builder");
 

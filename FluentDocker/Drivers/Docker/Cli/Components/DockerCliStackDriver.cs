@@ -27,7 +27,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<IList<StackInfo>>> ListAsync(
         DriverContext context,
-        StackListFilter filter = null,
+        StackListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -68,7 +68,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<IList<StackTask>>> GetTasksAsync(
         DriverContext context,
         string stackName,
-        StackTaskFilter filter = null,
+        StackTaskFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -183,7 +183,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<IList<StackServiceInfo>>> GetServicesAsync(
         DriverContext context,
         string stackName,
-        StackServiceFilter filter = null,
+        StackServiceFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try

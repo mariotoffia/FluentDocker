@@ -25,7 +25,7 @@ namespace FluentDocker.Drivers
     /// <returns>The pulled model's info.</returns>
     /// <exception cref="System.ArgumentNullException"><paramref name="model"/> is null.</exception>
     Task<CommandResponse<ModelInfo>> PullAsync(DriverContext context,
-        ModelReference model, IProgress<ModelPullProgress> progress = null,
+        ModelReference model, IProgress<ModelPullProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Lists local models.</summary>

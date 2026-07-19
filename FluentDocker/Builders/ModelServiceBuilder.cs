@@ -69,7 +69,7 @@ namespace FluentDocker.Builders
 
     /// <inheritdoc />
     public IModelServiceBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
-        ModelApiConnectionConfig config = null, string apiKey = null)
+        ModelApiConnectionConfig? config = null, string? apiKey = null)
     {
       ThrowIfInferenceRouteConflict(_inferenceDriver != null || _inferenceDriverId != null);
       _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));

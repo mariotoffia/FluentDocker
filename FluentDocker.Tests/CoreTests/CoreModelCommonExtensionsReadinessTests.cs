@@ -107,6 +107,13 @@ namespace FluentDocker.Tests.CoreTests
     [InlineData("""{"Value":1}""", true)]
     [InlineData("""{"Value":0}""", false)]
     [InlineData("""{"Value":null}""", false)]
+    // Drift shapes: any other token degrades to false (or a truthy number) instead of throwing (MODEL-1).
+    [InlineData("""{"Value":2}""", true)]
+    [InlineData("""{"Value":-1}""", true)]
+    [InlineData("""{"Value":1.5}""", false)]
+    [InlineData("""{"Value":"yes"}""", false)]
+    [InlineData("""{"Value":{}}""", false)]
+    [InlineData("""{"Value":[]}""", false)]
     public void LenientBoolConverter_ReadsDockerBooleanShapes(string json, bool expected)
     {
       var dto = JsonSerializer.Deserialize<BoolDto>(json);
@@ -120,11 +127,17 @@ namespace FluentDocker.Tests.CoreTests
     [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":null}}]""")]
     [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":"true","OOMKilled":null}}]""")]
     [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":1,"Dead":0}}]""")]
+    // Exotic drift shapes must ALSO degrade rather than abort the whole inspect (MODEL-1).
+    [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":2}}]""")]
+    [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":"yes"}}]""")]
+    [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":{}}}]""")]
+    [InlineData("""[{"Id":"abc","State":{"Status":"running","Running":[1,2]}}]""")]
     public void ContainerInspect_DriftingStateBooleans_DoNotFailWholeDeserialization(string json)
     {
-      // One drifting daemon-emitted boolean (null / "true" / 0/1) in one container must not
-      // fail the entire inspect for all containers: every non-nullable bool on model DTOs
-      // goes through LenientBoolConverter via the JsonHelper type-info modifier.
+      // One drifting daemon-emitted boolean (null / "true" / 0/1, or an exotic number / string /
+      // structured value) in one container must not fail the entire inspect for all containers:
+      // every non-nullable bool on model DTOs goes through LenientBoolConverter via the JsonHelper
+      // type-info modifier and degrades instead of throwing.
       var ok = JsonHelper.TryDeserialize<List<Container>>(json, out var containers, out var error);
 
       Assert.True(ok, error?.Message);

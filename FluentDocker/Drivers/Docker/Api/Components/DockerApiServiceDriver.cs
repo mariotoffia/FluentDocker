@@ -161,7 +161,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<ServiceInfo>>> ListAsync(
-        DriverContext context, ServiceListFilter filter = null,
+        DriverContext context, ServiceListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var path = "/services";
@@ -210,7 +210,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <inheritdoc />
     public async Task<CommandResponse<IList<ServiceTask>>> GetTasksAsync(
         DriverContext context, string serviceId,
-        ServiceTaskFilter filter = null,
+        ServiceTaskFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var filters = new Dictionary<string, List<string>> { ["service"] = [serviceId] };
@@ -234,7 +234,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// <inheritdoc />
     public async Task<CommandResponse<string>> GetLogsAsync(
         DriverContext context, string serviceId,
-        ServiceLogsConfig config = null,
+        ServiceLogsConfig? config = null,
         CancellationToken cancellationToken = default)
     {
       config ??= new ServiceLogsConfig();

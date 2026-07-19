@@ -3,6 +3,7 @@ using System;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 
 namespace FluentDocker.Common
 {
@@ -16,6 +17,17 @@ namespace FluentDocker.Common
   /// </remarks>
   public sealed class LenientInt32Converter : JsonConverter<int>
   {
+    private static long _driftCount;
+
+    /// <summary>
+    /// Total number of present-but-unparseable <see cref="int"/> tokens read as <c>0</c> since
+    /// process start. A non-zero, growing value indicates daemon/CLI numeric-format drift —
+    /// otherwise indistinguishable from a genuinely-zero field. Mirrors
+    /// <see cref="TolerantDateTimeOffsetConverter.DriftCount"/>; JSON null (a legitimate 'unset')
+    /// and successful parses are not counted.
+    /// </summary>
+    public static long DriftCount => Interlocked.Read(ref _driftCount);
+
     /// <summary>Reads an <see cref="int"/> per the lenient rules described on <see cref="LenientInt32Converter"/>.</summary>
     /// <param name="reader">The reader positioned at the token to convert.</param>
     /// <param name="typeToConvert">The type being converted (always <see cref="int"/>).</param>
@@ -42,7 +54,10 @@ namespace FluentDocker.Common
 
       // Drift tolerance: null, an unparsable string, or a structurally different token
       // degrades to 0 rather than poisoning the whole deserialization. Structured tokens
-      // are skipped in full so the reader stays positioned correctly.
+      // are skipped in full so the reader stays positioned correctly. A present-but-unparseable
+      // value is drift (counted); JSON null is a legitimate 'unset' and is not.
+      if (reader.TokenType != JsonTokenType.Null)
+        Interlocked.Increment(ref _driftCount);
       if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
         reader.Skip();
       return 0;

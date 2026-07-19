@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 
 namespace FluentDocker.Common
 {
@@ -13,6 +14,16 @@ namespace FluentDocker.Common
   /// </summary>
   public sealed class LenientStringDictionaryConverter : JsonConverter<Dictionary<string, string>>
   {
+    private static long _driftCount;
+
+    /// <summary>
+    /// Total number of structurally-drifted tokens observed (an unexpected top-level token, a
+    /// non-empty JSON array, or a nested object/array where a scalar value was expected) since
+    /// process start. Mirrors <see cref="TolerantDateTimeOffsetConverter.DriftCount"/>; JSON null
+    /// (a legitimate 'unset') and successful parses are not counted.
+    /// </summary>
+    public static long DriftCount => Interlocked.Read(ref _driftCount);
+
     /// <summary>
     /// Reads a string dictionary from a JSON object, an empty JSON array (Docker sometimes emits <c>[]</c>
     /// instead of <c>{}</c> for an empty map), or a compact <c>key=value,key=value</c> string.
@@ -35,7 +46,12 @@ namespace FluentDocker.Common
         return ReadEmptyArray(ref reader);
 
       if (reader.TokenType != JsonTokenType.String)
+      {
+        // Structured drift: a token that is neither object, null, empty-array, nor string. Surface
+        // it before failing so the format drift is observable via DriftCount.
+        Interlocked.Increment(ref _driftCount);
         throw new JsonException($"Cannot convert JSON token '{reader.TokenType}' to Dictionary<String,String>.");
+      }
 
       var value = reader.GetString();
       if (string.IsNullOrWhiteSpace(value))
@@ -81,7 +97,16 @@ namespace FluentDocker.Common
               : reader.ValueSpan.ToArray();
           return Encoding.UTF8.GetString(bytes);
         default:
-          throw new JsonException($"Cannot convert JSON token '{reader.TokenType}' to System.String.");
+          // Structured drift (a nested object/array where a scalar was expected): skip and degrade
+          // to an empty string instead of throwing, matching the sibling lenient converters so one
+          // bad label/option value never aborts the whole deserialization (MODEL-1). Count it so the
+          // format drift is observable via DriftCount.
+          if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
+          {
+            Interlocked.Increment(ref _driftCount);
+            reader.Skip();
+          }
+          return string.Empty;
       }
     }
 
@@ -91,6 +116,8 @@ namespace FluentDocker.Common
         throw new JsonException("Unexpected end of JSON array.");
       if (reader.TokenType == JsonTokenType.EndArray)
         return [];
+      // A non-empty array is structured drift; count it before failing so the drift is observable.
+      Interlocked.Increment(ref _driftCount);
       throw new JsonException("Only an empty JSON array can be converted to Dictionary<String,String>.");
     }
 

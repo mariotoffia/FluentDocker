@@ -78,7 +78,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Container>>> ListAsync(
         DriverContext context,
-        ContainerListFilter filter = null,
+        ContainerListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -229,7 +229,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<ContainerProcesses>> TopAsync(
         DriverContext context,
         string containerId,
-        string psOptions = null,
+        string? psOptions = null,
         CancellationToken cancellationToken = default)
     {
       try

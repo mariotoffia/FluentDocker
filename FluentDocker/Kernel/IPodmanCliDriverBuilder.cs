@@ -62,13 +62,13 @@ namespace FluentDocker.Kernel
     /// Optional configuration action. When null, uses defaults
     /// (start the default machine if it exists but is not running).
     /// </param>
-    IPodmanCliDriverBuilder WithAutoStartMachine(Action<AutoStartMachineConfig> configure = null);
+    IPodmanCliDriverBuilder WithAutoStartMachine(Action<AutoStartMachineConfig>? configure = null);
 
     /// <summary>
     /// Configures sudo mechanism for Podman CLI commands (Linux).
     /// </summary>
     /// <param name="mechanism">Sudo mechanism to use</param>
     /// <param name="password">Password when using <see cref="SudoMechanism.Password"/></param>
-    IPodmanCliDriverBuilder WithSudo(SudoMechanism mechanism, string password = null);
+    IPodmanCliDriverBuilder WithSudo(SudoMechanism mechanism, string? password = null);
   }
 }

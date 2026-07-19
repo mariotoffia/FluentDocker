@@ -2,11 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Pipes;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
-using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
@@ -64,6 +62,12 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
     {
       ArgumentNullException.ThrowIfNull(config);
       _config = CreateEffectiveConfig(config);
+      // A non-positive-but-finite ConnectionTimeout is a misconfiguration: it bounds the upload stall
+      // watchdog, so a zero/negative value would make it cancel every body-bearing upload almost
+      // immediately. Accept any positive duration or Timeout.InfiniteTimeSpan (disables the stall
+      // watchdog), mirroring DockerApiDriverBuilder.WithConnectionTimeout (which cannot express
+      // "infinite") (DAPI-3).
+      ValidateConnectionTimeout(_config.ConnectionTimeout);
       _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<DockerApiConnection>();
 
       var ownedCertificates = new List<X509Certificate2>();
@@ -456,6 +460,17 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
       return DockerUri.GetDockerHostEnvironmentPathOrDefault();
     }
 
+    // Accept any strictly-positive duration, or Timeout.InfiniteTimeSpan (-1 ms) which disables the
+    // upload stall watchdog. A zero or negative-but-finite value is rejected because it would make the
+    // watchdog cancel every body-bearing upload almost immediately (DAPI-3).
+    private static void ValidateConnectionTimeout(TimeSpan timeout)
+    {
+      if (timeout != Timeout.InfiniteTimeSpan && timeout <= TimeSpan.Zero)
+        throw new ArgumentOutOfRangeException(
+            nameof(timeout), timeout,
+            "ConnectionTimeout must be positive or Timeout.InfiniteTimeSpan.");
+    }
+
     private static DockerApiConnectionConfig CreateEffectiveConfig(DockerApiConnectionConfig config)
     {
       // Docker convention: DOCKER_TLS_VERIFY set to any non-empty value (even "0") ENABLES
@@ -476,102 +491,6 @@ namespace FluentDocker.Drivers.Docker.Api.Connection
         AllowTlsHostnameMismatch = config.AllowTlsHostnameMismatch,
         UseTls = explicitCertificatePath || !string.IsNullOrEmpty(tlsVerify)
       };
-    }
-
-    // ownedCertificates collects every X509Certificate2 created here so the connection
-    // instance can dispose them; the unix-socket and named-pipe paths add none.
-    private static (SocketsHttpHandler handler, string baseAddress) CreateHandler(
-        string host, DockerApiConnectionConfig config, List<X509Certificate2> ownedCertificates)
-    {
-      var uri = new Uri(host);
-
-      return uri.Scheme.ToLowerInvariant() switch
-      {
-        "unix" => CreateUnixSocketHandler(uri, config),
-        "npipe" => CreateNamedPipeHandler(uri, config),
-        "tcp" => CreateTcpHandler(uri, config, useTls: config.UseTls, ownedCertificates),
-        "http" => CreateTcpHandler(uri, config, useTls: false, ownedCertificates),
-        "https" => CreateTcpHandler(uri, config, useTls: true, ownedCertificates),
-        _ => throw new ArgumentException($"Unsupported URI scheme: {uri.Scheme}. " +
-            "Use unix://, npipe://, tcp://, http://, or https://", nameof(host))
-      };
-    }
-
-    private static (SocketsHttpHandler, string) CreateUnixSocketHandler(
-        Uri uri, DockerApiConnectionConfig config)
-    {
-      var socketPath = Uri.UnescapeDataString(uri.AbsolutePath);
-      var handler = new SocketsHttpHandler
-      {
-        ConnectCallback = async (context, ct) =>
-        {
-          var socket = new Socket(
-                      AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-          try
-          {
-            var endpoint = new UnixDomainSocketEndPoint(socketPath);
-            await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
-            return new NetworkStream(socket, ownsSocket: true);
-          }
-          catch
-          {
-            // NetworkStream never took ownership — dispose the socket so a failed
-            // connect (bad path, timeout, cancellation) does not leak the descriptor.
-            socket.Dispose();
-            throw;
-          }
-        },
-        ConnectTimeout = config.ConnectionTimeout
-      };
-
-      return (handler, "http://localhost");
-    }
-
-    private static (SocketsHttpHandler, string) CreateNamedPipeHandler(
-        Uri uri, DockerApiConnectionConfig config)
-    {
-      if (!string.IsNullOrEmpty(uri.Host) &&
-          !string.Equals(uri.Host, ".", StringComparison.Ordinal) &&
-          !string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
-        throw new ArgumentException(
-            "Remote Docker named pipes are not supported; use tcp:// or https:// for remote daemons.",
-            nameof(config));
-
-      var pipeName = ExtractNamedPipeName(uri);
-      var handler = new SocketsHttpHandler
-      {
-        ConnectCallback = async (_, ct) =>
-        {
-          var pipe = new NamedPipeClientStream(
-                      ".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-          try
-          {
-            await pipe.ConnectAsync((int)config.ConnectionTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
-            return pipe;
-          }
-          catch
-          {
-            pipe.Dispose();
-            throw;
-          }
-        },
-        ConnectTimeout = config.ConnectionTimeout
-      };
-
-      return (handler, "http://localhost");
-    }
-
-    private static string ExtractNamedPipeName(Uri uri)
-    {
-      var path = uri.AbsolutePath.Trim('/');
-      if (path.StartsWith("./", StringComparison.Ordinal))
-        path = path[2..];
-      if (path.StartsWith("pipe/", StringComparison.OrdinalIgnoreCase))
-        path = path["pipe/".Length..];
-      path = path.Trim('/');
-      if (string.IsNullOrEmpty(path))
-        throw new ArgumentException("Named pipe URI must include a pipe name.", nameof(uri));
-      return Uri.UnescapeDataString(path).Replace('/', '\\');
     }
 
   }

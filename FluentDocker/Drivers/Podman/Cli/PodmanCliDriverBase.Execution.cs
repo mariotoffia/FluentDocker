@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentDocker.Common;
 using FluentDocker.Drivers.Docker.Cli;
+using FluentDocker.Drivers.Podman.Cli.Binary;
 using FluentDocker.Model.Common;
 using FluentDocker.Model.Drivers;
 
@@ -51,6 +52,9 @@ namespace FluentDocker.Drivers.Podman.Cli
     /// <summary>
     /// Resolves the binary info for the Podman command, extracting
     /// the binary path and sudo configuration separately for safe execution.
+    /// A per-operation <see cref="DriverContext.BinaryName"/>/<see cref="DriverContext.SearchPaths"/>
+    /// differing from the component's own context resolves a one-shot binary for this call —
+    /// the merged values are honored, not silently ignored in favor of the pack-init resolver.
     /// </summary>
     private (string BinaryPath, SudoMechanism Sudo, string SudoPassword) ResolveBinaryInfo()
         => ResolveBinaryInfo(Context);
@@ -60,6 +64,23 @@ namespace FluentDocker.Drivers.Podman.Cli
       var contextSudo = context?.Sudo ?? SudoMechanism.None;
       var contextPassword = context?.SudoPassword;
 
+      if (HasPerOperationBinaryOverride(context))
+      {
+        var overrideResolver = new PodmanBinariesResolver(new PodmanBinaryConfiguration
+        {
+          Sudo = contextSudo,
+          SudoPassword = contextPassword,
+          DefaultShell = context.DefaultShell,
+          BinaryName = context.BinaryName,
+          SearchPaths = context.SearchPaths
+        });
+        var overrideBinary = overrideResolver.Resolve(
+            string.IsNullOrWhiteSpace(context.BinaryName) ? PodmanCommand : context.BinaryName);
+        return (overrideBinary.FqPath,
+            contextSudo != SudoMechanism.None ? contextSudo : overrideBinary.Sudo,
+            contextPassword ?? overrideBinary.SudoPassword);
+      }
+
       if (BinaryResolver == null)
         return (PodmanCommand, contextSudo, contextPassword);
 
@@ -67,6 +88,25 @@ namespace FluentDocker.Drivers.Podman.Cli
       return (binary.FqPath,
           contextSudo != SudoMechanism.None ? contextSudo : binary.Sudo,
           contextPassword ?? binary.SudoPassword);
+    }
+
+    /// <summary>
+    /// True when the merged per-operation context carries a binary name or search-path set
+    /// that differs from the component's initialization context (i.e. the caller overrode
+    /// them for this call). String/reference comparison suffices because
+    /// <see cref="CreateEffectiveContext"/> passes component values through unchanged.
+    /// </summary>
+    private bool HasPerOperationBinaryOverride(DriverContext context)
+    {
+      if (context == null || BinaryResolver == null)
+        return false;
+
+      var component = Context;
+      var binaryDiffers = !string.IsNullOrWhiteSpace(context.BinaryName)
+          && !string.Equals(context.BinaryName, component?.BinaryName, StringComparison.Ordinal);
+      var pathsDiffer = context.SearchPaths is { Length: > 0 }
+          && !ReferenceEquals(context.SearchPaths, component?.SearchPaths);
+      return binaryDiffers || pathsDiffer;
     }
 
     /// <summary>
@@ -94,6 +134,38 @@ namespace FluentDocker.Drivers.Podman.Cli
       var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
       var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
       return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, ResolveBufferedTimeout(effectiveContext), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Executes a Podman command asynchronously with an explicit buffered timeout.
+    /// Identical to <see cref="ExecuteCommandAsync(string, CancellationToken)"/> but uses the
+    /// supplied <paramref name="timeout"/> instead of the resolved default. Pass
+    /// <see cref="Timeout.InfiniteTimeSpan"/> to bound only by the caller token.
+    /// </summary>
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        string arguments, TimeSpan timeout, CancellationToken cancellationToken)
+        => await ExecuteCommandAsync((DriverContext)null, arguments, timeout, cancellationToken).ConfigureAwait(false);
+
+    /// <summary>
+    /// Executes a Podman command asynchronously using the given driver context and an explicit
+    /// buffered timeout instead of the context-resolved default.
+    /// </summary>
+    /// <param name="context">Driver context supplying host/sudo settings.</param>
+    /// <param name="arguments">Command arguments.</param>
+    /// <param name="timeout">
+    /// Wall-clock timeout; pass <see cref="Timeout.InfiniteTimeSpan"/> to bound only by
+    /// <paramref name="cancellationToken"/>.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The command result.</returns>
+    protected async Task<SimpleCommandResult> ExecuteCommandAsync(
+        DriverContext context, string arguments, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+      var effectiveContext = CreateEffectiveContext(context);
+      var (binaryPath, sudo, sudoPassword) = ResolveBinaryInfo(effectiveContext);
+      var globalArgs = BuildGlobalArgs(effectiveContext, Logger);
+      var fullArgs = string.IsNullOrEmpty(globalArgs) ? arguments : $"{globalArgs} {arguments}";
+      return await ExecuteProcessAsync(binaryPath, fullArgs, null, sudo, sudoPassword, timeout, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -21,7 +21,7 @@ namespace FluentDocker.Drivers
     /// <returns>List of stacks</returns>
     Task<CommandResponse<IList<StackInfo>>> ListAsync(
         DriverContext context,
-        StackListFilter filter = null,
+        StackListFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -35,7 +35,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<IList<StackTask>>> GetTasksAsync(
         DriverContext context,
         string stackName,
-        StackTaskFilter filter = null,
+        StackTaskFilter? filter = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers
     Task<CommandResponse<IList<StackServiceInfo>>> GetServicesAsync(
         DriverContext context,
         string stackName,
-        StackServiceFilter filter = null,
+        StackServiceFilter? filter = null,
         CancellationToken cancellationToken = default);
   }
 
@@ -210,7 +210,7 @@ namespace FluentDocker.Drivers
     /// <summary>Only display task IDs.</summary>
     public bool Quiet { get; set; }
 
-    /// <summary>Output format.</summary>
+    /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
     public string Format { get; set; }
 
     /// <summary>Orchestrator.</summary>
@@ -246,7 +246,7 @@ namespace FluentDocker.Drivers
     /// <summary>Only display service IDs.</summary>
     public bool Quiet { get; set; }
 
-    /// <summary>Output format.</summary>
+    /// <summary>Ignored by built-in adapters; output format is fixed to JSON for parsing.</summary>
     public string Format { get; set; }
 
     /// <summary>Orchestrator.</summary>

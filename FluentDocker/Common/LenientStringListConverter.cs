@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 
 namespace FluentDocker.Common
 {
@@ -16,6 +17,16 @@ namespace FluentDocker.Common
   /// </summary>
   public sealed class LenientStringListConverter : JsonConverter<List<string>>
   {
+    private static long _driftCount;
+
+    /// <summary>
+    /// Total number of structurally-drifted tokens observed (an unexpected top-level token, or an
+    /// array element that is neither a string nor null) since process start. Mirrors
+    /// <see cref="TolerantDateTimeOffsetConverter.DriftCount"/>; JSON null (a legitimate 'unset')
+    /// and successful parses are not counted.
+    /// </summary>
+    public static long DriftCount => Interlocked.Read(ref _driftCount);
+
     /// <summary>
     /// Reads a string list from a JSON array, or from the legacy comma-delimited compact string form
     /// (see <see cref="LenientStringListConverter"/>).
@@ -34,7 +45,12 @@ namespace FluentDocker.Common
         return [];
 
       if (reader.TokenType != JsonTokenType.String)
+      {
+        // Structured drift: a token that is neither array, null, nor string. Surface it before
+        // failing so the format drift is observable via DriftCount.
+        Interlocked.Increment(ref _driftCount);
         throw new JsonException($"Cannot convert JSON token '{reader.TokenType}' to List<String>.");
+      }
 
       var value = reader.GetString();
       if (string.IsNullOrWhiteSpace(value))
@@ -62,6 +78,14 @@ namespace FluentDocker.Common
       return result;
     }
 
+    private static JsonException ReportDriftedElement(JsonTokenType tokenType)
+    {
+      // A non-string/non-null array element is structured drift; count it before failing so the
+      // format drift is observable via DriftCount.
+      Interlocked.Increment(ref _driftCount);
+      return new JsonException($"Cannot convert JSON token '{tokenType}' to System.String.");
+    }
+
     private static bool LooksLikeCompleteEntry(string entry) =>
         entry.Contains("->", StringComparison.Ordinal) || entry.Contains('/', StringComparison.Ordinal);
 
@@ -77,7 +101,7 @@ namespace FluentDocker.Common
         {
           JsonTokenType.String => reader.GetString() ?? string.Empty,
           JsonTokenType.Null => string.Empty,
-          _ => throw new JsonException($"Cannot convert JSON token '{reader.TokenType}' to System.String.")
+          _ => throw ReportDriftedElement(reader.TokenType)
         });
       }
 

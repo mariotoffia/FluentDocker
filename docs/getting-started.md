@@ -11,7 +11,7 @@ For the complete beginner-to-advanced map and reading plans by role, see the
 [documentation index](index.md#documentation-by-level).
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
+> it from source — see [Consume the preview](#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Read This Guide in Order
@@ -401,6 +401,11 @@ FluentDocker can also manage and consume **local LLMs** through Docker Model Run
 Enable it in Docker Desktop (*Settings → AI → Enable Docker Model Runner*, with
 host-side TCP on), then follow the canonical [Model Runner guide](model-runner.md).
 The inference DTOs are preview and subject to change.
+
+> **Model builders stand alone.** `UseModelRunner()` / `UseModel()` must run on a **fresh
+> `Builder`** and return their handle **directly** (a runner/service builder, not `BuildResults`).
+> They **cannot** be chained after `UseContainer`/`UseNetwork`/`UseVolume`/`UseImage`/`UseCompose`/`UsePod`
+> on the same builder; doing so throws.
 
 For portable / driver-agnostic code that must degrade gracefully on drivers without
 model support, use `TryUseModelRunner(out var runnerBuilder)` instead — it returns

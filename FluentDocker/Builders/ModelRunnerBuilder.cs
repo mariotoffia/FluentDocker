@@ -79,7 +79,7 @@ namespace FluentDocker.Builders
 
     /// <inheritdoc />
     public IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
-        ModelApiConnectionConfig config = null, string apiKey = null)
+        ModelApiConnectionConfig? config = null, string? apiKey = null)
     {
       ThrowIfInferenceRouteConflict(_inferenceDriver != null || _inferenceDriverId != null);
       _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
@@ -119,6 +119,13 @@ namespace FluentDocker.Builders
     /// <inheritdoc />
     public async Task<IModelRunner> BuildAsync(CancellationToken cancellationToken = default)
     {
+      // Build-time configuration (pull/context-size/backend/runtime-flags) applies to a bound
+      // model; without ForModel there is nothing to pull or configure and these settings would be
+      // silently discarded. Fail fast instead of dropping them on the floor.
+      if (_model == null && (_pullIfMissing || NeedsConfigure()))
+        throw new InvalidOperationException(
+            "WithContextSize/WithBackend/WithRuntimeFlags/PullIfMissing require ForModel(...).");
+
       // Resolve the inference plane (management/runtime always come from the scoped
       // driver). Precedence: an explicitly supplied driver, then one resolved from
       // another registered driver, then an auto-built connection for a custom

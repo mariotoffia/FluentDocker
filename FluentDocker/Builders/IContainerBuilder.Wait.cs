@@ -73,10 +73,10 @@ namespace FluentDocker.Builders
     IContainerBuilder WaitForHttpUrl(
         string url,
         long timeoutMs = 30000,
-        HttpMethod method = null,
-        string contentType = null,
-        string body = null,
-        Func<RequestResponse, int, long> continuation = null);
+        HttpMethod? method = null,
+        string? contentType = null,
+        string? body = null,
+        Func<RequestResponse, int, long>? continuation = null);
 
     /// <summary>
     /// Waits for a specific message to appear in the container's log output after starting.

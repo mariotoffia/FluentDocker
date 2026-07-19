@@ -15,41 +15,42 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
   public class ComposeModelSecurityTests
   {
     [Fact]
-    public void EmitOverlay_ModelKeyWithNewline_Throws()
+    public void ModelKeyWithNewline_Throws()
     {
+      // BLDR-8: identifier/injection validation now fails at the fluent call, not at emission.
       var b = new ComposeModelBuilder();
-      b.AddModel("llm\n    injected:\n      model: evil/x", m => m.WithModel("ai/smollm2"));
 
-      Assert.Throws<ArgumentException>(() => b.EmitOverlay());
+      Assert.Throws<ArgumentException>(() =>
+          b.AddModel("llm\n    injected:\n      model: evil/x", m => m.WithModel("ai/smollm2")));
     }
 
     [Fact]
-    public void EmitOverlay_ModelReferenceWithNewline_Throws()
+    public void ModelReferenceWithNewline_Throws()
     {
       var b = new ComposeModelBuilder();
-      b.AddModel("llm", m => m.WithModel("ai/smollm2\n    injected: true"));
 
-      Assert.Throws<ArgumentException>(() => b.EmitOverlay());
+      Assert.Throws<ArgumentException>(() =>
+          b.AddModel("llm", m => m.WithModel("ai/smollm2\n    injected: true")));
     }
 
     [Fact]
-    public void EmitOverlay_ServiceNameWithNewline_Throws()
+    public void ServiceNameWithNewline_Throws()
     {
       var b = new ComposeModelBuilder();
       b.AddModel("llm", m => m.WithModel("ai/smollm2"));
-      b.BindToService("app\n  evilservice:\n    image: attacker/x", "llm");
 
-      Assert.Throws<ArgumentException>(() => b.EmitOverlay());
+      Assert.Throws<ArgumentException>(() =>
+          b.BindToService("app\n  evilservice:\n    image: attacker/x", "llm"));
     }
 
     [Fact]
-    public void EmitOverlay_EndpointVarWithNewline_Throws()
+    public void EndpointVarWithNewline_Throws()
     {
       var b = new ComposeModelBuilder();
       b.AddModel("llm", m => m.WithModel("ai/smollm2"));
-      b.BindToService("app", "llm", endpointVar: "URL\n        model_var: INJECTED");
 
-      Assert.Throws<ArgumentException>(() => b.EmitOverlay());
+      Assert.Throws<ArgumentException>(() =>
+          b.BindToService("app", "llm", endpointVar: "URL\n        model_var: INJECTED"));
     }
 
     [Fact]

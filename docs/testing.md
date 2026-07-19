@@ -10,7 +10,7 @@ has_children: true
 FluentDocker v3 provides test support via the Testing.Core framework:
 
 > **Preview docs — not on NuGet yet.** These document the upcoming **3.2.0-preview.2** API; build
-> it from source — see [Consume the preview](https://mariotoffia.github.io/FluentDocker/getting-started.html#consume-the-preview). The latest published package
+> it from source — see [Consume the preview](getting-started.md#consume-the-preview). The latest published package
 > is **3.1.0**, whose `WithPort` is container-first (host-first in the preview) — don't run these samples against it.
 
 ## Step by Step
@@ -141,11 +141,16 @@ public class RedisTests : NUnitContainerFixtureBase
 ### Skip when Docker is unavailable
 
 Every `ITestResource` runs a runtime-health preflight before it provisions: if the runtime
-is down, initialization throws `FluentDockerUnavailableException` (`FluentDocker.Common`)
-instead of a raw mid-provision error. To skip rather than fail, probe first with
+is down, initialization throws `ResourceInitializationException` whose `InnerException` is a
+`FluentDockerUnavailableException` (`FluentDocker.Common`) instead of a raw mid-provision
+error — catch it with
+`catch (ResourceInitializationException ex) when (ex.InnerException is FluentDockerUnavailableException)`.
+To skip rather than fail, probe first with
 `DockerAvailability.IsAvailableAsync(...)` (or `XunitContainerFixtureBase.IsDockerAvailableAsync`)
 and gate the test body — xUnit's `SkipWhenUnavailable` was removed because a fixture cannot
-skip from initialization. See [Skip when Docker is unavailable](testing/skip-when-unavailable.md)
+skip from initialization. The [`XunitConditionalContainerFixtureBase`](testing/skip-when-unavailable.md#built-in-conditional-fixture)
+(the "conditional fixture" in the parity table above) packages this into an `IClassFixture<T>`
+that exposes `IsSkipped`/`SkipReason`. See [Skip when Docker is unavailable](testing/skip-when-unavailable.md)
 for the full recipe. MSTest and NUnit fixtures still mark the test inconclusive/ignored via
 their `SkipWhenUnavailable` option.
 

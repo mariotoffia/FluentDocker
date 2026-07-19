@@ -31,7 +31,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>Pulls an image using the Podman CLI.</summary>
     public async Task<CommandResponse<Unit>> PullAsync(
         DriverContext context, string image, string tag = "latest",
-        IProgress<ImagePullProgress> progress = null,
+        IProgress<ImagePullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -63,7 +63,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>Pushes an image using the Podman CLI.</summary>
     public async Task<CommandResponse<Unit>> PushAsync(
         DriverContext context, string image,
-        IProgress<ImagePushProgress> progress = null,
+        IProgress<ImagePushProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -154,7 +154,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <remarks>Captured stdout and stderr retain only the final 256 KiB tail for long-running builds.</remarks>
     public async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context, ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress = null,
+        IProgress<ImageBuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -222,7 +222,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Image>>> ListAsync(
-        DriverContext context, ImageListFilter filter = null,
+        DriverContext context, ImageListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try

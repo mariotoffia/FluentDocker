@@ -117,7 +117,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Volume>>> ListAsync(
         DriverContext context,
-        VolumeListFilter filter = null,
+        VolumeListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       try

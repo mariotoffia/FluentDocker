@@ -64,7 +64,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<IList<Volume>>> ListAsync(
-        DriverContext context, VolumeListFilter filter = null,
+        DriverContext context, VolumeListFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
       var path = "/volumes";

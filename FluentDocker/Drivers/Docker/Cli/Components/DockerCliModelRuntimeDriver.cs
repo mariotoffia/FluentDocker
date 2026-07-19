@@ -262,7 +262,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// with a CLI surface is ignored.
     /// </remarks>
     public async Task<CommandResponse<Unit>> LoadAsync(DriverContext context,
-        ModelReference model, ModelRunOptions options = null, CancellationToken cancellationToken = default)
+        ModelReference model, ModelRunOptions? options = null, CancellationToken cancellationToken = default)
     {
       ArgumentNullException.ThrowIfNull(model);
 
@@ -423,7 +423,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> InstallRunnerAsync(DriverContext context,
-        ModelRunnerInstallOptions options = null, CancellationToken cancellationToken = default)
+        ModelRunnerInstallOptions? options = null, CancellationToken cancellationToken = default)
     {
       var args = "model install-runner";
       if (!string.IsNullOrEmpty(options?.Gpu))
@@ -434,7 +434,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> UninstallRunnerAsync(DriverContext context,
-        ModelRunnerUninstallOptions options = null, CancellationToken cancellationToken = default)
+        ModelRunnerUninstallOptions? options = null, CancellationToken cancellationToken = default)
     {
       var sb = new StringBuilder("model uninstall-runner");
       if (options != null)

@@ -143,7 +143,7 @@ namespace FluentDocker.Builders
     public IContainerBuilder WithPrivileged(bool privileged = true) { _privileged = privileged; return this; }
     public IContainerBuilder WithAutoRemove(bool autoRemove = true) { _autoRemove = autoRemove; return this; }
 
-    public IContainerBuilder WithLink(string containerName, string alias = null)
+    public IContainerBuilder WithLink(string containerName, string? alias = null)
     {
       _links.Add(new ContainerLink { ContainerName = containerName, Alias = alias ?? containerName });
       return this;
@@ -162,8 +162,8 @@ namespace FluentDocker.Builders
     public IContainerBuilder WithCapDrop(string capability) { _capDrop.Add(capability); return this; }
     public IContainerBuilder WithSecurityOpt(string option) { _securityOpt.Add(option); return this; }
     public IContainerBuilder WithShmSize(long bytes) { ValidateNonNegative(bytes, nameof(bytes)); _shmSize = bytes; return this; }
-    public IContainerBuilder WithTmpfs(string containerPath, string options = null) { _tmpfs[containerPath] = options ?? ""; return this; }
-    public IContainerBuilder WithDevice(string hostDevice, string containerDevice = null) { _devices[hostDevice] = containerDevice ?? hostDevice; return this; }
+    public IContainerBuilder WithTmpfs(string containerPath, string? options = null) { _tmpfs[containerPath] = options ?? ""; return this; }
+    public IContainerBuilder WithDevice(string hostDevice, string? containerDevice = null) { _devices[hostDevice] = containerDevice ?? hostDevice; return this; }
     public IContainerBuilder WithReadonlyRootfs() { _readonlyRootfs = true; return this; }
     public IContainerBuilder WithPlatform(string platform) { _platform = platform; return this; }
     public IContainerBuilder WithRuntime(string runtime) { _runtime = runtime; return this; }
@@ -181,8 +181,8 @@ namespace FluentDocker.Builders
     /// in effect for container creation.
     /// </remarks>
     public IContainerBuilder WithHealthCheck(
-        string cmd, string interval = null, string timeout = null,
-        int retries = 0, string startPeriod = null)
+        string cmd, string? interval = null, string? timeout = null,
+        int retries = 0, string? startPeriod = null)
     {
       ArgumentNullException.ThrowIfNull(cmd);
       _healthCheck = new Drivers.HealthCheckConfig
@@ -212,7 +212,7 @@ namespace FluentDocker.Builders
 
     public IContainerBuilder ForcePullImage() { _forcePullImage = true; return this; }
 
-    public IContainerBuilder WithRegistryAuth(string username, string password, string server = null)
+    public IContainerBuilder WithRegistryAuth(string username, string password, string? server = null)
     {
       ArgumentException.ThrowIfNullOrEmpty(username);
       ArgumentNullException.ThrowIfNull(password);

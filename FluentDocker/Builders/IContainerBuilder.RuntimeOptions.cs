@@ -10,8 +10,8 @@ namespace FluentDocker.Builders
     /// <param name="startPeriod">Start period before health checks count.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IContainerBuilder WithHealthCheck(
-        string cmd, string interval = null, string timeout = null,
-        int retries = 0, string startPeriod = null) =>
+        string cmd, string? interval = null, string? timeout = null,
+        int retries = 0, string? startPeriod = null) =>
         throw new System.NotSupportedException("This IContainerBuilder implementation does not support WithHealthCheck.");
 
     /// <summary>Adds DNS servers to the container.</summary>

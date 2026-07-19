@@ -72,7 +72,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> LogoutAsync(
-        DriverContext context, string server = null,
+        DriverContext context, string? server = null,
         CancellationToken cancellationToken = default)
     {
       try

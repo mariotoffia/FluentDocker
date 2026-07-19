@@ -122,6 +122,48 @@ namespace FluentDocker.Tests.CoreTests.BuilderTests
       Assert.Contains("WithModel", ex.Message);
     }
 
+    // ---- BLDR-8: charset/injection validation fails at the fluent call ----
+
+    [Fact]
+    public void AddModel_InvalidKey_ThrowsAtTheFluentCall()
+    {
+      var b = new ComposeModelBuilder();
+
+      Assert.Throws<ArgumentException>(() =>
+          b.AddModel("bad key", m => m.WithModel("ai/smollm2")));
+    }
+
+    [Fact]
+    public void AddModel_InvalidModelReference_ThrowsAtTheFluentCall()
+    {
+      var b = new ComposeModelBuilder();
+
+      var ex = Assert.Throws<ArgumentException>(() =>
+          b.AddModel("llm", m => m.WithModel("ai/smollm2\ninjected: true")));
+
+      Assert.Contains("model reference", ex.Message);
+    }
+
+    [Fact]
+    public void BindToService_InvalidServiceName_ThrowsAtTheFluentCall()
+    {
+      var b = new ComposeModelBuilder();
+      b.AddModel("llm", m => m.WithModel("ai/smollm2"));
+
+      Assert.Throws<ArgumentException>(() =>
+          b.BindToService("bad service", "llm"));
+    }
+
+    [Fact]
+    public void BindToService_InvalidEnvVarName_ThrowsAtTheFluentCall()
+    {
+      var b = new ComposeModelBuilder();
+      b.AddModel("llm", m => m.WithModel("ai/smollm2"));
+
+      Assert.Throws<ArgumentException>(() =>
+          b.BindToService("app", "llm", endpointVar: "bad var"));
+    }
+
     // ---- K3: env binding ----
 
     [Fact]

@@ -7,9 +7,9 @@ using FluentDocker.Model.Drivers;
 
 namespace FluentDocker.Drivers
 {
-  /// <summary>
-  /// Container operations: exec, copy, logs, stats, wait, rename, update, export.
-  /// </summary>
+  // Container operations: exec, copy, logs, stats, wait, rename, update, export.
+  // Secondary partial declaration; the <summary> lives on the primary IContainerDriver.cs
+  // to avoid a duplicate member entry in the generated XML docs.
   public partial interface IContainerDriver
   {
     #region Wait Operations
@@ -78,7 +78,7 @@ namespace FluentDocker.Drivers
     Task<Model.Drivers.CommandResponse<ContainerProcesses>> TopAsync(
         DriverContext context,
         string containerId,
-        string psOptions = null,
+        string? psOptions = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

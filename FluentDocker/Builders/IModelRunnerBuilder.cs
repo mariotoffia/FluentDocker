@@ -18,7 +18,11 @@ namespace FluentDocker.Builders
     /// <summary>Binds a default model.</summary>
     IModelRunnerBuilder ForModel(ModelReference reference);
 
-    /// <summary>Sets the persistent context size (applied via configure at build).</summary>
+    /// <summary>
+    /// Sets the persistent context size (applied via configure at build).
+    /// Requires <see cref="ForModel(ModelReference)"/>; building without a bound model throws
+    /// <see cref="System.InvalidOperationException"/>.
+    /// </summary>
     IModelRunnerBuilder WithContextSize(int tokens);
 
     /// <summary>
@@ -27,10 +31,16 @@ namespace FluentDocker.Builders
     /// emits nothing. An explicit value (e.g. <c>"vllm"</c>) is applied only when the
     /// installed <c>docker model configure</c> supports <c>--backend</c>; otherwise the
     /// build fails with a clear message (current DMR auto-selects).
+    /// Requires <see cref="ForModel(ModelReference)"/>; building without a bound model throws
+    /// <see cref="System.InvalidOperationException"/>.
     /// </summary>
     IModelRunnerBuilder WithBackend(string backend);
 
-    /// <summary>Sets raw engine runtime flags (applied via configure at build).</summary>
+    /// <summary>
+    /// Sets raw engine runtime flags (applied via configure at build).
+    /// Requires <see cref="ForModel(ModelReference)"/>; building without a bound model throws
+    /// <see cref="System.InvalidOperationException"/>.
+    /// </summary>
     IModelRunnerBuilder WithRuntimeFlags(params string[] flags);
 
     /// <summary>
@@ -42,7 +52,7 @@ namespace FluentDocker.Builders
     /// <see cref="WithInferenceDriver(IModelInferenceDriver)"/>.
     /// </summary>
     IModelRunnerBuilder WithEndpoint(ModelRunnerEndpoint endpoint,
-        ModelApiConnectionConfig config = null, string apiKey = null);
+        ModelApiConnectionConfig? config = null, string? apiKey = null);
 
     /// <summary>
     /// Routes inference to an explicit <see cref="IModelInferenceDriver"/> instead of
@@ -65,7 +75,11 @@ namespace FluentDocker.Builders
     /// </summary>
     IModelRunnerBuilder WithInferenceDriver(string driverId);
 
-    /// <summary>Pulls the default model at build time if it is not present.</summary>
+    /// <summary>
+    /// Pulls the default model at build time if it is not present.
+    /// Requires <see cref="ForModel(ModelReference)"/>; building without a bound model throws
+    /// <see cref="System.InvalidOperationException"/>.
+    /// </summary>
     IModelRunnerBuilder PullIfMissing(bool pull = true);
 
     /// <summary>

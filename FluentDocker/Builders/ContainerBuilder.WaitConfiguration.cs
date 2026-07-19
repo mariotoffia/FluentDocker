@@ -79,8 +79,8 @@ namespace FluentDocker.Builders
         WaitForHttp(portAndProto, "/", timeoutMs);
 
     public IContainerBuilder WaitForHttpUrl(string url, long timeoutMs = 30000,
-        HttpMethod method = null, string contentType = null, string body = null,
-        Func<RequestResponse, int, long> continuation = null)
+        HttpMethod? method = null, string? contentType = null, string? body = null,
+        Func<RequestResponse, int, long>? continuation = null)
     {
       ValidateWaitTimeout(timeoutMs);
       _waitConditions.Add(new WaitCondition

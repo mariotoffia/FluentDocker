@@ -101,7 +101,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<ImagePruneResult>> PruneAsync(
         DriverContext context,
         bool all = false,
-        Dictionary<string, string> filter = null,
+        Dictionary<string, string>? filter = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -240,9 +240,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     public async Task<CommandResponse<string>> ImportAsync(
         DriverContext context,
         string source,
-        string repository = null,
-        string tag = null,
-        string message = null,
+        string? repository = null,
+        string? tag = null,
+        string? message = null,
         CancellationToken cancellationToken = default)
     {
       try

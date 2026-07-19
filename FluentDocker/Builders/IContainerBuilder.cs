@@ -254,7 +254,7 @@ namespace FluentDocker.Builders
     /// Linked containers are started only after all build operations complete.
     /// </remarks>
 #pragma warning disable CA1716 // Parameter 'alias' conflicts with reserved keyword — intentional API design
-    IContainerBuilder WithLink(string containerName, string alias = null);
+    IContainerBuilder WithLink(string containerName, string? alias = null);
 #pragma warning restore CA1716
 
     /// <summary>Links this container to multiple other containers (legacy Docker feature).</summary>
@@ -293,13 +293,13 @@ namespace FluentDocker.Builders
     /// <param name="containerPath">Path inside the container.</param>
     /// <param name="options">Mount options (e.g. "rw,noexec,size=64m"). Null for defaults.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithTmpfs(string containerPath, string options = null);
+    IContainerBuilder WithTmpfs(string containerPath, string? options = null);
 
     /// <summary>Maps a host device into the container.</summary>
     /// <param name="hostDevice">Device path on the host (e.g. /dev/sda).</param>
     /// <param name="containerDevice">Device path in the container. Null uses the same path as host.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithDevice(string hostDevice, string containerDevice = null);
+    IContainerBuilder WithDevice(string hostDevice, string? containerDevice = null);
 
     /// <summary>Makes the root filesystem read-only.</summary>
     /// <returns>The builder instance for method chaining.</returns>
@@ -348,7 +348,7 @@ namespace FluentDocker.Builders
     /// <param name="password">Registry password or token.</param>
     /// <param name="server">Registry server URL; <c>null</c> for Docker Hub.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    IContainerBuilder WithRegistryAuth(string username, string password, string server = null);
+    IContainerBuilder WithRegistryAuth(string username, string password, string? server = null);
 
     #endregion
 

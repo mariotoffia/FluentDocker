@@ -42,6 +42,11 @@ namespace FluentDocker.Drivers.Models.Connection
     // Raw(...) base resolves to). Probing "/" can false-negative for endpoints whose only
     // served surface is under /engines/.../v1 (or an OpenAI server exposing only /v1/*).
     private readonly string _pingPath;
+    // The unix domain socket actually dialed, when this connection targets one. For a unix-socket
+    // transport BaseAddress is the placeholder http://localhost (never dialed), so the
+    // EndpointUnreachable remediation quotes THIS path instead of that misleading address. Null for
+    // TCP/HTTP(S) connections.
+    private readonly string _unixSocketPath;
     private int _disposed;
 
     /// <summary>
@@ -91,6 +96,9 @@ namespace FluentDocker.Drivers.Models.Connection
       // Probe the OpenAI model-list route on the endpoint's resolved base path rather than
       // "/" so a runner that only serves /engines/.../v1/* is still reported reachable.
       _pingPath = endpoint.EngineV1Path("/models");
+      // Remember the unix socket path (empty for TCP) so an unreachable error can name the socket
+      // actually dialed rather than the http://localhost placeholder BaseAddress.
+      _unixSocketPath = endpoint.UnixSocketPath;
 
       if (!string.IsNullOrEmpty(apiKey))
       {
@@ -295,13 +303,21 @@ namespace FluentDocker.Drivers.Models.Connection
       _ => false
     };
 
-    private ModelRunnerException EndpointUnreachable(Exception inner) =>
-        new($"The model runner endpoint '{BaseAddress}' is unreachable ({inner.Message}). " +
-            $"Ensure `docker model` is running at that address, " +
-            $"or set DOCKER_MODEL_RUNNER_URL, " +
-            $"or pass an explicit endpoint (unix socket / container-internal). " +
-            $"See docs/model-runner.md.",
-            ErrorCodes.ModelInference.EndpointUnreachable, inner);
+    private ModelRunnerException EndpointUnreachable(Exception inner)
+    {
+      // For a unix-socket connection BaseAddress is the placeholder http://localhost (never
+      // dialed), so name the socket path that was actually dialed instead — otherwise the
+      // remediation points the user at an address that was never contacted.
+      var target = string.IsNullOrEmpty(_unixSocketPath)
+          ? $"endpoint '{BaseAddress}'"
+          : $"unix socket '{_unixSocketPath}'";
+      return new($"The model runner {target} is unreachable ({inner.Message}). " +
+          $"Ensure `docker model` is running at that address, " +
+          $"or set DOCKER_MODEL_RUNNER_URL, " +
+          $"or pass an explicit endpoint (unix socket / container-internal). " +
+          $"See docs/model-runner.md.",
+          ErrorCodes.ModelInference.EndpointUnreachable, inner);
+    }
 
     /// <inheritdoc />
     public ValueTask DisposeAsync()

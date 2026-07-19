@@ -10,7 +10,7 @@ namespace FluentDocker.Drivers
   /// It allows grouping of related driver implementations under a single registered entity and
   /// resolves driver interfaces through <see cref="IDriverInterfaceResolver"/> (a driverId-free,
   /// type-based lookup) — the kernel owns the driverId → pack mapping, so a pack never needs the
-  /// driverId-based <c>ISysCtl</c> contract (KRN-MAJ-7).
+  /// driverId-based <c>ISysCtl</c> contract.
   /// Driver packs populate their interface map during <see cref="InitializeAsync"/> and must not
   /// mutate it after initialization completes; registry resolution reads are intentionally unlocked.
   /// </summary>

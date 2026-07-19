@@ -1,7 +1,13 @@
 ###############################################################################
 # Set default behavior to automatically normalize line endings.
+#
+# Source is pinned to LF so the working-tree EOL matches .editorconfig
+# (end_of_line = lf) on every platform regardless of core.autocrlf. Without
+# this, a Windows checkout with autocrlf=true produces CRLF .cs files that fail
+# the `dotnet format whitespace --verify-no-changes` lint leg in CI (PKG-2).
 ###############################################################################
-* text=auto
+* text=auto eol=lf
+*.cs text eol=lf
 
 ###############################################################################
 # Set default behavior for command prompt diff.

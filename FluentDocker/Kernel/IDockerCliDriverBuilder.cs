@@ -43,7 +43,7 @@ namespace FluentDocker.Kernel
     /// </summary>
     /// <param name="mechanism">Sudo mechanism to use</param>
     /// <param name="password">Password when using <see cref="SudoMechanism.Password"/></param>
-    IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string password = null);
+    IDockerCliDriverBuilder WithSudo(SudoMechanism mechanism, string? password = null);
 
     /// <summary>
     /// Drives a docker-compatible CLI other than <c>docker</c> (best-effort) — for example

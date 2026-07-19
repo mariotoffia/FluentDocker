@@ -71,6 +71,16 @@ namespace FluentDocker.Builders
       var task = service is IAsyncDisposable asyncDisposable
           ? asyncDisposable.DisposeAsync().AsTask()
           : Task.Run(() => service.Dispose(), CancellationToken.None);
+
+      // If the deadline below fires (or the caller cancels) the WaitAsync throws and this dispose
+      // task is abandoned; observe its eventual fault so it cannot surface as an
+      // UnobservedTaskException (mirrors BuildScope.DisposeServiceAsync).
+      _ = task.ContinueWith(
+          static t => _ = t.Exception,
+          CancellationToken.None,
+          TaskContinuationOptions.OnlyOnFaulted,
+          TaskScheduler.Default);
+
       await task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
