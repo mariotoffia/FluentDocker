@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Globalization;
 using System.IO;
@@ -23,7 +22,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         CancellationToken cancellationToken = default)
     {
       // Use --cidfile for race-free container ID discovery and cancellation cleanup.
-      string cidFile = null;
+      string? cidFile = null;
       try
       {
         if (StartsWithDash(config.Image))
@@ -136,7 +135,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
     }
 
-    private async Task RemoveCidFileContainerAsync(DriverContext context, string cidFile)
+    private async Task RemoveCidFileContainerAsync(DriverContext context, string? cidFile)
     {
       // ponytail: cidfile reconciliation only; a CLI killed between daemon-create and cidfile-write
       // still orphans (Docker's own race). Add label-based sweep if that gap must be closed.
@@ -159,7 +158,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
     }
 
-    private static string TryReadCidFile(string cidFile)
+    private static string? TryReadCidFile(string? cidFile)
     {
       if (string.IsNullOrEmpty(cidFile) || !File.Exists(cidFile))
         return null;

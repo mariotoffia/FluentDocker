@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -61,7 +60,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     {
       await foreach (var entry in StreamLogEntriesAsync(context, containerId, config, cancellationToken)
           .WithCancellation(cancellationToken).ConfigureAwait(false))
-        yield return entry.Source == LogStreamSource.Stderr ? $"[stderr] {entry.Line}" : entry.Line;
+        yield return entry.Source == LogStreamSource.Stderr ? $"[stderr] {entry.Line}" : entry.Line ?? string.Empty;
     }
 
     /// <inheritdoc />
@@ -109,12 +108,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     /// <param name="line">The JSON line to parse.</param>
     /// <returns>The parsed event, or null if parsing fails.</returns>
-    public static ContainerEvent ParseEventLine(string line)
+    public static ContainerEvent? ParseEventLine(string line)
     {
       return ParseEventLine(line, NullLogger.Instance);
     }
 
-    private static ContainerEvent ParseEventLine(string line, ILogger logger)
+    private static ContainerEvent? ParseEventLine(string line, ILogger logger)
     {
       try
       {
@@ -157,7 +156,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <param name="containerId">Container ID or name (null for all containers).</param>
     /// <param name="config">Stream stats configuration.</param>
     /// <returns>The CLI arguments string.</returns>
-    public static string BuildStreamStatsArgs(string containerId, StreamStatsConfig config)
+    public static string BuildStreamStatsArgs(string? containerId, StreamStatsConfig? config)
     {
       var args = "stats --format \"{{json .}}\"";
       if (config?.Stream == false)
@@ -180,7 +179,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
       await foreach (var line in ExecuteStreamingCommandAsync(context, args, cancellationToken).ConfigureAwait(false))
       {
-        ContainerStats stats = null;
+        ContainerStats? stats = null;
         try
         {
           stats = ParseStreamStatsLine(line, Logger);
@@ -203,12 +202,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     /// <param name="json">A single JSON line from docker stats CLI output.</param>
     /// <returns>A populated <see cref="ContainerStats"/>, or null if parsing fails.</returns>
-    public static ContainerStats ParseStreamStatsLine(string json)
+    public static ContainerStats? ParseStreamStatsLine(string json)
     {
       return ParseStreamStatsLine(json, NullLogger.Instance);
     }
 
-    private static ContainerStats ParseStreamStatsLine(string json, ILogger logger)
+    private static ContainerStats? ParseStreamStatsLine(string json, ILogger logger)
     {
       if (string.IsNullOrWhiteSpace(json))
         return null;
@@ -229,15 +228,15 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var obj = JsonHelper.ParseElement(json);
 
         var cpuPerc = CliOutputParser.ParsePercent(
-            obj.GetStringOrDefault("CPUPerc"));
+            obj.GetStringOrDefault("CPUPerc") ?? string.Empty);
         var memPerc = CliOutputParser.ParsePercent(
-            obj.GetStringOrDefault("MemPerc"));
+            obj.GetStringOrDefault("MemPerc") ?? string.Empty);
         var (memUsage, memLimit) = CliOutputParser.ParseMemoryUsage(
-            obj.GetStringOrDefault("MemUsage"));
+            obj.GetStringOrDefault("MemUsage") ?? string.Empty);
         var (netRx, netTx) = CliOutputParser.ParseIOPair(
-            obj.GetStringOrDefault("NetIO"));
+            obj.GetStringOrDefault("NetIO") ?? string.Empty);
         var (blockRead, blockWrite) = CliOutputParser.ParseIOPair(
-            obj.GetStringOrDefault("BlockIO"));
+            obj.GetStringOrDefault("BlockIO") ?? string.Empty);
 
         int.TryParse(
             obj.GetStringOrDefault("PIDs"),

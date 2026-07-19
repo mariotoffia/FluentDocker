@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Globalization;
 using System.Linq;
@@ -18,7 +17,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>
     /// Builds the CLI arguments string for <c>podman ps</c>.
     /// </summary>
-    public static string BuildListArgs(ContainerListFilter filter)
+    public static string BuildListArgs(ContainerListFilter? filter)
     {
       var args = "ps --format json";
       if (filter == null)
@@ -54,7 +53,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     private static string BuildCreateArgsWithCidFile(string command, ContainerCreateConfig config, bool detach, string cidFile)
         => BuildCreateArgsCore(command, config, detach, cidFile);
 
-    private static string BuildCreateArgsCore(string command, ContainerCreateConfig config, bool detach, string cidFile)
+    private static string BuildCreateArgsCore(string command, ContainerCreateConfig config, bool detach, string? cidFile)
     {
       var args = detach ? $"{command} -d" : command;
 

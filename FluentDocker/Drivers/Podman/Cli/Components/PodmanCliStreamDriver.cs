@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -64,7 +63,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     {
       await foreach (var entry in StreamLogEntriesAsync(context, containerId, config, cancellationToken)
           .WithCancellation(cancellationToken).ConfigureAwait(false))
-        yield return entry.Source == LogStreamSource.Stderr ? $"[stderr] {entry.Line}" : entry.Line;
+        yield return entry.Source == LogStreamSource.Stderr ? $"[stderr] {entry.Line}" : entry.Line ?? string.Empty;
     }
 
     /// <inheritdoc />
@@ -87,7 +86,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>
     /// Builds the CLI arguments string for streaming events.
     /// </summary>
-    public static string BuildStreamEventsArgs(StreamEventsConfig config)
+    public static string BuildStreamEventsArgs(StreamEventsConfig? config)
     {
       var args = "events --format json";
       if (!string.IsNullOrEmpty(config?.Since))
@@ -131,7 +130,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <param name="containerId">Container ID or name (null for all containers).</param>
     /// <param name="config">Stream stats configuration.</param>
     /// <returns>The CLI arguments string.</returns>
-    public static string BuildStreamStatsArgs(string containerId, StreamStatsConfig config)
+    public static string BuildStreamStatsArgs(string? containerId, StreamStatsConfig? config)
     {
       var args = "stats --no-reset --format json";
       if (config?.Stream == false)
@@ -242,7 +241,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     #region Parsing
 
-    private static ContainerEvent ParseEventCore(string json, ILogger logger)
+    private static ContainerEvent? ParseEventCore(string json, ILogger logger)
     {
       try
       {
@@ -251,7 +250,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
         var obj = JsonHelper.ParseElement(json);
         var actorProp = obj.Prop("Actor");
-        string actorId = null;
+        string? actorId = null;
         Dictionary<string, string> attributes = [];
         if (actorProp.HasValue)
         {
@@ -312,7 +311,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// </summary>
     /// <param name="json">A single JSON line from podman stats output.</param>
     /// <returns>A populated <see cref="ContainerStats"/>, or null if parsing fails.</returns>
-    public static ContainerStats ParseStats(string json)
+    public static ContainerStats? ParseStats(string json)
     {
       foreach (var stats in ParseStatsBatch(json, NullLogger.Instance))
         return stats;
@@ -326,7 +325,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       if (string.IsNullOrWhiteSpace(json))
         return stats;
 
-      Exception lastError = null;
+      Exception? lastError = null;
       foreach (var candidate in JsonCandidates(json))
       {
         try

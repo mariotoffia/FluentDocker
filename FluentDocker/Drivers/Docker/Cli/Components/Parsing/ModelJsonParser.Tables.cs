@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -125,7 +124,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     {
       rows = [];
       var lines = (text ?? string.Empty).Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
-      string headerLine = null;
+      string? headerLine = null;
       foreach (var raw in lines)
       {
         var line = raw.TrimEnd();

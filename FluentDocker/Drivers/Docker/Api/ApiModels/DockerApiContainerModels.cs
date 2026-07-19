@@ -10,8 +10,8 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
   internal sealed class CreateContainerRequest
   {
     [JsonPropertyName("Image")] public string? Image { get; set; }
-    [JsonPropertyName("Cmd")] public string[] Cmd { get; set; } = [];
-    [JsonPropertyName("Entrypoint")] public string[] Entrypoint { get; set; } = [];
+    [JsonPropertyName("Cmd")] public string[]? Cmd { get; set; } = [];
+    [JsonPropertyName("Entrypoint")] public string[]? Entrypoint { get; set; } = [];
     [JsonPropertyName("Env")] public string[] Env { get; set; } = [];
     [JsonPropertyName("WorkingDir")] public string? WorkingDir { get; set; }
     [JsonPropertyName("User")] public string? User { get; set; }
@@ -143,7 +143,7 @@ namespace FluentDocker.Drivers.Docker.Api.ApiModels
 
   internal sealed class HealthcheckRequest
   {
-    [JsonPropertyName("Test")] public string[] Test { get; set; } = [];
+    [JsonPropertyName("Test")] public string[]? Test { get; set; } = [];
     [JsonPropertyName("Interval")] public long? Interval { get; set; }
     [JsonPropertyName("Timeout")] public long? Timeout { get; set; }
     [JsonPropertyName("Retries")] public int? Retries { get; set; }

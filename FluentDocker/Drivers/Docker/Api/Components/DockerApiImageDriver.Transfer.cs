@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -159,7 +158,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       content.Headers.ContentType =
           new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
 
-      string importedId = null;
+      string? importedId = null;
       try
       {
         await foreach (var line in ReadNdjsonFromPostStreamAsync(

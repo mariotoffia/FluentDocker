@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 using System.Text.Json;
 using FluentDocker.Common;
@@ -8,7 +7,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 {
   public partial class DockerApiContainerDriver
   {
-    private static Dictionary<string, BridgeNetwork> ParseBridgeNetworks(JsonElement? networks)
+    private static Dictionary<string, BridgeNetwork>? ParseBridgeNetworks(JsonElement? networks)
     {
       if (networks?.ValueKind != JsonValueKind.Object)
         return null;

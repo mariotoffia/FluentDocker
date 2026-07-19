@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Linq;
 using System.Threading;
@@ -34,12 +33,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         while (true)
         {
           var tasks = await GetTasksAsync(
-              context, serviceId, new ServiceTaskFilter { DesiredState = "running" }, timeoutCts.Token)
+              context!, serviceId, new ServiceTaskFilter { DesiredState = "running" }, timeoutCts.Token)
               .ConfigureAwait(false);
           if (!tasks.Success)
-            return CommandResponse<Unit>.Fail(tasks.Error, tasks.ErrorCode);
+            return CommandResponse<Unit>.Fail(tasks.Error ?? string.Empty, tasks.ErrorCode);
 
-          var running = tasks.Data.Count(t =>
+          var running = (tasks.Data ?? []).Count(t =>
               string.Equals(t.CurrentState, "running", StringComparison.OrdinalIgnoreCase));
           if (running >= desiredReplicas)
             return CommandResponse<Unit>.Ok(Unit.Default);

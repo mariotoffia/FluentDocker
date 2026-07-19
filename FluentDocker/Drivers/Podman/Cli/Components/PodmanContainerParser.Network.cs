@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System.Collections.Generic;
 using System.Text.Json;
 using FluentDocker.Common;
@@ -21,7 +20,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// The parsed <see cref="ContainerNetworkSettings"/>; <c>null</c> when
     /// <paramref name="nsToken"/> is null or a JSON null/undefined token.
     /// </returns>
-    public static ContainerNetworkSettings ParseNetworkSettings(JsonElement? nsToken)
+    public static ContainerNetworkSettings? ParseNetworkSettings(JsonElement? nsToken)
     {
       if (nsToken == null || nsToken.Value.IsNullOrUndefined())
         return null;
@@ -60,12 +59,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// array of <see cref="HostIpEndpoint"/> bindings, or an empty array when the entry has no
     /// bindings. <c>null</c> when <paramref name="portsToken"/> is null or not a JSON object.
     /// </returns>
-    public static Dictionary<string, HostIpEndpoint[]> ParsePorts(JsonElement? portsToken)
+    public static Dictionary<string, HostIpEndpoint[]?>? ParsePorts(JsonElement? portsToken)
     {
       if (portsToken == null || portsToken.Value.ValueKind != JsonValueKind.Object)
         return null;
 
-      var result = new Dictionary<string, HostIpEndpoint[]>();
+      var result = new Dictionary<string, HostIpEndpoint[]?>();
       foreach (var prop in portsToken.Value.EnumerateObject())
       {
         if (prop.Value.ValueKind == JsonValueKind.Array && prop.Value.GetArrayLength() > 0)
@@ -100,7 +99,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// rather than throwing. <c>null</c> (not empty) when <paramref name="addressesToken"/> is
     /// null or not a JSON array.
     /// </returns>
-    public static IList<SecondaryAddress> ParseSecondaryAddresses(JsonElement? addressesToken)
+    public static IList<SecondaryAddress>? ParseSecondaryAddresses(JsonElement? addressesToken)
     {
       if (addressesToken == null || addressesToken.Value.ValueKind != JsonValueKind.Array)
         return null;
@@ -130,7 +129,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// A dictionary keyed by network name, each value a parsed <see cref="BridgeNetwork"/>.
     /// <c>null</c> when <paramref name="networksToken"/> is null or not a JSON object.
     /// </returns>
-    public static Dictionary<string, BridgeNetwork> ParseNetworks(JsonElement? networksToken)
+    public static Dictionary<string, BridgeNetwork>? ParseNetworks(JsonElement? networksToken)
     {
       if (networksToken == null || networksToken.Value.ValueKind != JsonValueKind.Object)
         return null;

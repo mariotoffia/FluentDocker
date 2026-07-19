@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -88,7 +87,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         if (!result.Success)
           return CommandResponse<Unit>.Fail(
               ErrorOrDefault(result, "Podman is not reachable"), FailureCode(result.Error, ErrorCodes.General.Unknown),
-              CreateErrorContext(context, "SystemPing", result), result.ExitCode);
+              CreateErrorContext(context!, "SystemPing", result), result.ExitCode);
 
         return CommandResponse<Unit>.Ok(Unit.Default);
       }
@@ -214,7 +213,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>
     /// Builds the CLI arguments string for <c>podman system prune</c>.
     /// </summary>
-    public static string BuildSystemPruneArgs(SystemPruneConfig config)
+    public static string BuildSystemPruneArgs(SystemPruneConfig? config)
     {
       var args = "system prune -f";
       if (config?.All == true)

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -252,7 +251,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>Builds the <c>podman images --format json</c> argument string for the given filter.</summary>
     /// <param name="filter">List filter (reference, dangling, before, since, labels); null lists all images.</param>
     /// <returns>The full <c>podman</c> argument string, including any <c>--filter</c> flags.</returns>
-    public static string BuildImageListArgs(ImageListFilter filter)
+    public static string BuildImageListArgs(ImageListFilter? filter)
     {
       var args = new StringBuilder("images --format json");
       if (filter?.All == true)
@@ -386,12 +385,12 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       var tagsProp = token.Prop("Names") ?? token.Prop("RepoTags");
       if (tagsProp.HasValue && tagsProp.Value.ValueKind == JsonValueKind.Array)
         foreach (var t in tagsProp.Value.EnumerateArray())
-          image.RepoTags.Add(t.GetString());
+          image.RepoTags.Add(t.GetString() ?? string.Empty);
 
       var digestsProp = token.Prop("RepoDigests") ?? token.Prop("Digests");
       if (digestsProp.HasValue && digestsProp.Value.ValueKind == JsonValueKind.Array)
         foreach (var d in digestsProp.Value.EnumerateArray())
-          image.RepoDigests.Add(d.GetString());
+          image.RepoDigests.Add(d.GetString() ?? string.Empty);
 
       return image;
     }
@@ -430,7 +429,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         var tagsProp = token.Prop("RepoTags");
         if (tagsProp.HasValue && tagsProp.Value.ValueKind == JsonValueKind.Array)
           foreach (var t in tagsProp.Value.EnumerateArray())
-            image.RepoTags.Add(t.GetString());
+            image.RepoTags.Add(t.GetString() ?? string.Empty);
 
         return image;
       }

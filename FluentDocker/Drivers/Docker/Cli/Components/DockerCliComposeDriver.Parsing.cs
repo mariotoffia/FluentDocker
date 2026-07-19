@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,8 +30,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <returns>Parsed list of processes grouped by container (legacy) or service (modern).</returns>
     public static IList<ComposeProcesses> ParseTopOutput(
         string output,
-        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName = null,
-        ILogger logger = null)
+        IReadOnlyDictionary<string, ComposeServiceInfo>? containersByName = null,
+        ILogger? logger = null)
     {
       if (string.IsNullOrWhiteSpace(output))
         return new List<ComposeProcesses>();
@@ -56,7 +55,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         if (string.IsNullOrWhiteSpace(line))
           continue;
 
-        var firstToken = line.Split((char[])null, 2, StringSplitOptions.RemoveEmptyEntries);
+        var firstToken = line.Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries);
         return firstToken.Length > 0 &&
                string.Equals(firstToken[0], "SERVICE", StringComparison.OrdinalIgnoreCase);
       }
@@ -72,13 +71,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private static IList<ComposeProcesses> ParseSingleTableTop(
         string[] lines,
-        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName,
-        ILogger logger = null)
+        IReadOnlyDictionary<string, ComposeServiceInfo>? containersByName,
+        ILogger? logger = null)
     {
       var result = new List<ComposeProcesses>();
       var byService = new Dictionary<string, ComposeProcesses>(StringComparer.Ordinal);
-      TopColumn[] columns = null;
-      string serviceColumn = null;
+      TopColumn[]? columns = null;
+      string? serviceColumn = null;
 
       foreach (var rawLine in lines)
       {
@@ -122,13 +121,13 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private static void ResolveContainerForService(
         string service,
-        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName,
+        IReadOnlyDictionary<string, ComposeServiceInfo>? containersByName,
         ComposeProcesses processes)
     {
       if (containersByName == null)
         return;
 
-      ComposeServiceInfo match = null;
+      ComposeServiceInfo? match = null;
       var count = 0;
       foreach (var info in containersByName.Values)
       {
@@ -142,7 +141,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
       if (count == 1)
       {
-        processes.ContainerId = match.ContainerId;
+        processes.ContainerId = match!.ContainerId;
         processes.ContainerName = match.ContainerName;
       }
     }
@@ -154,8 +153,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private static IList<ComposeProcesses> ParseLegacyBlockTop(
         string[] lines,
-        IReadOnlyDictionary<string, ComposeServiceInfo> containersByName,
-        ILogger logger = null)
+        IReadOnlyDictionary<string, ComposeServiceInfo>? containersByName,
+        ILogger? logger = null)
     {
       var result = new List<ComposeProcesses>();
 
@@ -193,7 +192,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         var columns = SplitTopHeaderLine(headerLine, logger);
         // ponytail: compose top only names the container; without ps JSON this is the best-effort fallback.
         var service = containerName;
-        string containerId = null;
+        string? containerId = null;
         if (containersByName?.TryGetValue(containerName, out var serviceInfo) == true)
         {
           service = serviceInfo.Name;
@@ -223,9 +222,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <summary>
     /// Splits a header line into column names by whitespace.
     /// </summary>
-    private static TopColumn[] SplitTopHeaderLine(string headerLine, ILogger logger = null)
+    private static TopColumn[] SplitTopHeaderLine(string headerLine, ILogger? logger = null)
     {
-      var headers = headerLine.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+      var headers = headerLine.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
       var columns = new TopColumn[headers.Length];
       var searchStart = 0;
       for (var i = 0; i < headers.Length; i++)

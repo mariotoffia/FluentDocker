@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Globalization;
 using System.Text.Json;
@@ -62,7 +61,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
     #region Stats Parsing
 
-    private static ContainerStatsResult ParseStatsOutput(string output, string containerId, ILogger logger = null)
+    private static ContainerStatsResult? ParseStatsOutput(string output, string containerId, ILogger? logger = null)
     {
       logger ??= NullLogger.Instance;
       var stats = new ContainerStatsResult { ContainerId = containerId };
@@ -78,28 +77,28 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           stats.Name = name.GetString();
 
         if (root.TryGetProperty("CPUPerc", out var cpuPerc))
-          stats.CpuPercent = CliOutputParser.ParsePercent(cpuPerc.GetString());
+          stats.CpuPercent = CliOutputParser.ParsePercent(cpuPerc.GetString() ?? string.Empty);
 
         if (root.TryGetProperty("MemPerc", out var memPerc))
-          stats.MemoryPercent = CliOutputParser.ParsePercent(memPerc.GetString());
+          stats.MemoryPercent = CliOutputParser.ParsePercent(memPerc.GetString() ?? string.Empty);
 
         if (root.TryGetProperty("MemUsage", out var memUsage))
         {
-          var (usage, limit) = CliOutputParser.ParseMemoryUsage(memUsage.GetString());
+          var (usage, limit) = CliOutputParser.ParseMemoryUsage(memUsage.GetString() ?? string.Empty);
           stats.MemoryUsage = usage;
           stats.MemoryLimit = limit;
         }
 
         if (root.TryGetProperty("NetIO", out var netIO))
         {
-          var (rx, tx) = CliOutputParser.ParseIOPair(netIO.GetString());
+          var (rx, tx) = CliOutputParser.ParseIOPair(netIO.GetString() ?? string.Empty);
           stats.NetworkRxBytes = rx;
           stats.NetworkTxBytes = tx;
         }
 
         if (root.TryGetProperty("BlockIO", out var blockIO))
         {
-          var (read, write) = CliOutputParser.ParseIOPair(blockIO.GetString());
+          var (read, write) = CliOutputParser.ParseIOPair(blockIO.GetString() ?? string.Empty);
           stats.BlockReadBytes = read;
           stats.BlockWriteBytes = write;
         }

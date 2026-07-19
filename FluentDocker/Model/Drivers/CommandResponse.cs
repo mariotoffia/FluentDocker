@@ -100,7 +100,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Creates a failed command response.
     /// </summary>
-    public static CommandResponse<T> Fail(string error, string? errorCode = null, int exitCode = -1, string? output = null)
+    public static CommandResponse<T> Fail(string? error, string? errorCode = null, int exitCode = -1, string? output = null)
     {
       return new CommandResponse<T>
       {
@@ -115,7 +115,7 @@ namespace FluentDocker.Model.Drivers
     /// <summary>
     /// Creates a failed command response with error context.
     /// </summary>
-    public static CommandResponse<T> Fail(string error, string errorCode, ErrorContext context, int exitCode = -1, string? output = null)
+    public static CommandResponse<T> Fail(string? error, string errorCode, ErrorContext context, int exitCode = -1, string? output = null)
     {
       return new CommandResponse<T>
       {

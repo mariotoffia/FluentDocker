@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -145,7 +144,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               CreateErrorContext(context, "KubeGenerate", result), result.ExitCode);
         }
 
-        return CommandResponse<string>.Ok(result.Output?.TrimEnd());
+        return CommandResponse<string>.Ok(result.Output?.TrimEnd() ?? string.Empty);
       }
       catch (OperationCanceledException)
       {
@@ -265,7 +264,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         foreach (var c in containers.Value.EnumerateArray())
         {
-          string id;
+          string? id;
           if (c.ValueKind == JsonValueKind.String)
             id = c.GetString();
           else
@@ -284,9 +283,9 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     private static KubePlayResult ParsePlayOutputLines(string output)
     {
       var result = new KubePlayResult();
-      KubePlayPodResult currentPod = null;
+      KubePlayPodResult? currentPod = null;
       var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-      string pendingLabel = null; // "pod" or "container"
+      string? pendingLabel = null; // "pod" or "container"
 
       foreach (var line in lines)
       {

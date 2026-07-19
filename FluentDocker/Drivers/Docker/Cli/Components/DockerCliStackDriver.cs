@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -228,7 +227,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       }
     }
 
-    private static void AddFilter(ref string args, string name, string value)
+    private static void AddFilter(ref string args, string name, string? value)
     {
       if (!string.IsNullOrEmpty(value))
         args += $" --filter {QuoteArgumentIfNeeded($"{name}={value}")}";

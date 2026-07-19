@@ -19,7 +19,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     private async Task<SimpleCommandResult> ExecuteProgressCommandAsync<TProgress>(
         DriverContext context,
         string arguments,
-        IProgress<TProgress> progress,
+        IProgress<TProgress>? progress,
         Func<string, TProgress> createProgress,
         CancellationToken cancellationToken)
     {

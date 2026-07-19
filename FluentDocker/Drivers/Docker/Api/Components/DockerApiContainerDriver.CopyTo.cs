@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Linq;
@@ -29,7 +28,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       try
       {
         var extractPath = containerPath;
-        string tarEntryName = null;
+        string? tarEntryName = null;
 
         if (File.Exists(hostPath) && !containerPath.EndsWith('/') &&
             !await ContainerPathIsDirectoryAsync(containerId, containerPath, cancellationToken)

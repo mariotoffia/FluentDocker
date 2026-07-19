@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -60,7 +59,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     private static Container ParseContainerFromListToken(JsonElement token)
     {
       var names = token.Prop("Names") ?? token.Prop("Name");
-      string name = null;
+      string? name = null;
       if (names.HasValue && names.Value.ValueKind == JsonValueKind.Array)
       {
         var namesArr = names.Value;
@@ -89,7 +88,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       };
     }
 
-    private static bool IsRunningState(string state, string status, bool exited)
+    private static bool IsRunningState(string? state, string? status, bool exited)
     {
       if (!string.IsNullOrEmpty(state))
         return string.Equals(state, "running", StringComparison.OrdinalIgnoreCase);
@@ -191,7 +190,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// the <c>Status</c> string is missing, empty, or not a recognized <see cref="HealthState"/>
     /// name. <see cref="Health.Log"/> stays null unless the <c>Log</c> property is a JSON array.
     /// </returns>
-    public static Health ParseHealth(JsonElement? healthToken)
+    public static Health? ParseHealth(JsonElement? healthToken)
     {
       if (healthToken == null || healthToken.Value.IsNullOrUndefined())
         return null;
@@ -239,7 +238,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// The parsed <see cref="ContainerConfig"/>; <c>null</c> when <paramref name="configToken"/>
     /// is null or a JSON null/undefined token.
     /// </returns>
-    public static ContainerConfig ParseContainerConfig(JsonElement? configToken)
+    public static ContainerConfig? ParseContainerConfig(JsonElement? configToken)
     {
       if (configToken == null || configToken.Value.IsNullOrUndefined())
         return null;
@@ -321,7 +320,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <exception cref="InvalidOperationException">
     /// <paramref name="token"/> is an array containing a non-string, non-null element.
     /// </exception>
-    public static string[] ParseStringOrArray(JsonElement? token)
+    public static string[]? ParseStringOrArray(JsonElement? token)
     {
       if (token == null || token.Value.IsNullOrUndefined())
         return null;
@@ -331,7 +330,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         var result = new List<string>();
         foreach (var item in el.EnumerateArray())
-          result.Add(item.GetString());
+          result.Add(item.GetString()!);
         return [.. result];
       }
 
@@ -339,29 +338,29 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return str != null ? [str] : null;
     }
 
-    internal static string[] ParseStringArray(JsonElement? token)
+    internal static string[]? ParseStringArray(JsonElement? token)
     {
       if (token == null || token.Value.ValueKind != JsonValueKind.Array)
         return null;
 
       var result = new List<string>();
       foreach (var item in token.Value.EnumerateArray())
-        result.Add(item.GetString());
+        result.Add(item.GetString()!);
       return [.. result];
     }
 
-    internal static IDictionary<string, string> ParseStringDictionary(JsonElement? token)
+    internal static IDictionary<string, string>? ParseStringDictionary(JsonElement? token)
     {
       if (token == null || token.Value.ValueKind != JsonValueKind.Object)
         return null;
 
       var dict = new Dictionary<string, string>();
       foreach (var prop in token.Value.EnumerateObject())
-        dict[prop.Name] = prop.Value.GetString();
+        dict[prop.Name] = prop.Value.GetString() ?? string.Empty;
       return dict;
     }
 
-    internal static IDictionary<string, object> ParseExposedPorts(JsonElement? token)
+    internal static IDictionary<string, object>? ParseExposedPorts(JsonElement? token)
     {
       if (token == null || token.Value.ValueKind != JsonValueKind.Object)
         return null;
@@ -396,7 +395,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return DateTimeOffset.MinValue;
     }
 
-    private static string ReadStringOrNumber(JsonElement? token)
+    private static string? ReadStringOrNumber(JsonElement? token)
     {
       if (token == null || token.Value.IsNullOrUndefined())
         return null;

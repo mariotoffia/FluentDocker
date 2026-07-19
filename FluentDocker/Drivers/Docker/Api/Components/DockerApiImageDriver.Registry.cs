@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Net.Http;
@@ -24,7 +23,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// </summary>
     public partial async Task<CommandResponse<Unit>> PullAsync(
         DriverContext context, string image, string tag,
-        IProgress<ImagePullProgress> progress,
+        IProgress<ImagePullProgress>? progress,
         CancellationToken cancellationToken)
     {
       if (string.IsNullOrWhiteSpace(image))
@@ -59,8 +58,8 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       string displayRef;
       if (isDigestRef)
       {
-        path = $"/images/create?fromImage={Uri.EscapeDataString(fromImage)}";
-        displayRef = fromImage;
+        path = $"/images/create?fromImage={Uri.EscapeDataString(fromImage!)}";
+        displayRef = fromImage!;
       }
       else
       {
@@ -68,7 +67,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         // daemon's reference.WithTag rebuilds the ref from the repository domain/path only and
         // silently discards a tag baked into `image`, pulling ":latest" instead. Mirrors the CLI
         // driver's ShouldAppendTag embedded-tag detection so both drivers pull the same reference.
-        if (TrySplitEmbeddedTag(image, out var repo, out var embeddedTag))
+        if (TrySplitEmbeddedTag(image!, out var repo, out var embeddedTag))
         {
           if (tag != null && !string.Equals(tag, embeddedTag, StringComparison.OrdinalIgnoreCase))
             return CommandResponse<Unit>.Fail(
@@ -82,7 +81,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         tag ??= "latest";
         path = $"/images/create" +
-               $"?fromImage={Uri.EscapeDataString(image)}" +
+               $"?fromImage={Uri.EscapeDataString(image!)}" +
                $"&tag={Uri.EscapeDataString(tag)}";
         displayRef = $"{image}:{tag}";
       }
@@ -129,7 +128,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             statusCode);
       }
 
-      string lastError = null;
+      string? lastError = null;
       var receivedProgress = false;
       var receivedTerminalStatus = false;
 
@@ -216,7 +215,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// </summary>
     public partial async Task<CommandResponse<Unit>> PushAsync(
         DriverContext context, string image,
-        IProgress<ImagePushProgress> progress,
+        IProgress<ImagePushProgress>? progress,
         CancellationToken cancellationToken)
     {
       if (string.IsNullOrWhiteSpace(image))
@@ -268,7 +267,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
             statusCode);
       }
 
-      string lastError = null;
+      string? lastError = null;
       var receivedProgress = false;
       var receivedTerminalStatus = false;
 
@@ -361,7 +360,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     private static bool TrySplitEmbeddedTag(string image, out string repo, out string embeddedTag)
     {
       repo = image;
-      embeddedTag = null;
+      embeddedTag = null!;
       if (string.IsNullOrEmpty(image) || image.Contains('@', StringComparison.Ordinal))
         return false;
 
@@ -376,7 +375,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return true;
     }
 
-    private static bool IsTerminalPullStatus(string status)
+    private static bool IsTerminalPullStatus(string? status)
     {
       if (string.IsNullOrWhiteSpace(status))
         return false;
@@ -386,7 +385,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
           value.StartsWith("Image is up to date for ", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsTerminalPushStatus(string status)
+    private static bool IsTerminalPushStatus(string? status)
     {
       if (string.IsNullOrWhiteSpace(status))
         return false;

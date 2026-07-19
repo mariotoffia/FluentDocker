@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -64,9 +63,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var infoResult = await GetInfoAsync(context, cancellationToken).ConfigureAwait(false);
       if (!infoResult.Success)
-        return CommandResponse<bool>.Fail(infoResult.Error, infoResult.ErrorCode);
+        return CommandResponse<bool>.Fail(infoResult.Error ?? string.Empty, infoResult.ErrorCode);
       return CommandResponse<bool>.Ok(
-          infoResult.Data.OSType?.ToLowerInvariant() == "windows");
+          infoResult.Data!.OSType?.ToLowerInvariant() == "windows");
     }
 
     /// <inheritdoc />
@@ -75,9 +74,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var infoResult = await GetInfoAsync(context, cancellationToken).ConfigureAwait(false);
       if (!infoResult.Success)
-        return CommandResponse<bool>.Fail(infoResult.Error, infoResult.ErrorCode);
+        return CommandResponse<bool>.Fail(infoResult.Error ?? string.Empty, infoResult.ErrorCode);
       return CommandResponse<bool>.Ok(
-          infoResult.Data.OSType?.ToLowerInvariant() == "linux");
+          infoResult.Data!.OSType?.ToLowerInvariant() == "linux");
     }
 
     /// <inheritdoc />
@@ -108,7 +107,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // sub-prune, accumulate successes, and record each failure. If any failed we report
       // them together instead of silently returning Ok with partial data.
       var failures = new List<string>();
-      string firstFailCode = null;
+      string? firstFailCode = null;
 
       void RecordFailure(string endpoint, ApiResult<JsonElement> result)
       {
@@ -118,7 +117,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // 1. Prune containers
       var ctrResult = await PostJsonElementAsync(
-          $"/containers/prune{filterQuery}", null, cancellationToken).ConfigureAwait(false);
+          $"/containers/prune{filterQuery}", null!, cancellationToken).ConfigureAwait(false);
       if (ctrResult.Success && ctrResult.Data.ValueKind == JsonValueKind.Object)
       {
         var deletedEl = ctrResult.Data.Prop("ContainersDeleted");
@@ -137,7 +136,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // 2. Prune networks
       var netResult = await PostJsonElementAsync(
-          $"/networks/prune{filterQuery}", null, cancellationToken).ConfigureAwait(false);
+          $"/networks/prune{filterQuery}", null!, cancellationToken).ConfigureAwait(false);
       if (netResult.Success && netResult.Data.ValueKind == JsonValueKind.Object)
       {
         var deletedEl = netResult.Data.Prop("NetworksDeleted");
@@ -156,7 +155,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // 3. Prune images (All -> dangling=false to prune all unused images)
       var imageFilterQuery = BuildImagePruneFilterQuery(config);
       var imgResult = await PostJsonElementAsync(
-          $"/images/prune{imageFilterQuery}", null, cancellationToken).ConfigureAwait(false);
+          $"/images/prune{imageFilterQuery}", null!, cancellationToken).ConfigureAwait(false);
       if (imgResult.Success && imgResult.Data.ValueKind == JsonValueKind.Object)
       {
         var deletedEl = imgResult.Data.Prop("ImagesDeleted");
@@ -164,7 +163,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         {
           var deleted = deletedEl.Value.EnumerateArray()
               .Select(t => t.GetStringOrDefault("Untagged") ?? t.GetStringOrDefault("Deleted"))
-              .Where(s => s != null).ToList();
+              .Where(s => s != null).Select(s => s!).ToList();
           pruneResult.ImagesDeleted.AddRange(deleted);
         }
         pruneResult.SpaceReclaimed += imgResult.Data.GetInt64OrDefault("SpaceReclaimed");
@@ -178,7 +177,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (config.Volumes)
       {
         var volResult = await PostJsonElementAsync(
-            $"/volumes/prune{filterQuery}", null, cancellationToken).ConfigureAwait(false);
+            $"/volumes/prune{filterQuery}", null!, cancellationToken).ConfigureAwait(false);
         if (volResult.Success && volResult.Data.ValueKind == JsonValueKind.Object)
         {
           var deletedEl = volResult.Data.Prop("VolumesDeleted");
@@ -198,7 +197,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       // 5. Prune build cache
       var buildResult = await PostJsonElementAsync(
-          "/build/prune", null, cancellationToken).ConfigureAwait(false);
+          "/build/prune", null!, cancellationToken).ConfigureAwait(false);
       if (buildResult.Success && buildResult.Data.ValueKind == JsonValueKind.Object)
       {
         var cachesEl = buildResult.Data.Prop("CachesDeleted");

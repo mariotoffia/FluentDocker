@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -34,7 +33,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       await foreach (var entry in StreamEntriesAsync(containerId, config, cancellationToken)
           .ConfigureAwait(false))
       {
-        yield return entry.Line;
+        yield return entry.Line ?? string.Empty;
       }
     }
 
@@ -74,7 +73,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     private async IAsyncEnumerable<LogEntry> StreamEntriesAsync(
-        string containerId, StreamLogsConfig config,
+        string containerId, StreamLogsConfig? config,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       config ??= new StreamLogsConfig();
@@ -135,7 +134,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     // Only trust the stream Content-Type when it is one of Docker's authoritative values
     // (API 1.42+). An unrecognized type (e.g. rewritten by a proxy) falls through to the
     // TTY-inspect + byte-sniff path instead of being blindly read as raw.
-    private bool UseLogContentType(string contentType)
+    private bool UseLogContentType(string? contentType)
     {
       return (string.Equals(contentType, MultiplexedStreamContentType, StringComparison.OrdinalIgnoreCase) ||
               string.Equals(contentType, RawStreamContentType, StringComparison.OrdinalIgnoreCase)) &&
@@ -249,7 +248,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     private async IAsyncEnumerable<ContainerStats> StreamStatsCoreAsync(
-        string containerId, StreamStatsConfig config,
+        string containerId, StreamStatsConfig? config,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
       config ??= new StreamStatsConfig();

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -17,9 +16,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
   {
     #region Spec Builders
 
-    private static Dictionary<string, object> BuildServiceSpec(ServiceCreateConfig config)
+    private static Dictionary<string, object?> BuildServiceSpec(ServiceCreateConfig config)
     {
-      var spec = new Dictionary<string, object>
+      var spec = new Dictionary<string, object?>
       {
         ["Name"] = config.Name,
         ["TaskTemplate"] = new Dictionary<string, object>
@@ -61,9 +60,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return spec;
     }
 
-    private static Dictionary<string, object> BuildContainerSpec(ServiceCreateConfig config)
+    private static Dictionary<string, object?> BuildContainerSpec(ServiceCreateConfig config)
     {
-      var containerSpec = new Dictionary<string, object> { ["Image"] = config.Image };
+      var containerSpec = new Dictionary<string, object?> { ["Image"] = config.Image };
 
       if (config.Command?.Length > 0)
         containerSpec["Command"] = config.Command;
@@ -122,7 +121,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     private static void MutateStringMap(
-        JsonObject target, Dictionary<string, string> add, List<string> remove)
+        JsonObject target, Dictionary<string, string>? add, List<string> remove)
     {
       foreach (var key in remove ?? [])
         target.Remove(key);
@@ -131,7 +130,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     private static void MutateEnv(
-        JsonObject containerSpec, Dictionary<string, string> add, List<string> remove)
+        JsonObject containerSpec, Dictionary<string, string>? add, List<string> remove)
     {
       var values = new List<string>();
       if (containerSpec["Env"] is JsonArray env)

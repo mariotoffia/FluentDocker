@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Net.Http;
@@ -29,7 +28,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// </remarks>
     public partial async Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context, ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress,
+        IProgress<ImageBuildProgress>? progress,
         CancellationToken cancellationToken)
     {
       if (string.IsNullOrEmpty(config?.BuildContext))
@@ -67,7 +66,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
         var buildResult = new ImageBuildResult();
         var buildOutput = CreateOutputTail();
-        string lastError = null;
+        string? lastError = null;
 
         var headers = DockerApiRegistryAuth.RegistryConfigHeaderFor(Connection);
         await foreach (var parsed in ReadNdjsonFromPostStreamAsync(

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Diagnostics;
 using System.Text;
@@ -146,7 +145,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var versionResult = await GetVersionAsync(context, cancellationToken).ConfigureAwait(false);
         if (!versionResult.Success)
-          return CommandResponse<bool>.Fail(versionResult.Error, versionResult.ErrorCode);
+          return CommandResponse<bool>.Fail(versionResult.Error ?? string.Empty, versionResult.ErrorCode);
 
         var isWindows = versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? false;
         return CommandResponse<bool>.Ok(isWindows);
@@ -170,7 +169,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       {
         var versionResult = await GetVersionAsync(context, cancellationToken).ConfigureAwait(false);
         if (!versionResult.Success)
-          return CommandResponse<bool>.Fail(versionResult.Error, versionResult.ErrorCode, versionResult.ExitCode);
+          return CommandResponse<bool>.Fail(versionResult.Error ?? string.Empty, versionResult.ErrorCode, versionResult.ExitCode);
 
         var isLinux = !versionResult.Data?.Os?.Equals("windows", StringComparison.OrdinalIgnoreCase) ?? true;
         return CommandResponse<bool>.Ok(isLinux);
@@ -267,7 +266,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// Parses Docker CLI <c>system df --format "{{json .}}"</c> output.
     /// Each line is a JSON object with Type, TotalCount, Active, Size, Reclaimable.
     /// </summary>
-    public static DiskUsageInfo ParseDiskUsageOutput(string output, ILogger logger = null)
+    public static DiskUsageInfo ParseDiskUsageOutput(string output, ILogger? logger = null)
     {
       logger ??= NullLogger.Instance;
       var info = new DiskUsageInfo();
@@ -289,8 +288,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           {
             TotalCount = obj.GetInt32OrDefault("TotalCount"),
             Active = obj.GetInt32OrDefault("Active"),
-            Size = ParseHumanReadableBytes(obj.GetStringOrDefault("Size")),
-            Reclaimable = ParseReclaimableBytes(obj.GetStringOrDefault("Reclaimable"))
+            Size = ParseHumanReadableBytes(obj.GetStringOrDefault("Size") ?? string.Empty),
+            Reclaimable = ParseReclaimableBytes(obj.GetStringOrDefault("Reclaimable") ?? string.Empty)
           };
 
           switch (type)

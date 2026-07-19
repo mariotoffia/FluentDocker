@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -77,7 +76,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     }
 
     /// <summary>Parses a single <c>docker model inspect</c> object.</summary>
-    public static ModelInfo ParseInfo(string json)
+    public static ModelInfo? ParseInfo(string json)
     {
       // Bound the input before parsing/cloning — oversized payloads yield null, like malformed.
       if (json is { Length: > MaxJsonInputChars })
@@ -149,9 +148,9 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     /// <summary>Parses <c>docker model version</c> output.</summary>
     public static ModelRunnerVersion ParseVersion(string text)
     {
-      string cli = null;
-      string api = null;
-      string engine = null;
+      string? cli = null;
+      string? api = null;
+      string? engine = null;
 
       foreach (var raw in (text ?? string.Empty).Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries))
       {
@@ -174,7 +173,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     }
 
     /// <summary>Parses a single line of <c>docker model pull</c> stdout into a progress event.</summary>
-    public static ModelPullProgress ParsePullLine(string line)
+    public static ModelPullProgress? ParsePullLine(string line)
     {
       if (string.IsNullOrWhiteSpace(line))
         return null;
@@ -223,7 +222,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     /// Parses a single NDJSON line from the native <c>POST /models/create</c>
     /// progress stream (shape: <c>{"type":…,"message":…,"total":…,"layer":{"size":…,"current":…}}</c>).
     /// </summary>
-    public static ModelPullProgress ParseNativePullProgress(string jsonLine)
+    public static ModelPullProgress? ParseNativePullProgress(string jsonLine)
     {
       if (string.IsNullOrWhiteSpace(jsonLine))
         return null;
@@ -263,18 +262,18 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
     private static ModelInfo MapModel(JsonElement el)
     {
       var tags = el.TryGetProperty("tags", out var t) && t.ValueKind == JsonValueKind.Array
-          ? t.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()).ToList()
+          ? t.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToList()
           : new List<string>();
 
       var config = new Dictionary<string, string>();
-      string format = null, arch = null, parameters = null, quant = null;
+      string? format = null, arch = null, parameters = null, quant = null;
       long size = 0;
 
       if (el.TryGetProperty("config", out var cfg) && cfg.ValueKind == JsonValueKind.Object)
       {
         foreach (var prop in cfg.EnumerateObject())
         {
-          var value = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() : prop.Value.ToString();
+          var value = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString()! : prop.Value.ToString();
           config[prop.Name] = value;
           switch (prop.Name.ToLowerInvariant())
           {
@@ -314,7 +313,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components.Parsing
       };
     }
 
-    private static ModelReference ReferenceFromTags(IReadOnlyList<string> tags)
+    private static ModelReference? ReferenceFromTags(IReadOnlyList<string> tags)
     {
       if (tags == null || tags.Count == 0)
         return null;

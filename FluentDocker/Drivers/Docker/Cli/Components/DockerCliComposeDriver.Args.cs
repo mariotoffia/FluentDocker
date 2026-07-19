@@ -1,6 +1,6 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using FluentDocker.Common;
 using Microsoft.Extensions.Logging;
@@ -260,16 +260,16 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// Handles both JSON array format (older versions) and
     /// newline-delimited JSON (Docker Compose v2.21+).
     /// </summary>
-    public static IList<ComposeServiceInfo> ParseServiceList(string json, ILogger logger = null)
+    public static IList<ComposeServiceInfo> ParseServiceList(string json, ILogger? logger = null)
     {
       return TryParseServiceList(json, logger, out var services, out _) ? services : services;
     }
 
     internal static bool TryParseServiceList(
         string json,
-        ILogger logger,
+        ILogger? logger,
         out IList<ComposeServiceInfo> services,
-        out string error)
+        [NotNullWhen(false)] out string? error)
     {
       logger ??= NullLogger.Instance;
       services = new List<ComposeServiceInfo>();

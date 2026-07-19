@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,7 +33,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         OpenStdin = config.Interactive,
         StopSignal = config.StopSignal,
         StopTimeout = config.StopTimeout,
-        Labels = config.Labels?.Count > 0 ? config.Labels : null,
+        Labels = config.Labels?.Count > 0 ? config.Labels : null!,
         HostConfig = BuildHostConfig(config)
       };
 
@@ -140,7 +139,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     /// endpoint at create with HTTP 400; attach additional networks post-create via the
     /// network-connect endpoint.
     /// </remarks>
-    private static NetworkingConfigRequest BuildNetworkingConfig(
+    private static NetworkingConfigRequest? BuildNetworkingConfig(
         ContainerCreateConfig config)
     {
       if (config.Networks == null || config.Networks.Count == 0)
@@ -207,7 +206,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
     }
 
-    private static string BuildListPath(ContainerListFilter filter)
+    private static string BuildListPath(ContainerListFilter? filter)
     {
       var path = "/containers/json";
       var queryParams = new List<string>();
@@ -228,7 +227,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return path;
     }
 
-    private static string BuildListFilters(ContainerListFilter filter)
+    private static string? BuildListFilters(ContainerListFilter? filter)
     {
       if (filter == null)
         return null;
@@ -298,7 +297,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     // Podman-compat (and some Docker versions) emit Health.Status as an empty
     // string instead of omitting the field. Default to HealthState.Unknown so
     // enum parsing doesn't throw.
-    private static Health ParseHealth(JsonElement? healthToken)
+    private static Health? ParseHealth(JsonElement? healthToken)
     {
       if (healthToken == null || healthToken.Value.IsNullOrUndefined())
         return null;
@@ -336,7 +335,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       return health;
     }
 
-    private static ContainerConfig ParseContainerConfig(JsonElement? element)
+    private static ContainerConfig? ParseContainerConfig(JsonElement? element)
     {
       if (element == null || element.Value.ValueKind != JsonValueKind.Object)
         return null;
@@ -357,7 +356,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
     }
 
-    private static ContainerNetworkSettings ParseNetworkSettings(JsonElement? element)
+    private static ContainerNetworkSettings? ParseNetworkSettings(JsonElement? element)
     {
       if (element == null || element.Value.ValueKind != JsonValueKind.Object)
         return null;
@@ -382,7 +381,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       foreach (var token in json.EnumerateArray())
       {
         var namesEl = token.Prop("Names");
-        string firstName = null;
+        string? firstName = null;
         if (namesEl?.ValueKind == JsonValueKind.Array)
         {
           foreach (var n in namesEl.Value.EnumerateArray())

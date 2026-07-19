@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -239,7 +238,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     // A symlink whose target is absolute or escapes the context is deliberately excluded from the
     // build-context tar (host-file exfiltration defense) — stricter than a permissive `docker build`.
     // Log it so the divergence is observable rather than silent (API-MAJ-1).
-    private static void WarnSymlinkDropped(ILogger logger, string relativePath, string linkTarget)
+    private static void WarnSymlinkDropped(ILogger logger, string relativePath, string? linkTarget)
     {
       logger?.LogWarning(
           "Build context symlink '{Path}' -> '{Target}' was excluded (absolute or escapes the context); " +

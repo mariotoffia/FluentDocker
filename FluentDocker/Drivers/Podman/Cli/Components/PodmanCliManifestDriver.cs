@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -45,7 +44,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               FailureCode(result.Error, ErrorCodes.Manifest.CreateFailed),
               CreateErrorContext(context, "CreateManifest", result), result.ExitCode);
 
-        return CommandResponse<string>.Ok(result.Output?.TrimEnd());
+        return CommandResponse<string>.Ok(result.Output?.TrimEnd() ?? string.Empty);
       }
       catch (ArgumentException) { throw; }
       catch (OperationCanceledException)
@@ -119,7 +118,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               FailureCode(result.Error, ErrorCodes.Manifest.AddFailed),
               CreateErrorContext(context, "AddManifest", result), result.ExitCode);
 
-        return CommandResponse<string>.Ok(result.Output?.TrimEnd());
+        return CommandResponse<string>.Ok(result.Output?.TrimEnd() ?? string.Empty);
       }
       catch (ArgumentException) { throw; }
       catch (OperationCanceledException)
@@ -481,7 +480,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         {
           entry.Platform.Features = new List<string>();
           foreach (var f in features.Value.EnumerateArray())
-            entry.Platform.Features.Add(f.GetString());
+            entry.Platform.Features.Add(f.GetString()!);
         }
       }
 
@@ -490,7 +489,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       {
         entry.Annotations = new Dictionary<string, string>();
         foreach (var prop in annotations.Value.EnumerateObject())
-          entry.Annotations[prop.Name] = prop.Value.GetString();
+          entry.Annotations[prop.Name] = prop.Value.GetString() ?? string.Empty;
       }
 
       return entry;

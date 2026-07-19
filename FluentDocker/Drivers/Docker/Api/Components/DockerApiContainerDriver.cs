@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -67,18 +66,18 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var createResult = await CreateAsync(context, config, cancellationToken).ConfigureAwait(false);
       if (!createResult.Success)
         return CommandResponse<ContainerRunResult>.Fail(
-            createResult.Error, createResult.ErrorCode,
-            createResult.ErrorContext, createResult.ExitCode);
+            createResult.Error!, createResult.ErrorCode!,
+            createResult.ErrorContext!, createResult.ExitCode);
 
-      var containerId = createResult.Data.Id;
-      var startResult = await StartAsync(context, containerId, cancellationToken).ConfigureAwait(false);
+      var containerId = createResult.Data!.Id;
+      var startResult = await StartAsync(context, containerId!, cancellationToken).ConfigureAwait(false);
       if (!startResult.Success)
       {
         var errorContext = startResult.ErrorContext ?? CreateErrorContext(
             $"POST /containers/{containerId}/start", startResult.ExitCode);
-        errorContext.Metadata["ContainerId"] = containerId;
+        errorContext.Metadata["ContainerId"] = containerId!;
         return CommandResponse<ContainerRunResult>.Fail(
-            $"{startResult.Error} (created container: {containerId})", startResult.ErrorCode,
+            $"{startResult.Error} (created container: {containerId})", startResult.ErrorCode!,
             errorContext, startResult.ExitCode);
       }
 
@@ -292,7 +291,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     #region Helpers
 
     private CommandResponse<Unit> FailUnit(ApiResult result, string operation,
-        string notFoundCode = null)
+        string? notFoundCode = null)
     {
       return CommandResponse<Unit>.Fail(
           result.ErrorMessage,

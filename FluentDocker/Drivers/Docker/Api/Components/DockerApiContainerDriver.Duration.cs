@@ -5,7 +5,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 {
   public partial class DockerApiContainerDriver
   {
-    private static long? ParseDurationNanoseconds(string duration)
+    private static long? ParseDurationNanoseconds(string? duration)
     {
       if (string.IsNullOrEmpty(duration))
         return null;

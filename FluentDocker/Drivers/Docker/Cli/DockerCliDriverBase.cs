@@ -137,7 +137,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     /// <param name="operation">Operation name</param>
     /// <param name="result">Command result</param>
     /// <returns>Error context</returns>
-    protected static ErrorContext CreateErrorContext(DriverContext context, string operation, SimpleCommandResult result)
+    protected static ErrorContext CreateErrorContext(DriverContext? context, string operation, SimpleCommandResult result)
     {
       return new ErrorContext(operation)
       {
@@ -247,7 +247,7 @@ namespace FluentDocker.Drivers.Docker.Cli
     }
 
     /// <summary>True if <paramref name="value"/> is non-empty and its first character is '-'.</summary>
-    protected static bool StartsWithDash(string value) =>
+    protected static bool StartsWithDash(string? value) =>
         !string.IsNullOrEmpty(value) && value[0] == '-';
 
     /// <summary>

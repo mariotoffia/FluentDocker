@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -244,15 +243,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     public partial Task<CommandResponse<Unit>> PullAsync(
         DriverContext context, string image, string tag,
-        IProgress<ImagePullProgress> progress, CancellationToken cancellationToken);
+        IProgress<ImagePullProgress>? progress, CancellationToken cancellationToken);
 
     public partial Task<CommandResponse<Unit>> PushAsync(
         DriverContext context, string image,
-        IProgress<ImagePushProgress> progress, CancellationToken cancellationToken);
+        IProgress<ImagePushProgress>? progress, CancellationToken cancellationToken);
 
     public partial Task<CommandResponse<ImageBuildResult>> BuildAsync(
         DriverContext context, ImageBuildConfig config,
-        IProgress<ImageBuildProgress> progress, CancellationToken cancellationToken);
+        IProgress<ImageBuildProgress>? progress, CancellationToken cancellationToken);
 
     #endregion
 

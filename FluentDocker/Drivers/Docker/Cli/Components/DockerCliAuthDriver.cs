@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +21,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// The password is always passed via stdin (--password-stdin) and never
     /// placed on the command line, to prevent exposure in process listings.
     /// </summary>
-    public static (string args, string stdinData) BuildLoginArgs(RegistryLoginConfig config)
+    public static (string args, string? stdinData) BuildLoginArgs(RegistryLoginConfig config)
     {
       var args = "login";
       if (!string.IsNullOrEmpty(config.Username))

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -85,7 +84,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <param name="ex">The exception raised while running the command.</param>
     /// <param name="fallbackCode">Code to use if the message does not indicate a known failure.</param>
     /// <returns>An <see cref="ErrorCodes.Model"/>/<see cref="ErrorCodes"/> error code.</returns>
-    protected static string ModelFailureCode(Exception ex, string fallbackCode) =>
+    protected static string ModelFailureCode(Exception? ex, string fallbackCode) =>
         ex is DriverException driverException
             && !string.IsNullOrEmpty(driverException.ErrorCode)
             && driverException.ErrorCode != ErrorCodes.Driver.CommandExecutionFailed
@@ -100,19 +99,19 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// <param name="error">The captured error text.</param>
     /// <param name="fallbackCode">Code to use if the text does not match a known failure.</param>
     /// <returns>An error code.</returns>
-    protected static string ModelFailureCode(string error, string fallbackCode) =>
+    protected static string ModelFailureCode(string? error, string fallbackCode) =>
         IsModelPluginMissing(error) ? ErrorCodes.Model.PluginMissing : FailureCode(error, fallbackCode);
 
     /// <summary>
     /// True if <paramref name="error"/> matches the Docker CLI's "is not a docker command"
     /// message, which is how the CLI reports that the <c>docker-model-plugin</c> is not installed.
     /// </summary>
-    protected static bool IsModelPluginMissing(string error) =>
+    protected static bool IsModelPluginMissing(string? error) =>
         !string.IsNullOrEmpty(error) &&
         error.Contains("is not a docker command", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Returns the first non-blank value in <paramref name="values"/>, or <see cref="string.Empty"/> if none.</summary>
-    protected static string FirstNonEmpty(params string[] values)
+    protected static string FirstNonEmpty(params string?[] values)
     {
       foreach (var value in values)
       {

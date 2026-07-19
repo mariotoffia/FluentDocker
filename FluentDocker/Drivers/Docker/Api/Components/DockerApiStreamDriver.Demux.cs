@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -163,7 +162,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       while (true)
       {
         ct.ThrowIfCancellationRequested();
-        string line;
+        string? line;
         try
         {
           line = await reader.ReadLineAsync(ct).ConfigureAwait(false);

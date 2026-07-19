@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -19,8 +18,8 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         out string error)
     {
       items = [];
-      error = null;
-      Exception firstException = null;
+      error = null!;
+      Exception? firstException = null;
       var failureCount = 0;
       var lines = output.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
 

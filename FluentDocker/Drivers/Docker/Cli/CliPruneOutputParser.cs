@@ -1,5 +1,5 @@
-#nullable disable warnings
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using FluentDocker.Common;
 using Microsoft.Extensions.Logging;
@@ -359,7 +359,7 @@ namespace FluentDocker.Drivers.Docker.Cli
       return true;
     }
 
-    private static bool TryParseImageDeletionLine(string line, out string deleted)
+    private static bool TryParseImageDeletionLine(string line, [MaybeNullWhen(false)] out string deleted)
     {
       if (line.StartsWith("deleted:", StringComparison.OrdinalIgnoreCase))
       {

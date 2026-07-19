@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using FluentDocker.Common;
 using Microsoft.Extensions.Logging;
@@ -7,7 +6,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 {
   public partial class DockerApiImageDriver
   {
-    private string TryExtractErrorMessage(string body)
+    private string? TryExtractErrorMessage(string body)
     {
       if (string.IsNullOrWhiteSpace(body))
         return null;

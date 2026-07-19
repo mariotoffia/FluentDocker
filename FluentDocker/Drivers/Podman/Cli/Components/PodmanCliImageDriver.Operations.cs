@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -190,7 +189,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               ErrorOrDefault(result, "Image import failed"), FailureCode(result.Error, ErrorCodes.Image.ImportFailed),
               CreateErrorContext(context, "ImportImage", result), result.ExitCode);
 
-        return CommandResponse<string>.Ok(result.Output?.Trim());
+        return CommandResponse<string>.Ok(result.Output?.Trim() ?? string.Empty);
       }
       catch (OperationCanceledException)
       {
@@ -209,7 +208,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
     /// <summary>
     /// Builds the CLI arguments string for <c>podman image prune</c>.
     /// </summary>
-    public static string BuildImagePruneArgs(bool all, Dictionary<string, string> filter)
+    public static string BuildImagePruneArgs(bool all, Dictionary<string, string>? filter)
     {
       var args = "image prune -f";
       if (all)

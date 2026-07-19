@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -24,7 +23,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     }
 
     /// <summary>Removes cached credentials for one registry, or all credentials when server is null.</summary>
-    public static void Remove(IDockerApiConnection connection, string server)
+    public static void Remove(IDockerApiConnection connection, string? server)
     {
       if (!Caches.TryGetValue(connection, out var cache))
         return;
@@ -42,15 +41,15 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     /// <summary>Builds the single-image Docker auth header for pull and push requests.</summary>
     public static IReadOnlyDictionary<string, string> HeaderFor(
-        IDockerApiConnection connection, string image)
+        IDockerApiConnection connection, string? image)
     {
       if (!Caches.TryGetValue(connection, out var cache))
-        return null;
+        return null!;
 
       var server = Normalize(RegistryFromImage(image));
       var config = cache.Get(server);
       if (config == null)
-        return null;
+        return null!;
 
       var json = JsonHelper.Serialize(AuthConfig(config, server));
       return new Dictionary<string, string>
@@ -64,11 +63,11 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         IDockerApiConnection connection)
     {
       if (!Caches.TryGetValue(connection, out var cache))
-        return null;
+        return null!;
 
       var configs = cache.Snapshot();
       if (configs.Count == 0)
-        return null;
+        return null!;
 
       return new Dictionary<string, string>
       {
@@ -76,12 +75,12 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       };
     }
 
-    private static string RegistryFromImage(string image)
+    private static string RegistryFromImage(string? image)
     {
       var slash = image?.IndexOf('/') ?? -1;
       if (slash < 0)
         return DockerHubServer;
-      var first = image[..slash];
+      var first = image![..slash];
       return first != null &&
           (first.Contains('.') || first.Contains(':') || first == "localhost")
           ? first
@@ -153,7 +152,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       }
 
       /// <summary>Gets credentials for a normalized registry lookup key.</summary>
-      public RegistryLoginConfig Get(string server)
+      public RegistryLoginConfig? Get(string server)
       {
         lock (_configs)
           return _configs.TryGetValue(server, out var config) ? config : null;

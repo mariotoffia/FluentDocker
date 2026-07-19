@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -88,13 +87,13 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var data = result.Data;
       var titlesEl = data.Prop("Titles");
       if (titlesEl?.ValueKind == JsonValueKind.Array)
-        processes.Titles = [.. titlesEl.Value.EnumerateArray().Select(t => t.GetString())];
+        processes.Titles = [.. titlesEl.Value.EnumerateArray().Select(t => t.GetString()!)];
       var rowsEl = data.Prop("Processes");
       if (rowsEl?.ValueKind == JsonValueKind.Array)
       {
         processes.Processes = [.. rowsEl.Value.EnumerateArray()
             .Select(row => row.ValueKind == JsonValueKind.Array
-                ? row.EnumerateArray().Select(c => c.GetString()).ToList()
+                ? row.EnumerateArray().Select(c => c.GetString()!).ToList()
                 : [])];
       }
       return CommandResponse<ContainerProcesses>.Ok(processes);
@@ -175,7 +174,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // Phase 1: Create exec instance
       var createRequest = new ExecCreateRequest
       {
-        Cmd = config.Command,
+        Cmd = config!.Command,
         WorkingDir = config.WorkingDir,
         User = config.User,
         Privileged = config.Privileged,
@@ -186,7 +185,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         Detach = config.Detach,
         Env = config.Environment?.Count > 0
               ? [.. config.Environment.Select(kv => $"{kv.Key}={kv.Value}")]
-              : null
+              : null!
       };
 
       var createPath = $"/containers/{Uri.EscapeDataString(containerId)}/exec";
@@ -375,7 +374,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, string containerId, string outputPath,
         CancellationToken cancellationToken = default)
     {
-      string tempPath = null;
+      string? tempPath = null;
       try
       {
         var apiPath = $"/containers/{Uri.EscapeDataString(containerId)}/export";

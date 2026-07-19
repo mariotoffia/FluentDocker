@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +9,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
   public partial class DockerCliContainerDriver
   {
     private static List<string> BuildCreateArgs(
-        string command, ContainerCreateConfig config, bool detach = false, string cidFile = null)
+        string command, ContainerCreateConfig config, bool detach = false, string? cidFile = null)
     {
       var args = new List<string> { command };
       if (detach)
@@ -92,7 +91,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
 
       AddHealthArgs(args, config.HealthCheck);
 
-      string[] entrypointArgs = null;
+      string[]? entrypointArgs = null;
       if (config.Entrypoint is { Length: > 0 })
       {
         args.Add($"--entrypoint {QuoteArgumentIfNeeded(config.Entrypoint[0])}");
@@ -123,7 +122,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
           yield return network;
     }
 
-    private static void AddRepeated(List<string> args, string flag, IEnumerable<string> values)
+    private static void AddRepeated(List<string> args, string flag, IEnumerable<string>? values)
     {
       if (values == null)
         return;
@@ -131,7 +130,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
         args.Add($"{flag} {QuoteArgumentIfNeeded(value)}");
     }
 
-    private static void AddHealthArgs(List<string> args, HealthCheckConfig healthCheck)
+    private static void AddHealthArgs(List<string> args, HealthCheckConfig? healthCheck)
     {
       if (healthCheck == null)
         return;

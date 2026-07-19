@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Globalization;
 using System.Threading;
@@ -74,7 +73,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> StopAsync(
-        DriverContext context, string name = null,
+        DriverContext context, string? name = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -102,7 +101,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> RemoveAsync(
-        DriverContext context, string name = null, bool force = false,
+        DriverContext context, string? name = null, bool force = false,
         CancellationToken cancellationToken = default)
     {
       try
@@ -116,10 +115,10 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
           if (!state.Success)
             return CommandResponse<Unit>.Fail(
                 $"Machine remove state check failed: {state.Error}",
-                ErrorCodes.Machine.RemoveFailed, state.ErrorContext, state.ExitCode, state.Output);
+                ErrorCodes.Machine.RemoveFailed, state.ErrorContext!, state.ExitCode, state.Output);
           if (IsActiveMachineState(state.Data?.State))
             return CommandResponse<Unit>.Fail(
-                $"Podman machine '{MachineNameForMessage(name, state.Data)}' is {state.Data.State}; stop it first or call RemoveAsync with force: true.",
+                $"Podman machine '{MachineNameForMessage(name, state.Data)}' is {state.Data?.State}; stop it first or call RemoveAsync with force: true.",
                 ErrorCodes.Machine.RemoveFailed);
           if (string.IsNullOrWhiteSpace(state.Data?.State))
             return CommandResponse<Unit>.Fail(
@@ -152,13 +151,13 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
     }
 
-    private static bool IsActiveMachineState(string state) =>
+    private static bool IsActiveMachineState(string? state) =>
         string.Equals(state, "running", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(state, "starting", StringComparison.OrdinalIgnoreCase);
 
-    private static string MachineNameForMessage(string requestedName, MachineInspectResult result) =>
+    private static string MachineNameForMessage(string? requestedName, MachineInspectResult? result) =>
         string.IsNullOrWhiteSpace(requestedName)
-            ? string.IsNullOrWhiteSpace(result?.Name) ? "default" : result.Name
+            ? string.IsNullOrWhiteSpace(result?.Name) ? "default" : result!.Name!
             : requestedName;
 
     #endregion
@@ -167,7 +166,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<string>> SshAsync(
-        DriverContext context, string name = null, string command = null,
+        DriverContext context, string? name = null, string? command = null,
         CancellationToken cancellationToken = default)
     {
       try
@@ -184,7 +183,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
               ErrorOrDefault(result, "Machine SSH failed"), FailureCode(result.Error, ErrorCodes.Machine.SshFailed),
               CreateErrorContext(context, "MachineSsh", result), result.ExitCode);
 
-        return CommandResponse<string>.Ok(result.Output?.TrimEnd());
+        return CommandResponse<string>.Ok(result.Output?.TrimEnd() ?? string.Empty);
       }
       catch (OperationCanceledException)
       {
@@ -202,7 +201,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<Unit>> SetAsync(
-        DriverContext context, MachineSetConfig config, string name = null,
+        DriverContext context, MachineSetConfig config, string? name = null,
         CancellationToken cancellationToken = default)
     {
       ArgumentNullException.ThrowIfNull(config);
@@ -260,7 +259,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       return args;
     }
 
-    internal static string BuildSetArgs(MachineSetConfig config, string name = null)
+    internal static string BuildSetArgs(MachineSetConfig config, string? name = null)
     {
       var args = "machine set";
 

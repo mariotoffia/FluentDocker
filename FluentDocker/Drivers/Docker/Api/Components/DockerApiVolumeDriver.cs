@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -112,7 +111,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<VolumePruneResult>> PruneAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await PostJsonElementAsync("/volumes/prune", null, cancellationToken).ConfigureAwait(false);
+      var result = await PostJsonElementAsync("/volumes/prune", null!, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<VolumePruneResult>.Fail(result.ErrorMessage,
             result.StatusCode is 599 or 408
@@ -129,7 +128,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var deleted = result.Data.Prop("VolumesDeleted");
       if (deleted?.ValueKind == JsonValueKind.Array)
       {
-        pruneResult.VolumesDeleted = [.. deleted.Value.EnumerateArray().Select(v => v.GetString())];
+        pruneResult.VolumesDeleted = [.. deleted.Value.EnumerateArray().Select(v => v.GetString() ?? string.Empty)];
       }
 
       return CommandResponse<VolumePruneResult>.Ok(pruneResult);

@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -39,7 +38,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       {
         Id = result.Data.GetStringOrDefault("ID"),
         Warnings = result.Data.Prop("Warnings")?.ValueKind == JsonValueKind.Array
-            ? result.Data.Prop("Warnings").Value.Deserialize<List<string>>()
+            ? result.Data.Prop("Warnings")!.Value.Deserialize<List<string>>() ?? []
             : []
       });
     }
@@ -53,7 +52,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       // collect-then-fail) instead of aborting on the first failure, which would silently skip
       // removal of every id after the first 404 while the caller believes only one id failed.
       var failures = new List<string>();
-      string firstFailCode = null;
+      string? firstFailCode = null;
 
       foreach (var id in serviceIds)
       {
@@ -86,9 +85,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         var inspectResult = await InspectAsync(
             context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!inspectResult.Success)
-          return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
+          return CommandResponse<Unit>.Fail(inspectResult.Error ?? string.Empty, inspectResult.ErrorCode);
 
-        var version = inspectResult.Data.Version;
+        var version = inspectResult.Data!.Version;
         var body = BuildUpdateSpec(inspectResult.Data, config);
         var image = config.Image ?? inspectResult.Data.Image;
         var result = await PostAsync(
@@ -121,7 +120,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
          (ContainsVersionConflict(result.ErrorMessage) ||
           ContainsVersionConflict(result.ResponseBody)));
 
-    private static bool ContainsVersionConflict(string value) =>
+    private static bool ContainsVersionConflict(string? value) =>
         value?.Contains("update out of sequence", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <inheritdoc />
@@ -131,9 +130,9 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     {
       var inspectResult = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
       if (!inspectResult.Success)
-        return CommandResponse<Unit>.Fail(inspectResult.Error, inspectResult.ErrorCode);
+        return CommandResponse<Unit>.Fail(inspectResult.Error ?? string.Empty, inspectResult.ErrorCode);
 
-      var version = inspectResult.Data.Version;
+      var version = inspectResult.Data!.Version;
       var escapedId = Uri.EscapeDataString(serviceId);
       var result = await PostAsync(
           $"/services/{escapedId}/update?version={Uri.EscapeDataString(version.ToString(CultureInfo.InvariantCulture))}&rollback=previous",
@@ -149,7 +148,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       if (!detach)
       {
         var postInspect = await InspectAsync(context, serviceId, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (postInspect.Success && postInspect.Data.Replicas > 0)
+        if (postInspect.Success && postInspect.Data!.Replicas > 0)
         {
           var converged = await WaitForServiceConvergenceAsync(context, serviceId, postInspect.Data.Replicas, cancellationToken).ConfigureAwait(false);
           if (!converged.Success)
@@ -258,7 +257,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         using var stream = await GetRawStreamAsync(path, cancellationToken).ConfigureAwait(false);
         // No single container backs a service's aggregated log stream, so there is nothing to
         // TTY-inspect here; the pre-1.42 gate-failure path falls back to the byte-sniff.
-        var logs = await ReadDockerLogTailAsync(stream, null, cancellationToken).ConfigureAwait(false);
+        var logs = await ReadDockerLogTailAsync(stream, null!, cancellationToken).ConfigureAwait(false);
         return CommandResponse<string>.Ok(logs);
       }
       catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

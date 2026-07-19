@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -344,14 +343,14 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private sealed class DockerImageDto
     {
-      public string ID { get; set; }
-      public string Repository { get; set; }
-      public string Tag { get; set; }
-      public string Size { get; set; }
-      public string VirtualSize { get; set; }
-      public string CreatedAt { get; set; }
-      public string Containers { get; set; }
-      public string Digest { get; set; }
+      public string ID { get; set; } = string.Empty;
+      public string Repository { get; set; } = string.Empty;
+      public string Tag { get; set; } = string.Empty;
+      public string Size { get; set; } = string.Empty;
+      public string VirtualSize { get; set; } = string.Empty;
+      public string CreatedAt { get; set; } = string.Empty;
+      public string Containers { get; set; } = string.Empty;
+      public string Digest { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -359,12 +358,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// </summary>
     private sealed class DockerHistoryDto
     {
-      public string ID { get; set; }
-      public string CreatedBy { get; set; }
-      public string CreatedAt { get; set; }
-      public string CreatedSince { get; set; }
-      public string Size { get; set; }
-      public string Comment { get; set; }
+      public string ID { get; set; } = string.Empty;
+      public string CreatedBy { get; set; } = string.Empty;
+      public string CreatedAt { get; set; } = string.Empty;
+      public string CreatedSince { get; set; } = string.Empty;
+      public string Size { get; set; } = string.Empty;
+      public string Comment { get; set; } = string.Empty;
     }
 
     private static long ParseSize(string sizeStr) => CliOutputParser.ParseByteValue(sizeStr);

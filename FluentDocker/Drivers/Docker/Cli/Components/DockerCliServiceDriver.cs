@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -399,7 +398,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
     /// Parses the JSON output from docker service inspect into a ServiceDetails.
     /// Handles the nested Version object (Version.Index).
     /// </summary>
-    internal static ServiceDetails ParseServiceInspect(string json)
+    internal static ServiceDetails? ParseServiceInspect(string json)
     {
       var root = JsonHelper.ParseElement(json);
       if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
@@ -465,7 +464,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       return details;
     }
 
-    private static void AddFilter(ref string args, string name, string value)
+    private static void AddFilter(ref string args, string name, string? value)
     {
       if (!string.IsNullOrEmpty(value))
         args += $" --filter {QuoteArgumentIfNeeded($"{name}={value}")}";

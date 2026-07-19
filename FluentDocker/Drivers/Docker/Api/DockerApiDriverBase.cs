@@ -148,7 +148,7 @@ namespace FluentDocker.Drivers.Docker.Api
     }
 
     /// <summary>Sends POST and returns the API result without a response body.</summary>
-    protected async Task<ApiResult> PostAsync(string path, object body, CancellationToken ct)
+    protected async Task<ApiResult> PostAsync(string path, object? body, CancellationToken ct)
     {
       try
       {
@@ -223,7 +223,7 @@ namespace FluentDocker.Drivers.Docker.Api
 
     /// <summary>Sends POST and returns the response as a JSON element.</summary>
     protected async Task<ApiResult<JsonElement>> PostJsonElementAsync(
-        string path, object body, CancellationToken ct)
+        string path, object? body, CancellationToken ct)
     {
       try
       {

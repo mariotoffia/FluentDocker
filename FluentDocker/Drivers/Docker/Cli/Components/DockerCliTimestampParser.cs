@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Globalization;
 using System.Linq;
@@ -29,12 +28,12 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       return true;
     }
 
-    public static bool TryParse(string value, out DateTimeOffset created)
+    public static bool TryParse(string? value, out DateTimeOffset created)
     {
       return TryParseCore(value, out created);
     }
 
-    private static bool TryParseCore(string value, out DateTimeOffset created)
+    private static bool TryParseCore(string? value, out DateTimeOffset created)
     {
       created = default;
       if (string.IsNullOrWhiteSpace(value))
@@ -91,7 +90,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
       return suffix.All(IsAsciiLetter) ? text[..lastSpace] : text;
     }
 
-    private static string NormalizeOffset(string offset)
+    private static string? NormalizeOffset(string offset)
     {
       if (offset.Length == 6 && (offset[0] == '+' || offset[0] == '-') && offset[3] == ':')
         return offset;

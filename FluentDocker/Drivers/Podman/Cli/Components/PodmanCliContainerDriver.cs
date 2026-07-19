@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -58,7 +57,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         DriverContext context, ContainerCreateConfig config,
         CancellationToken cancellationToken = default)
     {
-      string cidFile = null;
+      string? cidFile = null;
       try
       {
         cidFile = Path.Combine(DirectoryHelper.GetTempPath(), $"podman-cid-{Guid.NewGuid():N}");
@@ -395,7 +394,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
         error?.Contains("no such object", StringComparison.OrdinalIgnoreCase) == true
         || error?.Contains("no such container", StringComparison.OrdinalIgnoreCase) == true;
 
-    private async Task RemoveCidFileContainerAsync(DriverContext context, string cidFile)
+    private async Task RemoveCidFileContainerAsync(DriverContext context, string? cidFile)
     {
       var containerId = TryReadCidFile(cidFile);
       if (string.IsNullOrWhiteSpace(containerId))
@@ -416,7 +415,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
       }
     }
 
-    private static string TryReadCidFile(string cidFile)
+    private static string? TryReadCidFile(string? cidFile)
     {
       if (string.IsNullOrEmpty(cidFile) || !File.Exists(cidFile))
         return null;

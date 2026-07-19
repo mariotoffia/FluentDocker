@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -363,7 +362,7 @@ namespace FluentDocker.Drivers.Docker.Cli.Components
               $"the backend is auto-selected from the model format. Use the default backend (\"auto\") or upgrade Docker Model Runner. (requested: '{options.Backend}')",
               ErrorCodes.Model.ConfigureFailed);
 
-        sb.Append(" --backend ").Append(QuoteArgumentIfNeeded(options.Backend));
+        sb.Append(" --backend ").Append(QuoteArgumentIfNeeded(options.Backend!));
       }
 
       if (!string.IsNullOrEmpty(options.HfOverridesJson))

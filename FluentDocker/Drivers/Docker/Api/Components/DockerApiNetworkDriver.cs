@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,7 +22,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
         DriverContext context, NetworkCreateConfig config,
         CancellationToken cancellationToken = default)
     {
-      var body = new Dictionary<string, object>
+      var body = new Dictionary<string, object?>
       {
         ["Name"] = config.Name,
         ["Driver"] = config.Driver ?? "bridge",
@@ -72,7 +71,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
       var warningEl = data.Prop("Warning");
       if (warningEl != null && warningEl.Value.ValueKind == JsonValueKind.String)
-        createResult.Warnings.Add(warningEl.Value.GetString());
+        createResult.Warnings.Add(warningEl.Value.GetString()!);
 
       return CommandResponse<NetworkCreateResult>.Ok(createResult);
     }
@@ -173,7 +172,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
     public async Task<CommandResponse<NetworkPruneResult>> PruneAsync(
         DriverContext context, CancellationToken cancellationToken = default)
     {
-      var result = await PostJsonElementAsync("/networks/prune", null, cancellationToken).ConfigureAwait(false);
+      var result = await PostJsonElementAsync("/networks/prune", null!, cancellationToken).ConfigureAwait(false);
       if (!result.Success)
         return CommandResponse<NetworkPruneResult>.Fail(result.ErrorMessage,
             result.StatusCode is 599 or 408
@@ -186,7 +185,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
       var deletedEl = result.Data.Prop("NetworksDeleted");
       if (deletedEl?.ValueKind == JsonValueKind.Array)
       {
-        pruneResult.NetworksDeleted = [.. deletedEl.Value.EnumerateArray().Select(n => n.GetString())];
+        pruneResult.NetworksDeleted = [.. deletedEl.Value.EnumerateArray().Select(n => n.GetString() ?? string.Empty)];
       }
 
       return CommandResponse<NetworkPruneResult>.Ok(pruneResult);

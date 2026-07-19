@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.IO;
 using System.Text;
@@ -117,7 +116,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     private static async Task WriteHeaderAsync(
         Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode,
-        CancellationToken cancellationToken, string linkTarget = null)
+        CancellationToken cancellationToken, string? linkTarget = null)
     {
       var header = new byte[BlockSize];
       WriteName(header, entryName.Replace('\\', '/'));
@@ -147,7 +146,7 @@ namespace FluentDocker.Drivers.Docker.Api.Components
 
     private static async Task WriteHeaderWithLongNameAsync(
         Stream tar, string entryName, long size, DateTimeOffset modified, byte type, int mode,
-        CancellationToken cancellationToken, string linkTarget = null)
+        CancellationToken cancellationToken, string? linkTarget = null)
     {
       var name = entryName.Replace('\\', '/');
       if (!CanWriteName(name))

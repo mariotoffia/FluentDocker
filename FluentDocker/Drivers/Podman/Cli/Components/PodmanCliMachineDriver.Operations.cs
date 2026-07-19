@@ -1,4 +1,3 @@
-#nullable disable warnings
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -45,7 +44,7 @@ namespace FluentDocker.Drivers.Podman.Cli.Components
 
     /// <inheritdoc />
     public async Task<CommandResponse<MachineInspectResult>> InspectAsync(
-        DriverContext context, string name = null,
+        DriverContext context, string? name = null,
         CancellationToken cancellationToken = default)
     {
       try
